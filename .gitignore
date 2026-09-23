@@ -1,0 +1,14 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+bin/
+obj/
+
+# Local work and secrets
+.ai-work/
+.env
+.env.*
+!.env.example
+.DS_Store
