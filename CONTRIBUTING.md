@@ -27,7 +27,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 
 ## Verification
 
-Run the relevant checks locally before you open a pull request. The exact commands will be documented here and in the README when build tooling is added. A hosted run does not replace local verification; during bootstrap, maintainers may trigger hosted checks manually.
+Run the relevant checks locally before you open a pull request. The [release preview guide](Documentation/contributing/releases.md) documents the release guard checks; runtime build and test commands are added alongside the implementation. A hosted run does not replace local verification; during bootstrap, maintainers may trigger hosted checks manually.
 
 ## Pull requests and releases
 
