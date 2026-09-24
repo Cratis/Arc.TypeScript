@@ -6,7 +6,7 @@ import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier
 export type ClassType<T = unknown> = abstract new (...arguments_: never[]) => T;
 export type WireType = ClassType & { valueType?: WireType }; 
 export interface FieldOptions { optional?: boolean; nullable?: boolean; defaultValue?: unknown; values?: readonly (string | number | boolean)[] }
-export interface ParameterArgument { readonly kind: 'argument'; readonly name: string; readonly type: WireType; readonly optional: boolean }
+export interface ParameterArgument { readonly kind: 'argument'; readonly name: string; readonly type: WireType; readonly optional: boolean; readonly element?: WireType }
 export interface ParameterService { readonly kind: 'service'; readonly token: ServiceIdentifier<unknown> }
 export type Parameter = ParameterArgument | ParameterService;
 export interface QueryMetadata { readonly parameters?: readonly Parameter[]; readonly observable: boolean; readonly authorization?: Authorization; readonly path?: string }

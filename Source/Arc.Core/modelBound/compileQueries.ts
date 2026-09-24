@@ -36,7 +36,7 @@ export function compileQueries(type: ClassType, namespace: string): CompiledQuer
                 const folded = parameter.name.toLowerCase();
                 if (names.has(folded)) throw new Error(`Ambiguous query argument: ${type.name}.${name}.${parameter.name}`);
                 names.add(folded);
-                shape[parameter.name] = schemaFor(parameter.type, { optional: parameter.optional });
+                shape[parameter.name] = schemaFor(parameter.type, { optional: parameter.optional }, parameter.element);
             }
         }
         const authorization = metadata.methodAuthorization?.get(name) ?? metadata.authorization;
@@ -47,7 +47,7 @@ export function compileQueries(type: ClassType, namespace: string): CompiledQuer
             const resolved = await resolveAll(services);
             let index = 0;
             const arguments_ = parameters.map(parameter => parameter.kind === 'service' ? resolved[index++] :
-                decode(parameter.type, values[parameter.name]));
+                decode(parameter.type, values[parameter.name], parameter.element));
             return method.apply(type, arguments_);
         };
         const descriptor = {

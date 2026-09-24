@@ -40,7 +40,8 @@ export class ArcApplicationBuilder {
         if (root.protocol !== 'file:') throw new Error('Arc discovery requires a file URL');
         const folder = await realpath(fileURLToPath(root));
         const bootstrap = process.argv[1] ? await realpath(process.argv[1]).catch(() => undefined) : undefined;
-        if (bootstrap && (bootstrap === folder || dirname(bootstrap) === folder)) throw new Error('Arc discovery cannot import the bootstrap folder');
+        if (bootstrap && (bootstrap === folder || bootstrap.startsWith(folder + sep)))
+            throw new Error('Arc discovery cannot import the bootstrap folder');
         const files: string[] = [];
         const walk = async (directory: string): Promise<void> => {
             for (const entry of await readdir(directory, { withFileTypes: true })) {

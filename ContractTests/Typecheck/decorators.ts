@@ -17,6 +17,11 @@ class Samples {
     // @ts-expect-error unbound extra parameter
     @inject(Provider)
     extra(provider: Provider, extra: number): void { void provider; void extra; }
+    @query(argument('ids', Array, { elementType: String }))
+    static many(ids: string[]): string[] { return ids; }
+    // @ts-expect-error array element is string, not number
+    @query(argument('ids', Array, { elementType: String }))
+    static wrongElements(ids: number[]): number[] { return ids; }
     @query(argument('id', String), service(Provider))
     static named(id: string, provider: Provider): string { return id + provider.fetch(); }
     // @ts-expect-error query descriptors are ordered; reversed arguments cannot compile

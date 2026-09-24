@@ -13,6 +13,10 @@ export class Item {
     static byName(name: ItemName, items: Items): Item | undefined {
         return items.values.some(value => value.value === name.value) ? Object.assign(new Item(), { name }) : undefined;
     }
+    @query(argument('names', Array, { elementType: ItemName }), service(Items))
+    static byNames(names: ItemName[], items: Items): Item[] {
+        return items.values.filter(value => names.some(name => value.value === name.value)).map(name => Object.assign(new Item(), { name }));
+    }
     @query(argument('id', Guid))
     static byGuid(id: Guid): Item | undefined { void id; return undefined; }
 }

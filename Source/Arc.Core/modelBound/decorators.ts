@@ -7,7 +7,8 @@ import { memberMetadata, metadataFor, setClassAuthorization, setMemberAuthorizat
 
 type Value<T> = T extends StringConstructor ? string : T extends NumberConstructor ? number : T extends BooleanConstructor ? boolean : T extends ServiceClass<infer Instance> ? Instance : never;
 type Injected<T extends readonly ServiceIdentifier<unknown>[]> = { -readonly [Index in keyof T]: T[Index] extends ServiceClass<infer Instance> ? Instance : T[Index] extends ServiceToken<infer Instance> ? Instance : never };
-type ParameterValue<T extends Parameter> = T extends ParameterArgument ? T['optional'] extends true ? Value<T['type']> | undefined : Value<T['type']> : T extends ParameterService ? T['token'] extends ServiceClass<infer Instance> ? Instance : T['token'] extends ServiceToken<infer Instance> ? Instance : never : never;
+type ArgumentValue<T extends ParameterArgument> = T extends { readonly element: infer Element } ? Value<Element>[] : Value<T['type']>;
+type ParameterValue<T extends Parameter> = T extends ParameterArgument ? T['optional'] extends true ? ArgumentValue<T> | undefined : ArgumentValue<T> : T extends ParameterService ? T['token'] extends ServiceClass<infer Instance> ? Instance : T['token'] extends ServiceToken<infer Instance> ? Instance : never : never;
 type ParameterValues<T extends readonly Parameter[]> = { -readonly [Index in keyof T]: T[Index] extends Parameter ? ParameterValue<T[Index]> : never };
 type MethodDecorator<T extends readonly unknown[], AllowsPreparation extends boolean = false> = {
     <This, Arguments extends unknown[], Result>(method: (this: This, ...arguments_: Arguments) => Result,
@@ -31,9 +32,13 @@ export function readModel(options: { namespace?: string } = {}): DualClassDecora
 }
 export function argument<T extends WireType>(name: string, type: T): ParameterArgument & { readonly optional: false; readonly type: T };
 export function argument<T extends WireType>(name: string, type: T, options: { optional: true }): ParameterArgument & { readonly optional: true; readonly type: T };
-export function argument(name: string, type: WireType, options: { optional?: boolean } = {}): ParameterArgument {
+export function argument<T extends WireType, Element extends WireType>(name: string, type: T,
+    options: { elementType: Element; optional?: false }): ParameterArgument & { readonly optional: false; readonly type: T; readonly element: Element };
+export function argument<T extends WireType, Element extends WireType>(name: string, type: T,
+    options: { elementType: Element; optional: true }): ParameterArgument & { readonly optional: true; readonly type: T; readonly element: Element };
+export function argument(name: string, type: WireType, options: { optional?: boolean; elementType?: WireType } = {}): ParameterArgument {
     if (!name.trim()) throw new Error('Query argument name is required');
-    return { kind: 'argument', name, type, optional: options.optional === true };
+    return { kind: 'argument', name, type, optional: options.optional === true, element: options.elementType };
 }
 export function service<T extends ServiceClass<unknown>>(token: T): ParameterService & { readonly token: T };
 export function service<T>(token: ServiceToken<T>): ParameterService & { readonly token: ServiceToken<T> };
