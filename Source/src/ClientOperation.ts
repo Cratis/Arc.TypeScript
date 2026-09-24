@@ -4,7 +4,7 @@ import type { ClientField } from './ClientField.js';
 import type { ClientType } from './ClientType.js';
 export interface ClientOperation {
     id: string;
-    kind: 'command' | 'query';
+    kind: 'command' | 'query' | 'observable';
     route: string;
     methods: readonly string[];
     queryName?: string;

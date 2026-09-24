@@ -141,12 +141,15 @@ describe('observable query pipeline', () => {
         await server.dispose();
     });
 
-    it('should not export an ordinary query proxy for an observable query', async () => {
+    it('should export an observable descriptor with the exact qualified query name', async () => {
         const server = new ArcServer({ observableQueries: [defineObservableQuery({
-            name: 'Numbers', schema: z.object({}), clientOutput: { output: { kind: 'array', element: { kind: 'number' } } },
+            name: 'Numbers', namespace: 'Samples', schema: z.object({}),
+            clientOutput: { output: { kind: 'array', element: { kind: 'number' } } },
             observe: () => new CurrentValueSubject<number[]>()
         })] });
-        should().throw(() => exportClientManifest(server), /observable query proxy generation is not supported/);
+        const operation = exportClientManifest(server).operations[0]!;
+        operation.kind.should.equal('observable');
+        operation.queryName?.should.equal('Samples.Numbers');
         await server.dispose();
     });
 

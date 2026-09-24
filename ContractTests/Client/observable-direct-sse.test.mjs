@@ -1,6 +1,10 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { test } from 'node:test';
+import { clientTest as test, scratch } from './scratch.mjs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import express from 'express';
 import fastify from 'fastify';
@@ -8,20 +12,12 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import { Globals } from '@cratis/arc';
-import { ObservableQueryFor, QueryTransportMethod } from '@cratis/arc/queries';
-import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.server';
+import { QueryTransportMethod } from '@cratis/arc/queries';
+import { ArcServer, CurrentValueSubject, defineObservableQuery, exportClientManifest } from '@cratis/arc.server';
+import { generateClient } from '@cratis/arc.server.codegen';
 import { mountExpress } from '@cratis/arc.server.express';
 import { mountFastify } from '@cratis/arc.server.fastify';
 import { mountHono } from '@cratis/arc.server.hono';
-
-class Numbers extends ObservableQueryFor {
-    constructor() { super(Object, true); }
-    route = '/api/numbers';
-    queryName = 'Numbers';
-    defaultValue = [];
-    parameterDescriptors = [];
-    get requiredRequestParameters() { return []; }
-}
 
 // Browser-like factory backed by real fetch, not a mocked SSE transport.
 class FetchEventSource {
@@ -81,13 +77,32 @@ async function host(kind, server) {
         close: () => new Promise((resolve, reject) => listener.close(error => error ? reject(error) : resolve())) };
 }
 
-for (const kind of ['express', 'fastify', 'hono']) test(`installed client receives direct SSE from live ${kind}`, async () => {
+for (const kind of ['express', 'fastify', 'hono']) test(`generated installed client receives direct SSE from live ${kind}`, async () => {
     const subject = new CurrentValueSubject({ hasValue: true, value: [{ id: '1', name: 'first' }] });
     const pending = new CurrentValueSubject();
+    const clientOutput = { output: { kind: 'array', element: { kind: 'dto', name: 'NumberItem', fields: [
+        { name: 'id', type: { kind: 'string' } }, { name: 'name', type: { kind: 'string' } }
+    ] } } };
     const server = new ArcServer({ observableQueries: [
-        defineObservableQuery({ name: 'Numbers', schema: z.object({}), observe: () => subject }),
-        defineObservableQuery({ name: 'Pending', schema: z.object({}), observe: () => pending })
+        defineObservableQuery({ name: 'Numbers', schema: z.object({}), observe: () => subject, clientOutput }),
+        defineObservableQuery({ name: 'Pending', schema: z.object({}), observe: () => pending, clientOutput })
     ] });
+    const manifest = exportClientManifest(server);
+    assert.equal(manifest.operations[0].kind, 'observable');
+    const directory = await scratch();
+    const output = join(directory, 'src');
+    await mkdir(output);
+    await generateClient(manifest, output);
+    const proxy = await readFile(join(output, 'Numbers.proxy.ts'), 'utf8');
+    assert.match(proxy, /extends ObservableQueryFor<NumberItem\[\], NumbersParameters>/);
+    assert.match(proxy, /readonly queryName = "Numbers"/);
+    await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({
+        compilerOptions: { target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', strict: true,
+            verbatimModuleSyntax: true, skipLibCheck: false, noEmitOnError: true, outDir: './dist', rootDir: './src', types: ['node'] },
+        include: ['src/*.ts']
+    }));
+    execFileSync(resolve(import.meta.dirname, '../../node_modules/.bin/tsc'), ['-p', join(directory, 'tsconfig.json')]);
+    const { Numbers } = await import(pathToFileURL(join(directory, 'dist/Numbers.proxy.js')));
     const listening = await host(kind, server);
     const previous = { direct: Globals.queryDirectMode, method: Globals.queryTransportMethod, factory: Globals.eventSourceFactory };
     try {

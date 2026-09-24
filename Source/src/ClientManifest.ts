@@ -13,9 +13,9 @@ export interface ClientManifest {
 }
 const identifier = /^[A-Za-z][A-Za-z0-9_]*$/;
 // Generated modules use bare constructors and imports; local declarations cannot shadow them.
-const emittedBindings = new Set(['String', 'Number', 'Boolean', 'Object', 'Symbol', 'Reflect', 'TypeError', 'Error', 'Array', 'JSON', 'Promise', 'Date', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Function', 'Proxy', 'BigInt', 'RegExp', 'Math', 'undefined', 'NaN', 'Infinity', 'globalThis', 'field', 'Command', 'QueryFor', 'QueryHttpMethod', 'PropertyDescriptor', 'ParameterDescriptor']);
+const emittedBindings = new Set(['String', 'Number', 'Boolean', 'Object', 'Symbol', 'Reflect', 'TypeError', 'Error', 'Array', 'JSON', 'Promise', 'Date', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Function', 'Proxy', 'BigInt', 'RegExp', 'Math', 'undefined', 'NaN', 'Infinity', 'globalThis', 'field', 'Command', 'QueryFor', 'ObservableQueryFor', 'QueryHttpMethod', 'PropertyDescriptor', 'ParameterDescriptor']);
 const reservedQueryArguments = new Set(['page', 'pagesize', 'sortby', 'sortdirection']);
-const clientMembers = new Set(['execute', 'validate', 'perform', 'route', 'roles', 'propertyDescriptors', 'parameterDescriptors', 'requestParameters', 'requiredRequestParameters', 'defaultValue', 'queryName', 'parameters', 'paging', 'sorting', 'abortController', 'validation', 'clear', 'revertChanges', 'hasChanges', 'onPropertyChanged', 'propertyChanged', 'setInitialValues', 'setInitialValuesFromCurrentValues', 'setOrigin', 'setApiBasePath', 'setMicroservice', 'setHttpHeadersCallback', 'setHttpMethod', 'modelType', 'enumerable', 'then', 'toString', 'valueOf', 'hasOwnProperty']);
+const clientMembers = new Set(['execute', 'validate', 'perform', 'subscribe', 'dispose', 'route', 'roles', 'propertyDescriptors', 'parameterDescriptors', 'requestParameters', 'requiredRequestParameters', 'defaultValue', 'queryName', 'parameters', 'paging', 'sorting', 'abortController', 'validation', 'clear', 'revertChanges', 'hasChanges', 'onPropertyChanged', 'propertyChanged', 'setInitialValues', 'setInitialValuesFromCurrentValues', 'setOrigin', 'setApiBasePath', 'setMicroservice', 'setHttpHeadersCallback', 'setHttpMethod', 'modelType', 'enumerable', 'then', 'toString', 'valueOf', 'hasOwnProperty']);
 const keywords = new Set(['class', 'default', 'function', 'var', 'let', 'const', 'export', 'import', 'extends', 'implements', 'new', 'return', 'switch', 'case', 'if', 'else', 'void', 'null', 'true', 'false', 'enum', 'interface', 'package', 'private', 'public', 'protected', 'static', 'async', 'await', 'yield', 'delete', 'in', 'instanceof', 'this', 'super', 'try', 'catch', 'throw', 'typeof', 'with', 'do', 'while', 'for', 'break', 'continue', 'finally', 'debugger']);
 // Only generated class bindings need these restrictions; they remain valid property names.
 const forbiddenClassNames = new Set(['eval', 'arguments', 'string', 'number', 'boolean', 'object', 'symbol', 'bigint', 'any', 'unknown', 'never']);
@@ -77,22 +77,26 @@ export function validateClientManifest(value: unknown): ClientManifest {
         if (!plain(raw) || Object.keys(raw).some(key => !['id', 'kind', 'route', 'methods', 'queryName', 'roles', 'authentication', 'dynamicAuthorization', 'input', 'output'].includes(key))) fail(at, 'invalid descriptor');
         const id = raw.id;
         if (typeof id !== 'string' || id.length > 180 || keywords.has(id) || !id.split('.').every(part => identifier.test(part) && part.length <= 128 && !['constructor', 'prototype', '__proto__'].includes(part)) || emittedBindings.has(id.split('.').join('_')) || forbiddenClassNames.has(id.split('.').join('_'))) fail(at, 'unsafe qualified ID');
-        if (raw.kind !== 'command' && raw.kind !== 'query') fail(at, 'invalid operation kind');
+        if (raw.kind !== 'command' && raw.kind !== 'query' && raw.kind !== 'observable') fail(at, 'invalid operation kind');
         if (typeof raw.route !== 'string' || raw.route.length > 1024 || !/^\/(?!\/)[a-zA-Z0-9/_-]+$/.test(raw.route) || raw.route.includes('..') || raw.route.includes('//')) fail(at, 'unsafe fixed route');
         const declaredMethods = raw.methods;
         const methods = raw.kind === 'command' ? ['POST'] : Array.isArray(declaredMethods) && declaredMethods.length === 1 ? ['GET'] : ['GET', 'QUERY'];
         if (!Array.isArray(declaredMethods) || declaredMethods.length !== methods.length || methods.some((method, i) => declaredMethods[i] !== method)) fail(at, 'methods contradict client capabilities');
-        if (raw.kind === 'query' ? raw.queryName !== id : raw.queryName !== undefined) fail(at, 'queryName contradicts qualified ID');
+        if (raw.kind !== 'command' ? raw.queryName !== id : raw.queryName !== undefined)
+            fail(at, 'queryName contradicts qualified ID');
         if (!Array.isArray(raw.roles) || raw.roles.length > 128 || raw.roles.some(role => typeof role !== 'string' || !role || role.length > 256)) fail(at, 'invalid roles');
         if (typeof raw.dynamicAuthorization !== 'boolean') fail(at, 'missing dynamic authorization flag');
         if (!['anonymous', 'authenticated', 'default'].includes(raw.authentication as string) || raw.authentication === 'anonymous' && raw.roles.length || raw.authentication === 'default' && raw.roles.length)
             fail(at, 'authentication contradicts effective roles');
         const input = fields(raw.input, `${at}.input`, 0);
-        if (raw.kind === 'query' && input.some(field => reservedQueryArguments.has(field.name.toLowerCase()))) fail(at, 'reserved GET query argument');
+        if (raw.kind !== 'command' && input.some(field => reservedQueryArguments.has(field.name.toLowerCase()) ||
+            raw.kind === 'observable' && ['waitforfirstresult', 'waitforfirstresulttimeout'].includes(field.name.toLowerCase())))
+            fail(at, 'reserved GET query argument');
         const output = parseType(raw.output, `${at}.output`);
-        if (raw.kind === 'query' && (output.kind === 'void' || ['string', 'boolean', 'number', 'enum'].includes(output.kind))) fail(at, 'scalar query results can lose false/zero/empty values in published client');
+        if (raw.kind !== 'command' && (output.kind === 'void' || ['string', 'boolean', 'number', 'enum'].includes(output.kind)))
+            fail(at, 'scalar query results can lose false/zero/empty values in published client');
         if (input.some(field => field.type.kind === 'dto' || field.type.kind === 'array' && field.type.element.kind === 'dto')) fail(at, 'object input unsupported by client binder');
-        return { id, kind: raw.kind, route: raw.route, methods, ...(raw.kind === 'query' ? { queryName: id } : {}), roles: [...raw.roles].sort() as string[], authentication: raw.authentication as ClientOperation['authentication'], dynamicAuthorization: raw.dynamicAuthorization, input, output };
+        return { id, kind: raw.kind, route: raw.route, methods, ...(raw.kind !== 'command' ? { queryName: id } : {}), roles: [...raw.roles].sort() as string[], authentication: raw.authentication as ClientOperation['authentication'], dynamicAuthorization: raw.dynamicAuthorization, input, output };
     });
     // Measure only the sanitized copy: never serialize the caller's objects or execute toJSON.
     if (JSON.stringify(operations).length > 1024 * 1024) fail('root', 'manifest exceeds 1 MiB');
@@ -162,12 +166,10 @@ export function inspectClientQueryInput(schema: z.ZodType, id: string): void {
 export function exportClientManifest(server: ArcServer): ClientManifest {
     const operations = [...server.commands, ...server.queries].map(operation => {
         const id = [operation.namespace, operation.name].filter(Boolean).join('.');
-        if ('observable' in operation && operation.observable === true)
-            fail(id, 'observable query proxy generation is not supported');
         if (!operation.clientOutput) fail(id, 'missing explicit client output metadata');
         const input = inspectClientInput(operation.schema, id);
         return {
-            id, kind: operation.kind, route: operation.route,
+            id, kind: 'observable' in operation && operation.observable === true ? 'observable' : operation.kind, route: operation.route,
             methods: server.endpoints.get(operation.route)?.split(', ') ?? [],
             ...(operation.kind === 'query' ? { queryName: id } : {}),
             roles: [...operation.authorization?.roles ?? []],
