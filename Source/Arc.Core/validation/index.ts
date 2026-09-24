@@ -3,3 +3,10 @@
 export { Severity } from './Severity.js';
 export { validation } from './ValidationResult.js';
 export type { ValidationResult } from './ValidationResult.js';
+export { validator } from './validator.js';
+export { BaseValidator } from './BaseValidator.js';
+export { CommandValidator } from './CommandValidator.js';
+export { QueryValidator } from './QueryValidator.js';
+export { ConceptValidator } from './ConceptValidator.js';
+export { ModelValidator } from './ModelValidator.js';
+export type { Rule } from './Rule.js';

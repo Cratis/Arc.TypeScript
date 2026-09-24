@@ -7,12 +7,13 @@ import { isOutcome, response } from '../results/Outcome.js';
 import { reflectedParameters, resolveAll } from './dependencies.js';
 import { ownMetadata, type ClassType, type WireType } from './metadata.js';
 import { decode, encode, objectSchema } from './wireSchema.js';
+import type { ModelGraphValidator } from '../validation/ModelGraphValidator.js';
 
 export interface CompiledCommand {
     readonly definition: CommandDefinition<z.ZodType, unknown>;
     readonly dependencies: readonly ServiceIdentifier<unknown>[];
 }
-export function compileCommand(type: ClassType, namespace: string): CompiledCommand {
+export function compileCommand(type: ClassType, namespace: string, graph?: ModelGraphValidator): CompiledCommand {
     const metadata = ownMetadata(type);
     if (!metadata.command) throw new Error(`Not an Arc command: ${type.name}`);
     const prototype = type.prototype as { handle?: (...parameters: unknown[]) => unknown; provide?: () => unknown };
@@ -28,6 +29,7 @@ export function compileCommand(type: ClassType, namespace: string): CompiledComm
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
         authorization: metadata.authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
         handlerDependencies: tokens,
+        validate: graph ? async (input, context) => graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId) : undefined,
         provide: hasProvider ? async input => {
             const instance = decode(type as WireType, input) as { provide(): unknown };
             const value = await instance.provide();

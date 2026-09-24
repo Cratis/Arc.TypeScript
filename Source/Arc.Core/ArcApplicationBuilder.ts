@@ -15,6 +15,8 @@ import { compileCommand } from './modelBound/compileCommand.js';
 import { compileQueries } from './modelBound/compileQueries.js';
 import { ownMetadata, type ClassType } from './modelBound/metadata.js';
 import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
+import { BaseValidator } from './validation/BaseValidator.js';
+import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 
 interface Artifact { readonly type: ClassType; readonly namespace: string }
 export class ArcApplicationBuilder {
@@ -28,7 +30,7 @@ export class ArcApplicationBuilder {
     }
     private register(type: ClassType, namespace: string): void {
         const metadata = ownMetadata(type);
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime) return;
+        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget) return;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
@@ -72,15 +74,30 @@ export class ArcApplicationBuilder {
         const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
         const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
         const dependencies: ServiceIdentifier<unknown>[] = [];
+        const validatorTypes = new Map<ClassType, ClassType<BaseValidator<unknown>>>();
+        for (const { type } of this.#artifacts) {
+            const target = ownMetadata(type).validatorTarget;
+            if (!target) continue;
+            if (validatorTypes.has(target)) throw new Error(`Duplicate validator target: ${target.name}`);
+            validatorTypes.set(target, type as ClassType<BaseValidator<unknown>>);
+            const lifetime = ownMetadata(type).lifetime;
+            if (lifetime === 'singleton') throw new Error(`Validator ${type.name} must not be singleton`);
+            const existing = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations]
+                .find(registration => registration.token === type);
+            if (existing?.lifetime === 'singleton') throw new Error(`Validator ${type.name} must not be singleton`);
+            if (!existing) this.services[lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
+            dependencies.push(type);
+        }
+        const graph = new ModelGraphValidator(validatorTypes, this.options.logger);
         for (const { type, namespace } of this.#artifacts) {
             const metadata = ownMetadata(type);
-            if (metadata.lifetime) this.services[metadata.lifetime === 'singleton' ? 'addSingleton' : metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
+            if (metadata.lifetime && !metadata.validatorTarget) this.services[metadata.lifetime === 'singleton' ? 'addSingleton' : metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
             if (metadata.command) {
-                const compiled = compileCommand(type, namespace);
+                const compiled = compileCommand(type, namespace, graph);
                 commands.push(compiled.definition);
                 dependencies.push(...compiled.dependencies);
             }
-            if (metadata.readModel) for (const compiled of compileQueries(type, namespace)) {
+            if (metadata.readModel) for (const compiled of compileQueries(type, namespace, graph)) {
                 if (compiled.observable) observableQueries.push(compiled.definition as ObservableQueryDefinition<z.ZodType, unknown>);
                 else queries.push(compiled.definition as QueryDefinition<z.ZodType, unknown>);
                 dependencies.push(...compiled.dependencies);

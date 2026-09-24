@@ -6,15 +6,16 @@ import type { ObservableQueryDefinition } from '../queries/observable/Observable
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 import { reflectedParameters, resolveAll } from './dependencies.js';
 import { encodeObservable } from './encodeObservable.js';
-import { ownMetadata, type ClassType, type Parameter } from './metadata.js';
-import { decode, encode, schemaFor } from './wireSchema.js';
+import { ownMetadata, type ClassType, type Parameter, type WireType } from './metadata.js';
+import { decode, encode, fieldsFor, schemaFor } from './wireSchema.js';
+import type { ModelGraphValidator } from '../validation/ModelGraphValidator.js';
 
 export interface CompiledQuery {
     readonly definition: QueryDefinition<z.ZodType, unknown> | ObservableQueryDefinition<z.ZodType, unknown>;
     readonly dependencies: readonly ServiceIdentifier<unknown>[];
     readonly observable: boolean;
 }
-export function compileQueries(type: ClassType, namespace: string): CompiledQuery[] {
+export function compileQueries(type: ClassType, namespace: string, graph?: ModelGraphValidator): CompiledQuery[] {
     const metadata = ownMetadata(type);
     if (!metadata.readModel) throw new Error(`Not an Arc read model: ${type.name}`);
     const queries: CompiledQuery[] = [];
@@ -39,6 +40,13 @@ export function compileQueries(type: ClassType, namespace: string): CompiledQuer
                 shape[parameter.name] = schemaFor(parameter.type, { optional: parameter.optional }, parameter.element);
             }
         }
+        if (declaration.argumentsModel) {
+            const declared = fieldsFor(declaration.argumentsModel as WireType);
+            const arguments_ = parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
+            if (declared.length !== arguments_.length || declared.some(field =>
+                !arguments_.some(parameter => parameter.name === field.name && parameter.type === field.type)))
+                throw new Error(`Query arguments model does not match ${type.name}.${name}`);
+        }
         const authorization = metadata.methodAuthorization?.get(name) ?? metadata.authorization;
         if (authorization?.anonymous && (authorization.authenticated || authorization.roles?.length))
             throw new Error(`Conflicting Arc authorization: ${type.name}.${name}`);
@@ -54,7 +62,20 @@ export function compileQueries(type: ClassType, namespace: string): CompiledQuer
             name, namespace: [metadata.namespace ?? namespace, type.name].filter(Boolean).join('.'),
             routeNamespace: metadata.namespace ?? namespace,
             path: metadata.methodRoutes?.get(name) ?? metadata.path,
-            authorization, schema: z.object(shape), wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services
+            authorization, schema: z.object(shape), wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services,
+            validate: graph ? async (input: unknown, context: { signal: AbortSignal; correlationId: string }) => {
+                const values = input as Record<string, unknown>;
+                const arguments_ = parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
+                const decoded = Object.fromEntries(arguments_.map(parameter => [parameter.name,
+                    decode(parameter.type, values[parameter.name], parameter.element)]));
+                if (declaration.argumentsModel) return graph.validate(Object.assign(Reflect.construct(declaration.argumentsModel, []), decoded), context.signal, '', context.correlationId);
+                const results = [];
+                for (const parameter of arguments_) {
+                    const value = decoded[parameter.name];
+                    if (value != null) results.push(...await graph.validate(value, context.signal, parameter.name, context.correlationId));
+                }
+                return results;
+            } : undefined
         };
         if (declaration.observable) queries.push({
             definition: { ...descriptor, observe: async input => encodeObservable(await perform(input)) },

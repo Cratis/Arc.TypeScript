@@ -55,8 +55,8 @@ export function inject<const Tokens extends readonly ServiceIdentifier<unknown>[
     }) as MethodDecorator<Injected<Tokens>, true>;
 }
 export function query<const Parameters extends readonly Parameter[]>(...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
-export function query<const Parameters extends readonly Parameter[]>(options: { observable?: boolean }, ...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
-export function query(...declarations: readonly (Parameter | { observable?: boolean })[]): MethodDecorator<readonly unknown[]> {
+export function query<const Parameters extends readonly Parameter[]>(options: { observable?: boolean; argumentsModel?: ClassType }, ...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
+export function query(...declarations: readonly (Parameter | { observable?: boolean; argumentsModel?: ClassType })[]): MethodDecorator<readonly unknown[]> {
     const first = declarations[0];
     const options = first && !('kind' in first) ? first : {};
     const parameters = first && !('kind' in first) ? declarations.slice(1) as Parameter[] : declarations as Parameter[];
@@ -68,7 +68,7 @@ export function query(...declarations: readonly (Parameter | { observable?: bool
         const data = memberMetadata(target, name, standard ? nameOrContext : undefined);
         data.queryMethods = new Map(data.queryMethods);
         if (data.queryMethods.has(name)) throw new Error(`Duplicate query: ${name}`);
-        data.queryMethods.set(name, { parameters: parameters.length ? parameters : undefined, observable: options.observable === true });
+        data.queryMethods.set(name, { parameters: parameters.length ? parameters : undefined, observable: options.observable === true, argumentsModel: options.argumentsModel });
     }) as MethodDecorator<readonly unknown[]>;
 }
 export function injectable(...tokens: readonly ServiceIdentifier<unknown>[]): DualClassDecorator {

@@ -9,7 +9,7 @@ export interface FieldOptions { optional?: boolean; nullable?: boolean; defaultV
 export interface ParameterArgument { readonly kind: 'argument'; readonly name: string; readonly type: WireType; readonly optional: boolean; readonly element?: WireType }
 export interface ParameterService { readonly kind: 'service'; readonly token: ServiceIdentifier<unknown> }
 export type Parameter = ParameterArgument | ParameterService;
-export interface QueryMetadata { readonly parameters?: readonly Parameter[]; readonly observable: boolean; readonly authorization?: Authorization; readonly path?: string }
+export interface QueryMetadata { readonly parameters?: readonly Parameter[]; readonly observable: boolean; readonly argumentsModel?: ClassType; readonly authorization?: Authorization; readonly path?: string }
 export interface ArtifactMetadata {
     command?: boolean;
     readModel?: boolean;
@@ -24,6 +24,7 @@ export interface ArtifactMetadata {
     fieldOptions?: Map<string, FieldOptions>;
     lifetime?: 'singleton' | 'scoped' | 'transient';
     constructorTokens?: readonly ServiceIdentifier<unknown>[];
+    validatorTarget?: ClassType;
 }
 const store = new WeakMap<object, ArtifactMetadata>();
 export function metadataFor(target: object): ArtifactMetadata {
