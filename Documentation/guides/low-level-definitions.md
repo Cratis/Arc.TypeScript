@@ -1,5 +1,6 @@
 ---
 title: Use low-level command and query definitions
+description: Keep Zod-backed defineCommand and defineQuery definitions when decorators do not fit, on the same pipelines as model-bound artifacts.
 ---
 
 Model-bound classes are the default. Keep `defineCommand` and `defineQuery` when you already have Zod schemas, need explicit `validate`/`filters`, or integrate code that cannot use decorators. The definitions run through the **same ArcServer pipelines** as model-bound artifacts.

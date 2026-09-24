@@ -43,9 +43,9 @@ The first result's `data` contains an array with `{ "id": "1a638f8e-4444-4444-88
 
 ## See where the behavior lives
 
-[`RegisterTask.ts`](../Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) declares the command fields with Fundamentals `@field` and puts the work in `handle()`. [`TaskItem.ts`](../Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) declares a read model and its static `allTasks`, `taskById`, and observable `observeAllTasks` queries. Both depend on the same [`Tasks` service](../Samples/Tasks/Features/Tasks/Tasks.ts), which stores the items in memory. `TaskId` and `TaskTitle` are `ConceptAs` values, so the handler receives domain values while the wire carries strings.
+[`RegisterTask.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) declares the command fields with Fundamentals `@field` and puts the work in `handle()`. [`TaskItem.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) declares a read model and its static `allTasks`, `taskById`, and observable `observeAllTasks` queries. Both depend on the same [`Tasks` service](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Tasks.ts), which stores the items in memory. `TaskId` and `TaskTitle` are `ConceptAs` values, so the handler receives domain values while the wire carries strings.
 
-[`main.ts`](../Samples/Tasks/main.ts) registers the singleton `Tasks` service, discovers decorated artifacts under `Features/`, builds the application, and starts its standalone Node host. Arc derives route namespace segments from folders below that discovery root; moving an artifact changes its route unless you give it an explicit namespace and `@path()` override.
+[`main.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) registers the singleton `Tasks` service, discovers decorated artifacts under `Features/`, builds the application, and starts its standalone Node host. Arc derives route namespace segments from folders below that discovery root; moving an artifact changes its route unless you give it an explicit namespace and `@path()` override.
 
 `POST <command-route>/validate` runs binding and validation without calling `handle()`:
 
