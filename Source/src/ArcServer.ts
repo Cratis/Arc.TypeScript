@@ -198,7 +198,7 @@ export class ArcServer {
         try {
             const held: { session?: ObservableQuerySession } = {};
             const session = await ObservableQuerySession.open(operation, input, context, options, this.services,
-                this.options.observableEmissionGuards ?? [], () => {
+                this.options.observableEmissionGuards ?? [], this.options.development === true, () => {
                 if (held.session) this.#observableSessions.delete(held.session);
             });
             held.session = session;

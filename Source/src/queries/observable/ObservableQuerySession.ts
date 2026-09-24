@@ -29,6 +29,7 @@ export class ObservableQuerySession {
         readonly options: QueryOptions | undefined,
         readonly services: ServiceRegistry,
         readonly guards: readonly ServiceToken<ObservableEmissionGuard>[],
+        readonly development: boolean,
         context: ExecutionContext,
         readonly onClose: () => void
     ) {
@@ -38,8 +39,9 @@ export class ObservableQuerySession {
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
     static async open(operation: ObservableOperation, input: unknown, context: ExecutionContext, options: QueryOptions | undefined,
-        services: ServiceRegistry, guards: readonly ServiceToken<ObservableEmissionGuard>[], onClose: () => void): Promise<ObservableQuerySession> {
-        const session = new ObservableQuerySession(operation, input, options, services, guards, context, onClose);
+        services: ServiceRegistry, guards: readonly ServiceToken<ObservableEmissionGuard>[], development: boolean,
+        onClose: () => void): Promise<ObservableQuerySession> {
+        const session = new ObservableQuerySession(operation, input, options, services, guards, development, context, onClose);
         try {
             const result = await session.run(() => operation.run(input, session.#context) as Promise<QueryResult<ObservableSource<unknown>>>);
             session.#result = result;
@@ -75,20 +77,28 @@ export class ObservableQuerySession {
     /** Stream results in order, rendering each snapshot through the query pipeline. */
     async *results(): AsyncGenerator<QueryResult> {
         try {
-            if (this.rejection) { yield this.rejection; return; }
+            if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal)) {
                 const result = await this.run(() => this.operation.render(this.input, this.#context, this.options, value));
                 const guarded = await this.guarded(result);
                 if (!guarded) continue;
-                yield guarded;
+                yield this.redact(guarded);
                 if (!guarded.isAuthorized || guarded.hasExceptions || !guarded.isValid) return;
             }
         } catch (error) {
-            if (!this.#context.signal.aborted) yield queryResult(this.#context, { exceptionMessages: [String(error)] });
+            if (!this.#context.signal.aborted) yield queryResult(this.#context, {
+                exceptionMessages: [this.development ? String(error) : 'An unexpected error occurred']
+            });
         } finally {
             await this.close();
         }
+    }
+
+    private redact(result: QueryResult): QueryResult {
+        return this.development || !result.hasExceptions ? result : {
+            ...result, exceptionMessages: ['An unexpected error occurred'], exceptionStackTrace: ''
+        };
     }
 
     private async guarded(result: QueryResult): Promise<QueryResult | undefined> {

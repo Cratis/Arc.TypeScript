@@ -178,6 +178,22 @@ describe('observable query pipeline', () => {
         await server.dispose();
     });
 
+    it('should redact a failed source before streaming the terminal result', async () => {
+        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const server = new ArcServer({ observableQueries: [defineObservableQuery({
+            name: 'Numbers', schema: z.object({}), observe: () => subject
+        })] });
+        const session = await server.openObservableQuery('Numbers', {}, execution());
+        const stream = session.results();
+        (await stream.next()).value?.data.should.equal(1);
+        subject.error(new Error('private source failure'));
+        const failed = await stream.next();
+        failed.value?.exceptionMessages.should.deep.equal(['An unexpected error occurred']);
+        failed.value?.isSuccess.should.equal(false);
+        should().equal((await stream.next()).done, true);
+        await server.dispose();
+    });
+
     it('should not expose a suppressed current value over HTTP', async () => {
         const token = serviceToken<ObservableEmissionGuard>('suppress snapshots');
         const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
