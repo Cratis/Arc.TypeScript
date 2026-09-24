@@ -42,6 +42,49 @@ The connection string above uses the SDK's development credentials and accepts t
 
 Pass `eventStore` in either case. Every append and read uses the current execution's tenant as the Chronicle namespace.
 
+## Return Arc commands from reactors
+
+With Chronicle SDK 6.6.0 or later, a reactor may return an `@command()` instance or a nonempty array containing **only** Arc commands. Arc executes each command through its validation, authorization, and normal command pipeline, in the triggering event's namespace. A failed command throws at the reactor boundary, so the observer partition fails rather than acknowledging a partial side effect. The commands run in order; a later failure does not undo an earlier committed command. Keep side effects idempotent for re-delivery.
+
+For example, a reactor can translate a recorded event into another command's intent:
+
+```typescript
+import { reactor } from '@cratis/chronicle/reactors';
+import type { EventContext } from '@cratis/chronicle/events';
+import { executeCommandsAsSystem } from '@cratis/arc.chronicle';
+import { LiveCreated, FollowUpLive } from './LiveArtifacts.js';
+
+@executeCommandsAsSystem('writers')
+@reactor()
+export class LiveCommandReactor {
+    liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
+        return Object.assign(new FollowUpLive(), { id: context.eventSourceId, name: event.name });
+    }
+}
+```
+
+`LiveCreated` is an SDK `@eventType()` class; `FollowUpLive` is an Arc `@command()` with `@field(String) @key() id` and a `@field(String) name`. The exact integration example is exercised in the [live suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts).
+
+With an Arc-owned client (`{ connectionString, eventStore }`), `addChronicle` installs the result handler before observations begin. For a caller-owned client, pass the handler to the SDK when creating the client **before connecting it**:
+
+```typescript
+import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
+import { reactorCommandResultHandler } from '@cratis/arc.chronicle';
+
+// Capture the application built later; the SDK invokes this only during observation.
+let application: Awaited<ReturnType<typeof builder.build>>;
+const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
+    clientArtifactsProvider: artifacts,
+    reactorResultHandler: reactorCommandResultHandler(() => application.server, 'Tasks')
+}));
+builder.addChronicle({ eventStore: 'Tasks', client });
+application = await builder.build();
+```
+
+Here `builder`, `connectionString`, and `artifacts` are your configured Arc builder, Chronicle connection string, and SDK artifact provider. Register reactor, command, and event types before building. `reactorCommandResultHandler` declines event-only returns so Chronicle appends them using its own event-side-effect path. **Do not mix returned commands with events or other values in one array**: Arc rejects the mixture rather than silently dropping an item. Return either all commands or all events.
+
+Returned commands have no Arc principal by default, as in .NET. When a command requires a system role, decorate the **reactor class** with `@executeCommandsAsSystem('role-name')` from `@cratis/arc.chronicle`. This supplies a system principal to returned commands (not to imperative calls made inside the reactor). The SDK identity for their appends is the triggering event's identity by default, or the system identity when the decorator is present; the command's causation includes the event source, event type, sequence number, store, and namespace. The commands retain the triggering event's correlation ID. No distributed transaction spans the reactor's commands and the triggering event.
+
 ## Related
 
 - [Returning events](commands/index.md)

@@ -29,6 +29,6 @@ export function runChronicleCommand(context: CommandContext, execute: () => Prom
         correlationIdManager.run(new CorrelationId(context.correlationId), () =>
             causationManager.run(new CausationType('Arc.Command'), properties, async () => {
                 const result = await execute();
-                return outer ? unit.nestedCompleted(result) : unit.commit(result);
+                return outer ? unit.nestedCompleted(result) : result;
             }))));
 }
