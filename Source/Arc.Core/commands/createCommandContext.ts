@@ -13,7 +13,7 @@ export async function createCommandContext(command: unknown, execution: Executio
     for (const token of options.commandContextValuesProviders ?? []) values.merge(await (await services.resolve(token)).provide(command));
     if (!values.has('resolvedKey')) {
         let key: string | undefined;
-        for (const token of options.commandKeyProviders ?? []) {
+        for (const token of options.commandKeyResolvers ?? []) {
             key = (await services.resolve(token)).resolve(command);
             if (key) break;
         }

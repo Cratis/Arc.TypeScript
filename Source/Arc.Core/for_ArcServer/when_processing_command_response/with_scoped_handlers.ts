@@ -32,7 +32,7 @@ class a_command_with_scoped_handlers {
                 { token: values, lifetime: 'scoped', factory: () => ({ provide: () => ({ count: 1, COUNT: 2 }) }) },
                 { token: keys, lifetime: 'scoped', factory: () => ({ resolve: () => 'key-7' }) }
             ],
-            commandContextValuesProviders: [values], commandKeyProviders: [keys],
+            commandContextValuesProviders: [values], commandKeyResolvers: [keys],
             commandResponseValueHandlers: [first, second],
             commands: [defineCommand({ name: 'Run', schema: z.object({}), handle: () => tuple('reply', 'effect') })]
         });
@@ -44,8 +44,8 @@ describe('when processing a command response with scoped handlers', given(a_comm
         result = await context.server.executeCommand('Run', {}, { correlationId: 'response', allowedSeverity: 2,
             principal: undefined, tenantId: 'tenant', signal: new AbortController().signal });
     });
-    it('should select the first handler and expose merged values and the command key', () => {
-        context.calls.should.deep.equal(['first key-7 2']);
+    it('should run every matching handler and expose merged values and the command key', () => {
+        context.calls.should.deep.equal(['first key-7 2', 'second']);
         (result.response as string).should.equal('reply');
     });
 }));

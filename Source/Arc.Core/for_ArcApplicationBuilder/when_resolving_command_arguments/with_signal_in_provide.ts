@@ -1,11 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { beforeEach, describe, it, should } from 'vitest';
-import { ArcApplication, command, inject, signal } from '../../index.js';
+import { ArcApplication, command, inject, abortSignal } from '../../index.js';
 should();
 @command()
 class PrepareWithSignal {
-    @inject(signal())
+    @inject(abortSignal())
     provide(current: AbortSignal): string { return current.aborted ? 'canceled' : 'active'; }
     handle(value: string): string { return value; }
 }

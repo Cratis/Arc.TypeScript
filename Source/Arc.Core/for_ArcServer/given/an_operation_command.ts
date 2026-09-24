@@ -30,6 +30,7 @@ export class an_operation_command {
     disposition: CommandCommitDisposition = 'NoCommit';
     afterCompletion?: CommandCommitDisposition;
     eraseFailure = false;
+    failCompletion = false;
     seen?: CommandContext;
     constructor() {
         this.server = new ArcServer({
@@ -42,6 +43,7 @@ export class an_operation_command {
                         this.events.push('complete');
                         if (this.afterCompletion) this.disposition = this.afterCompletion;
                         if (this.eraseFailure) { result.exceptionMessages = []; result.isSuccess = true; }
+                        if (this.failCompletion) throw new Error('scope failed');
                     } })] })],
             commandResponseValueHandlers: [],
         });

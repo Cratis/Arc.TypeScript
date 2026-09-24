@@ -9,7 +9,7 @@ export type { CommandResult } from './CommandResult.js';
 export type { CommandContext } from './CommandContext.js';
 export { CommandContextValues } from './CommandContextValues.js';
 export type { CommandContextValuesProvider } from './CommandContextValuesProvider.js';
-export type { CommandKeyProvider, CanProvideKeyForCommand } from './CommandKeyProvider.js';
+export type { CommandKeyResolver, CanProvideKeyForCommand } from './CommandKeyResolver.js';
 export { DefaultKeyForCommandResolver } from './DefaultKeyForCommandResolver.js';
 export type { CommandResponseValueHandler } from './CommandResponseValueHandler.js';
 export { commandResponseValueHandler } from './responseValueHandler.js';
@@ -20,5 +20,5 @@ export type { CommandOperationExecutionScope } from './CommandExecutionScope.js'
 export type { CommandOperationFailure } from './CommandOperationFailure.js';
 export type { CommandOperationOutcome } from './CommandOperationOutcome.js';
 export type { CommandRecoverySummary } from './CommandRecoverySummary.js';
-export { signal, context } from './modelBound/commandArgument.js';
+export { abortSignal, commandContext } from './modelBound/commandArgument.js';
 export { provided } from './modelBound/provided.js';

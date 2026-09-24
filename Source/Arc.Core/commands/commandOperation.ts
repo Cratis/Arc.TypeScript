@@ -8,16 +8,14 @@ import { authorized } from '../authorization/authorized.js';
 import { commandResult } from '../results/commandResult.js';
 import { malformed } from '../results/malformed.js';
 import type { Operation } from '../http/Operation.js';
-import { hasFailure, originalFailure, recordFailure } from '../results/failureTracking.js';
+import { recordFailure } from '../results/failureTracking.js';
+import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
-import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { prepareDependencies, dependencyFailure, validate, validatorFailure } from './OperationValidation.js';
 import { createCommandContext } from './createCommandContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
-import { flattenCommandResponse, processCommandResponse } from './processCommandResponse.js';
-import { CommandOperation } from './CommandOperationDeclaration.js';
-import { isCommandOperations } from './CommandOperations.js';
+import { prepareCommandResponse } from './prepareCommandResponse.js';
 import { CommandOperationExecution } from './CommandOperationExecution.js';
 import { setCommandRecovery } from './commandRecovery.js';
 import type { CommandExecutionScope, CommandOperationExecutionScope } from './CommandExecutionScope.js';
@@ -74,33 +72,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 let result: CommandResult = commandResult(context);
                 let journal: CommandOperationExecution | undefined;
                 let source: 'response' | 'execution' | 'cancellation' | 'scope' = 'response';
-                let original: CommandResult | undefined;
-                let validatedResponse: unknown;
-                let validatedSnapshot: string | undefined;
-                const capture = (): void => {
-                    if (!result.isSuccess && !original) {
-                        original = commandResult(context, {
-                            isAuthorized: result.isAuthorized, authorizationFailureReason: result.authorizationFailureReason,
-                            validationResults: [...result.validationResults], exceptionMessages: [...result.exceptionMessages],
-                            exceptionStackTrace: result.exceptionStackTrace
-                        });
-                        if (hasFailure(result)) recordFailure(original, originalFailure(result));
-                    }
-                };
-                const restore = (): void => {
-                    const snapshot = original;
-                    if (!snapshot || !journal) return;
-                    const previous = result;
-                    result = commandResult(context, {
-                        isAuthorized: result.isAuthorized && snapshot.isAuthorized,
-                        authorizationFailureReason: result.authorizationFailureReason || snapshot.authorizationFailureReason,
-                        validationResults: [...snapshot.validationResults, ...result.validationResults.filter(item => !snapshot.validationResults.includes(item))],
-                        exceptionMessages: [...snapshot.exceptionMessages, ...result.exceptionMessages.filter(item => !snapshot.exceptionMessages.includes(item))],
-                        exceptionStackTrace: snapshot.exceptionStackTrace || result.exceptionStackTrace
-                    });
-                    if (hasFailure(previous)) recordFailure(result, originalFailure(previous));
-                    else if (hasFailure(snapshot)) recordFailure(result, originalFailure(snapshot));
-                };
+                const snapshot = new CommandFailureSnapshot(context);
                 try {
                     await prepareDependencies(definition.handlerDependencies);
                     for (const create of definition.scopes ?? []) {
@@ -120,22 +92,12 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                         }
                     }
                     if (result.isSuccess) {
-                        const leaves = flattenCommandResponse(await definition.handle(value, context, provided));
-                        const declarations = leaves.flatMap(item => item instanceof CommandOperation ? [item] :
-                            isCommandOperations(item) ? [...item.values] : []);
-                        if (declarations.length || leaves.some(isCommandOperations)) {
-                            if (scopes.some(scope => !('getCommitDisposition' in scope) || !('isCommitParticipant' in scope)))
-                                throw new Error('Command operations require explicitly compatible execution scopes');
-                            journal = await CommandOperationExecution.plan(declarations, options.commandCompensationTimeoutMs ?? 30_000);
-                        }
-                        const handlers = await Promise.all((options.commandResponseValueHandlers ?? []).map(token => currentServices().resolve(token)));
-                        result = await processCommandResponse(context, leaves, handlers, journal !== undefined);
+                        ({ result, journal } = await prepareCommandResponse(
+                            await definition.handle(value, context, provided), context, scopes, options));
                         if (definition.clientOutput && result.isSuccess) {
                             result.response = assertClientOutput(definition.clientOutput.output, result.response);
-                            validatedResponse = result.response;
-                            validatedSnapshot = JSON.stringify(result.response);
                         }
-                        capture();
+                        snapshot.capture(result);
                         if (journal && result.isSuccess) {
                             const before = disposition(scopes, context);
                             if (before !== 'NoCommit' && before !== 'NotCommitted')
@@ -147,30 +109,32 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 } catch (error) {
                     source = context.signal.aborted ? 'cancellation' : source;
                     result = failure(context, error, result);
-                    capture();
+                    snapshot.capture(result);
                 } finally {
                     for (const scope of scopes.reverse()) {
-                        restore();
+                        if (journal) result = snapshot.restore(result);
                         try { await scope.complete(context, result); }
-                        catch (error) { result = failure(context, error, result); source = 'scope'; }
-                        capture();
+                        catch (error) {
+                            if (!snapshot.original) source = 'scope';
+                            result = failure(context, error, result);
+                        }
+                        snapshot.capture(result);
                     }
-                    restore();
+                    if (journal) result = snapshot.restore(result);
                     if (definition.clientOutput && result.isSuccess) {
                         try {
-                            if (result.response !== validatedResponse || JSON.stringify(result.response) !== validatedSnapshot)
-                                result.response = assertClientOutput(definition.clientOutput.output, result.response);
-                        } catch (error) { result = failure(context, error, result); capture(); }
+                            result.response = assertClientOutput(definition.clientOutput.output, result.response);
+                        } catch (error) { result = failure(context, error, result); snapshot.capture(result); }
                     }
                     if (journal) {
                         let commit: CommandCommitDisposition = 'Unknown';
                         try { commit = disposition(scopes, context); }
-                        catch (error) { result = failure(context, error, result); capture(); }
+                        catch (error) { result = failure(context, error, result); snapshot.capture(result); }
                         if (result.isSuccess && (commit === 'Unknown' || commit === 'Mixed')) {
                             result = failure(context, new Error(`Command commit disposition is ${commit}`), result);
-                            capture();
+                            snapshot.capture(result);
                         }
-                        const messages = original?.exceptionMessages ?? result.exceptionMessages;
+                        const messages = snapshot.original?.exceptionMessages ?? result.exceptionMessages;
                         const recovery = await journal.recover(commit, !result.isSuccess && !messages.length ?
                             ['Command failed'] : messages, source);
                         setCommandRecovery(result, recovery, journal.outcomes);

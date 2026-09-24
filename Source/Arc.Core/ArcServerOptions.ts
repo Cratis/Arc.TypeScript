@@ -17,7 +17,7 @@ import type { ServiceToken } from './dependencyInjection/ServiceToken.js';
 import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
-import type { CommandKeyProvider } from './commands/CommandKeyProvider.js';
+import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 /** Options shared by the low-level Arc server and model-bound application builder. */
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
@@ -26,7 +26,7 @@ export interface ArcServerOptions {
     /** Ordered, scoped command value providers. */
     commandContextValuesProviders?: readonly ServiceIdentifier<CommandContextValuesProvider>[];
     /** Application key rules run before the default @key/getKey rule. */
-    commandKeyProviders?: readonly ServiceIdentifier<CommandKeyProvider>[];
+    commandKeyResolvers?: readonly ServiceIdentifier<CommandKeyResolver>[];
     /** Shared, cooperative compensation budget (default 30 seconds). */
     commandCompensationTimeoutMs?: number;
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];

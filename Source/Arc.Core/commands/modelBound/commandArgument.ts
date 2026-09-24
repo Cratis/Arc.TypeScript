@@ -9,9 +9,9 @@ import { providedType } from './provided.js';
 const signalToken = serviceToken<AbortSignal>('Arc command signal');
 const contextToken = serviceToken<CommandContext>('Arc command context');
 /** Explicit AbortSignal parameter marker for @inject on handle() or provide(). */
-export function signal(): typeof signalToken { return signalToken; }
+export function abortSignal(): typeof signalToken { return signalToken; }
 /** Explicit CommandContext parameter marker for @inject on handle() or provide(). */
-export function context(): typeof contextToken { return contextToken; }
+export function commandContext(): typeof contextToken { return contextToken; }
 /** Resolve service tokens alongside built-in command arguments. */
 export async function resolveCommandArguments(tokens: readonly ServiceIdentifier<unknown>[], command: CommandContext,
     provided: unknown = undefined): Promise<unknown[]> {

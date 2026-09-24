@@ -1,6 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
+import { Fields } from '@cratis/fundamentals';
+import type { CommandContext } from '../CommandContext.js';
+import { keyFieldFor } from '../../reflection/key.js';
 import type { CommandDefinition } from '../CommandDefinition.js';
 import { isOutcome } from '../../results/Outcome.js';
 import { reflectedParameters } from '../../reflection/reflectedParameters.js';
@@ -19,6 +22,9 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     if (!metadata.command) throw new Error(`Not an Arc command: ${type.name}`);
     const prototype = type.prototype as { handle?: (...parameters: unknown[]) => unknown; provide?: (...parameters: unknown[]) => unknown };
     if (typeof prototype.handle !== 'function') throw new Error(`Command ${type.name} requires handle()`);
+    const keyField = keyFieldFor(type);
+    if (keyField && !Fields.getFieldsForType(type as never).some((field: { name: string }) => field.name === keyField))
+        throw new Error(`@key on ${type.name}.${keyField} requires @field`);
     const hasProvider = typeof prototype.provide === 'function';
     let tokens = metadata.injected?.get('handle') ?? [];
     const typedPreparation = tokens.some(token => !!providedType(token));
@@ -28,12 +34,12 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     if (metadata.injected?.has('handle') && !tokens.length && count) {
         tokens = reflectedParameters(type.prototype, 'handle', count, Number(hasProvider));
     }
-    if (tokens.length !== count) throw new Error(`Unbound handle parameters on ${type.name}.handle`);
+    if (tokens.length !== count) throw new Error(`Unbound handle parameters on ${type.name}.handle; default and rest parameters require explicit binding`);
     const provideCount = hasProvider ? prototype.provide!.length : 0;
     let provideTokens = metadata.injected?.get('provide') ?? [];
     if (hasProvider && metadata.injected?.has('provide') && !provideTokens.length && provideCount)
         provideTokens = reflectedParameters(type.prototype, 'provide', provideCount, 0);
-    if (provideTokens.length !== provideCount) throw new Error(`Unbound provide parameters on ${type.name}.provide`);
+    if (provideTokens.length !== provideCount) throw new Error(`Unbound provide parameters on ${type.name}.provide; default and rest parameters require explicit binding`);
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
@@ -43,16 +49,16 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
         validate: graph ? async (input, context) =>
             graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId) : undefined,
         provide: hasProvider ? async (_input, context) => {
-            const instance = (context as import('../CommandContext.js').CommandContext).command as { provide(...parameters: unknown[]): unknown };
-            const value = await instance.provide(...await resolveCommandArguments(provideTokens, context as import('../CommandContext.js').CommandContext));
+            const instance = (context as CommandContext).command as { provide(...parameters: unknown[]): unknown };
+            const value = await instance.provide(...await resolveCommandArguments(provideTokens, context as CommandContext));
             if (isOutcome(value)) return value.kind === 'response' ? { instance, value: value.value } : value;
             return { instance, value };
         } : undefined,
         handle: async (_input, context, provided) => {
             const preparation = provided as { instance: { handle(...parameters: unknown[]): unknown }; value: unknown } | undefined;
             const instance = hasProvider ? preparation!.instance :
-                (context as import('../CommandContext.js').CommandContext).command as { handle(...parameters: unknown[]): unknown };
-            const services = await resolveCommandArguments(tokens, context as import('../CommandContext.js').CommandContext, preparation?.value);
+                (context as CommandContext).command as { handle(...parameters: unknown[]): unknown };
+            const services = await resolveCommandArguments(tokens, context as CommandContext, preparation?.value);
             const result = await instance.handle(...(hasProvider && !typedPreparation ? [preparation!.value] : []), ...services);
             return encodeCommandResponse(result);
         }

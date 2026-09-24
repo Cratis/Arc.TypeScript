@@ -3,7 +3,7 @@
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { CommandContext } from './CommandContext.js';
 import type { CommandCommitDisposition } from './CommandCommitDisposition.js';
-import { CommandOperation } from './CommandOperationDeclaration.js';
+import { isCommandOperation, type CommandOperation } from './CommandOperationDeclaration.js';
 import { CommandOperationBoundary } from './CommandOperationBoundary.js';
 import type { CommandOperationFailure } from './CommandOperationFailure.js';
 import type { CommandOperationOutcome } from './CommandOperationOutcome.js';
@@ -21,7 +21,7 @@ export class CommandOperationExecution {
         if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 4_294_967_294)
             throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
         for (const operation of operations) {
-            if (!(operation instanceof CommandOperation) || typeof operation.execute !== 'function' ||
+            if (!isCommandOperation(operation) || typeof operation.execute !== 'function' ||
                 operation.compensate !== undefined && typeof operation.compensate !== 'function' ||
                 operation.executeDependencies !== undefined && !Array.isArray(operation.executeDependencies) ||
                 operation.compensateDependencies !== undefined && !Array.isArray(operation.compensateDependencies) ||
@@ -29,7 +29,7 @@ export class CommandOperationExecution {
                 throw new Error('Invalid command operation declaration');
             if (operation.execute.length !== 1 + (operation.executeDependencies?.length ?? 0) ||
                 operation.compensate && operation.compensate.length !== 2 + (operation.compensateDependencies?.length ?? 0))
-                throw new Error('Command operation dependency declarations do not match method parameters');
+                throw new Error('Command operation methods require explicit signal and dependency parameters; default and rest parameters are unsupported');
         }
         const services = currentServices();
         const planned = new CommandOperationExecution(timeoutMs);

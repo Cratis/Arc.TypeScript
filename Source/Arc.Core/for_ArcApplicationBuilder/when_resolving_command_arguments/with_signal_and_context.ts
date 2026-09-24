@@ -2,13 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
 import { beforeEach, describe, it, should } from 'vitest';
-import { ArcApplication, command, context, inject, key, signal } from '../../index.js';
+import { ArcApplication, command, commandContext, inject, key, abortSignal } from '../../index.js';
 import type { CommandContext } from '../../commands/CommandContext.js';
 should();
 @command()
 class ResolveCommand {
     @field(String) @key() id!: string;
-    @inject(signal(), context())
+    @inject(abortSignal(), commandContext())
     handle(signalValue: AbortSignal, commandContext: CommandContext): string {
         return `${commandContext.key}:${commandContext.command === this}:${signalValue === commandContext.signal}`;
     }

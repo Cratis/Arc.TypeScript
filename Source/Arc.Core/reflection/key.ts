@@ -17,4 +17,11 @@ export function key(): (target: object | undefined, nameOrContext: string | symb
     };
 }
 /** Read the explicitly marked field from either decorator mode. */
-export function keyFieldFor(type: ClassType): string | undefined { return ownMetadata(type).keyField; }
+export function keyFieldFor(type: ClassType): string | undefined {
+    for (let current: ClassType | undefined = type; current && current !== Function.prototype;
+        current = Object.getPrototypeOf(current) as ClassType | undefined) {
+        const field = ownMetadata(current).keyField;
+        if (field) return field;
+    }
+    return undefined;
+}

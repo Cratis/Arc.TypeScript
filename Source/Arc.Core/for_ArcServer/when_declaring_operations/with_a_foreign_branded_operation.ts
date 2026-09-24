@@ -5,17 +5,16 @@ import { given } from '../../given.js';
 import { an_operation_command } from '../given/an_operation_command.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
-describe('when an operation fails with an unknown commit', given(an_operation_command, context => {
+describe('when another package copy declares a branded operation', given(an_operation_command, context => {
     let result: CommandResult;
     beforeEach(async () => {
-        context.disposition = 'NoCommit';
-        context.afterCompletion = 'Unknown';
-        context.twoOperations();
+        context.value = { [Symbol.for('@cratis/arc.core/CommandOperation')]: true,
+            execute: (signal: AbortSignal) => { void signal; context.events.push('foreign execute'); } };
         result = await context.server.executeCommand('Run', context.command, context.context);
     });
-    it('should refuse to start operations after an unknown commit', () => {
-        context.events.should.deep.equal(['begin', 'execute first', 'execute second', 'complete']);
-        result.recovery!.status.should.equal('Indeterminate');
-        result.isSuccess.should.equal(false);
+    it('should execute it instead of returning it to the client', () => {
+        result.isSuccess.should.equal(true);
+        context.events.should.deep.equal(['begin', 'foreign execute', 'complete']);
+        (result.response === undefined).should.equal(true);
     });
 }));

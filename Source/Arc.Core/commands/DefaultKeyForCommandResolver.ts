@@ -3,9 +3,9 @@
 import { ConceptAs } from '@cratis/fundamentals';
 import { keyFieldFor } from '../reflection/key.js';
 import type { ClassType } from '../reflection/ClassType.js';
-import type { CanProvideKeyForCommand, CommandKeyProvider } from './CommandKeyProvider.js';
+import type { CanProvideKeyForCommand, CommandKeyResolver } from './CommandKeyResolver.js';
 /** Resolves only keys explicitly composed by a command or marked with @key(). */
-export class DefaultKeyForCommandResolver implements CommandKeyProvider {
+export class DefaultKeyForCommandResolver implements CommandKeyResolver {
     resolve(command: unknown): string | undefined {
         if (!command || typeof command !== 'object') return undefined;
         const provided = 'getKey' in command && typeof command.getKey === 'function'

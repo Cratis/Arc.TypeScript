@@ -24,7 +24,7 @@ import { BaseValidator } from './validation/BaseValidator.js';
 import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
-import type { CommandKeyProvider } from './commands/CommandKeyProvider.js';
+import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
 export class ArcApplicationBuilder {
@@ -32,7 +32,7 @@ export class ArcApplicationBuilder {
     readonly #artifacts: Artifact[] = [];
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
-    readonly #keyProviders: ServiceIdentifier<CommandKeyProvider>[] = [];
+    readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
@@ -47,8 +47,8 @@ export class ArcApplicationBuilder {
         return this;
     }
     /** Add a key resolver before the built-in @key/getKey resolver. */
-    addCommandKeyProvider(token: ServiceIdentifier<CommandKeyProvider>): this {
-        this.#keyProviders.push(token);
+    addCommandKeyResolver(token: ServiceIdentifier<CommandKeyResolver>): this {
+        this.#keyResolvers.push(token);
         return this;
     }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
@@ -117,16 +117,16 @@ export class ArcApplicationBuilder {
         const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
         const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
         this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
-        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyProviders,
+        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers,
             ...this.options.commandResponseValueHandlers ?? [], ...this.options.commandContextValuesProviders ?? [],
-            ...this.options.commandKeyProviders ?? []);
+            ...this.options.commandKeyResolvers ?? []);
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
             throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
         const server = new ArcServer({ ...this.options, commands, queries, observableQueries,
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
             commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
-            commandKeyProviders: [...this.options.commandKeyProviders ?? [], ...this.#keyProviders],
+            commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }

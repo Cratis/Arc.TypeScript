@@ -45,6 +45,10 @@ export class ArcServer {
 
     constructor(options: ArcServerOptions) {
         this.options = options;
+        if (options.commandCompensationTimeoutMs !== undefined &&
+            (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
+                options.commandCompensationTimeoutMs > 4_294_967_294))
+            throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
         validateTenancy(options.tenancy);
         if (options.nativePrincipal && options.authentication?.length) throw new Error('Native principal and Arc authentication handlers cannot be combined');
         if (options.identityDetails && (!(options.identityDetails.schema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function' || options.identityDetailsSchema))
@@ -121,9 +125,9 @@ export class ArcServer {
     }
 
     private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly = false): Promise<CommandResult | QueryResult> {
-        if (operation.kind === 'command' && CommandOperationBoundary.attempt())
+        if (operation.kind === 'command' && CommandOperationBoundary.attempt(this))
             return Promise.resolve(commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
-        return this.runOwned(context, async () => {
+        const run = () => this.runOwned(context, async () => {
             try { return await operation.run(input, context, options, validateOnly); }
             catch (error) {
                 const result = operation.kind === 'command'
@@ -139,6 +143,7 @@ export class ArcServer {
             recordFailure(result, error, previous);
             return result;
         });
+        return operation.kind === 'command' ? CommandOperationBoundary.command(this, run) : run();
     }
 
     async dispose(): Promise<void> {
@@ -194,7 +199,6 @@ export class ArcServer {
         return this.executeCommand([operation.namespace, operation.name].filter(Boolean).join('.'), encode(command), context, validateOnly);
     }
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
-        if (CommandOperationBoundary.attempt()) return commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] });
         const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
         return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, validateOnly) as Promise<CommandResult>;
