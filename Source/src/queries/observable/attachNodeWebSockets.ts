@@ -6,63 +6,79 @@ import { TLSSocket } from 'node:tls';
 import { WebSocketServer } from 'ws';
 import type { ArcServer } from '../../ArcServer.js';
 import type { NativeRequestContext } from '../../NativeRequestContext.js';
-import { isObservableOperation } from './ObservableOperation.js';
+import { correlation } from '../../security.js';
 import { directWebSocket } from './directWebSocket.js';
+import { prepareObservableUpgrade } from './prepareObservableUpgrade.js';
 import { WebSocketTransport } from './WebSocketTransport.js';
 
 const bridges = new WeakMap<ArcServer, Map<HttpServer, () => Promise<void>>>();
+const reasons: Record<number, string> = {
+    400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+    408: 'Request Timeout', 426: 'Upgrade Required', 500: 'Internal Server Error', 503: 'Service Unavailable'
+};
 
-/** Attach the Node upgrade bridge without replacing another application's upgrade handlers. */
+/** Node upgrade bridge; an async trusted host callback runs before the WebSocket handshake. */
 export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
-    native?: (request: IncomingMessage) => Omit<NativeRequestContext, 'secure'>): () => Promise<void> {
+    native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
     const owned = bridges.get(arc) ?? new Map<HttpServer, () => Promise<void>>();
     if (owned.has(host)) throw new Error('Arc WebSocket bridge is already mounted on this server');
-    const webSockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
+    const webSockets = new WebSocketServer({ noServer: true, maxPayload: arc.observableLimits.inboundFrameBytes,
+        perMessageDeflate: false });
     const connections = new Set<{ transport: WebSocketTransport; work: Promise<void> }>();
     const onUpgrade = (request: IncomingMessage, socket: Socket, head: Buffer): void => {
         const raw = request.url ?? '';
         const path = raw.split('?')[0];
-        if (!path) return;
-        if (!arc.endpoints.has(path)) {
-            try {
-                if (arc.endpoints.has(decodeURIComponent(path))) socket.destroy();
-            } catch { socket.destroy(); }
+        const correlationHeader = (arc.options.correlationHeader ?? 'X-Correlation-ID').toLowerCase();
+        const inbound = request.headers[correlationHeader];
+        const correlationId = correlation(typeof inbound === 'string' ? inbound : null);
+        const reject = (code: number): void => {
+            if (socket.destroyed) return;
+            socket.setTimeout(0);
+            const retry = code === 503 ? 'Retry-After: 1\r\n' : '';
+            socket.end(`HTTP/1.1 ${code} ${reasons[code]}\r\nConnection: close\r\nContent-Length: 0\r\n` +
+                `${arc.options.correlationHeader ?? 'X-Correlation-ID'}: ${correlationId}\r\n${retry}\r\n`, () => socket.destroy());
+        };
+        if (!path || !arc.endpoints.has(path)) {
+            let ownedAlias: boolean;
+            try { ownedAlias = !!path && arc.endpoints.has(decodeURIComponent(path)); }
+            catch { ownedAlias = true; }
+            if (ownedAlias || host.listenerCount('upgrade') === 1) reject(404);
             return;
         }
-        let url: URL;
-        try { url = new URL(raw, 'http://arc.invalid'); }
-        catch { socket.destroy(); return; }
-        const operation = arc.routes.get(path);
-        if (url.origin !== 'http://arc.invalid' || url.pathname !== path ||
-            path !== '/.cratis/queries/ws' && (!operation || !isObservableOperation(operation))) {
-            socket.destroy();
-            return;
-        }
-        const origin = request.headers.origin;
-        const secure = request.socket instanceof TLSSocket && request.socket.encrypted === true;
-        if (origin && origin !== `${secure ? 'https' : 'http'}://${request.headers.host}`) {
-            socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
-            socket.destroy();
-            return;
-        }
-        try {
+        const perform = async (): Promise<void> => {
+            let url: URL;
+            try { url = new URL(raw, 'http://arc.invalid'); }
+            catch { reject(400); return; }
+            if (url.origin !== 'http://arc.invalid' || url.pathname !== path) { reject(400); return; }
+            socket.setTimeout(arc.observableLimits.handshakeTimeoutMs, () => reject(408));
+            const provided = await native?.(request);
+            if (socket.destroyed) return;
+            const trusted: NativeRequestContext = { ...provided,
+                secure: provided?.secure ?? (request.socket instanceof TLSSocket && request.socket.encrypted === true),
+                remoteAddress: provided?.remoteAddress ?? request.socket.remoteAddress };
+            const handshake = new Request(url, { headers: new Headers(request.headers as Record<string, string>) });
+            const prepared = await prepareObservableUpgrade(arc, handshake, trusted);
+            if (prepared.status !== 101 || !prepared.resolved) { reject(prepared.status); return; }
+            if (socket.destroyed) return;
+            socket.setTimeout(0);
             webSockets.handleUpgrade(request, socket, head, connection => {
-                const transport = new WebSocketTransport(connection);
-                try {
-                    const trusted: NativeRequestContext = { ...native?.(request), secure };
-                    const incoming = new Request(url, {
-                        headers: new Headers(request.headers as Record<string, string>), signal: transport.signal
-                    });
-                    const work = path === '/.cratis/queries/ws'
-                        ? arc.handleObservableHubSocket(incoming, transport, trusted)
-                        : directWebSocket(arc, incoming, transport, trusted);
-                    const active = { transport, work };
-                    connections.add(active);
-                    const release = (): void => { connections.delete(active); transport.close(); };
-                    void work.then(release, release);
-                } catch { transport.close(); }
+                const transport = new WebSocketTransport(connection, arc.observableLimits);
+                const incoming = new Request(url, {
+                    headers: new Headers(request.headers as Record<string, string>), signal: transport.signal
+                });
+                const work = path === '/.cratis/queries/ws'
+                    ? arc.handleObservableHubSocket(incoming, transport, trusted, prepared.resolved)
+                    : directWebSocket(arc, incoming, transport, trusted, prepared.resolved);
+                const active = { transport, work };
+                connections.add(active);
+                const release = (): void => { connections.delete(active); transport.close(); };
+                void work.then(release, release);
             });
-        } catch { socket.destroy(); }
+        };
+        void perform().catch(async error => {
+            try { await arc.options.logger?.(error, correlationId); }
+            finally { reject(500); }
+        }).catch(() => reject(500));
     };
     host.on('upgrade', onUpgrade);
     let closing: Promise<void> | undefined;

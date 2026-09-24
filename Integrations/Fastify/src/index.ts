@@ -4,14 +4,16 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
-import type { IncomingMessage } from 'node:http';
-import { attachNodeWebSockets } from '@cratis/arc.server';
+import { fastifyWebSocketMount } from './WebSocketMount.js';
+export { mountFastifyWebSockets } from './WebSocketMount.js';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
 const origin = 'http://arc.invalid';
 /** The callback must use host-verified identity/authority, never request headers. */
-export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (request: FastifyRequest) => Omit<NativeRequestContext, 'secure'>): void {
+export function mountFastify(app: FastifyInstance, server: ArcServer,
+    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
     // Encapsulated parsers never replace the parent application's content-type behavior.
+    const webSockets = fastifyWebSocketMount(app);
     app.register(async scoped => {
         scoped.removeAllContentTypeParsers();
         scoped.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, payload, done) => done(null, payload));
@@ -32,7 +34,11 @@ export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (
                     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : body,
                     signal: controller.signal
                 });
-                const result = await server.handle(incoming, () => ({ ...native?.(request), secure: request.raw.socket instanceof TLSSocket && request.raw.socket.encrypted === true }));
+                const result = await server.handle(incoming, async () => {
+                    const verified = await native?.(request);
+                    return { ...verified, remoteAddress: verified?.remoteAddress ?? request.raw.socket.remoteAddress,
+                        secure: verified?.secure ?? (request.raw.socket instanceof TLSSocket && request.raw.socket.encrypted === true) };
+                });
                 if (!result) return reply.code(404).send();
                 // Fastify appends Set-Cookie to existing hook cookies itself.
                 result.headers.forEach((value, key) => reply.header(key, value));
@@ -54,14 +60,22 @@ export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (
             }
         }
         for (const path of server.endpoints.keys()) {
-            scoped.route({ method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', ...(server.routes.has(path) ? ['QUERY' as const] : [])], url: path,
-                handler: (request, reply) => dispatch(request, reply, path) });
+            const operation = server.routes.get(path);
+            const upgrades = path === '/.cratis/queries/ws' || operation && 'observable' in operation && operation.observable === true;
+            const handler = (request: FastifyRequest, reply: FastifyReply) => dispatch(request, reply, path);
+            if (webSockets && upgrades) {
+                scoped.route({ method: 'GET', url: path, handler,
+                    preValidation: (request, reply) => webSockets.preValidation(request, reply, path),
+                    wsHandler: (socket, request) => webSockets.handle(socket, request) });
+                scoped.route({ method: ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',
+                    ...(operation ? ['QUERY' as const] : [])], url: path, handler });
+            } else {
+                scoped.route({ method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD',
+                    ...(operation ? ['QUERY' as const] : [])], url: path, handler,
+                    ...(webSockets ? { preValidation: async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+                        if (request.headers.upgrade?.toLowerCase() === 'websocket') await reply.code(426).send();
+                    } } : {}) });
+            }
         }
     });
-}
-
-/** Bridge upgrades on Fastify's Node server without replacing its HTTP routing. */
-export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
-    native?: (request: IncomingMessage) => Omit<NativeRequestContext, 'secure'>): () => Promise<void> {
-    return attachNodeWebSockets(app.server, server, native);
 }

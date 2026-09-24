@@ -76,7 +76,8 @@ The `ArcServer` constructor throws, so the process fails at startup instead of s
 
 - a name or any namespace segment does not start with a letter or contains anything but letters, digits, and `_`. This applies even when `path` is set;
 - a `path` or `prefix` is unsafe, or `segmentsToSkip` is not a non-negative integer;
-- `maxBodyBytes` is not a positive safe integer, such as `0`, a negative number, a fraction, `NaN`, or `Infinity`;
+- `maxBodyBytes` or any observable resource bound is not a positive safe integer, such as `0`, a fraction, `NaN`, or `Infinity` (the keep-alive interval alone also accepts zero);
+- `allowedOrigins` is not a list of exact `http`/`https` origins or a predicate;
 - two operations share a namespace and name, compared case-insensitively;
 - two routes collide, including a command's `/validate` route and the reserved identity, discovery, metadata, and OpenAPI paths;
 - an `authorization` declaration combines `anonymous: true` with `authenticated: true` or with `roles`. `anonymous: true` together with an `authorize` callback is allowed, and the callback still runs;
@@ -168,10 +169,23 @@ With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticat
 | `commands` | `CommandDefinition[]` | `[]` | Commands to serve, usually from `defineCommand` |
 | `services` | `ServiceRegistration[] \| ServiceRegistry` | Empty registry | Owned service registrations or an externally owned registry; see [Compose services and test pipelines](services-and-testing.md) |
 | `queries` | `QueryDefinition[]` | `[]` | Queries to serve, usually from `defineQuery` |
+| `observableQueries` | `ObservableQueryDefinition[]` | `[]` | Live query sources, declared with `defineObservableQuery` |
+| `observableEmissionGuards` | `ServiceToken<ObservableEmissionGuard>[]` | `[]` | Scoped policies checked before each observable emission |
+| `enableObservableHealth` | `boolean` | `false` | Caller-scoped hub health query, authenticated only |
+| `allowedOrigins` | `string[] \| (origin, request, native) => boolean \| Promise<boolean>` | Same-origin | Browser Origin policy for WS upgrades and SSE hub controls; an explicit list replaces the default |
 | `prefix` | `string` | `'api'` | First route segments; empty for none |
 | `segmentsToSkip` | `number` | `0` | Leading namespace segments left out of routes |
 | `enableQueryMethod` | `boolean` | `true` | Accept the `QUERY` method on query routes |
 | `maxBodyBytes` | `number` | `1048576` | Largest accepted request body; must be a positive safe integer |
+| `maxObservableSubscriptions` / `maxObservableSubscriptionsPerCaller` | `number` | `4096` / `4096` | Live and opening subscriptions globally / per principal or anonymous connection/address |
+| `maxObservableHubConnections` / `maxObservableHubConnectionsPerCaller` | `number` | `512` / `512` | Physical hub connections globally / per caller |
+| `maxObservableHubSubscriptionsPerConnection` | `number` | `256` | Subscriptions on one hub connection |
+| `maxObservableInboundFrames` / `maxObservableOutboundFrames` | `number` | `256` / `256` | Bounded transport queues |
+| `maxObservablePendingEmissions` | `number` | `256` | Pending snapshots from one structural subscribable |
+| `maxObservableInboundFrameBytes` / `maxObservableOutboundFrameBytes` | `number` | `65536` / `1048576` | Maximum incoming WS frame or SSE control JSON / outgoing frame |
+| `maxObservableTombstones` | `number` | `1024` | Unsubscribe tombstones retained per hub connection for two minutes |
+| `observableHandshakeTimeoutMs` | `number` | `10000` | Maximum time to complete a Node WS upgrade handshake |
+| `observableKeepAliveIntervalMs` | `number` | `30000` | Idle time before a hub Ping; `0` disables keep-alive |
 | `correlationHeader` | `string` | `'X-Correlation-ID'` | Header read and written for the correlation ID |
 | `tenantHeader` | `string` | `'x-cratis-tenant-id'` | Header read for the tenant when there is no `resolveTenant` |
 | `resolveTenant` | `(request, principal) => string \| undefined`, or a promise of it | None | Resolves the tenant; its result is final |
@@ -185,7 +199,7 @@ With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticat
 | `developmentUsers` | `(context) => DevelopmentUser[]`, or a promise | None | Explicit development-only anonymous discovery provider |
 | `developmentTenants` | `(context) => DevelopmentTenant[]`, or a promise | None | Explicit development-only anonymous discovery provider |
 
-Commands and queries share the fields `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, and `validatorDependencies`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required).
+Commands and queries share the fields `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, and `validatorDependencies`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required); an observable query takes `observe` (required) and may return an async iterable or structural subscribable. See [Stream an observable query](observable-queries.md).
 
 ## Related
 

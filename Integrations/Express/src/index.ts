@@ -11,7 +11,8 @@ import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
 const origin = 'http://arc.invalid';
 /** The callback must use host-verified identity/authority, never request headers. */
-export function mountExpress(app: Express, server: ArcServer, native?: (request: ExpressRequest) => Omit<NativeRequestContext, 'secure'>): void {
+export function mountExpress(app: Express, server: ArcServer,
+    native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
     app.use(async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
         const rawPath = request.originalUrl.split('?')[0] ?? '';
         if (!server.endpoints.has(rawPath)) return next();
@@ -28,7 +29,11 @@ export function mountExpress(app: Express, server: ArcServer, native?: (request:
             const body = request.method === 'POST' || request.method === 'QUERY' ? Readable.toWeb(request) as ReadableStream<Uint8Array> : undefined;
             const init: RequestInit & { duplex?: 'half' } = { method: request.method, headers: new Headers(request.headers as Record<string, string>), body, signal: controller.signal };
             if (body) init.duplex = 'half';
-            const result = await server.handle(new Request(url, init), () => ({ ...native?.(request), secure: request.socket instanceof TLSSocket && request.socket.encrypted === true }));
+            const result = await server.handle(new Request(url, init), async () => {
+                const verified = await native?.(request);
+                return { ...verified, remoteAddress: verified?.remoteAddress ?? request.socket.remoteAddress,
+                    secure: verified?.secure ?? (request.socket instanceof TLSSocket && request.socket.encrypted === true) };
+            });
             if (!result) return next();
             response.status(result.status);
             result.headers.forEach((value, key) => {
@@ -51,6 +56,6 @@ export function mountExpress(app: Express, server: ArcServer, native?: (request:
 
 /** Bridge upgrades on the listener returned by app.listen(); the Arc server owns protocol and shutdown. */
 export function mountExpressWebSockets(host: HttpServer, server: ArcServer,
-    native?: (request: IncomingMessage) => Omit<NativeRequestContext, 'secure'>): () => Promise<void> {
+    native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
     return attachNodeWebSockets(host, server, native);
 }

@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import WebSocket from 'ws';
+import type { NodeWebSocketLike } from './NodeWebSocketLike.js';
 import { ObservableTransportError } from './ObservableTransportError.js';
 import { ObservableLimits } from './ObservableLimits.js';
 
@@ -14,7 +15,7 @@ export class WebSocketTransport implements AsyncIterable<string> {
     #activity: (() => void) | undefined;
     #sendTail: Promise<void> = Promise.resolve();
 
-    constructor(readonly socket: WebSocket, readonly limits: ObservableLimits = new ObservableLimits({})) {
+    constructor(readonly socket: NodeWebSocketLike, readonly limits: ObservableLimits = new ObservableLimits({})) {
         socket.on('message', (data, binary) => {
             if (binary) { this.close(1008, 'Text frames required'); return; }
             if (this.#pending.length >= this.limits.inboundFrames) { this.close(1013, 'Inbound queue full'); return; }

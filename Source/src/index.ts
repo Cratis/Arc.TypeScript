@@ -2,6 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export { ArcServer, currentContext } from './ArcServer.js';
 export { attachNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
+export { serveUpgradedSocket } from './queries/observable/serveUpgradedSocket.js';
+export type { NodeWebSocketLike } from './queries/observable/NodeWebSocketLike.js';
+export { prepareObservableUpgrade } from './queries/observable/prepareObservableUpgrade.js';
+export { ObservableHandshakeTimeoutError, withObservableHandshakeTimeout } from './queries/observable/withObservableHandshakeTimeout.js';
 export { exportClientManifest, validateClientManifest } from './ClientManifest.js';
 export type { ClientManifest } from './ClientManifest.js';
 export type { ClientOperation } from './ClientOperation.js';
