@@ -15,11 +15,11 @@ The integration uses the published Chronicle TypeScript SDK, `@cratis/chronicle`
 
 - returned-event batches, readback, and tenant isolation;
 - before-first concurrency rejection and aggregate rehydration, commit, and operation compensation;
-- command-key read models for existing and missing keys, including validator predicates;
+- command-key read models for existing and missing keys;
 - a projected read-model query;
 - all of it through real Express, Fastify, and Hono HTTP adapters.
 
-Run `bash Source/Chronicle/run-integration.sh` to repeat it; Docker is required. The test image `cratis/chronicle:latest-development` is mutable, so pin a compatible image for reproducible deployment testing. The ordinary `yarn test` specs use typed substitutes and never start a kernel.
+Validator predicate binding is covered by substitute-based specs, not by the live kernel suite. Run `bash Source/Chronicle/run-integration.sh` to repeat the live checks; Docker is required. The test image `cratis/chronicle:latest-development` is mutable, so pin a compatible image for reproducible deployment testing. The ordinary `yarn test` specs use typed substitutes and never start a kernel.
 
 ## Find your way
 
