@@ -19,6 +19,8 @@ import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
+import type { QueryRenderer } from './queries/QueryRenderer.js';
+import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandContext } from './commands/CommandContext.js';
@@ -39,6 +41,10 @@ export interface ArcServerOptions {
     commandCompensationTimeoutMs?: number;
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
+    /** Ordered scoped renderers; the first matching renderer owns the result. */
+    queryRenderers?: readonly ServiceIdentifier<QueryRenderer>[];
+    /** Ordered scoped interceptors applied to exact model types on every delivery. */
+    readModelInterceptors?: readonly ServiceIdentifier<ReadModelInterceptor>[];
     /** Observable queries share query routes and the full query pipeline. */
     observableQueries?: readonly ObservableQueryDefinition<z.ZodType, unknown>[];
     /** Maximum simultaneous subscriptions; defaults to 4096. */

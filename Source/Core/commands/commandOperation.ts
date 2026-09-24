@@ -22,6 +22,7 @@ import { setCommandRecovery } from './commandRecovery.js';
 import type { CommandExecutionScope, CommandOperationExecutionScope } from './CommandExecutionScope.js';
 import type { CommandCommitDisposition } from './CommandCommitDisposition.js';
 import type { CommandContext } from './CommandContext.js';
+import { observe } from '../observability.js';
 
 function disposition(scopes: readonly CommandExecutionScope[], context: CommandContext): CommandCommitDisposition {
     const participants = scopes.filter((scope): scope is CommandOperationExecutionScope =>
@@ -62,7 +63,9 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 let issues: ValidationResult[];
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
-                    issues = await validate([definition.validate, ...(definition.filters ?? [])], value, context);
+                    issues = await observe('cratis.arc.command.filter',
+                        context.correlationId, { command_type: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
+                            validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;
                     const result = commandResult(context, { validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure() });

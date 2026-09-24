@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import WebSocket from 'ws';
+import { stringifyWire } from '../../reflection/stringifyWire.js';
 import type { NodeWebSocketLike } from './NodeWebSocketLike.js';
 import { ObservableTransportError } from './ObservableTransportError.js';
 import { ObservableLimits } from './ObservableLimits.js';
@@ -47,7 +48,7 @@ export class WebSocketTransport implements AsyncIterable<string> {
         this.#outstanding++;
         let json: string;
         try {
-            const serialized = JSON.stringify(value);
+            const serialized = stringifyWire(value);
             if (typeof serialized !== 'string' || Buffer.byteLength(serialized) > this.limits.outboundFrameBytes)
                 throw new ObservableTransportError('Observable WebSocket frame exceeds maximum size');
             json = serialized;

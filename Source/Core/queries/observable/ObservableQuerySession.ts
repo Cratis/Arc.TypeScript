@@ -12,12 +12,14 @@ import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
 import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
 import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
 import { clonePrincipal } from './clonePrincipal.js';
+import { beginSubscription, observe } from '../../observability.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
 export class ObservableQuerySession {
     readonly #controller = new AbortController();
     readonly #context: ExecutionContext;
     readonly #scope;
+    readonly #subscription: ReturnType<typeof beginSubscription>;
     #source: ObservableSource<unknown> | undefined;
     #result: QueryResult | undefined;
     #activeIterator: AsyncGenerator<QueryResult> | undefined;
@@ -32,6 +34,8 @@ export class ObservableQuerySession {
         this.#context = Object.freeze({ ...config.context, principal: clonePrincipal(config.context.principal),
             signal: AbortSignal.any([config.context.signal, this.#controller.signal]) });
         this.#scope = config.services.createScope(this.#context);
+        this.#subscription = beginSubscription(
+            [config.operation.namespace, config.operation.name].filter(Boolean).join('.'), this.#context.correlationId);
     }
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
@@ -40,7 +44,8 @@ export class ObservableQuerySession {
         try {
             const start = (): Promise<QueryResult<ObservableSource<unknown>>> =>
                 config.operation.run(config.input, session.#context, config.options) as Promise<QueryResult<ObservableSource<unknown>>>;
-            const result = await session.run(start);
+            const result = await session.run(() => observe('cratis.arc.query.perform', session.#context.correlationId,
+                { query_name: [config.operation.namespace, config.operation.name].filter(Boolean).join('.') }, start, undefined, result => result.hasExceptions));
             session.#result = result;
             await session.reportResult(result);
             if (result.isSuccess) session.#source = result.data;
@@ -73,8 +78,9 @@ export class ObservableQuerySession {
             value = source.value;
         }
         if (!present) return undefined;
-        const result = await this.run(() => this.config.operation.render(this.config.input,
-            this.#context, this.config.options, value));
+        const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
+            { query_name: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
+                this.#context, this.config.options, value), undefined, result => result.hasExceptions));
         await this.reportResult(result);
         return this.guarded(result);
     }
@@ -115,8 +121,9 @@ export class ObservableQuerySession {
             if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions)) {
-                const result = await this.run(() => this.config.operation.render(this.config.input,
-                    this.#context, this.config.options, value));
+                const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
+                    { query_name: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
+                        this.#context, this.config.options, value), undefined, result => result.hasExceptions));
                 await this.reportResult(result);
                 const guarded = await this.guarded(result);
                 if (!guarded) continue;
@@ -145,7 +152,10 @@ export class ObservableQuerySession {
     private closeScope(): Promise<void> {
         if (this.#scopeClosed) return this.#scopeClosed;
         this.releaseAdmission();
-        this.#scopeClosed = this.#scope.dispose().finally(this.config.onClose);
+        this.#scopeClosed = this.#scope.dispose().finally(() => {
+            try { this.#subscription.end(); }
+            finally { this.config.onClose(); }
+        });
         return this.#scopeClosed;
     }
 
@@ -190,6 +200,6 @@ export class ObservableQuerySession {
 
     private run<T>(callback: () => Promise<T>): Promise<T> {
         return this.config.services.runExecution(() => requestContext.run(this.#context,
-            () => withServices(this.#scope, callback)));
+            () => withServices(this.#scope, () => this.#subscription.run(callback))));
     }
 }

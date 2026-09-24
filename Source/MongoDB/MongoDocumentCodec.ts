@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs, DateOnly, DerivedType, Guid, TimeOnly, TimeSpan } from '@cratis/fundamentals';
-import { fieldsFor, InvalidQuerySort } from '@cratis/arc.core';
+import { fieldsFor, InvalidQuerySort, wireName } from '@cratis/arc.core';
 import type { WireField } from '@cratis/arc.core';
 import { Binary, Decimal128, Long, ObjectId } from 'mongodb';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
@@ -26,8 +26,11 @@ export class MongoDocumentCodec<T extends object> {
     /** Convert a model property to its BSON field name. */
     fieldName(name: string): string {
         if (name === this.#key) return '_id';
-        if (!this.#fields.some(field => field.name === name)) throw new InvalidQuerySort(`Unknown MongoDB model field: ${name}`);
-        return this.ignoreConventions ? name : this.namingPolicy.propertyName(name);
+        const field = this.#fields.find(candidate => candidate.name === name) ??
+            this.#fields.find(candidate => wireName(candidate.name) === name);
+        if (!field) throw new InvalidQuerySort(`Unknown MongoDB model field: ${name}`);
+        if (field.name === this.#key) return '_id';
+        return this.ignoreConventions ? field.name : this.namingPolicy.propertyName(field.name);
     }
     /** Encode a model for writes using the same mapping as reads. */
     serialize(value: T): Document {

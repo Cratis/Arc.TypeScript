@@ -27,6 +27,7 @@ import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
 import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
+import { observe } from './observability.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 export class ArcServer {
     readonly commands: readonly Operation[];
@@ -49,6 +50,8 @@ export class ArcServer {
         this.options = detailsSchema && options.identityDetails ? {
             ...options, identityDetails: { ...options.identityDetails, schema: detailsSchema }
         } : options;
+        if (options.correlationHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationHeader))
+            throw new Error('Invalid correlation header');
         if (options.commandCompensationTimeoutMs !== undefined &&
             (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
                 options.commandCompensationTimeoutMs > 4_294_967_294))
@@ -71,6 +74,10 @@ export class ArcServer {
         })) throw new Error('Invalid allowed Origin');
         this.#ownsServices = !(options.services instanceof ServiceRegistry);
         this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
+        for (const token of [...options.queryRenderers ?? [], ...options.readModelInterceptors ?? []]) {
+            if (this.services.registration(token).lifetime === 'singleton')
+                throw new Error(`Query renderer or read-model interceptor ${this.services.registration(token).token.name} must not be singleton`);
+        }
         if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
         if (options.observableKeepAliveIntervalMs !== undefined &&
@@ -147,7 +154,11 @@ export class ArcServer {
             recordFailure(result, error, previous);
             return result;
         });
-        return operation.kind === 'command' ? CommandOperationBoundary.command(this, run) : run();
+        const name = operation.kind === 'command' ? validateOnly ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute' : 'cratis.arc.query.perform';
+        const qualified = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
+        const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
+        return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
     }
 
     async dispose(): Promise<void> {
