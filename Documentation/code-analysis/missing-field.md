@@ -9,7 +9,7 @@ A non-`declare` public instance property on `@command()` or `@readModel()` lacks
 
 ## Why
 
-Unmarked properties are invisible to Arc's wire schema. Private-like `_` names are intentionally ignored.
+Unmarked properties are invisible to Arc's wire schema. Private fields (`private` and `#`) and private-like `_` names are intentionally ignored.
 
 ## Bad
 

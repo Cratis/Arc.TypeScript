@@ -5,11 +5,11 @@ description: Match typed handle parameters to injected services.
 
 ## What
 
-The count or provable constructor instance type of a class-valued `@inject` token disagrees with `handle` parameters. Rule: `arc-core/inject-binding` (requires type information).
+The count or provable constructor instance type of a class-valued `@inject` token disagrees with `handle` parameters. Rule: `arc-core/inject-binding` (type comparisons require type information; count checks do not).
 
 ## Why
 
-Arc binds positional tokens. One extra leading handler parameter can consume an implicit `provide()` value; other mismatches cause a runtime dependency error. Opaque tokens are left to the runtime.
+Arc binds positional tokens. One extra leading handler parameter can consume an implicit value only when the command defines `provide()`; other mismatches cause a runtime dependency error. Opaque tokens are left to the runtime.
 
 ## Bad
 

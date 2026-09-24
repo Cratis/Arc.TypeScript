@@ -12,7 +12,7 @@
   href: ARC0010.md
 - name: ARC0012 Built-in error
   href: ARC0012.md
-- name: ARC0013 Concept dereference
+- name: ARC0013 Not applicable
   href: ARC0013.md
 - name: ARC0014 Generic query
   href: ARC0014.md
@@ -28,6 +28,8 @@
   href: inject-binding.md
 - name: Query binding
   href: query-binding.md
+- name: Query argument name (opt-in)
+  href: query-argument-name.md
 - name: Misplaced decorator
   href: misplaced-decorator.md
 - name: Unexported artifact
