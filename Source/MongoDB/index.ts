@@ -7,6 +7,7 @@ export { defaultMongoNamingPolicy, camelCaseMongoNamingPolicy } from './MongoNam
 export type { MongoNamingPolicy } from './MongoNamingPolicy.js';
 export { MongoClientFactory } from './MongoClientFactory.js';
 export { MongoCollection } from './MongoCollection.js';
+export { MongoObservable } from './MongoObservable.js';
 export { MongoDocumentCodec } from './MongoDocumentCodec.js';
 export type { MongoDBOptions } from './MongoDBOptions.js';
 export { MongoReadModels } from './MongoReadModels.js';

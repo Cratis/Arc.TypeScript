@@ -351,9 +351,20 @@ import { Service } from '../Service.js';
     const child = spawn(process.execPath, [cli, '--project', join(src, 'tsconfig.json'), '--artifacts', features,
         '--output', output, '--watch', '--use-generated-metadata'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
     let outputText = ''; let errors = '';
+    const closed = new Promise(resolve => child.once('close', resolve));
     child.stdout.on('data', value => { outputText += value.toString(); });
     child.stderr.on('data', value => { errors += value.toString(); });
-    const nextGeneration = async count => within(new Promise((resolve, reject) => {
+    const ready = new Promise((resolve, reject) => {
+        const onExit = code => { child.stdout.off('data', check); reject(new Error(`Watch exited before ready: ${code} ${errors}`)); };
+        const check = () => {
+            if (outputText.includes('Watch ready\n')) {
+                child.stdout.off('data', check); child.off('exit', onExit); resolve();
+            }
+        };
+        child.once('exit', onExit);
+        child.stdout.on('data', check); check();
+    });
+    const nextGeneration = count => new Promise((resolve, reject) => {
         const onExit = code => { child.stdout.off('data', check); reject(new Error(`Watch exited: ${code} ${errors}`)); };
         const check = () => {
             if ((outputText.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= count) {
@@ -362,22 +373,28 @@ import { Service } from '../Service.js';
         };
         child.once('exit', onExit);
         child.stdout.on('data', check); check();
-    }), `Timed out waiting for watch generation ${count}: ${errors}`, 15000);
+    });
     try {
-        await nextGeneration(1);
-        await within(new Promise(resolve => {
-            const ready = () => {
-                if (outputText.includes('Watching artifact sources')) { child.stdout.off('data', ready); resolve(); }
+        await ready;
+        assert.equal((outputText.match(/Generated \d+ changed file\(s\)/g) ?? []).length, 1);
+        const changed = within(new Promise((resolve, reject) => {
+            const onExit = code => { child.stdout.off('data', check); reject(new Error(`Watch exited before change: ${code} ${errors}`)); };
+            const check = () => {
+                if (outputText.includes('Watch change detected\n')) {
+                    child.stdout.off('data', check); child.off('exit', onExit); resolve();
+                }
             };
-            child.stdout.on('data', ready); ready();
-        }), 'Watch did not start');
+            child.once('exit', onExit);
+            child.stdout.on('data', check); check();
+        }), `Watch did not detect the external edit: ${errors}`);
         await writeFile(service, 'export class Service { readonly marker = 1; }\n');
+        try { await changed; } catch (error) { throw new Error(`${error} output=${outputText} errors=${errors}`); }
         await nextGeneration(2);
         assert.match(outputText, /Generated 0 changed file\(s\)/);
         assert.equal(errors, '');
     } finally {
         child.kill('SIGTERM');
-        await new Promise(resolve => child.once('close', resolve));
+        await closed;
     }
 });
 

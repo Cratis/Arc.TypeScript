@@ -43,6 +43,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
     let wake: (() => void) | undefined;
     let finished = false;
     let failure: unknown;
+    let hasFailure = false;
     let unsubscribed = false;
     const notify = (): void => { wake?.(); wake = undefined; };
     const subscription = (source as Subscribable<T>).subscribe({
@@ -50,11 +51,12 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
             if (finished) return;
             if (pending.length >= maximumPending) {
                 failure = new Error('Observable query outbound queue is full');
+                hasFailure = true;
                 finished = true;
             } else pending.push(value);
             notify();
         },
-        error(error) { failure = error; finished = true; notify(); },
+        error(error) { failure = error; hasFailure = true; finished = true; notify(); },
         complete() { finished = true; notify(); }
     });
     const unsubscribe = (): void => {
@@ -70,7 +72,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
     if (signal.aborted) cancel();
     try {
         while (!signal.aborted) {
-            if (failure !== undefined) throw failure;
+            if (hasFailure) throw failure;
             if (pending.length) { yield pending.shift()!; continue; }
             if (finished) return;
             await new Promise<void>(resolve => { wake = resolve; });

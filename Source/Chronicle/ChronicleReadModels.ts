@@ -4,6 +4,8 @@ import type { IEventStore } from '@cratis/chronicle';
 import type { ReadModelChangeset } from '@cratis/chronicle/readModels';
 import type { Constructor } from '@cratis/fundamentals';
 import type { ExecutionContext } from '@cratis/arc.core';
+import { from } from 'rxjs';
+import type { Observable } from 'rxjs';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 
 /** Tenant-scoped access to Chronicle read models; use as a service in Arc queries. */
@@ -15,8 +17,12 @@ export class ChronicleReadModels {
     async findInstanceById<T>(type: Constructor<T>, id: string): Promise<T | null> {
         return (await this.getStore()).readModels.findInstanceById(type, id);
     }
-    /** Observe the store's read-model changes for the current tenant. */
-    async *watch<T>(type: Constructor<T>): AsyncIterable<ReadModelChangeset<T>> {
+    /** Observe the store's read-model changes for the current tenant; dispose to stop watching. */
+    watch<T>(type: Constructor<T>): Observable<ReadModelChangeset<T>> {
+        return from(this.watchIterable(type));
+    }
+    /** Iterate Chronicle changes without RxJS. */
+    async *watchIterable<T>(type: Constructor<T>): AsyncIterable<ReadModelChangeset<T>> {
         yield* (await this.getStore()).readModels.watch(type);
     }
 }

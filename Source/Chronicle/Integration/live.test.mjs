@@ -20,6 +20,8 @@ import { context, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
+import { firstValueFrom, filter, timeout } from 'rxjs';
+import { ChronicleReadModels } from '../dist/ChronicleReadModels.js';
 import { ChronicleArtifacts } from '../dist/ChronicleArtifacts.js';
 import { reactorCommandResultHandler } from '../dist/reactorCommands.js';
 import '../dist/index.js';
@@ -122,6 +124,15 @@ try {
                 assert.equal(result.data.name, `public-${adapter}`, 'Chronicle model is intercepted before wire encoding');
                 assert.equal((await store.readModels.findInstanceById(LiveView, id)).name, adapter,
                     'interception does not change the persisted read model');
+                const watchedId = randomUUID();
+                const models = new ChronicleReadModels({ getStore: async () => store }, { tenantId: tenant });
+                const watched = firstValueFrom(models.watch(LiveView).pipe(
+                    filter(change => change.key === watchedId), timeout({ first: 10000 })));
+                await delay(250);
+                const watchedCommand = await call(listener.url, 'create-live', watchedId, tenant, `watched-${adapter}`);
+                assert.equal(watchedCommand.body.isSuccess, true, JSON.stringify(watchedCommand));
+                assert.equal((await watched).readModel.name, `watched-${adapter}`,
+                    'Chronicle read-model changes flow through the RxJS observable');
                 const resolved = await call(listener.url, 'read-live-in-command', id, tenant, adapter);
                 assert.equal(resolved.body.isSuccess, true, JSON.stringify(resolved));
                 assert.equal(resolved.body.response, adapter);

@@ -7,6 +7,7 @@ import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
 import type { MongoNamingPolicy } from './MongoNamingPolicy.js';
 import { MongoDocumentCodec } from './MongoDocumentCodec.js';
 import { MongoObservation } from './MongoObservation.js';
+import { MongoObservable } from './MongoObservable.js';
 
 export type MongoCollectionOptions = {
     ignoreConventions?: boolean;
@@ -83,12 +84,20 @@ export class MongoCollection<T extends object> {
             return observation;
         } catch (error) { await stream.close(); throw error; }
     }
-    /** Observe a collection snapshot from a server operation time captured before the initial read. */
-    observe(filter: Filter<Document> = {}): Promise<MongoObservation<T[]>> {
+    /** Observe full snapshots as an RxJS observable. Each instance owns one change stream. */
+    observe(filter: Filter<Document> = {}): MongoObservable<T[]> {
+        return new MongoObservable(() => this.observeIterable(filter));
+    }
+    /** Observe one keyed document as an RxJS observable, including deletion as `null`. */
+    observeById(id: unknown): MongoObservable<T | null> {
+        return new MongoObservable(() => this.observeByIdIterable(id));
+    }
+    /** Open an async-iterable observation for consumers that do not use RxJS. */
+    observeIterable(filter: Filter<Document> = {}): Promise<MongoObservation<T[]>> {
         return this.openObservation(() => this.readObservable(filter), []);
     }
-    /** Observe a keyed document, including deletion as `null`. */
-    observeById(id: unknown): Promise<MongoObservation<T | null>> {
+    /** Open an async-iterable keyed observation for consumers that do not use RxJS. */
+    observeByIdIterable(id: unknown): Promise<MongoObservation<T | null>> {
         const filter = { _id: this.codec.id(id) } as Filter<Document>;
         const read = () => this.native.findOne(filter, { signal: this.context.signal })
             .then(document => document ? this.codec.deserialize(document) : null);

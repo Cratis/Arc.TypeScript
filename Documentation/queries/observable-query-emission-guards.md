@@ -10,11 +10,12 @@ Authorization runs once, when a subscription opens. A live query can outlive tha
 ```typescript
 import { field } from '@cratis/fundamentals';
 import {
-    ArcApplication, CurrentValueSubject, ObservableEmissionDecision, query, readModel, serviceToken,
-    type ObservableEmissionContext, type ObservableEmissionGuard, type ObservableSource
+    ArcApplication, ObservableEmissionDecision, query, readModel, serviceToken,
+    type ObservableEmissionContext, type ObservableEmissionGuard
 } from '@cratis/arc.core';
+import { BehaviorSubject } from 'rxjs';
 
-const prices = CurrentValueSubject.of<Price[]>([]);
+const prices = new BehaviorSubject<Price[]>([]);
 
 @readModel()
 export class Price {
@@ -22,7 +23,7 @@ export class Price {
     @field(Number) amount!: number;
 
     @query({ observable: true })
-    static livePrices(): ObservableSource<Price[]> { return prices; }
+    static livePrices(): BehaviorSubject<Price[]> { return prices; }
 }
 
 export const tradingHours = serviceToken<ObservableEmissionGuard>('tradingHours');

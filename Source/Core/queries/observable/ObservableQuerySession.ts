@@ -67,7 +67,7 @@ export class ObservableQuerySession {
         let present = false;
         let value: unknown;
         if (source.current) {
-            const snapshot = source.current();
+            const snapshot = await source.current();
             present = snapshot.hasValue;
             if (snapshot.hasValue) value = snapshot.value;
         } else if ('getValue' in source && typeof source.getValue === 'function') {
