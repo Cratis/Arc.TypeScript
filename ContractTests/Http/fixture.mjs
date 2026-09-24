@@ -3,7 +3,15 @@
 
 import express from 'express';
 import { z } from 'zod';
-import { ArcServer, AuthenticationStatus, defineCommand, defineQuery, validation } from '@cratis/arc.core';
+import { ArcApplication, AuthenticationStatus, defineCommand, defineQuery, validation } from '@cratis/arc.core';
+import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
+import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
+import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
+import { ModelBoundLookup } from './modelBound/dist/ModelBoundLookup.js';
+import { ValidationGraphCommand } from './modelBound/dist/ValidationGraphCommand.js';
+import { FixtureRateValidator } from './modelBound/dist/FixtureRateValidator.js';
+import { GuidCommand } from './modelBound/dist/GuidCommand.js';
+import { GuidCommandValidator } from './modelBound/dist/GuidCommandValidator.js';
 import { mountExpress } from '@cratis/arc.express';
 
 let executions = 0;
@@ -49,10 +57,13 @@ const authentication = request => {
         id: 'fixture-user', roles: [role], isAuthenticated: true
     } };
 };
-const arc = new ArcServer({
+const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, throwFailure], queries: [echoCount, byId, all, privateItems],
-    authentication: [authentication], development: false
+    authentication: [authentication], development: false, segmentsToSkip: 1
 });
+builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
+    ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator);
+const arc = await builder.build();
 const app = express();
 mountExpress(app, arc);
 const server = app.listen(0, '127.0.0.1', () => {

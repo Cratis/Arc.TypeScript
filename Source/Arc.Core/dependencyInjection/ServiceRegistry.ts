@@ -4,6 +4,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
 import type { ServiceToken } from './ServiceToken.js';
+import { normalizeServiceToken, type ServiceIdentifier } from './ServiceIdentifier.js';
 import { ServiceScope, closeServiceScope, createSingletonServiceScope, disposeCreatedServices, hasLivingServiceDisposal, hasLivingServiceResolution, serviceScopeRegistry, withServiceResolutionBoundary } from './ServiceScope.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
 import type { ServiceExecutionFrame } from './ServiceExecutionFrame.js';
@@ -29,7 +30,9 @@ export class ServiceRegistry {
     #closing: Promise<void> | undefined;
 
     constructor(registrations: readonly ServiceRegistration<unknown>[] = []) {
-        for (const registration of registrations) {
+        for (const entry of registrations) {
+            const token = normalizeServiceToken(entry.token);
+            const registration = { ...entry, token, dependencies: entry.dependencies?.map(normalizeServiceToken) };
             if (!registration.token || typeof registration.token.key !== 'symbol' || typeof registration.token.name !== 'string')
                 throw new ServiceDependencyError('Invalid service token');
             if (this.#registrations.has(registration.token.key)) throw new ServiceDependencyError(`Duplicate service: ${registration.token.name}`);
@@ -112,7 +115,8 @@ export class ServiceRegistry {
         finally { frame.state = ServiceExecutionState.Drained; this.#executions.delete(completion); finish(); }
         return completed ? completed(result, this.hasLivingExecution() || hasLivingServiceResolution(this)) : result;
     }
-    registration(token: ServiceToken<unknown>): ServiceRegistration<unknown> {
+    registration(identifier: ServiceIdentifier<unknown>): ServiceRegistration<unknown> {
+        const token = normalizeServiceToken(identifier);
         if (!token || typeof token.key !== 'symbol' || typeof token.name !== 'string')
             throw new ServiceDependencyError('Invalid service token');
         const registration = this.#registrations.get(token.key);
@@ -120,8 +124,9 @@ export class ServiceRegistry {
         return registration;
     }
     /** Inspect declarations without invoking factories. */
-    preflight(tokens: readonly ServiceToken<unknown>[]): void {
-        const visit = (token: ServiceToken<unknown>, chain: readonly symbol[], singleton: boolean): void => {
+    preflight(tokens: readonly ServiceIdentifier<unknown>[]): void {
+        const visit = (identifier: ServiceIdentifier<unknown>, chain: readonly symbol[], singleton: boolean): void => {
+            const token = normalizeServiceToken(identifier);
             const registration = this.registration(token);
             if (chain.includes(token.key)) throw new ServiceDependencyError(`Service dependency cycle: ${token.name}`);
             if (singleton && registration.lifetime !== 'singleton') throw new ServiceDependencyError(`Captive service dependency: ${token.name}`);

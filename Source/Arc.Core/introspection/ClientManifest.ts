@@ -172,8 +172,11 @@ export function exportClientManifest(server: ArcServer): ClientManifest {
             id, kind: 'observable' in operation && operation.observable === true ? 'observable' : operation.kind, route: operation.route,
             methods: server.endpoints.get(operation.route)?.split(', ') ?? [],
             ...(operation.kind === 'query' ? { queryName: id } : {}),
-            roles: [...operation.authorization?.roles ?? []],
-            authentication: operation.authorization?.anonymous ? 'anonymous' : operation.authorization?.authenticated || operation.authorization?.roles?.length ? 'authenticated' : 'default',
+            roles: [...new Set((operation.authorization?.requirements ?? [operation.authorization])
+                .flatMap(requirement => requirement?.roles ?? []))],
+            authentication: operation.authorization?.anonymous ? 'anonymous' :
+                operation.authorization?.authenticated || operation.authorization?.requirements?.some(requirement => requirement.roles?.length) ||
+                    operation.authorization?.roles?.length ? 'authenticated' : 'default',
             dynamicAuthorization: operation.dynamicAuthorization === true,
             input, output: operation.clientOutput.output
         };

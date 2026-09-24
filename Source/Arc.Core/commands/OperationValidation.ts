@@ -3,9 +3,9 @@
 import type { ExecutionContext, ValidationResult } from '../index.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
-import type { ServiceToken } from '../dependencyInjection/ServiceToken.js';
+import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 
-export async function prepareDependencies(handler: readonly ServiceToken<unknown>[] = [], validators: readonly ServiceToken<unknown>[] = [], execute = true): Promise<void> {
+export async function prepareDependencies(handler: readonly ServiceIdentifier<unknown>[] = [], validators: readonly ServiceIdentifier<unknown>[] = [], execute = true): Promise<void> {
     const scope = currentServices();
     if (!Array.isArray(handler) || !Array.isArray(validators)) throw new ServiceDependencyError('Invalid operation dependencies');
     scope.registry.preflight([...handler, ...validators]);

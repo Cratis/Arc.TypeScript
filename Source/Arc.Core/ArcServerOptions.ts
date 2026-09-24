@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
+import type { GeneratedApiOptions } from './GeneratedApiOptions.js';
 import type { AuthenticationHandler, CommandDefinition, Principal, QueryDefinition } from './index.js';
 import type { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
@@ -13,6 +14,7 @@ import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 import type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
 import type { ServiceToken } from './dependencyInjection/ServiceToken.js';
+/** Options shared by the low-level Arc server and model-bound application builder. */
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
@@ -50,8 +52,16 @@ export interface ArcServerOptions {
     enableObservableHealth?: boolean;
     /** Resolve emission policies in each subscription's service scope. */
     observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
+    /** Convention-based API route configuration. */
+    generatedApis?: GeneratedApiOptions;
+    /** @deprecated Use generatedApis.routePrefix. */
     prefix?: string;
+    /** @deprecated Use generatedApis.segmentsToSkipForRoute. */
     segmentsToSkip?: number;
+    /** @deprecated Use generatedApis.includeCommandNameInRoute. */
+    includeCommandNameInRoute?: boolean;
+    /** @deprecated Use generatedApis.includeQueryNameInRoute. */
+    includeQueryNameInRoute?: boolean;
     enableQueryMethod?: boolean;
     maxBodyBytes?: number;
     correlationHeader?: string;

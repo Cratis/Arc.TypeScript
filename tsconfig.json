@@ -6,7 +6,7 @@
     "strict": true,
     "composite": true,
     "declaration": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "ESNext.Decorators"],
     "types": ["node"],
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,

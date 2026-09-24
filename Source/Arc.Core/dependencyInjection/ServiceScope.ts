@@ -3,6 +3,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceToken } from './ServiceToken.js';
+import { normalizeServiceToken, type ServiceIdentifier } from './ServiceIdentifier.js';
 import type { ServiceRegistry } from './ServiceRegistry.js';
 import { ServiceDependencyError } from './ServiceDependencyError.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
@@ -82,7 +83,8 @@ export class ServiceScope {
         const active = resolution.getStore();
         return active?.chain.some(node => node.scope === this && node.state === ServiceResolutionState.Pending) ?? false;
     }
-    resolve<T>(token: ServiceToken<T>): Promise<T> {
+    resolve<T>(identifier: ServiceIdentifier<T>): Promise<T> {
+        const token = normalizeServiceToken(identifier);
         if (!this.canResolve()) throw new ServiceDependencyError('Service scope is disposed');
         this.#registry.preflight([token]);
         const active = resolution.getStore();

@@ -2,6 +2,6 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": { "rootDir": ".", "outDir": "dist" },
   "include": ["**/*.ts"],
-  "exclude": ["dist", "node_modules", "for_*/**", "given/**", "vite.config.mts"],
+  "exclude": ["dist", "node_modules", "**/for_*/**", "**/given/**", "vite.config.mts"],
   "references": [{ "path": "../Arc.Core" }]
 }

@@ -6,12 +6,13 @@ import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
 import { fastifyWebSocketMount } from './WebSocketMount.js';
 export { mountFastifyWebSockets } from './WebSocketMount.js';
-import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
+import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
 /** The callback must use host-verified identity/authority, never request headers. */
-export function mountFastify(app: FastifyInstance, server: ArcServer,
+export function mountFastify(app: FastifyInstance, application: ArcServer | ArcApplication,
     native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
+    const server = 'server' in application ? application.server : application;
     // Encapsulated parsers never replace the parent application's content-type behavior.
     const webSockets = fastifyWebSocketMount(app);
     app.register(async scoped => {

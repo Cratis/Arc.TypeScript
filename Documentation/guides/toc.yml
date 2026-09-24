@@ -1,12 +1,26 @@
 - name: Guides
   href: index.md
   items:
+    - name: Model-bound commands
+      href: commands.md
+    - name: Read models and queries
+      href: read-models-and-queries.md
+    - name: Concepts on the wire
+      href: concepts.md
+    - name: Application setup
+      href: application-setup.md
+    - name: Dependency injection
+      href: dependency-injection.md
+    - name: Low-level definitions
+      href: low-level-definitions.md
     - name: Host in Express, Fastify, or Hono
       href: host-integration.md
     - name: Host directly in Node.js
       href: standalone-host.md
     - name: Call Arc from code
       href: direct-calls.md
+    - name: Validate model-bound commands and queries
+      href: validation.md
     - name: Validate and authorize
       href: validation-and-authorization.md
     - name: Decide command outcomes
