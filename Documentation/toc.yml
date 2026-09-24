@@ -8,5 +8,7 @@
   href: explanation/architecture.md
 - name: Reference
   href: reference/toc.yml
+- name: Code analysis
+  href: code-analysis/toc.yml
 - name: Contributing
   href: contributing/toc.yml
