@@ -109,11 +109,13 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | [Chronicle](../guides/chronicle.md) | Experimental, kernel-checked subset | Private `@cratis/arc.chronicle`: `addChronicle` registers discovered SDK artifacts and appends returned model-bound events through a response handler. 6.5.0 loads in native Node ESM. An opt-in suite checks append, readback, tenant isolation, before-first conflict, and a projected read-model query over real HTTP adapters. No aggregate, reactor-command, or nested unit-of-work parity. |
 | Transactions and units of work | Not implemented | Chronicle sends one returned batch through one SDK `appendMany`, but cannot atomically include nested commands, direct appends, or other effects. MongoDB does not open a transaction. |
 
+`encodeWireValue` in `@cratis/arc.core` converts concepts and decorated models to Arc's JSON-ready wire shape without stringifying them. It does not validate or decode inputs.
+
 ## Testing
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Command and query pipeline testing | Supported | `ArcScenario` from `@cratis/arc.testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. `ArcScenario.observeQuery` opens the real observable query pipeline and returns a session whose `results()` stream can be collected and canceled by a spec. |
+| [Command and query pipeline testing](../guides/services-and-testing.md#test-a-decorated-command) | Supported, bounded | `CommandScenario` runs decorated commands with validators, service overrides, trusted execution context, `execute` and `validate`; returned results provide chainable assertions that reject dependency-only validation failures. `QueryScenario` runs static decorated queries with arguments, paging and sorting. All inputs use wire encoding; JSON stringify/parse can be disabled. `ObservableQueryScenario` bounds opening and collection with one deadline, closes late sessions, and distinguishes completed streams. Command results expose executed/compensated/indeterminate recovery assertions over real operation outcomes. `ArcScenario` remains available for low-level definitions and HTTP testing. |
 
 ## Hosting
 

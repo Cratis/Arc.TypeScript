@@ -43,7 +43,7 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.6"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.8.0
+    "@cratis/arc.core": ^0.9.0
     "@cratis/chronicle": ^6.5.0
     "@cratis/fundamentals": ^7.19.6
     zod: ^4.1.0
@@ -90,6 +90,7 @@ __metadata:
   resolution: "@cratis/arc.core.sample.tasks@workspace:Samples/Tasks"
   dependencies:
     "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.testing": "workspace:^"
     "@cratis/fundamentals": "npm:7.19.6"
   languageName: unknown
   linkType: soft
@@ -160,7 +161,7 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.6"
     mongodb: "npm:^6.21.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.8.0
+    "@cratis/arc.core": ^0.9.0
     "@cratis/fundamentals": ^7.19.6
     mongodb: ^6.21.0
   languageName: unknown
