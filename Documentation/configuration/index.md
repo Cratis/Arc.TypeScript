@@ -38,6 +38,7 @@ const server = new ArcServer({ commands: [], maxBodyBytes: 64 * 1024 });
 | `generatedApis` | `{ routePrefix?, segmentsToSkipForRoute?, includeCommandNameInRoute?, includeQueryNameInRoute? }` | `{ routePrefix: 'api', segmentsToSkipForRoute: 0, includeCommandNameInRoute: true, includeQueryNameInRoute: true }` | Route convention; see [Endpoint mapping](../core/endpoint-mapping.md) |
 | `prefix`, `segmentsToSkip`, `includeCommandNameInRoute`, `includeQueryNameInRoute` | Deprecated aliases | As in `generatedApis` | Flat forms; nested values take precedence |
 | `enableQueryMethod` | `boolean` | `true` | Accept the HTTP `QUERY` method on query routes; when `false`, `QUERY` answers 405 with `Allow: GET` |
+| `openApiVersion` | `string` | `'0.1.0'` | Version advertised in `GET /openapi.json`; see [OpenAPI](../open-api/index.md) |
 | `maxBodyBytes` | `number` | `1048576` | Largest command or `QUERY` body; must be a positive safe integer |
 | `correlationHeader` | `string` | `'X-Correlation-ID'` | Header read and written for the correlation ID |
 

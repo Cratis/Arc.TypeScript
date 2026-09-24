@@ -61,13 +61,11 @@ Imports between generated files are extensionless by default, for Vite and other
 
 ## Limits
 
-The analyzer keys generated models by namespace and class name, so two `Item` models in separate folders produce separate files. An exported class marked `@identityDetailsProvider()` can also contribute its `detailsType` or concrete `provide()` result model without an HTTP endpoint. Source-only identity provider configuration outside the artifacts root is not analyzed.
+The analyzer keys generated models by namespace and class name, so two `Item` models in separate folders produce separate files; generated references use aliased imports if those names collide in one file. An exported class marked `@identityDetailsProvider()` can also contribute its `detailsType` or concrete `provide()` result model without an HTTP endpoint. Source-only identity provider configuration outside the artifacts root is not analyzed.
 
 For client preferences, `@command({ treatWarningsAsErrors: true })` emits the command flag. `@query({ httpMethod: QueryHttpMethod.Query, treatWarningsAsErrors: true })` emits `setHttpMethod(QueryHttpMethod.Query)` and the query flag; import the enum from `@cratis/arc.core`. `Get` and `Auto` are also supported. These settings affect the generated client, not the server's acceptance of requests. The HTTP server still caps `X-Allowed-Severity` at Warning. Dynamic decorator options cannot be emitted safely and fail generation.
 
-Compared with Arc's .NET generator, this does not yet reproduce every template byte-for-byte; generator output has a different license/header and import layout. Nullable command types and interface-only model mode have compile coverage only, not live-client equivalence.
-
-Nullable command types and interface-only model mode have compile coverage only, not live-client equivalence. Do not treat this output as complete .NET proxy parity; the [capability reference](../reference/capabilities.md#proxies-introspection-and-tooling) tracks the details.
+Compared with Arc's .NET generator, this does not yet reproduce every template byte-for-byte; generator output has a different license/header and import layout. Nullable command types and interface-only model mode have compile coverage only, not live-client equivalence. Do not treat this output as complete .NET proxy parity; the [capability reference](../reference/capabilities.md#proxies-introspection-and-tooling) tracks the details.
 
 ## Continue
 
