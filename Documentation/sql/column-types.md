@@ -2,7 +2,7 @@
 title: SQL column types and conversions
 ---
 
-Declare conversions in your Drizzle schema, not on the Arc read model. `pgColumn(codec)`, `mysqlColumn(codec)`, and `sqliteColumn(codec)` wrap a codec in that dialect's Drizzle `customType`. They preserve typed writes and map the driver value back on reads, including provider-paged Arc reads.
+Declare conversions in your Drizzle schema and Fundamentals `@field` metadata on the Arc read model. `pgColumn(codec)`, `mysqlColumn(codec)`, and `sqliteColumn(codec)` wrap a codec in that dialect's Drizzle `customType`. They preserve typed writes and map the driver value back on reads, including provider-paged Arc reads. The SQL read-model codec also checks every declared Arc field has a table column and reconstructs GUIDs, concepts, and temporal values from plain driver columns if a custom column has not already done so. Writes still require an appropriate Drizzle column converter.
 
 | Codec | PostgreSQL | MySQL | SQLite |
 | --- | --- | --- | --- |

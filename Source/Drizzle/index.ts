@@ -5,6 +5,7 @@ export { addDrizzle } from './addDrizzle.js';
 export { drizzle, drizzleReadModel } from './drizzleToken.js';
 export { DrizzleHandle } from './DrizzleHandle.js';
 export { DrizzleReadModels } from './DrizzleReadModels.js';
+export { DrizzleModelCodec } from './DrizzleModelCodec.js';
 export type { DrizzleOptions, DrizzleDatabase, DrizzleFilter } from './DrizzleOptions.js';
 export type { ColumnCodec } from './ColumnCodec.js';
 export { conceptCodec, guidCodec, dateOnlyCodec, timeOnlyCodec, timeSpanCodec, jsonCodec } from './ColumnCodec.js';

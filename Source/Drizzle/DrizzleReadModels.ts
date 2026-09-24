@@ -5,15 +5,19 @@ import type { SQL, Table } from 'drizzle-orm';
 import { InvalidQuerySort, queryPage } from '@cratis/arc.core';
 import type { QueryOptions, QueryPage } from '@cratis/arc.core';
 import type { DrizzleDatabase, DrizzleFilter, DrizzleOptions } from './DrizzleOptions.js';
+import { DrizzleModelCodec } from './DrizzleModelCodec.js';
 
 /** Read-only, tenant-bound SQL access. No writer or native connection is reachable through this handle. */
 export class DrizzleReadModels<T extends object> {
+    private readonly codec: DrizzleModelCodec<T>;
     constructor(private readonly database: DrizzleDatabase, private readonly dialect: DrizzleOptions['dialect'],
-        readonly table: Table, private readonly type: new () => T, private readonly maxPageSize = 100) {
+        readonly table: Table, type: new () => T, private readonly maxPageSize = 100) {
         if (!Number.isSafeInteger(maxPageSize) || maxPageSize <= 0 || maxPageSize > 10000)
             throw new RangeError('maxPageSize must be between 1 and 10000');
-        if (!Object.values(getTableColumns(table)).some(column => column.primary))
+        const columns = getTableColumns(table);
+        if (!Object.values(columns).some(column => column.primary))
             throw new Error('A Drizzle read model requires a primary key for stable paging');
+        this.codec = new DrizzleModelCodec(type, columns);
     }
 
     private async rows(statement: SQL): Promise<Record<string, unknown>[]> {
@@ -50,14 +54,7 @@ export class DrizzleReadModels<T extends object> {
         const order = sorting && sorting.direction === 'desc' ? desc(sortColumn) : asc(sortColumn);
         const tie = sql.join(keys.filter(key => key !== sortColumn).map(key => sql`, ${asc(key)}`), sql``);
         const result = await this.rows(sql`select ${selection} from ${this.table}${where} order by ${order}${tie} limit ${pageSize} offset ${page * pageSize}`);
-        const items = result.map(row => {
-            const model = new this.type();
-            for (const [name, column] of entries) {
-                const value = row[name];
-                Reflect.set(model, name, value == null ? value : column.mapFromDriverValue(value));
-            }
-            return model;
-        });
+        const items = result.map(row => this.codec.deserialize(row));
         return queryPage(items, total, sorting);
     }
 }

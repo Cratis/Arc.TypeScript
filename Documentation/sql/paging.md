@@ -2,7 +2,7 @@
 title: Page and sort SQL read models
 ---
 
-Declare a Drizzle table with a primary key and register it with `readModels`. Your model-bound query receives Arc's `queryOptions()` and calls `DrizzleReadModels.queryPage(filter, options)`. The method requires `options.paging`, with a nonnegative safe page index and a positive page size no larger than `maxPageSize` (100 by default, maximum configurable value 10,000). The filter is an optional application-built Drizzle `SQL` expression.
+Declare a Drizzle table with at least one column marked `.primaryKey()` and register it with `readModels`. A composite primary key declared only through Drizzle's table extras does not mark individual columns for this adapter's stable tie-breaker. Your model-bound query receives Arc's `queryOptions()` and calls `DrizzleReadModels.queryPage(filter, options)`. The method requires `options.paging`, with a nonnegative safe page index and a positive page size no larger than `maxPageSize` (100 by default, maximum configurable value 10,000). The filter is an optional application-built Drizzle `SQL` expression.
 
 Arc pushes `count(*)`, ordering, `limit` and `offset` to the selected tenant database. The count is calculated before the page, so `totalItems` is not the length of the page. Requested `sorting.field` must match a property name returned by `getTableColumns(table)`; an unknown field or unsupported direction fails before SQL runs and the Arc HTTP pipeline maps unknown fields to 400. All queries sort by the primary key as a stable tie-breaker when needed. The query never interpolates the client field as SQL text.
 
