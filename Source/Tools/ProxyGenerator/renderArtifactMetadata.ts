@@ -34,10 +34,11 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
     const fieldOptions = fields.map(field => {
         const name = field.name.getText();
         const propertyType = checker.getTypeAtLocation(field);
-        const optional = !!field.questionToken || !!annotation(checker, field, 'optional') || !!annotation(checker, field, 'defaultValue');
+        const optional = !!field.questionToken || !!field.initializer || !!annotation(checker, field, 'optional') ||
+            !!annotation(checker, field, 'defaultValue');
         const nullable = !!annotation(checker, field, 'nullable') || propertyType.isUnion() &&
             propertyType.types.some(part => !!(part.flags & ts.TypeFlags.Null));
-        const defaultValue = callArguments(annotation(checker, field, 'defaultValue'))[0];
+        const defaultValue = callArguments(annotation(checker, field, 'defaultValue'))[0] ?? field.initializer;
         if (defaultValue && !ts.isStringLiteral(defaultValue) && !ts.isNumericLiteral(defaultValue) &&
             defaultValue.kind !== ts.SyntaxKind.TrueKeyword && defaultValue.kind !== ts.SyntaxKind.FalseKeyword &&
             defaultValue.kind !== ts.SyntaxKind.NullKeyword)

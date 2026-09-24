@@ -11,7 +11,8 @@ const fundamentals = new Set(['Guid', 'DateOnly', 'TimeOnly', 'TimeSpan']);
 const primitive = (text: string, constructor: string): SourceType => ({ text, constructor, enumerable: false, nullable: false, void: false });
 export class SourceTypeResolver {
     readonly models = new Map<string, SourceModel>();
-    constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string) {}
+    constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string,
+        private readonly generatedMetadata = false) {}
     private namespace(declaration: ts.Declaration): string {
         const segments = relative(this.artifacts, dirname(declaration.getSourceFile().fileName)).split(sep).filter(Boolean);
         if (segments.includes('..')) throw new Error(`${declaration.getSourceFile().fileName}: reachable model is outside the artifacts root`);
@@ -78,7 +79,8 @@ export class SourceTypeResolver {
                         const expression = ts.isCallExpression(decorator.expression) ? decorator.expression.expression : decorator.expression;
                         return isPackageSymbol(this.checker, expression, label, '@cratis/arc.core');
                     });
-                    const optional = decorated('optional') || decorated('defaultValue');
+                    const optional = decorated('optional') || decorated('defaultValue') ||
+                        this.generatedMetadata && (!!member.questionToken || !!member.initializer);
                     if (member.questionToken && !optional)
                         throw new Error(`${member.getSourceFile().fileName}: ${name} TypeScript ? disagrees with Arc field optionality; add @optional() or remove ?`);
                     const enumeration = (ts.getDecorators(member) ?? []).map(decorator => decorator.expression).find(expression =>
@@ -86,7 +88,9 @@ export class SourceTypeResolver {
                     const argument = enumeration && ts.isCallExpression(enumeration) ? enumeration.arguments[0] : undefined;
                     const enumSymbol = argument && originalSymbol(this.checker, argument);
                     const type = enumSymbol?.declarations?.some(ts.isEnumDeclaration) ? this.checker.getDeclaredTypeOfSymbol(enumSymbol) : this.checker.getTypeAtLocation(member);
-                    const nullable = decorated('nullable');
+                    const propertyType = this.checker.getTypeAtLocation(member);
+                    const nullable = decorated('nullable') || this.generatedMetadata && propertyType.isUnion() &&
+                        propertyType.types.some(part => !!(part.flags & ts.TypeFlags.Null));
                     return { name, type: this.resolve(type, member, optional || nullable), optional, nullable };
                 });
                 const baseType = type.getBaseTypes()?.find(base => base.symbol?.declarations?.some(ts.isClassDeclaration) &&
