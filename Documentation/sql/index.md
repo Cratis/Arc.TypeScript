@@ -1,5 +1,6 @@
 ---
 title: SQL with Drizzle
+description: Serve model-bound queries from application-owned Drizzle databases on SQLite and PostgreSQL, and know what the integration deliberately leaves to you.
 ---
 
 `@cratis/arc.drizzle` connects Arc queries to application-owned Drizzle databases. It supports SQLite and PostgreSQL with executable database checks; MySQL uses the same SQL query path but has **not** been exercised against a live MySQL server. This is a source preview, not a published npm package.

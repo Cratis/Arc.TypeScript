@@ -1,5 +1,6 @@
 ---
 title: Migrate a Drizzle schema
+description: Own your SQL schema with drizzle-kit migrations, run them before Arc starts, and migrate every tenant deliberately.
 ---
 
 Own the schema in the application and use [drizzle-kit](https://orm.drizzle.team/docs/drizzle-kit-overview) to generate and apply SQL migrations. Run migrations **before** starting Arc or admitting tenant requests. `addDrizzle` does not discover migrations, create tables or add columns at runtime.

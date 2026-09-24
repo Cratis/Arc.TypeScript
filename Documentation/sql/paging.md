@@ -1,5 +1,6 @@
 ---
 title: Page and sort SQL read models
+description: Push count, sort, limit, and offset into SQL with DrizzleReadModels.queryPage, and know the sort-field and consistency rules.
 ---
 
 Declare a Drizzle table with at least one column marked `.primaryKey()` and register it with `readModels`. A composite primary key declared only through Drizzle's table extras does not mark individual columns for this adapter's stable tie-breaker. Your model-bound query receives Arc's `queryOptions()` and calls `DrizzleReadModels.queryPage(filter, options)`. The method requires `options.paging`, with a nonnegative safe page index and a positive page size no larger than `maxPageSize` (100 by default, maximum configurable value 10,000). The filter is an optional application-built Drizzle `SQL` expression.
@@ -10,4 +11,4 @@ Arc pushes `count(*)`, ordering, `limit` and `offset` to the selected tenant dat
 
 Count and page are separate statements. A concurrent write between them can change membership: this adapter does not promise snapshot isolation or an EF transaction. If the page length no longer agrees with the count, Arc may reject the result as malformed rather than return an inconsistent page. Use an application-managed transaction when that consistency matters; there is no automatic transaction shared with command execution. Offset paging may become expensive for deep pages, so index the filtered and sorted fields and set an appropriate maximum.
 
-The [adapter HTTP spec](../../Source/Drizzle/for_DrizzleReadModels/when_serving_a_sqlite_page/with_each_http_adapter.ts) exercises sorting, count and field rejection through all three hosts.
+The [adapter HTTP spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_serving_a_sqlite_page/with_each_http_adapter.ts) exercises sorting, count and field rejection through all three hosts.

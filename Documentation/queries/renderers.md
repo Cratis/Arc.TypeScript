@@ -41,3 +41,5 @@ lower-level `ArcServer` directly. With no matching renderer, Arc's existing
 array/`queryPage`/scalar behavior applies. This does **not** automatically
 push SQL or MongoDB sorting and paging into a provider: the renderer must own
 those operations and the authoritative total itself.
+
+See the [query pipeline](query-pipeline.md#result-stages) for where renderers run relative to interceptors, paging, and emission guards.

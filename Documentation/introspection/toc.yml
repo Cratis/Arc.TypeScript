@@ -1,0 +1,8 @@
+- name: Overview
+  href: index.md
+- name: Commands
+  href: commands.md
+- name: Queries
+  href: queries.md
+- name: Identity details schema
+  href: identity-details-schema.md

@@ -1,5 +1,6 @@
 ---
 title: Keep SQL queries read-only
+description: Use the read-only DrizzleReadModels handle in queries, inject the writable database only in commands, and know that this is an API boundary, not a permission.
 ---
 
 Inject `service(drizzleReadModel(Model))` into a read-model query. The scoped `DrizzleReadModels<Model>` handle exposes `queryPage(filter, options)`, `find(filter, sorting?)`, `findOne(filter)` and its table; `find` rejects more than `maxPageSize` matches instead of silently truncating results, and `findOne` returns the first primary-key-ordered match or `undefined`. None of these APIs accept a query cancellation signal or propagate Arc's `context.signal` to the driver; timeouts and cancellation must be managed by the application or database driver. The handle does not expose a writable Drizzle database. Use a typed Drizzle `SQL` predicate built with bound parameters, not string-interpolated request input. If a command needs to write, inject `service(drizzleDatabase<YourDatabaseType>())` and use the returned `.native` database.

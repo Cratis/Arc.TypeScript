@@ -1,0 +1,12 @@
+- name: Overview
+  href: index.md
+- name: Configuration
+  href: configuration.md
+- name: Type mapping
+  href: type-mapping.md
+- name: Validation rules
+  href: validation.md
+- name: File index tracking
+  href: file-index-tracking.md
+- name: Low-level manifest
+  href: low-level-manifest.md

@@ -1,4 +1,4 @@
-- name: Identity and authentication
+- name: Identity details
   href: index.md
-- name: Authorization
-  href: authorization.md
+- name: Development users and tenants
+  href: development-users-and-tenants.md
