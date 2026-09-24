@@ -4,7 +4,9 @@ import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
-import { command, key, readModel, query, argument, service, inject, commandReadModel, CommandOperation, tuple } from '@cratis/arc.core';
+import { command, key, readModel, query, argument, service, inject, commandReadModel, commandContext, CommandOperation, tuple } from '@cratis/arc.core';
+import type { CommandContext } from '@cratis/arc.core';
+import { ChronicleRuntime } from '../ChronicleRuntime.js';
 import { ChronicleReadModels } from '../ChronicleReadModels.js';
 import { eventsWithConcurrencyScopes } from '../EventsWithConcurrencyScopes.js';
 import { AggregateRoot } from '../AggregateRoot.js';
@@ -44,6 +46,21 @@ export class AdvanceLive {
     @inject(commandAggregate(LiveAggregate))
     handle(aggregate: LiveAggregate) {
         if (aggregate.count !== 1) throw new Error('Live aggregate was not rehydrated');
+        aggregate.apply(Object.assign(new LiveCreated(), { name: this.name }));
+        return aggregate.commit();
+    }
+}
+
+@command()
+export class AdvanceLiveWithConcurrentAppend {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    @inject(commandAggregate(LiveAggregate), commandContext(), ChronicleRuntime)
+    async handle(aggregate: LiveAggregate, context: CommandContext, runtime: ChronicleRuntime) {
+        if (aggregate.count !== 1) throw new Error('Live aggregate was not rehydrated');
+        const store = await runtime.getStore(context);
+        const competing = await store.eventLog.append(this.id, Object.assign(new LiveCreated(), { name: 'competitor' }));
+        if (!competing.isSuccess) throw new Error('Competing append failed');
         aggregate.apply(Object.assign(new LiveCreated(), { name: this.name }));
         return aggregate.commit();
     }
