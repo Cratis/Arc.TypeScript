@@ -1,7 +1,9 @@
 {
   "name": "@cratis/arc.chronicle",
-  "version": "0.11.0",
-  "private": true,
+  "version": "0.12.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "license": "MIT",
   "description": "Optional Chronicle event-return command integration for Arc Server",
@@ -17,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -24,15 +30,22 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.11.0",
-    "@cratis/chronicle": "^6.2.0",
-    "@cratis/fundamentals": "^7.19.3",
+    "@cratis/arc.core": "^0.12.0",
+    "@cratis/arc.testing": "^0.11.0",
+    "@cratis/chronicle": "^6.5.1",
+    "@cratis/fundamentals": "^7.19.6",
     "zod": "^4.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@cratis/arc.testing": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
-    "@cratis/chronicle": "6.2.0",
-    "@cratis/fundamentals": "7.19.3",
+    "@cratis/arc.testing": "workspace:^",
+    "@cratis/chronicle": "6.5.1",
+    "@cratis/fundamentals": "7.19.6",
     "zod": "^4.1.0"
   }
 }

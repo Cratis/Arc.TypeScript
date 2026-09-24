@@ -26,6 +26,10 @@ import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
+import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
+import { readModelArgument } from './commands/modelBound/readModel.js';
+import type { CommandContext } from './commands/CommandContext.js';
+import type { CommandResult } from './commands/CommandResult.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
@@ -37,6 +41,9 @@ export class ArcApplicationBuilder {
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
+    readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
+    readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
+    readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
     readonly #policies = new Map<string, AuthorizationPolicyRegistration>();
     readonly #identityProviders: ClassType[] = [];
     #built = false;
@@ -55,6 +62,21 @@ export class ArcApplicationBuilder {
     /** Add a key resolver before the built-in @key/getKey resolver. */
     addCommandKeyResolver(token: ServiceIdentifier<CommandKeyResolver>): this {
         this.#keyResolvers.push(token);
+        return this;
+    }
+    /** Add a source for command-keyed read models (Chronicle, MongoDB, or an application source). */
+    addReadModelForCommandResolver(token: ServiceIdentifier<ReadModelForCommandResolver>): this {
+        this.#readModelResolvers.push(token);
+        return this;
+    }
+    /** Admit and observe integration-owned artifacts alongside Arc's own artifacts. */
+    addArtifactObserver(observer: (type: ClassType) => boolean): this {
+        this.#artifactObservers.push(observer);
+        return this;
+    }
+    /** Wrap validated command execution in an ordered asynchronous context. */
+    addCommandExecutionRunner(runner: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>): this {
+        this.#commandRunners.push(runner);
         return this;
     }
     /** Register a unique named authorization policy before building the application. */
@@ -76,28 +98,28 @@ export class ArcApplicationBuilder {
     add(...types: ClassType[]): this {
         for (const type of types) {
             const metadata = ownMetadata(type);
-            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler && !isIdentityDetailsProvider(type)) {
-                throw new Error(`Not an Arc artifact: ${type.name}`);
-            }
-            this.register(type, metadata.namespace ?? '');
+            if (!this.register(type, metadata.namespace ?? '')) throw new Error(`Not an Arc artifact: ${type.name}`);
         }
         return this;
     }
-    private register(type: ClassType, namespace: string): void {
+    private register(type: ClassType, namespace: string): boolean {
+        let external = false;
+        for (const observer of this.#artifactObservers) if (observer(type)) external = true;
         const metadata = ownMetadata(type);
         if (isIdentityDetailsProvider(type)) {
             if (!this.#identityProviders.includes(type)) this.#identityProviders.push(type);
-            return;
+            return true;
         }
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return;
+        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return external;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
             throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
         }
-        if (previous !== undefined) return;
+        if (previous !== undefined) return true;
         this.#namespaces.set(type, effective);
         this.#artifacts.push({ type, namespace: effective });
+        return true;
     }
     /** Import decorated artifacts beneath a dedicated discovery root. */
     async discover(root: URL, options: { rootNamespace?: string } = {}): Promise<this> {
@@ -126,7 +148,8 @@ export class ArcApplicationBuilder {
         const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
         const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
         this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
-        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers,
+        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers, ...this.#readModelResolvers,
+            ...this.options.readModelForCommandResolvers ?? [],
             ...this.options.commandResponseValueHandlers ?? [], ...this.options.commandContextValuesProviders ?? [],
             ...this.options.commandKeyResolvers ?? []);
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
@@ -142,12 +165,16 @@ export class ArcApplicationBuilder {
             schema: instance.schema, detailsType: instance.detailsType,
             provide: (principal, context) => (Reflect.construct(providerType, []) as IdentityDetailsProvider).provide(principal, context)
         } : undefined;
-        const server = new ArcServer({ ...this.options, commands, queries, observableQueries,
+        const runners = [...this.options.commandExecutionRunner ? [this.options.commandExecutionRunner] : [], ...this.#commandRunners];
+        const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
+            runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
+        const server = new ArcServer({ ...this.options, commands, queries, observableQueries, commandExecutionRunner,
             identityDetails: this.options.identityDetails ?? discovered,
             authorizationPolicies: { ...this.options.authorizationPolicies, ...Object.fromEntries(this.#policies) },
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
             commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
             commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
+            readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }
@@ -216,6 +243,17 @@ export class ArcApplicationBuilder {
         const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
             signal: new AbortController().signal, allowedSeverity: Severity.Error });
         try {
+            const resolvers = await Promise.all([...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers]
+                .map(token => scope.resolve(token)));
+            for (const { type } of this.#artifacts) {
+                const bindings = ownMetadata(type).injected;
+                for (const token of [...bindings?.get('provide') ?? [], ...bindings?.get('handle') ?? []]) {
+                    const model = readModelArgument(token);
+                    if (!model) continue;
+                    const matching = resolvers.filter(resolver => resolver.supports(model.type));
+                    if (matching.length !== 1) throw new Error(`Expected one read-model resolver for ${model.type.name}, found ${matching.length}`);
+                }
+            }
             for (const type of validators.values()) {
                 const validator = await scope.resolve(type);
                 if (!(validator instanceof BaseValidator)) throw new Error(`Invalid validator: ${type.name}`);

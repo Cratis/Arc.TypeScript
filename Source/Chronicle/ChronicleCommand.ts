@@ -40,7 +40,7 @@ function appendRejection(results: readonly AppendResult[]): ValidationResult[] {
 }
 
 /** Fail closed for transport errors, missing/mixed acknowledgments and unknown outcomes. */
-function checkResults(results: readonly AppendResult[], expected: number): Outcome<never> | undefined {
+export function checkResults(results: readonly AppendResult[], expected: number): Outcome<never> | undefined {
     if (results.some(result => typeof result.isSuccess !== 'boolean')) throw new Error('Chronicle returned an unknown append result');
     if (results.some(result => result.isSuccess && (result.constraintViolations.length || result.concurrencyViolation || result.errors.length))) {
         throw new Error('Chronicle returned contradictory append acknowledgment');
