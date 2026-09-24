@@ -39,4 +39,5 @@ if [ -z "${ARC_CHRONICLE_TEST_URL:-}" ]; then
     fi
 fi
 yarn build
-node --test Source/Chronicle/Integration/live.test.mjs
+# The SDK's reactor observation can keep a gRPC socket open after disposal.
+node --test --test-force-exit Source/Chronicle/Integration/live.test.mjs

@@ -3,7 +3,7 @@ title: Packages
 description: The packages this repository builds, what each exports, their peer dependencies and Node.js requirements, and how they relate to the published @cratis/arc client.
 ---
 
-Every package in this repository is at version 0.15.0, the version of the source preview. **None is published to npm**; reference them from a clone with the `workspace:^` protocol. They ship ES modules only.
+Every package in this repository is at version 0.16.0, the version of the source preview. **None is published to npm**; reference them from a clone with the `workspace:^` protocol. They ship ES modules only.
 
 ## Server packages
 

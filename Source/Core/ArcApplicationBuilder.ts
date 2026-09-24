@@ -37,6 +37,7 @@ import type { ReadModelForCommandResolver } from './commands/ReadModelForCommand
 import { readModelArgument } from './commands/modelBound/readModel.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
+import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
@@ -53,6 +54,8 @@ export class ArcApplicationBuilder {
     readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
     readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
+    readonly #commandScopes: (() => CommandExecutionScope)[] = [];
+    readonly #builtObservers: ((server: ArcServer) => void)[] = [];
     readonly #policies = new Map<string, AuthorizationPolicyRegistration>();
     readonly #identityProviders: ClassType[] = [];
     #built = false;
@@ -128,6 +131,16 @@ export class ArcApplicationBuilder {
     /** Wrap validated command execution in an ordered asynchronous context. */
     addCommandExecutionRunner(runner: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>): this {
         this.#commandRunners.push(runner);
+        return this;
+    }
+    /** Enroll an execution scope in every command, including decorated commands. */
+    addCommandExecutionScope(create: () => CommandExecutionScope): this {
+        this.#commandScopes.push(create);
+        return this;
+    }
+    /** Bind integrations that need the compiled server before any client observations begin. */
+    addBuiltObserver(observer: (server: ArcServer) => void): this {
+        this.#builtObservers.push(observer);
         return this;
     }
     /** Register a unique named authorization policy before building the application. */
@@ -228,6 +241,7 @@ export class ArcApplicationBuilder {
         const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
             runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
         const server = new ArcServer({ ...this.options, commands, queries, observableQueries, commandExecutionRunner,
+            commandExecutionScopes: [...this.options.commandExecutionScopes ?? [], ...this.#commandScopes],
             identityDetails: this.options.identityDetails ?? discovered,
             authorizationPolicies: { ...this.options.authorizationPolicies, ...Object.fromEntries(this.#policies) },
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
@@ -237,7 +251,10 @@ export class ArcApplicationBuilder {
             readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
             readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations }, this.#generatedMetadata);
-        try { await this.preflight(server, dependencies, validatorTypes); }
+        try {
+            await this.preflight(server, dependencies, validatorTypes);
+            for (const observer of this.#builtObservers) observer(server);
+        }
         catch (error) { await server.dispose(); throw error; }
         return new ArcApplication(server);
     }

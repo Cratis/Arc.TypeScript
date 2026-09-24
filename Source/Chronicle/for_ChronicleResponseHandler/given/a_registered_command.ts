@@ -55,13 +55,15 @@ export class CreateWithResponse {
     handle() { return tuple(eventSourceIdResponse('created-1'), Object.assign(new Created(), { name: this.name })); }
 }
 export let operationExecuted = false;
+export let operationCompensated = false;
 class TestOperation extends CommandOperation {
-    execute() { operationExecuted = true; }
+    execute(signal: AbortSignal) { signal.throwIfAborted(); operationExecuted = true; }
+    compensate(failure: unknown, signal: AbortSignal) { void failure; signal.throwIfAborted(); operationCompensated = true; }
 }
 @command()
 export class CreateWithOperation {
     @field(String) @key() id = '';
-    handle() { operationExecuted = false; return tuple(new Created(), new TestOperation()); }
+    handle() { operationExecuted = false; operationCompensated = false; return tuple(new Created(), new TestOperation()); }
 }
 @command()
 export class CreateSensitive {

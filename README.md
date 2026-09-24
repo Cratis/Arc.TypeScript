@@ -54,7 +54,7 @@ export class TaskItem {
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.withChronicle` (deprecated `addChronicle`) appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.5.1 imports natively; an opt-in kernel suite exercises all three HTTP adapters. No .NET transaction, aggregate, or reactor-command parity. |
 | `@cratis/cratis` | [`Source/Cratis`](Source/Cratis) | **Private experimental preview.** `CratisApplication.createBuilder()` composes Arc and a Chronicle client with explicit authentication; not a supported npm package. |
 
-Every package manifest is at version 0.15.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, MongoDB, and Drizzle packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.16.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, MongoDB, and Drizzle packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
