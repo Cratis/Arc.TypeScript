@@ -27,6 +27,10 @@ export function mountFastify(app: FastifyInstance, application: ArcServer | ArcA
     const server = 'server' in application ? application.server : application;
     // Encapsulated parsers never replace the parent application's content-type behavior.
     const webSockets = fastifyWebSocketMount(app);
+    const streams = new Set<{ abort(): void }>();
+    app.addHook('preClose', () => {
+        for (const stream of streams) stream.abort();
+    });
     app.register(async scoped => {
         scoped.removeAllContentTypeParsers();
         scoped.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, payload, done) => done(null, payload));
@@ -62,7 +66,10 @@ export function mountFastify(app: FastifyInstance, application: ArcServer | ArcA
                 if (result.headers.get('content-type')?.startsWith('text/event-stream')) {
                     if (!result.body) throw new Error('Observable query stream has no response body');
                     streaming = true;
+                    const stream = { abort: () => { controller.abort(); reply.raw.destroy(); } };
+                    streams.add(stream);
                     reply.raw.once('close', () => {
+                        streams.delete(stream);
                         request.raw.off('aborted', abort);
                         reply.raw.off('close', onClose);
                     });

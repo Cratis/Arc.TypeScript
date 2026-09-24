@@ -87,21 +87,29 @@ export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
     if (mounts.has(app)) throw new Error('Fastify observable WebSockets are already mounted');
     const mount = new FastifyWebSocketMount(server, native, prefix);
     mounts.set(app, mount);
-    const onUpgrade = (request: import('node:http').IncomingMessage, socket: import('node:net').Socket): void => {
-        const path = request.url?.split('?')[0] ?? '';
-        if (!path.startsWith(prefix) || !server.endpoints.has(path.slice(prefix.length))) return;
+    const upgrades = new Set<import('node:net').Socket>();
+    const onUpgrade = (_request: import('node:http').IncomingMessage, socket: import('node:net').Socket): void => {
+        // Fastify's default preClose closes accepted WebSockets, but rejected
+        // upgrades can leave a hijacked socket open outside its client set.
+        upgrades.add(socket);
+        const release = (): void => { upgrades.delete(socket); socket.off('error', onSocketError); };
         const onSocketError = (): void => { socket.destroy(); };
         socket.on('error', onSocketError);
-        socket.once('close', () => socket.off('error', onSocketError));
+        socket.once('close', release);
     };
     app.server.prependListener('upgrade', onUpgrade);
     app.register(fastifyPlugin(async instance => {
         if (!instance.hasRequestDecorator('ws'))
             await instance.register(websocket, { options: { maxPayload: observableLimits(server).inboundFrameBytes } });
     }));
-    app.addHook('onClose', async () => {
+    // Fastify waits for the HTTP listener to close before onClose. Upgraded sockets
+    // keep that listener alive, so drain them in preClose instead.
+    app.addHook('preClose', async () => {
         app.server.off('upgrade', onUpgrade);
-        await mount.dispose();
+        const failures: unknown[] = [];
+        try { await mount.dispose(); } catch (error) { failures.push(error); }
+        for (const socket of upgrades) socket.destroy();
+        if (failures.length) throw failures[0];
     });
     return () => mount.dispose();
 }
