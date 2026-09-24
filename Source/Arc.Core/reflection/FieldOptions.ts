@@ -6,4 +6,5 @@ export interface FieldOptions {
     nullable?: boolean;
     defaultValue?: unknown;
     values?: readonly (string | number | boolean)[];
+    key?: boolean;
 }

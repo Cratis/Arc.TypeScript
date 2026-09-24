@@ -24,7 +24,8 @@ export function renderQueryData<T>(definition: Pick<DescriptorBase, 'clientOutpu
         const items = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data.items) as typeof data.items : data.items;
         const page = options.paging?.page ?? 0;
         const size = options.paging?.pageSize ?? 0;
-        if (options.sorting || (!size && items.length !== data.totalItems) ||
+        if (options.sorting && (data.sorting?.field !== options.sorting.field || data.sorting.direction !== options.sorting.direction) ||
+            (!size && items.length !== data.totalItems) ||
             size && items.length !== Math.min(size, Math.max(0, data.totalItems - page * size)))
             return queryResult(context, { validationResults: malformed(context) });
         return queryResult(context, { data: items, paging: size ? {

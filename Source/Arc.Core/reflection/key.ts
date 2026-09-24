@@ -2,5 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { fieldOption } from './fieldOption.js';
 
-/** @experimental Reserved for storage integrations; has no effect on the current wire pipeline. */
-export function key(): ReturnType<typeof fieldOption> { return fieldOption({}); }
+/** Mark the read-model identity for storage integrations; HTTP wire names remain unchanged. */
+export function key(): ReturnType<typeof fieldOption> { return fieldOption({ key: true }); }
