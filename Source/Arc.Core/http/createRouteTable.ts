@@ -11,7 +11,7 @@ import { commandOperation } from '../commands/commandOperation.js';
 import { queryOperation } from '../queries/queryOperation.js';
 import { observableOperation } from '../queries/observable/ObservableOperation.js';
 
-function routeFor(operation: { namespace?: string; routeNamespace?: string; name: string; path?: string }, prefix: string, skip: number, includeName: boolean): string {
+export function routeFor(operation: { namespace?: string; routeNamespace?: string; name: string; path?: string }, prefix: string, skip: number, includeName: boolean): string {
     const location = operation.routeNamespace ?? operation.namespace;
     const segments = location ? location.split('.') : [];
     for (const segment of [...segments, operation.name]) if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(segment)) throw new Error('Unsafe Arc name');
@@ -21,6 +21,10 @@ function routeFor(operation: { namespace?: string; routeNamespace?: string; name
     }
     const kebab = (value: string): string => value.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2').replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/_/g, '-').toLowerCase();
     return '/' + [prefix, ...segments.slice(skip).map(kebab), ...(includeName ? [kebab(operation.name)] : [])].filter(Boolean).join('/');
+}
+export function includeRouteName(item: { namespace?: string; routeNamespace?: string }, items: readonly { namespace?: string; routeNamespace?: string }[], skip: number, configured?: boolean): boolean {
+    return configured !== false || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
+        (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
 }
 export function createRouteTable(options: ArcServerOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
     commands: readonly Operation[]; queries: readonly Operation[]; routes: ReadonlyMap<string, Operation>; endpoints: ReadonlyMap<string, string>
@@ -43,18 +47,15 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 if (new Set(folded).size !== folded.length) throw new Error(`Ambiguous Arc argument names: ${item.name}`);
             }
         }
-        const includeName = (item: { namespace?: string; routeNamespace?: string }, items: readonly { namespace?: string; routeNamespace?: string }[], configured?: boolean): boolean =>
-            configured !== false || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
-                (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
         const commandDefinitions = options.commands ?? [];
         const queryDefinitions = [...options.queries ?? [], ...options.observableQueries ?? []];
         const commands = commandDefinitions.map(item => commandOperation(item, routeFor(item, prefix, skip,
-            includeName(item, commandDefinitions, options.includeCommandNameInRoute))));
+            includeRouteName(item, commandDefinitions, skip, options.includeCommandNameInRoute))));
         const queries = [
             ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip,
-                includeName(item, queryDefinitions, options.includeQueryNameInRoute)))),
+                includeRouteName(item, queryDefinitions, skip, options.includeQueryNameInRoute)))),
             ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip,
-                includeName(item, queryDefinitions, options.includeQueryNameInRoute)))),
+                includeRouteName(item, queryDefinitions, skip, options.includeQueryNameInRoute)))),
             ...(options.enableObservableHealth ? [{ ...observableOperation({
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },
