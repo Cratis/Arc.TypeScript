@@ -49,11 +49,21 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
             if (annotation(checker, declaration, 'derivedType', 'fundamentals'))
                 resolver.resolve(checker.getTypeAtLocation(declaration), declaration);
             if (annotation(checker, declaration, 'identityDetailsProvider')) {
+                const resolveIdentity = (type: ts.Type, location: ts.Node): void => {
+                    const model = type.symbol?.declarations?.find(ts.isClassDeclaration);
+                    if (!model) return;
+                    const file = model.getSourceFile();
+                    if (file.isDeclarationFile || relative(root, file.fileName).split(sep).includes('..')) {
+                        diagnostics.push(`${path}: identity details model ${file.fileName} is outside the artifacts root or declaration-only; skipped`);
+                        return;
+                    }
+                    resolver.resolve(type, location);
+                };
                 const details = declaration.members.find(member => ts.isPropertyDeclaration(member) && member.name.getText() === 'detailsType');
                 if (details && ts.isPropertyDeclaration(details) && details.initializer) {
                     const symbol = originalSymbol(checker, details.initializer);
                     const model = symbol?.declarations?.find(ts.isClassDeclaration);
-                    if (model) resolver.resolve(checker.getTypeAtLocation(model), model);
+                    if (model) resolveIdentity(checker.getTypeAtLocation(model), model);
                 }
                 const provide = declaration.members.find(member => ts.isMethodDeclaration(member) && member.name.getText() === 'provide');
                 if (provide && ts.isMethodDeclaration(provide)) {
@@ -62,7 +72,7 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                         const result = checker.getReturnTypeOfSignature(signature);
                         const unwrapped = checker.getAwaitedType(result) ?? result;
                         const candidate = unwrapped.isUnion() ? unwrapped.types.find(type => type.symbol?.declarations?.some(ts.isClassDeclaration)) : unwrapped;
-                        if (candidate?.symbol?.declarations?.some(ts.isClassDeclaration)) resolver.resolve(candidate, provide);
+                        if (candidate?.symbol?.declarations?.some(ts.isClassDeclaration)) resolveIdentity(candidate, provide);
                     }
                 }
             }

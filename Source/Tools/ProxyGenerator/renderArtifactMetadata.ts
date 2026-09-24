@@ -14,7 +14,7 @@ const callArguments = (expression: ts.Expression | undefined): readonly ts.Expre
 const method = (member: ts.ClassElement, name: string): member is ts.MethodDeclaration =>
     ts.isMethodDeclaration(member) && member.name.getText() === name;
 const summary = (node: ts.Node): string | undefined => ts.getJSDocCommentsAndTags(node)
-    .filter(ts.isJSDoc).map(doc => typeof doc.comment === 'string' ? doc.comment.trim() : undefined).find(Boolean);
+    .filter(ts.isJSDoc).map(doc => ts.getTextOfJSDocComment(doc.comment)?.trim()).find(Boolean);
 
 /** Render one class's generated fallback; explicit decorator bindings still take precedence. */
 export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker: ts.TypeChecker, imports: MetadataImports): string | undefined {

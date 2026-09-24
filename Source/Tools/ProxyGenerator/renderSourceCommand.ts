@@ -2,13 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { wireName } from '@cratis/arc.core';
 import type { SourceOperation } from './SourceOperation.js';
-import { quote, typeImports, type SourceRenderOptions } from './renderSource.js';
+import { aliasTypes, quote, typeImports, type SourceRenderOptions } from './renderSource.js';
 import { renderRecordedRules } from './renderRecordedRules.js';
 import type { RecordedRule } from './RecordedRule.js';
 
 export function renderCommand(operation: SourceOperation, path: string, destinations: ReadonlyMap<string, string>, route: string,
     rules: readonly RecordedRule[] = [], diagnostic: (message: string) => void = message => process.stderr.write(`${message}\n`), options: SourceRenderOptions = {}): string {
     const name = operation.name;
+    const [resultType, ...fieldTypes] = aliasTypes([operation.result, ...operation.fields.map(field => field.type)], path, destinations, name);
+    operation = { ...operation, result: resultType!, fields: operation.fields.map((field, index) => ({ ...field, type: fieldTypes[index]! })) };
     const validation = renderRecordedRules(name, 'CommandValidator', `I${name}`, rules, diagnostic, operation.fields.map(field => wireName(field.name)));
     const result = operation.result;
     const imports = [...new Set([result, ...operation.fields.map(field => field.type)].flatMap(type => typeImports(type, path, destinations, options)))].sort();

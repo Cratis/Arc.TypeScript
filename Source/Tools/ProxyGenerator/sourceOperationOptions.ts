@@ -5,9 +5,20 @@ import { QueryHttpMethod } from '@cratis/arc.core';
 import { isPackageSymbol } from './sourceSymbols.js';
 
 function value(expression: ts.Expression | undefined, name: string): ts.Expression | undefined {
-    if (!expression || !ts.isCallExpression(expression) || !expression.arguments[0] ||
-        !ts.isObjectLiteralExpression(expression.arguments[0])) return undefined;
-    const property = expression.arguments[0].properties.find(item => ts.isPropertyAssignment(item) && item.name.getText() === name);
+    if (!expression || !ts.isCallExpression(expression) || !expression.arguments[0]) return undefined;
+    const options = expression.arguments[0];
+    // A query may start with a parameter-binding call rather than an options object.
+    if (ts.isCallExpression(options)) return undefined;
+    if (!ts.isObjectLiteralExpression(options) || options.properties.some(item => !ts.isPropertyAssignment(item)))
+        throw new Error(`${options.getSourceFile().fileName}: decorator options must be a static object with property assignments`);
+    for (const item of options.properties) {
+        const property = item as ts.PropertyAssignment;
+        const key = property.name.getText();
+        if (key === 'namespace' && !ts.isStringLiteral(property.initializer) ||
+            key === 'observable' && property.initializer.kind !== ts.SyntaxKind.TrueKeyword && property.initializer.kind !== ts.SyntaxKind.FalseKeyword)
+            throw new Error(`${property.getSourceFile().fileName}: ${key} must be a static literal`);
+    }
+    const property = options.properties.find(item => ts.isPropertyAssignment(item) && item.name.getText() === name);
     return property && ts.isPropertyAssignment(property) ? property.initializer : undefined;
 }
 /** Read static decorator options; a dynamic value cannot be safely copied to a client proxy. */

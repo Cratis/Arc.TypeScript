@@ -13,6 +13,10 @@ describe('when discovering preferences with identity details', () => {
     it('should discover a model reachable only from the identity provider', () => {
         analysis.models.map(model => model.name).should.contain('Details');
     });
+    it('should skip an identity details model outside the artifacts root with a diagnostic', () => {
+        analysis.models.map(model => model.name).should.not.contain('ExternalDetails');
+        analysis.diagnostics!.some(message => message.includes('ExternalDetails.ts') && message.includes('skipped')).should.equal(true);
+    });
     it('should carry the command warning preference', () => {
         (analysis.operations.find(operation => operation.name === 'Save')!.treatWarningsAsErrors as boolean).should.equal(true);
     });
@@ -23,6 +27,6 @@ describe('when discovering preferences with identity details', () => {
         const rendered = renderGeneratedMetadata(resolve(directory, 'tsconfig.json'), resolve(directory, 'artifacts'),
             resolve(directory, 'metadata.ts'));
         rendered.should.include('summary: "Save an item."');
-        rendered.should.include('methodSummaries: new Map([["find", "Find an item."]])');
+        rendered.should.include('methodSummaries: new Map([["find", "Find an {@link Item}."]])');
     });
 });

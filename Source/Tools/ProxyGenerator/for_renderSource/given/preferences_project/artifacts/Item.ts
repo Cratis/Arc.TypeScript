@@ -4,7 +4,7 @@ import { readModel, query, QueryHttpMethod } from '@cratis/arc.core';
 
 @readModel()
 export class Item {
-    /** Find an item. */
+    /** Find an {@link Item}. */
     @query({ httpMethod: QueryHttpMethod.Query, treatWarningsAsErrors: true })
     static find(): Item { return new Item(); }
 }
