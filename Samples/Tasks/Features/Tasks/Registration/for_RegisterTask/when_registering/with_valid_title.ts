@@ -9,7 +9,7 @@ describe('when registering a task with a valid title', given(a_task_registration
     const id = TaskId.create();
     let result: ScenarioCommandResult;
 
-    beforeEach(async () => {
+    beforeAll(async () => {
         result = await context.scenario.execute({ id, title: new TaskTitle('Plan release') });
     });
     afterAll(async () => { await context.scenario.dispose(); });
