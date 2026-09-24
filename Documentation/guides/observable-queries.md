@@ -31,9 +31,11 @@ const timer = setInterval(() => numbers.next([nextNumber++]), 1000);
 
 process.once('SIGINT', () => {
     clearInterval(timer);
-    listener.closeAllConnections();
-    listener.close();
-    void server.dispose();
+    void server.dispose().then(() => listener.close(), error => {
+        console.error(error);
+        process.exitCode = 1;
+        listener.close();
+    });
 });
 ```
 
@@ -55,7 +57,7 @@ A replaying source such as `CurrentValueSubject` first sends the current `[n]`, 
 
 ## Subscribe to direct WebSocket
 
-`mountExpressWebSockets(listener, server)` accepts upgrades on registered query routes; Express HTTP middleware does not run for upgrades, so use Arc authentication or a trusted async `native` resolver. For Fastify, call `mountFastifyWebSockets(app, server)` **before** `mountFastify(app, server)` and `listen()`; Fastify hooks run, and `app.close()` disposes the sockets. For Hono, call `mountHono(app, server)`, then `const sockets = mountHonoWebSockets(app, server)` before `serve()`; call `sockets.injectWebSocket(listener)` after `serve()` and `await sockets.dispose()` on shutdown. Hono middleware runs for upgrades. See [Host Arc](host-integration.md#mount-observable-websockets-on-nodejs) for the trust boundaries.
+`mountExpressWebSockets(listener, server)` accepts upgrades on registered query routes; Express HTTP middleware does not run for upgrades, so use Arc authentication or a trusted async `native` resolver. For Fastify, call `mountFastifyWebSockets(app, server)` **before** `mountFastify(app, server)` and `listen()`; Fastify hooks run, and `app.close()` disposes Arc sockets but not the ArcServer. For Hono, call `mountHono(app, server)`, then `const sockets = mountHonoWebSockets(app, server)` before `serve()`; call `sockets.injectWebSocket(listener)` after `serve()` and `await sockets.dispose()` on shutdown. Hono middleware runs for upgrades; when sharing the app's `@hono/node-ws` helper, pass it as the fourth argument and inject only that helper. See [Host Arc](host-integration.md#mount-observable-websockets-on-nodejs) for the trust boundaries.
 
 ```javascript
 const socket = new WebSocket(`ws://${location.host}/api/numbers`);
@@ -88,11 +90,11 @@ hub.onmessage = event => {
 // hub.send(JSON.stringify({ type: 'Unsubscribe', queryId: 'numbers', revision: 1 }));
 ```
 
-The SSE hub uses `GET /.cratis/queries/sse` for its `Connected` stream and authenticated `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. It requires a **trusted authenticated principal** on both the stream and every control request; the anonymous example above cannot use it. Configure [authentication](validation-and-authorization.md) before selecting this transport. A control request from a different principal or tenant returns the same 404 as an unknown connection ID. The `.cratis-identity` display cookie is not an authentication credential.
+The SSE hub uses `GET /.cratis/queries/sse` for its `Connected` stream and authenticated `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. Browser `EventSource` sends same-origin session cookies but cannot set an `Authorization` header; authenticate the stream with your application's real session cookie and send the same cookie with its control POSTs. It requires a **trusted authenticated principal** on both the stream and every control request; the anonymous example above cannot use it. Configure [authentication](validation-and-authorization.md) before selecting this transport. A control request from a different principal or tenant returns the same 404 as an unknown connection ID. The `.cratis-identity` display cookie is not an authentication credential.
 
 The installed client's default is the multiplexed WebSocket hub. Set `Globals.queryDirectMode = false` and choose `Globals.queryTransportMethod` (`WebSocket` or `ServerSentEvents`). Its default transfer preference is `delta`: the first enumerable result carries full `data`, and later results carry `{ added, replaced, removed }` of full items **without** `data`. The installed `ObservableQueryFor.subscribe` callback does not reconstruct later arrays: its enumerable callback receives `data: []` alongside the raw change set. Choose `Globals.observableQueryTransferMode = 'full'` when the callback needs a full array on every update. An absent or unrecognized mode sends legacy full data plus a change set; scalar results always carry full data. The **property name** `id` is recognized case-insensitively; identity **values** compare by case and JSON primitive type (`"A"` differs from `"a"` and `1` differs from `"1"`). Missing or duplicate IDs use JSON set comparison. Order-only and duplicate-count-only changes are not representable in a change set.
 
-Hub `Connected` advertises a 30-second keep-alive by default and subscription revisions. Configure `observableKeepAliveIntervalMs: 0` to disable keep-alive; otherwise each outbound frame reschedules the next idle ping. Revisions ignore stale or duplicate subscribes; unsubscribe tombstones live for two minutes (at most 1024 per connection by default). Limits are configurable through `ArcServerOptions`: by default there are 4096 subscriptions globally and per caller, 512 hub connections globally and per caller, 256 subscriptions per hub connection, and 256 queued inbound/outbound frames. An authorized caller can opt into `enableObservableHealth: true` to read its **own hub connections** at `/.cratis/queries/health`; this differs deliberately from .NET's anonymous, cross-caller health view and does not include direct connections.
+Hub `Connected` advertises a 30-second keep-alive by default and subscription revisions. Configure `observableKeepAliveIntervalMs: 0` to disable keep-alive; otherwise each outbound frame reschedules the next idle ping. Revisions ignore stale or duplicate subscribes; unsubscribe tombstones live for two minutes (at most 1024 per connection by default). Limits are configurable through `ArcServerOptions`: by default there are 4096 subscriptions globally and per caller, 512 hub connections globally and per caller, 256 subscriptions per hub connection, and 256 queued inbound/outbound frames. Per-caller limits default to the global limits; one caller can exhaust capacity. Set lower `maxObservableSubscriptionsPerCaller` and `maxObservableHubConnectionsPerCaller` for internet-facing hosts. Cleanup failures from canceled subscriptions are logged once per subscription, with bounded diagnostics; a later shutdown only fails for work still unfinished when disposal begins. `observableShutdownTimeoutMs` independently bounds hub cleanup (10 seconds by default); it does not change the upgrade handshake deadline. An authorized caller can opt into `enableObservableHealth: true` to read its **own hub connections** at `/.cratis/queries/health`; this differs deliberately from .NET's anonymous, cross-caller health view and does not include direct connections.
 
 ## Wait for a snapshot
 
