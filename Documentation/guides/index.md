@@ -12,6 +12,7 @@ The guides describe the current source in this repository. No package is publish
 | Guide | Use it when you want to |
 | --- | --- |
 | [Host Arc in Express, Fastify, or Hono](host-integration.md) | Serve your commands and queries from the web framework you already use. |
+| [Host Arc directly in Node.js](standalone-host.md) | Serve Arc and a built SPA without a web framework. |
 | [Call Arc from code](direct-calls.md) | Run a command or query from a spec, a job, or a Fetch API host, without a web framework. |
 | [Validate and authorize commands and queries](validation-and-authorization.md) | Add authentication, roles, per-request authorization, and business rules, and know which check runs first. |
 | [Decide command outcomes](command-outcomes.md) | Load data before a command runs, reject or deny from inside it, and wrap it in execution scopes. |

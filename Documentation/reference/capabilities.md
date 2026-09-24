@@ -121,7 +121,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Cancellation on client disconnect | Supported for Express and Fastify | Hono passes the signal of the request it received. |
 | Unsupported methods | Supported | 405 with an `Allow` header for methods that reach Arc. Fastify routes only a fixed list of methods to Arc. |
 | Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Subscribable emission queues cap at 64 pending snapshots; simultaneous observable subscriptions (including opening ones) cap at 128 by default, configurable up to 1024. No per-caller rate limit or hub connection limit. |
-| Standalone host, static files, and SPA fallback | Not implemented | The host frameworks can serve static files themselves. |
+| [Standalone host, static files, and SPA fallback](../guides/standalone-host.md) | Supported, bounded | `@cratis/arc.server.node` runs an HTTP or HTTPS listener or supplies a request handler. Arc routes precede streamed GET/HEAD public files; opt-in HTML navigation fallback excludes the API prefix, `/.cratis` and file extensions. Path base, cache validators, disconnect cancellation and direct SSE are supported. No WebSocket, private file authorization, directory listing, or multiple static roots. |
 | Tracing and metrics | Not implemented | |
 
 ## Deliberate differences
