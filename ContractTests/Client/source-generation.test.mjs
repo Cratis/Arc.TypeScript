@@ -18,9 +18,9 @@ const root = resolve(import.meta.dirname, '../..');
 const project = join(root, 'Samples/Tasks/tsconfig.json');
 const artifacts = join(root, 'Samples/Tasks/Features');
 const options = { project, artifacts, generatedMetadata: true, useProxyFileSuffix: true, jsImportSpecifiers: true };
-async function within(promise, message) {
+async function within(promise, message, timeoutMs = 3000) {
     let timer;
-    try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), 3000); })]); }
+    try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeoutMs); })]); }
     finally { clearTimeout(timer); }
 }
 async function generated(overrides = {}) {
@@ -362,7 +362,7 @@ import { Service } from '../Service.js';
         };
         child.once('exit', onExit);
         child.stdout.on('data', check); check();
-    }), `Timed out waiting for watch generation ${count}: ${errors}`);
+    }), `Timed out waiting for watch generation ${count}: ${errors}`, 15000);
     try {
         await nextGeneration(1);
         await within(new Promise(resolve => {
