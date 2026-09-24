@@ -53,10 +53,11 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Observable queries, HTTP snapshots, SSE, and WebSocket | Not implemented | The TypeScript source type is not decided. |
-| Multiplexed hubs, subscription revisions, and transfer modes | Not implemented | |
-| Emission guards | Not implemented | |
-| Query health endpoint | Not implemented | |
+| Observable definitions and HTTP snapshots | Supported, bounded | `defineObservableQuery` accepts async iterables, structural subscribables and `CurrentValueSubject`. Each subscription uses the query authorization and validation pipeline and owns a service scope. Current value answers 200; pending answers 202; a bounded wait answers 408 on timeout or 500 on completion without data. [Stream a query](../guides/observable-queries.md). |
+| Direct SSE | Supported, bounded | The query route streams direct result frames through real Express, Fastify and Hono adapters; the installed 22.19.1 client receives updates from all three. Each client subscription holds one connection. No direct WebSocket transport yet. |
+| Direct WebSocket and multiplexed hubs | Not implemented | No WebSocket upgrades, SSE hub controls, subscription revisions or transfer modes. |
+| Emission guards | Not implemented | No per-emission policy checks or delta baseline. |
+| Query health endpoint | Not implemented | The .NET health route includes caller and connection metadata; its security policy needs separate review. |
 
 ## Validation
 
@@ -110,7 +111,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Command and query pipeline testing | Supported | `ArcScenario` from `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. Observable query scenarios are not implemented. |
+| Command and query pipeline testing | Supported | `ArcScenario` from `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. An observable subscription can be exercised through `ArcServer.openObservableQuery`; no dedicated scenario helper exists yet. |
 
 ## Hosting
 
@@ -119,7 +120,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Express 5, Fastify 5, and Hono 4 adapters | Supported | Their differences and TLS/native principal trust boundary are listed in [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#adapter-differences-and-limitations). |
 | Cancellation on client disconnect | Supported for Express and Fastify | Hono passes the signal of the request it received. |
 | Unsupported methods | Supported | 405 with an `Allow` header for methods that reach Arc. Fastify routes only a fixed list of methods to Arc. |
-| Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Connection, rate, and subscription limits are not implemented. |
+| Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Subscribable emission queues cap at 64 pending snapshots; simultaneous observable subscriptions (including opening ones) cap at 128 by default, configurable up to 1024. No per-caller rate limit or hub connection limit. |
 | Standalone host, static files, and SPA fallback | Not implemented | The host frameworks can serve static files themselves. |
 | Tracing and metrics | Not implemented | |
 

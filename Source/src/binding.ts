@@ -89,7 +89,7 @@ function bind(schema: z.ZodType, values: Record<string, unknown>, get: boolean):
     }
     return result;
 }
-export function getQuery(url: URL, schema: z.ZodType): { input: unknown; options: QueryOptions } {
+export function getQuery(url: URL, schema: z.ZodType, observable = false): { input: unknown; options: QueryOptions } {
     const args: Record<string, unknown> = Object.create(null);
     const shape = schema instanceof z.ZodObject ? schema.shape : {};
     for (const [key, value] of url.searchParams) {
@@ -112,6 +112,7 @@ export function getQuery(url: URL, schema: z.ZodType): { input: unknown; options
     };
     const page = reserved('page'); const pageSize = reserved('pageSize');
     const field = reserved('sortBy'); const direction = reserved('sortDirection');
+    if (observable) { reserved('waitForFirstResult'); reserved('waitForFirstResultTimeout'); }
     const paging: PageRequest | undefined = pageSize === undefined ? undefined : { page: integer(page, 0), pageSize: integer(pageSize, 0) };
     if (paging && paging.pageSize < 1) throw new BadRequest();
     if (direction !== undefined && field === undefined) throw new BadRequest();

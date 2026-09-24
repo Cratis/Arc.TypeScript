@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
 import type { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
@@ -33,8 +35,11 @@ export function mountExpress(app: Express, server: ArcServer, native?: (request:
                     response.setHeader(key, [...(Array.isArray(existing) ? existing : typeof existing === 'string' ? [existing] : []), ...result.headers.getSetCookie()]);
                 } else response.setHeader(key, value);
             });
-            response.end(Buffer.from(await result.arrayBuffer()));
-        } catch (error) { next(error); }
+            if (result.headers.get('content-type')?.startsWith('text/event-stream')) {
+                if (!result.body) throw new Error('Observable query stream has no response body');
+                await pipeline(Readable.fromWeb(result.body as unknown as NodeReadableStream), response);
+            } else response.end(Buffer.from(await result.arrayBuffer()));
+        } catch (error) { if (!controller.signal.aborted) next(error); }
         finally {
             request.off('aborted', abort);
             response.off('close', onClose);

@@ -11,6 +11,8 @@
       href: command-outcomes.md
     - name: Bind query arguments, page, and sort
       href: queries.md
+    - name: Stream an observable query
+      href: observable-queries.md
     - name: Configure the server
       href: configuration.md
     - name: Compose services and test pipelines

@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
@@ -15,6 +17,7 @@ export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (
             const rawPath = request.raw.url?.split('?')[0];
             if (rawPath !== path) return reply.code(404).send();
             const controller = new AbortController();
+            let streaming = false;
             const abort = () => controller.abort();
             const onClose = () => { if (!reply.raw.writableEnded) abort(); };
             request.raw.on('aborted', abort);
@@ -31,10 +34,21 @@ export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (
                 if (!result) return reply.code(404).send();
                 // Fastify appends Set-Cookie to existing hook cookies itself.
                 result.headers.forEach((value, key) => reply.header(key, value));
+                if (result.headers.get('content-type')?.startsWith('text/event-stream')) {
+                    if (!result.body) throw new Error('Observable query stream has no response body');
+                    streaming = true;
+                    reply.raw.once('close', () => {
+                        request.raw.off('aborted', abort);
+                        reply.raw.off('close', onClose);
+                    });
+                    return reply.code(result.status).send(Readable.fromWeb(result.body as unknown as NodeReadableStream));
+                }
                 return reply.code(result.status).send(await result.text());
             } finally {
-                request.raw.off('aborted', abort);
-                reply.raw.off('close', onClose);
+                if (!streaming) {
+                    request.raw.off('aborted', abort);
+                    reply.raw.off('close', onClose);
+                }
             }
         }
         for (const path of server.endpoints.keys()) {

@@ -9,10 +9,15 @@ import type { TenancyOptions } from './TenancyOptions.js';
 import type { DevelopmentUser } from './DevelopmentUser.js';
 import type { DevelopmentTenant } from './DevelopmentTenant.js';
 import type { ExecutionContext } from './ExecutionContext.js';
+import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
+    /** Observable queries share query routes and the full query pipeline. */
+    observableQueries?: readonly ObservableQueryDefinition<z.ZodType, unknown>[];
+    /** Maximum simultaneous live and opening subscriptions; defaults to 128. */
+    maxObservableSubscriptions?: number;
     prefix?: string;
     segmentsToSkip?: number;
     enableQueryMethod?: boolean;

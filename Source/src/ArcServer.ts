@@ -16,6 +16,10 @@ import { ServiceRegistry } from './ServiceRegistry.js';
 import { withServices } from './ServiceScope.js';
 import { requestContext } from './RequestContextStore.js';
 import { inspectClientInput, inspectClientQueryInput } from './ClientManifest.js';
+import { observableOperation, isObservableOperation } from './queries/observable/ObservableOperation.js';
+import { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
+import { snapshot, snapshotOptions } from './queries/observable/snapshot.js';
+import { directSse } from './queries/observable/directSse.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -41,6 +45,8 @@ export class ArcServer {
     readonly services: ServiceRegistry;
     readonly #ownsServices: boolean;
     readonly #identitySchema: Record<string, unknown> | undefined;
+    readonly #observableSessions = new Set<ObservableQuerySession>();
+    #openingObservableSessions = 0;
 
     constructor(options: ArcServerOptions) {
         this.options = options;
@@ -54,14 +60,18 @@ export class ArcServer {
         this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
         if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
+        if (options.maxObservableSubscriptions !== undefined &&
+            (!Number.isSafeInteger(options.maxObservableSubscriptions) || options.maxObservableSubscriptions < 1 || options.maxObservableSubscriptions > 1024))
+            throw new Error('Invalid maximum observable subscriptions');
         const prefix = options.prefix ?? 'api';
         if (prefix && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(prefix)) throw new Error('Unsafe Arc prefix');
         const skip = options.segmentsToSkip ?? 0;
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid namespace segments to skip');
-        for (const item of [...options.commands ?? [], ...options.queries ?? []]) {
+        for (const item of [...options.commands ?? [], ...options.queries ?? [], ...options.observableQueries ?? []]) {
             if (item.clientOutput) {
                 const id = [item.namespace, item.name].filter(Boolean).join('.');
-                if (options.queries?.some(query => query === item)) inspectClientQueryInput(item.schema, id);
+                if (options.queries?.some(query => query === item) || options.observableQueries?.some(query => query === item))
+                    inspectClientQueryInput(item.schema, id);
                 inspectClientInput(item.schema, id);
             }
             if (item.authorization?.anonymous && (item.authorization.authenticated || item.authorization.roles?.length))
@@ -72,7 +82,10 @@ export class ArcServer {
             }
         }
         this.commands = (options.commands ?? []).map(item => commandOperation(item, routeFor(item, prefix, skip)));
-        this.queries = (options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip)));
+        this.queries = [
+            ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip))),
+            ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip)))
+        ];
         const routes = new Map<string, Operation>();
         const names = new Set<string>();
         const endpoints = new Map<string, string>([
@@ -159,7 +172,43 @@ export class ArcServer {
         });
     }
 
-    async dispose(): Promise<void> { if (this.#ownsServices) await this.services.dispose(); }
+    async dispose(): Promise<void> {
+        const sessions = [...this.#observableSessions];
+        if (!sessions.length) {
+            if (this.#ownsServices) await this.services.dispose();
+            return;
+        }
+        const outcomes = await Promise.allSettled(sessions.map(session => session.close()));
+        const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown);
+        if (this.#ownsServices) {
+            try { await this.services.dispose(); }
+            catch (error) { failures.push(error); }
+        }
+        if (failures.length === 1) throw failures[0];
+        if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
+    }
+
+    /** Open one query pipeline and service scope until its subscription ends. Caller must close it. */
+    async openObservableQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<ObservableQuerySession> {
+        const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        if (!operation || !isObservableOperation(operation)) throw new Error(`Unknown observable query: ${name}`);
+        if (this.#observableSessions.size + this.#openingObservableSessions >= (this.options.maxObservableSubscriptions ?? 128))
+            throw new Error('Observable query subscription limit reached');
+        this.#openingObservableSessions++;
+        try {
+            const held: { session?: ObservableQuerySession } = {};
+            const session = await ObservableQuerySession.open(operation, input, context, options, this.services, () => {
+                if (held.session) this.#observableSessions.delete(held.session);
+            });
+            held.session = session;
+            if (this.services.disposed) {
+                await session.close();
+                throw new Error('Service registry is disposed');
+            }
+            if (!session.rejection) this.#observableSessions.add(session);
+            return session;
+        } finally { this.#openingObservableSessions--; }
+    }
 
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
         const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
@@ -169,7 +218,11 @@ export class ArcServer {
     async performQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<QueryResult> {
         const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown query: ${name}`);
-        return this.runScoped(operation, input, Object.freeze({ ...context, allowedSeverity: Severity.Warning }), options) as Promise<QueryResult>;
+        const execution = Object.freeze({ ...context, allowedSeverity: Severity.Warning });
+        if (!isObservableOperation(operation)) return this.runScoped(operation, input, execution, options) as Promise<QueryResult>;
+        const session = await this.openObservableQuery(name, input, execution, options);
+        try { return session.rejection ?? await session.current() ?? queryResult(execution, { isReady: false }); }
+        finally { await session.close(); }
     }
 
     async handle(request: Request, native?: NativeRequestContext | (() => NativeRequestContext)): Promise<Response | null> {
@@ -268,14 +321,29 @@ export class ArcServer {
                     }
                     if (!operation) return null;
                     let input: unknown; let options: QueryOptions | undefined;
+                    let snapshotRequest = { wait: false, timeoutMs: 30_000 };
                     try {
+                        if (request.method === 'GET' && isObservableOperation(operation))
+                            snapshotRequest = snapshotOptions(new URL(request.url));
                         if (operation.kind === 'command') input = await body(request, this.options.maxBodyBytes ?? 1024 * 1024);
-                        else if (request.method === 'GET') ({ input, options } = getQuery(new URL(request.url), operation.schema));
+                        else if (request.method === 'GET') ({ input, options } = getQuery(new URL(request.url), operation.schema, isObservableOperation(operation)));
                         else ({ input, options } = structuredQuery(await body(request, this.options.maxBodyBytes ?? 1024 * 1024), operation.schema));
                     } catch (error) {
                         if (!(error instanceof BadRequest)) throw error;
                         const failure = operation.kind === 'command' ? commandResult(context, { validationResults: malformed(context) }) : queryResult(context, { validationResults: malformed(context) });
                         return send(failure, 400);
+                    }
+                    if (isObservableOperation(operation)) {
+                        const name = [operation.namespace, operation.name].filter(Boolean).join('.');
+                        const session = await this.openObservableQuery(name, input, context, options);
+                        if (request.method === 'GET' && request.headers.get('accept')?.toLowerCase().includes('text/event-stream'))
+                            return directSse(session, headers);
+                        try {
+                            const { result, code } = await snapshot(session, context, snapshotRequest.wait, snapshotRequest.timeoutMs);
+                            if (result.exceptionMessages.length && !this.options.development)
+                                result.exceptionMessages = ['An unexpected error occurred'];
+                            return send(result, code);
+                        } finally { await session.close(); }
                     }
                     const result = await this.runScoped(operation, input, context, options, isValidation);
                     if (hasFailure(result) && !await logFailure(originalFailure(result))) return serverFailure();
