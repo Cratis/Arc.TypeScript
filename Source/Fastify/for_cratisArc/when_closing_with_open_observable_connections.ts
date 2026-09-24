@@ -33,7 +33,7 @@ for (const order of ['before', 'after'] as const) {
             const sse = await fetch(context.app.listeningOrigin + '/.cratis/queries/sse');
             sse.status.should.equal(200);
             context.reader = sse.body!.getReader();
-            (await context.reader.read()).done.should.be.false;
+            (await context.reader.read()).done.should.equal(false);
             await new Promise<void>((resolve, reject) => {
                 const rejected = new WebSocket(context.app.listeningOrigin.replace('http:', 'ws:') + '/not-arc');
                 rejected.once('unexpected-response', (request, response) => {
@@ -57,6 +57,6 @@ for (const order of ['before', 'after'] as const) {
             await context.reader?.cancel().catch(() => {});
             await context.arc.dispose();
         });
-        it('should finish closing the host without client-initiated disconnects', () => { closed.should.be.true; });
+        it('should finish closing the host without client-initiated disconnects', () => { closed.should.equal(true); });
     }));
 }
