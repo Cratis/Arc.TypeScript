@@ -22,13 +22,22 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
     const onUpgrade = (request: IncomingMessage, socket: Socket, head: Buffer): void => {
         const raw = request.url ?? '';
         const path = raw.split('?')[0];
-        if (!path || !arc.endpoints.has(path)) return;
+        if (!path) return;
+        if (!arc.endpoints.has(path)) {
+            try {
+                if (arc.endpoints.has(decodeURIComponent(path))) socket.destroy();
+            } catch { socket.destroy(); }
+            return;
+        }
         let url: URL;
         try { url = new URL(raw, 'http://arc.invalid'); }
         catch { socket.destroy(); return; }
         const operation = arc.routes.get(path);
         if (url.origin !== 'http://arc.invalid' || url.pathname !== path ||
-            path !== '/.cratis/queries/ws' && (!operation || !isObservableOperation(operation))) return;
+            path !== '/.cratis/queries/ws' && (!operation || !isObservableOperation(operation))) {
+            socket.destroy();
+            return;
+        }
         const origin = request.headers.origin;
         const secure = request.socket instanceof TLSSocket && request.socket.encrypted === true;
         if (origin && origin !== `${secure ? 'https' : 'http'}://${request.headers.host}`) {
