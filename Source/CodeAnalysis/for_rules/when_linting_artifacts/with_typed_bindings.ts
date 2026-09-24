@@ -5,6 +5,7 @@ import parser from '@typescript-eslint/parser';
 import { afterAll, describe, it } from 'vitest';
 import { queryBinding } from '../../rules/queryBinding.js';
 import { injectBinding } from '../../rules/injectBinding.js';
+import { arc0003 } from '../../rules/arc0003.js';
 import { arc0013 } from '../../rules/arc0013.js';
 import { arc0015 } from '../../rules/arc0015.js';
 
@@ -28,6 +29,11 @@ class Key extends ConceptAs<string> {}
 class Tasks { register(): void {} }
 class Other { other(): void {} }
 `;
+
+tester.run('arc0003', arc0003, {
+    valid: [{ filename, code: `${prelude} @command() class Register { handle() {} } class External { handle(tasks: Tasks) {} }` }],
+    invalid: [{ filename, code: `${prelude} @command() class Register { handle() {} } class External { handle(command: Register) {} }`, errors: [{ messageId: 'external' }] }]
+});
 
 tester.run('query-binding', queryBinding, {
     valid: [

@@ -2,6 +2,8 @@
   href: index.md
 - name: ARC0002 Missing command
   href: ARC0002.md
+- name: ARC0003 External handler
+  href: ARC0003.md
 - name: ARC0004 Missing handler
   href: ARC0004.md
 - name: ARC0005 Unused provided value

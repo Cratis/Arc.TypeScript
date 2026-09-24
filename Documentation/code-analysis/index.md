@@ -28,7 +28,7 @@ The .NET IDs are retained only when the same mistake can happen in the TypeScrip
 | --- | --- | --- |
 | ARC0001 | N/A | TypeScript queries intentionally permit arbitrary result shapes; they do not enforce a read-model return type. |
 | [ARC0002](ARC0002.md) | Analog | `handle()` without `@command()` is not discovered. |
-| ARC0003 | N/A | No external handler registration in the model-bound TypeScript API; ARC0002 detects orphan handler-shaped classes. |
+| [ARC0003](ARC0003.md) | Analog | External `handle(command: DecoratedCommand)` methods do not run as command handlers. |
 | [ARC0004](ARC0004.md) | Analog | A command must define a public instance `handle()`. |
 | [ARC0005](ARC0005.md) | Analog | A direct `provide()` value with no handler parameters is discarded; this rule does not infer control outcomes or nested returns. |
 | ARC0006 | N/A | Command-scoped read-model injection is not implemented. |

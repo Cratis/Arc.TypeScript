@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { TSESLint } from '@typescript-eslint/utils';
 import { arc0002 } from './rules/arc0002.js';
+import { arc0003 } from './rules/arc0003.js';
 import { arc0004 } from './rules/arc0004.js';
 import { arc0005 } from './rules/arc0005.js';
 import { arc0010 } from './rules/arc0010.js';
@@ -20,7 +21,7 @@ import { validatorTarget } from './rules/validatorTarget.js';
 
 /** Arc server diagnostics, including .NET ARC identifiers where semantics overlap. */
 const rules = {
-    arc0002, arc0004, arc0005, arc0010, arc0012, arc0013, arc0014, arc0015, arc0019,
+    arc0002, arc0003, arc0004, arc0005, arc0010, arc0012, arc0013, arc0014, arc0015, arc0019,
     'missing-field': missingField,
     'declared-field': declaredField,
     'inject-binding': injectBinding,
