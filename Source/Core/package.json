@@ -27,7 +27,9 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b"

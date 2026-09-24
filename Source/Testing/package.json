@@ -23,7 +23,9 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md"
   ],
   "dependencies": {
     "@cratis/arc.core": "workspace:^"

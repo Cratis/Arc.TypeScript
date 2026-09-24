@@ -22,7 +22,7 @@ You can check a proposed release without changing a package or publishing anythi
    yarn ci
    ```
 
-   A passing guard specification alone does not mean the framework has passed CI.
+   `yarn ci` also runs `yarn check:consumers` after the build. It installs tarballs in a disposable project outside the workspace, checks public exports and package contents, type-checks NodeNext and Bundler consumers, and exercises native ESM HTTP and CLI usage. Run `yarn check:consumers --self-test` separately to prove the package-content guard rejects a planted violation. Neither check publishes a package. A passing guard specification alone does not mean the framework has passed CI.
 
 ## Preview a candidate on GitHub
 

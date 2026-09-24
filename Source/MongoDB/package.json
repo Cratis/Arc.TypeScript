@@ -23,7 +23,10 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "!dist/given.*",
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md"
   ],
   "peerDependencies": {
     "@cratis/arc.core": "^0.17.0",
