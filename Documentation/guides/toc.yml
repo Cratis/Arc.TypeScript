@@ -37,6 +37,8 @@
       href: services-and-testing.md
     - name: Generate command and query clients
       href: generate-clients.md
+    - name: Generate artifact metadata
+      href: generated-artifact-metadata.md
     - name: Read models from MongoDB
       href: mongodb.md
     - name: Append Chronicle events (experimental)

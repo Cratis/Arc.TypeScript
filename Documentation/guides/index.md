@@ -28,5 +28,6 @@ The guides describe the current source in this repository. No package is publish
 | [Configure the server](configuration.md) | Change route prefixes and paths, resolve tenants, limit request bodies, and control what errors reveal. |
 | [Compose services and test pipelines](services-and-testing.md) | Register scoped services and exercise real command and query pipelines in specs. |
 | [Generate typed clients](generate-clients.md) | Export explicit contracts and generate clients for the existing Arc frontend runtime. |
+| [Generate artifact metadata](generated-artifact-metadata.md) | Bind standard-decorator handlers and queries without repeating class tokens. |
 | [Read models from MongoDB](mongodb.md) | Serve queries from a tenant's MongoDB database with a filter your code controls. |
 | [Append Chronicle events from commands (experimental)](chronicle.md) | Review the experimental Chronicle integration and why it cannot run against Chronicle yet. |

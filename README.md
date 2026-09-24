@@ -20,7 +20,6 @@ export class RegisterTask {
     @field(TaskId) id!: TaskId;
     @field(TaskTitle) title!: TaskTitle;
 
-    @inject(Tasks)
     handle(tasks: Tasks): TaskId {
         tasks.register(this.id, this.title);
         return this.id;
@@ -32,12 +31,12 @@ export class TaskItem {
     @field(TaskId) id!: TaskId;
     @field(TaskTitle) title!: TaskTitle;
 
-    @query(service(Tasks))
-    static allTasks(tasks: Tasks): TaskItem[] { return tasks.all(); }
+    @query()
+    static taskById(id: TaskId, tasks: Tasks): TaskItem | undefined { return tasks.byId(id); }
 }
 ```
 
-`@field` comes from `@cratis/fundamentals`; the other decorators come from `@cratis/arc.core`. Arc decodes the fields into concepts, runs the command or query in a service scope, and uses that same field metadata for JSON Schema. The sample discovers artifacts under `Features/`, so these routes are `POST /api/tasks/registration/register-task` and `GET /api/tasks/listing/all-tasks`. Start with [Get started](Documentation/getting-started.md) for a complete build and two HTTP calls. If you need explicit Zod schemas and low-level handler callbacks instead, use the existing `defineCommand` and `defineQuery` APIs; they remain supported.
+`@field` comes from `@cratis/fundamentals`; the other decorators come from `@cratis/arc.core`. With [generated artifact metadata](Documentation/guides/generated-artifact-metadata.md) installed, Arc binds typed parameters without repeated service tokens. It decodes fields into concepts, runs commands and queries in a service scope, and uses field metadata for JSON Schema. Without generation, use `@inject(Tasks)` and `@query(argument('id', TaskId), service(Tasks))`. The sample discovers artifacts under `Features/`, so these routes are `POST /api/tasks/registration/register-task` and `GET /api/tasks/listing/task-by-id?id=<task-id>`. Start with [Get started](Documentation/getting-started.md) for a complete build and two HTTP calls. If you need explicit Zod schemas and low-level handler callbacks instead, use the existing `defineCommand` and `defineQuery` APIs; they remain supported.
 
 ## Packages
 
@@ -48,7 +47,7 @@ export class TaskItem {
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |
 | `@cratis/arc.testing` | [`Source/Testing`](Source/Testing) | `CommandScenario`, `QueryScenario`, and `ObservableQueryScenario` for decorated artifacts; `ArcScenario` for low-level definitions and HTTP |
-| `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `analyzeSource`, `renderSource`, `generateFromSource`, and the `arc-proxygenerator` CLI generate published-client proxies from decorated source. The original `renderClientManifest`/`generateClient` JSON path remains available for low-level definitions. See [Generate command and query clients](Documentation/guides/generate-clients.md). |
+| `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `analyzeSource`, `renderSource`, `renderGeneratedMetadata`, `generateFromSource`, and the CLI generate published-client proxies and optional server artifact metadata from decorated source. The original `renderClientManifest`/`generateClient` JSON path remains available for low-level definitions. See [Generate command and query clients](Documentation/guides/generate-clients.md). |
 | `@cratis/eslint-plugin-arc-core` | [`Source/CodeAnalysis`](Source/CodeAnalysis) | ESLint 10 flat-config diagnostics for model-bound server artifacts, with an untyped-safe recommended config and an optional type-checked preset. See [Code analysis](Documentation/code-analysis/index.md). |
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.addMongoDB`, tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.addChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.5.1 imports natively; an opt-in kernel suite exercises all three HTTP adapters. No .NET transaction, aggregate, or reactor-command parity. |
@@ -64,6 +63,8 @@ git clone https://github.com/Cratis/Arc.TypeScript.git
 cd Arc.TypeScript
 corepack enable
 yarn install
+yarn tsc -b Source/Core Source/Tools/ProxyGenerator
+yarn workspace @cratis/arc.core.sample.tasks generate-proxies
 yarn build
 yarn workspace @cratis/arc.core.sample.tasks start
 ```
@@ -76,18 +77,18 @@ Supported, with specs in this repository: commands and queries with Zod schemas,
 
 Also supported, each one explicit or opt-in:
 
-- **Services.** Use `builder.services.addSingleton(Tasks)` for class self-binding, or register a factory or `serviceToken`; `@injectable(...)` and `static inject` declare constructor dependencies. Model-bound methods use `@inject(...)` and ordered `service(...)` query descriptors. The older `define*` definitions retain `handlerDependencies` and `validatorDependencies`. Execution scopes dispose their services; `await app.dispose()` closes the app and its registry.
+- **Services.** Use `builder.services.addSingleton(Tasks)` for class self-binding, or register a factory or `serviceToken`; `@injectable(...)` and `static inject` declare constructor dependencies. Model-bound methods use generated metadata, or explicit `@inject(...)` and ordered `service(...)` descriptors without generation. The older `define*` definitions retain `handlerDependencies` and `validatorDependencies`. Execution scopes dispose their services; `await app.dispose()` closes the app and its registry.
 - **Identity.** `identityDetails` (Zod schema or model-bound details type) or a discovered `@identityDetailsProvider()` registers `GET /.cratis/me` and sets a client-readable display cookie. The cookie is for display only; it is not a credential. [Identity and authentication](Documentation/identity/index.md) describes opt-in EasyAuth headers and signed JWT verification.
 - **Host principals.** `nativePrincipal: true` accepts a principal your host framework has already verified, passed through an explicit adapter callback. It cannot be combined with Arc authentication handlers.
 - **Tenancy.** Besides the tenant header and `resolveTenant`, the `tenancy` option selects ordered header, query, claim, fixed/development, or subdomain sources, with optional `required` and membership-claim checks. [Tenant resolvers](Documentation/tenancy/resolvers.md) describe the trust boundary.
 - **Testing.** `@cratis/arc.testing` runs decorated commands, queries, and observable queries through real pipelines with scoped services and JSON wire round trips; `ArcScenario` still covers low-level definitions and HTTP. See [test real pipelines](Documentation/guides/services-and-testing.md#test-a-decorated-command).
-- **Generated clients, bounded.** Run `arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <existing-folder>` against decorated commands and read models. It reads the TypeScript program, not application startup, and generates command/query/observable classes, nested models and hooks. These compile with the published `@cratis/arc` and `@cratis/arc.react` 22.19.1 in strict Bundler mode with `skipLibCheck: false`; the model-bound command, query, paging, sorting and observable hub run against all three adapters. Extensionless imports are the default for Vite/Bundler; use `--js-import-specifiers` for compiled native Node ESM. The Tasks sample's cross-platform `generate-proxies` script generates and compiles this output in CI. `NodeNext` consumer compilation is not supported by those published declarations. For low-level `define*` definitions, keep using `exportClientManifest` and the positional JSON CLI, whose narrower contract excludes nested DTOs, React hooks and shared validation rules. See [Generate command and query clients](Documentation/guides/generate-clients.md).
+- **Generated clients and metadata, bounded.** Run `arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <existing-folder> [--metadata <file>]` against decorated commands and read models. It reads the TypeScript program, not application startup, and generates command/query/observable classes, nested models and hooks. These compile with the published `@cratis/arc` and `@cratis/arc.react` 22.19.1 in strict Bundler mode with `skipLibCheck: false`; the model-bound command, query, paging, sorting and observable hub run against all three adapters. Extensionless imports are the default for Vite/Bundler; use `--js-import-specifiers` for compiled native Node ESM. The Tasks sample's cross-platform `generate-proxies` script generates and compiles this output in CI. `NodeNext` consumer compilation is not supported by those published declarations. For low-level `define*` definitions, keep using `exportClientManifest` and the positional JSON CLI, whose narrower contract excludes nested DTOs, React hooks and shared validation rules. See [Generate command and query clients](Documentation/guides/generate-clients.md).
 
 A paired suite checks 44 bounded HTTP cases, including model-bound command and query validation, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
 
 Not implemented:
 
-- Generated server artifact metadata and complete .NET proxy parity. The source analyzer emits a bounded client model, but standard-mode injection still needs explicit tokens; identity-only models and some .NET template options are not yet emitted. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
+- Complete .NET generator parity. The source analyzer emits bounded client proxies and server metadata, but identity-only models and some .NET template options remain unimplemented. Source-only type changes require the generated metadata build check; runtime cannot reflect erased TypeScript types. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
 - SQL integrations. Named policies and guarded identity handlers are supported; see [authorization](Documentation/identity/authorization.md). Command operations and effects have a bounded implementation, not a distributed transaction.
 
 The Chronicle integration stays experimental despite passing a bounded live-kernel suite. SDK 6.5.1 handles literal JSON `null` for a missing model, which the suite checks across all three adapters. Command-key read-model injection and a single-event-log nested returned-event batch exist; returned events and command operations cannot be combined. Immediate appends, aggregates, and reactor command effects do not join that batch.
@@ -109,7 +110,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 - [Configure the server](Documentation/guides/configuration.md)
 - [Compose services and test pipelines](Documentation/guides/services-and-testing.md)
 - [Read models from MongoDB](Documentation/guides/mongodb.md)
-- [Generate command and query clients](Documentation/guides/generate-clients.md)
+- [Generate command and query clients](Documentation/guides/generate-clients.md) and [artifact metadata](Documentation/guides/generated-artifact-metadata.md)
 - [Append Chronicle events from commands (experimental)](Documentation/guides/chronicle.md)
 - [Capability reference](Documentation/reference/capabilities.md)
 - [Architecture](Documentation/explanation/architecture.md)
