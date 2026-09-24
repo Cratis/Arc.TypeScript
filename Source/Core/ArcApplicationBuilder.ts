@@ -14,6 +14,8 @@ import type { ObservableQueryDefinition } from './queries/observable/ObservableQ
 import { compileCommand } from './commands/modelBound/compileCommand.js';
 import { compileQueries } from './queries/modelBound/compileQueries.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
+import { registerGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
+import type { GeneratedMetadata } from './reflection/GeneratedArtifactMetadata.js';
 import type { ClassType } from './reflection/ClassType.js';
 import type { Artifact } from './reflection/Artifact.js';
 import { validateMetadata } from './reflection/validateMetadata.js';
@@ -49,6 +51,12 @@ export class ArcApplicationBuilder {
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
+    /** Install source-generated bindings before adding or discovering artifacts. */
+    useGeneratedMetadata(metadata: GeneratedMetadata): this {
+        if (this.#built || this.#artifacts.length) throw new Error('Register generated metadata before artifacts');
+        registerGeneratedMetadata(metadata);
+        return this;
+    }
     /** Add an ordered scoped response handler registered in services. */
     addCommandResponseValueHandler(token: ServiceIdentifier<CommandResponseValueHandler>): this {
         this.#responseHandlers.push(token);

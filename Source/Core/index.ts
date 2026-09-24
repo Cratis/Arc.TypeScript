@@ -5,6 +5,8 @@ export { ArcServer, currentContext } from './ArcServer.js';
 export { ArcApplication } from './ArcApplication.js';
 export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
 export { discoveryFiles } from './reflection/discoveryFiles.js';
+export { generatedMetadataSignature } from './reflection/generatedMetadataSignature.js';
+export type { GeneratedMetadata, GeneratedArtifactMetadata } from './reflection/GeneratedArtifactMetadata.js';
 /** Convert model-bound values to the same JSON-ready shape as Arc's HTTP pipeline. */
 export { encode as encodeWireValue } from './reflection/wireSchema.js';
 export { ArcApplicationServices } from './ArcApplicationServices.js';

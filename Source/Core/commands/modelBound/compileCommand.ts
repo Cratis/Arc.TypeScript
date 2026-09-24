@@ -30,16 +30,18 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     const typedPreparation = tokens.some(token => !!providedType(token));
     if (typedPreparation && !hasProvider) throw new Error(`Command ${type.name} uses provided() without provide()`);
     const count = prototype.handle.length - Number(hasProvider && !typedPreparation);
-    if (count < 0) throw new Error(`Invalid handle parameters on ${type.name}`);
+    if (count < 0 && !metadata.generatedBindings) throw new Error(`Invalid handle parameters on ${type.name}`);
     if (metadata.injected?.has('handle') && !tokens.length && count) {
         tokens = reflectedParameters(type.prototype, 'handle', count, Number(hasProvider));
     }
-    if (tokens.length !== count) throw new Error(`Unbound handle parameters on ${type.name}.handle; default and rest parameters require explicit binding`);
+    if (tokens.length !== count && !(metadata.generatedBindings && tokens.length > count))
+        throw new Error(`Unbound handle parameters on ${type.name}.handle; default and rest parameters require explicit binding`);
     const provideCount = hasProvider ? prototype.provide!.length : 0;
     let provideTokens = metadata.injected?.get('provide') ?? [];
     if (hasProvider && metadata.injected?.has('provide') && !provideTokens.length && provideCount)
         provideTokens = reflectedParameters(type.prototype, 'provide', provideCount, 0);
-    if (provideTokens.length !== provideCount) throw new Error(`Unbound provide parameters on ${type.name}.provide; default and rest parameters require explicit binding`);
+    if (provideTokens.length !== provideCount && !(metadata.generatedBindings && provideTokens.length > provideCount))
+        throw new Error(`Unbound provide parameters on ${type.name}.provide; default and rest parameters require explicit binding`);
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,

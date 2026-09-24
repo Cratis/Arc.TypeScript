@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { encodeWireValue, type ExecutionContext, type QueryOptions, type QueryResult } from '@cratis/arc.core';
+import { encodeWireValue, type ArcApplicationBuilder, type ExecutionContext, type QueryOptions, type QueryResult } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 import { ScenarioHost } from './ScenarioHost.js';
 import { wireRoundTrip } from './wireRoundTrip.js';
@@ -15,6 +15,8 @@ export class QueryScenario<T = unknown> {
     static for<T = unknown>(model: ClassType, method: string, ...artifacts: ClassType[]): QueryScenario<T> {
         return new QueryScenario<T>(model, method, ...artifacts);
     }
+    /** Install generated metadata or another integration before the first call. */
+    extend(install: (builder: ArcApplicationBuilder) => void): this { this.#host.extend(install); return this; }
     /** Register query dependencies before the first call. */
     get services() { return this.#host.services; }
     /** Default trusted request values for this query. */

@@ -24,7 +24,8 @@ function parametersFor(type: ClassType, name: string, declaration: QueryMetadata
     if (!declaration.parameters && method.length) {
         parameters = reflectedParameters(type, name, method.length).map(token => ({ kind: 'service', token }));
     }
-    if (method.length !== parameters.length) throw new Error(`Unbound parameters on ${type.name}.${name}`);
+    if (method.length !== parameters.length && !(declaration.generated && method.length < parameters.length))
+        throw new Error(`Unbound parameters on ${type.name}.${name}`);
     if (declaration.argumentsModel) {
         const declared = fieldsFor(declaration.argumentsModel as WireType);
         const arguments_ = argumentsOnly(parameters);

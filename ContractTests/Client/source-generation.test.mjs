@@ -74,6 +74,8 @@ for (const kind of ['express', 'fastify', 'hono']) test(`analyzer-generated publ
     const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
     const builder = ArcApplication.createBuilder({ development: true, authentication: [() => ({ status: AuthenticationStatus.Authenticated,
         principal: { id: 'client', isAuthenticated: true, roles: [] } })] });
+    const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
+    builder.useGeneratedMetadata(metadata);
     builder.services.addSingleton(Tasks);
     await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));
     const app = await builder.build();
@@ -122,6 +124,8 @@ test('generated API prefix and namespace skipping match live model-bound routes'
     const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
     const builder = ArcApplication.createBuilder({ development: true,
         generatedApis: { routePrefix: 'v2', segmentsToSkipForRoute: 1 } });
+    const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
+    builder.useGeneratedMetadata(metadata);
     builder.services.addSingleton(Tasks);
     await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));
     const app = await builder.build();

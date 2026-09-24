@@ -48,12 +48,7 @@ function chain(expression: ts.Expression): { path?: string[]; calls: ts.CallExpr
     return { calls: calls.reverse() };
 }
 /** Extract only literal, unconditional constructor rules; never execute application code to obtain them. */
-export function extractValidatorRules(declaration: ts.ClassDeclaration, checker: ts.TypeChecker,
-    decorator: ts.CallExpression): ValidatorRules | undefined {
-    const targetNode = decorator.arguments[0];
-    const imported = targetNode && checker.getSymbolAtLocation(targetNode);
-    const target = imported?.flags && imported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(imported) : imported;
-    if (!target) return undefined;
+export function extractValidatorRules(declaration: ts.ClassDeclaration, target: ts.Symbol): ValidatorRules {
     const rules: RecordedRule[] = [];
     const diagnostics: string[] = [];
     const constructor = declaration.members.find(ts.isConstructorDeclaration);

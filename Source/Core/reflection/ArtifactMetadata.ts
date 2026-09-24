@@ -5,15 +5,18 @@ import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier
 import type { QueryMetadata } from '../queries/modelBound/QueryMetadata.js';
 import type { ClassType } from './ClassType.js';
 import type { FieldOptions } from './FieldOptions.js';
+import type { GeneratedReturn } from './GeneratedReturn.js';
 /** Shared decorator metadata stored by declaration, including individual member names. */
 export interface ArtifactMetadata {
     command?: boolean;
+    handleResult?: GeneratedReturn;
     responseValueHandler?: boolean;
     readModel?: boolean;
     namespace?: string;
     authorization?: Authorization;
     path?: string;
     injected?: Map<string, readonly ServiceIdentifier<unknown>[]>;
+    generatedBindings?: boolean;
     queryMethods?: Map<string, QueryMetadata>;
     methodAuthorization?: Map<string, Authorization>;
     methodRoutes?: Map<string, string>;
