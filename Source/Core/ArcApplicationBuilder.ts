@@ -26,7 +26,7 @@ import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
-import type { AuthorizationPolicy } from './authorization/AuthorizationPolicy.js';
+import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
 
@@ -37,7 +37,7 @@ export class ArcApplicationBuilder {
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
-    readonly #policies = new Map<string, AuthorizationPolicy>();
+    readonly #policies = new Map<string, AuthorizationPolicyRegistration>();
     readonly #identityProviders: ClassType[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
@@ -58,9 +58,17 @@ export class ArcApplicationBuilder {
         return this;
     }
     /** Register a unique named authorization policy before building the application. */
-    addAuthorizationPolicy(name: string, policy: AuthorizationPolicy): this {
+    addAuthorizationPolicy(name: string, policy: AuthorizationPolicyRegistration): this {
         if (!name.trim() || typeof policy !== 'function' || this.#policies.has(name) ||
             Object.hasOwn(this.options.authorizationPolicies ?? {}, name)) throw new Error(`Invalid or duplicate authorization policy: ${name}`);
+        if (policy.prototype && typeof policy.prototype.authorize === 'function') {
+            const type = policy as (abstract new (...arguments_: never[]) => AuthorizationPolicy);
+            const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
+            const existing = registrations.find(registration => registration.token === type);
+            if (existing && existing.lifetime !== 'scoped')
+                throw new Error(`Authorization policy ${name} must be scoped`);
+            if (!existing) this.services.addScoped(type);
+        }
         this.#policies.set(name, policy);
         return this;
     }
@@ -124,6 +132,8 @@ export class ArcApplicationBuilder {
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
             throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
+        if (this.options.identityDetails && this.#identityProviders.length)
+            throw new Error('Explicit and discovered identity details providers cannot be combined');
         if (!this.options.identityDetails && this.#identityProviders.length > 1)
             throw new Error(`Multiple identity details providers found: ${this.#identityProviders.map(type => type.name).join(', ')}`);
         const providerType = this.#identityProviders[0];
@@ -200,7 +210,9 @@ export class ArcApplicationBuilder {
     }
     private async preflight(server: ArcServer, dependencies: ServiceIdentifier<unknown>[],
         validators: ReadonlyMap<ClassType, ClassType<BaseValidator<unknown>>>): Promise<void> {
-        server.services.preflight(dependencies);
+        server.services.preflight([...dependencies, ...[...this.#policies.values()].filter(
+            (policy): policy is (abstract new (...arguments_: never[]) => AuthorizationPolicy) =>
+                typeof policy.prototype?.authorize === 'function')]);
         const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
             signal: new AbortController().signal, allowedSeverity: Severity.Error });
         try {

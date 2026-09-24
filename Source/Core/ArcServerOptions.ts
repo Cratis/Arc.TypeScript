@@ -3,7 +3,7 @@
 import type { z } from 'zod';
 import type { GeneratedApiOptions } from './GeneratedApiOptions.js';
 import type { AuthenticationHandler, CommandDefinition, Principal, QueryDefinition } from './index.js';
-import type { AuthorizationPolicy } from './authorization/AuthorizationPolicy.js';
+import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import type { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
@@ -84,7 +84,7 @@ export interface ArcServerOptions {
     /** Named authentication handlers, selected explicitly by @authorize({ schemes }). */
     authenticationSchemes?: Readonly<Record<string, AuthenticationHandler>>;
     /** Named policies checked at build time and evaluated in the command/query pipeline. */
-    authorizationPolicies?: Readonly<Record<string, AuthorizationPolicy>>;
+    authorizationPolicies?: Readonly<Record<string, AuthorizationPolicyRegistration>>;
     development?: boolean;
     logger?: (error: unknown, correlationId: string) => void;
     identityDetailsSchema?: Record<string, unknown>;

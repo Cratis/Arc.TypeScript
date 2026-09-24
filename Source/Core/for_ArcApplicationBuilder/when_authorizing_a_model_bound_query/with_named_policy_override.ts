@@ -19,16 +19,16 @@ describe('when a query method replaces the read model policy', given(an_applicat
     let latest: Response;
     let audit: Response;
     beforeEach(async () => {
-        const builder = context.create({ authentication: [() => ({ status: AuthenticationStatus.Authenticated,
-            principal: { id: 'alice', roles: ['Reader'], isAuthenticated: true } })] });
+        const builder = context.create({ authentication: [request => ({ status: AuthenticationStatus.Authenticated,
+            principal: { id: 'alice', roles: [request.headers.get('role') ?? 'Reader'], isAuthenticated: true } })] });
         builder.add(Reports).addAuthorizationPolicy('Readers', principal => principal.roles.includes('Reader'))
             .addAuthorizationPolicy('Auditors', principal => principal.roles.includes('Auditor'));
         const app = await builder.build();
         try {
             latest = (await app.server.handle(new Request('http://localhost/api/latest')))!;
-            audit = (await app.server.handle(new Request('http://localhost/api/audit')))!;
+            audit = (await app.server.handle(new Request('http://localhost/api/audit', { headers: { role: 'Auditor' } })))!;
         } finally { await app.dispose(); }
     });
     it('should evaluate the class policy on an undecorated method', () => { latest.status.should.equal(200); });
-    it('should evaluate the method policy instead of the class policy', () => { audit.status.should.equal(403); });
+    it('should evaluate the method policy instead of the class policy', () => { audit.status.should.equal(200); });
 }));

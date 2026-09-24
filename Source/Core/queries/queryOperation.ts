@@ -25,7 +25,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
     return {
         ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
-            if (!await authorized(definition.authorization, context, serverOptions.authorizationPolicies)) return queryResult(context, { isAuthorized: false });
+            if (!await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
             if (!parsed.success) return queryResult(context, { validationResults: malformed(context) });
             try {

@@ -10,7 +10,8 @@ import { inspectClientInput, inspectClientQueryInput } from '../introspection/Cl
 import { commandOperation } from '../commands/commandOperation.js';
 import { queryOperation } from '../queries/queryOperation.js';
 import { observableOperation } from '../queries/observable/ObservableOperation.js';
-import { validateAuthorization } from '../authorization/authorizationRequirements.js';
+import { authorizationRequirements, validateAuthorization } from '../authorization/authorizationRequirements.js';
+import { InvalidAuthorizationConfiguration } from '../authorization/InvalidAuthorizationConfiguration.js';
 
 /** Resolve the HTTP path shared by model-bound operations and generated clients; explicit paths take precedence. */
 export function routeFor(operation: { namespace?: string; routeNamespace?: string; name: string; path?: string }, prefix: string, skip: number, includeName: boolean): string {
@@ -44,6 +45,9 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 inspectClientInput(item.schema, id);
             }
             validateAuthorization(item.authorization, item.name, options.authorizationPolicies ?? {}, options.authenticationSchemes ?? {});
+            if (options.observableQueries?.includes(item as NonNullable<ArcServerOptions['observableQueries']>[number]) &&
+                authorizationRequirements(item.authorization).some(requirement => requirement.schemes?.length))
+                throw new InvalidAuthorizationConfiguration(`Authentication schemes on observable query '${item.name}' require per-subscription authentication, which the hub does not support.`);
             if (item.schema instanceof z.ZodObject) {
                 const folded = Object.keys(item.schema.shape).map(key => key.toLowerCase());
                 if (new Set(folded).size !== folded.length) throw new Error(`Ambiguous Arc argument names: ${item.name}`);
