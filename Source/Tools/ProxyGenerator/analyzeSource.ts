@@ -38,15 +38,15 @@ function roles(checker: ts.TypeChecker, node: ts.Node): string[] {
         return argument.text;
     });
 }
-function queryResult(type: ts.Type, checker: ts.TypeChecker, node: ts.Node): { type: ts.Type; observable: boolean } {
+function queryResult(type: ts.Type, checker: ts.TypeChecker, node: ts.Node): { type: ts.Type; observable: boolean; paged: boolean } {
     let current = type;
     if (current.symbol?.name === 'Promise') current = checker.getTypeArguments(current as ts.TypeReference)[0] ?? current;
     const name = current.aliasSymbol?.name ?? current.symbol?.name;
     if (name === 'ObservableSource' || name === 'Observable' || name === 'AsyncIterable' || name === 'AsyncGenerator')
-        return { type: current.aliasTypeArguments?.[0] ?? checker.getTypeArguments(current as ts.TypeReference)[0] ?? current, observable: true };
-    if (name === 'QueryPage') return { type: checker.getTypeArguments(current as ts.TypeReference)[0] ?? current, observable: false };
+        return { type: current.aliasTypeArguments?.[0] ?? checker.getTypeArguments(current as ts.TypeReference)[0] ?? current, observable: true, paged: false };
+    if (name === 'QueryPage') return { type: checker.getTypeArguments(current as ts.TypeReference)[0] ?? current, observable: false, paged: true };
     if (name === 'Promise' || name === 'ObservableSource') throw new Error(`${node.getSourceFile().fileName}: missing query result type`);
-    return { type: current, observable: false };
+    return { type: current, observable: false, paged: false };
 }
 export function analyzeSource(project: string, artifacts: string): SourceAnalysis {
     const configFile = ts.readConfigFile(project, ts.sys.readFile);
@@ -129,6 +129,10 @@ export function analyzeSource(project: string, artifacts: string): SourceAnalysi
                     parameters.push({ name: parameterName, type: resolver.resolve(checker.getTypeAtLocation(parameter), parameter, !!parameter.questionToken),
                         optional: !!parameter.questionToken || !!parameter.initializer });
                 }
+                concepts.set(queryKey, member.parameters.filter(parameter => parameters.some(field => field.name === parameter.name.getText())).flatMap(parameter => {
+                    const symbol = checker.getTypeAtLocation(parameter).getSymbol();
+                    return symbol && ts.isIdentifier(parameter.name) ? [{ name: parameter.name.text, symbol }] : [];
+                }));
                 const signature = checker.getSignatureFromDeclaration(member);
                 if (!signature) throw new Error(`${path}: missing query signature ${name}`);
                 const result = queryResult(checker.getReturnTypeOfSignature(signature), checker, member);
@@ -136,7 +140,10 @@ export function analyzeSource(project: string, artifacts: string): SourceAnalysi
                 const declaredObservable = options && ts.isObjectLiteralExpression(options) && options.properties.some(property =>
                     ts.isPropertyAssignment(property) && property.name.getText() === 'observable' && property.initializer.kind === ts.SyntaxKind.TrueKeyword);
                 if (result.observable !== !!declaredObservable) throw new Error(`${path}: ${owner}.${name} observable return must match @query({ observable: true })`);
-                const response: SourceType = resolver.resolve(result.type, member);
+                const element = resolver.resolve(result.type, member);
+                if (result.paged && (element.enumerable || element.void || element.nullable))
+                    throw new Error(`${path}:${file.getLineAndCharacterOfPosition(member.getStart()).line + 1}: Unsupported paged query element`);
+                const response: SourceType = result.paged ? { ...element, text: `${element.text}[]`, enumerable: true } : element;
                 operations.push({ kind: result.observable ? 'observable' : 'query', name, owner, namespace,
                     routeOverride: stringArgument(annotation(checker, member, 'path') ?? annotation(checker, member, 'route')) ?? pathOverride,
                     roles: roles(checker, member).length ? roles(checker, member) : classRoles, fields: parameters, result: response });
