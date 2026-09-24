@@ -179,8 +179,7 @@ SNIPPETS: dict[str, Context | None] = {
         host=ASSESS_LOAN_COMMAND,
         imports=(FUNDAMENTALS_FIELD,
                  "import { command, currentServices, rejected, validation, type Outcome } from '@cratis/arc.core';")),
-    # Arc for TypeScript does not resolve a read model by command key into provide().
-    "scenarios/provide-data-to-a-command/provider-owned-state": None,
+    "scenarios/provide-data-to-a-command/provider-owned-state": MODULE,
     "scenarios/validate-a-command/concept-rule": MODULE,
     "scenarios/validate-a-command/command-rule": MODULE,
     "scenarios/validate-a-command/state-rule": MODULE,
@@ -193,15 +192,15 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/test-a-command/command-under-test": MODULE,
     "scenarios/test-a-command/spec": Context(
         siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
-    # Command keys, read models injected into handlers and validators, and the Chronicle
-    # integration's event appends and test seeding are not implemented in TypeScript.
-    "scenarios/use-current-state-in-a-command/rename-author": None,
+    # Command-key model resolution is available for handlers and provide(), not validator parameters.
+    # The in-memory Chronicle scenario pins models but does not materialize projections from seed events.
+    "scenarios/use-current-state-in-a-command/rename-author": MODULE,
     "scenarios/use-current-state-in-a-command/rename-author-validator": MODULE,
     "scenarios/use-current-state-in-a-command/register-customer-validator": MODULE,
-    "scenarios/use-current-state-in-a-command/required-order-state": None,
-    "scenarios/use-current-state-in-a-command/chronicle-commands": None,
+    "scenarios/use-current-state-in-a-command/required-order-state": MODULE,
+    "scenarios/use-current-state-in-a-command/chronicle-commands": MODULE,
     "scenarios/use-current-state-in-a-command/seed-events": None,
-    "scenarios/use-current-state-in-a-command/pin-read-model": None,
+    "scenarios/use-current-state-in-a-command/pin-read-model": MODULE,
     "frontend/index/open-account": MODULE,
     "frontend/react/commands/index/command-payload": MODULE,
     "frontend/react/proxy-generation/open-debit-account": MODULE,

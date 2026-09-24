@@ -50,7 +50,7 @@ export class TaskItem {
 | `@cratis/arc.testing` | [`Source/Testing`](Source/Testing) | `CommandScenario`, `QueryScenario`, and `ObservableQueryScenario` for decorated artifacts; `ArcScenario` for low-level definitions and HTTP |
 | `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `analyzeSource`, `renderSource`, `generateFromSource`, and the `arc-proxygenerator` CLI generate published-client proxies from decorated source. The original `renderClientManifest`/`generateClient` JSON path remains available for low-level definitions. See [Generate command and query clients](Documentation/guides/generate-clients.md). |
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.addMongoDB`, tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
-| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `builder.addChronicle` and `addChronicle` append model-bound returned events, with a tenant-scoped read-model service. SDK 6.5.0 imports natively; an opt-in live-kernel suite exercises the three HTTP adapters. No .NET transaction or aggregate parity. |
+| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `builder.addChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.5.0 imports natively; an opt-in kernel suite exercises all three HTTP adapters. No .NET transaction, aggregate, or reactor-command parity. |
 
 Every package manifest is at version 0.9.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
@@ -89,7 +89,7 @@ Not implemented:
 - Generated server artifact metadata and complete .NET proxy parity. The source analyzer emits a bounded client model, but standard-mode injection still needs explicit tokens; identity-only models and some .NET template options are not yet emitted. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
 - Named authorization policies, SQL integrations, and command operations and effects.
 
-The Chronicle integration stays experimental and private despite passing a bounded live-kernel suite; nested transactions, aggregate roots, reactor command effects, and command-key read-model injection are not implemented.
+The Chronicle integration stays experimental and private despite passing a bounded live-kernel suite. Command-key read-model injection and a single-event-log nested returned-event batch exist, but the published SDK still throws for a kernel's literal JSON `null` on a missing model. Immediate appends, command operations, aggregates, and reactor command effects do not join that batch.
 
 The [capability reference](Documentation/reference/capabilities.md) lists every Arc feature family, its status, and the deliberate differences from Arc on .NET.
 
@@ -121,7 +121,7 @@ This repository builds the **server** side under its own `@cratis/arc.core` pack
 
 ## Arc does not require event sourcing
 
-Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental and private: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.5.0 loads in native Node.js and a bounded suite passes against a live kernel, but the integration does not yet match Arc on .NET's transactions or aggregate/reactor behavior.
+Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental and private: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.5.0 loads in native Node.js and a bounded suite passes against a live kernel for existing-model resolution and returned-event batches, but the integration does not yet match Arc on .NET's full transactions or aggregate/reactor behavior.
 
 ## Contributing
 
