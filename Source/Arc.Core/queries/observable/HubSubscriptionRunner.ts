@@ -108,7 +108,7 @@ export class HubSubscriptionRunner {
     private async closeSession(session: ObservableQuerySession): Promise<void> {
         try { await session.close(); }
         catch (error) {
-            if (!recordObservableCleanupFailure(this.server, this.subscription, error)) return;
+            if (!recordObservableCleanupFailure(this.server, this.subscription)) return;
             try { await this.server.options.logger?.(error, this.context.correlationId); }
             catch { /* Cleanup is already recorded; logging failure must not block other subscriptions. */ }
         }

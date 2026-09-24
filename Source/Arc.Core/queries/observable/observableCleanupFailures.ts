@@ -10,8 +10,8 @@ export function registerObservableCleanup(server: ArcServer, sessions: Observabl
     owners.set(server, sessions);
 }
 
-export function recordObservableCleanupFailure(server: ArcServer, session: object, error: unknown): boolean {
+export function recordObservableCleanupFailure(server: ArcServer, session: object): boolean {
     const owner = owners.get(server);
     if (!owner) throw new Error('Observable cleanup owner is unavailable');
-    return owner.recordCleanupFailure(session, error);
+    return owner.recordCleanupFailure(session);
 }

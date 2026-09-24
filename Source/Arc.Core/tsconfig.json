@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "dist" },
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "stripInternal": true },
   "include": ["**/*.ts"],
   "exclude": ["dist", "node_modules", "for_*/**", "given/**", "vite.config.mts"]
 }
