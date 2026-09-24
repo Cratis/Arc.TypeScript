@@ -4,6 +4,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { IEventStore } from '@cratis/chronicle';
 import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
 import { recordFailure, type CommandContext, type CommandResult } from '@cratis/arc.core';
+import type { CommandCommitDisposition } from '@cratis/arc.core';
 import { checkResults } from './ChronicleCommand.js';
 
 const current = new AsyncLocalStorage<ChronicleUnitOfWork>();
@@ -15,7 +16,8 @@ export class ChronicleUnitOfWork {
     #store?: IEventStore;
     #nestedFailure = false;
     #completed = false;
-    constructor(private readonly context: CommandContext) {}
+    disposition: CommandCommitDisposition = 'NotCommitted';
+    constructor(readonly context: CommandContext) {}
     static active(): ChronicleUnitOfWork | undefined {
         const unit = current.getStore();
         return unit && !unit.#completed ? unit : undefined;
@@ -49,14 +51,16 @@ export class ChronicleUnitOfWork {
             exceptionMessages: [...result.exceptionMessages, 'Nested Chronicle command failed; staged events were discarded'],
             hasExceptions: true, isSuccess: false };
         if (!this.#entries.length) return result;
+        this.disposition = 'Unknown';
         const entries = [...this.#entries];
         const options: AppendOptions = { correlationId: this.context.correlationId,
             ...(Object.keys(this.#scopes).length ? { concurrencyScopes: { ...this.#scopes } } : {}) };
         try {
             this.context.signal.throwIfAborted();
             const outcome = checkResults(await this.#store!.eventLog.appendMany(entries, options), entries.length);
-            if (!outcome) return result;
+            if (!outcome) { this.disposition = 'Committed'; return result; }
             if (outcome.kind !== 'validation') throw new Error('Unexpected Chronicle append outcome');
+            this.disposition = 'NotCommitted';
             return { ...result, response: undefined, validationResults: outcome.results,
                 isValid: false, isSuccess: false };
         } catch (error) {

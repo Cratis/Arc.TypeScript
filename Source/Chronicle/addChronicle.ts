@@ -10,6 +10,7 @@ import { ChronicleCommandKeyResolver } from './ChronicleCommandKeyResolver.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
+import { ChronicleCommandScope } from './ChronicleCommandScope.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
 export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleRegistration): ArcApplicationBuilder {
@@ -27,6 +28,7 @@ export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleR
     builder.services.addScoped(ChronicleCommandKeyResolver);
     builder.addCommandKeyResolver(ChronicleCommandKeyResolver);
     builder.addCommandExecutionRunner(runChronicleCommand);
+    builder.addCommandExecutionScope(() => new ChronicleCommandScope());
     return builder;
 }
 

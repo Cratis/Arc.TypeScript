@@ -81,7 +81,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 const snapshot = new CommandFailureSnapshot(context);
                 try {
                     await prepareDependencies(definition.handlerDependencies);
-                    for (const create of definition.scopes ?? []) {
+                    for (const create of [...options.commandExecutionScopes ?? [], ...definition.scopes ?? []]) {
                         const scope = create();
                         scopes.push(scope);
                         await scope.begin(context);
