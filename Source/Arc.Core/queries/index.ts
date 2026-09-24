@@ -7,6 +7,7 @@ export type { PageRequest } from './PageRequest.js';
 export type { Paging } from './Paging.js';
 export type { QueryOptions } from './QueryOptions.js';
 export { queryPage } from './QueryPage.js';
+export { InvalidQuerySort } from './InvalidQuerySort.js';
 export type { QueryPage } from './QueryPage.js';
 export type { SortRequest } from './SortRequest.js';
 export type { QueryResult } from './QueryResult.js';

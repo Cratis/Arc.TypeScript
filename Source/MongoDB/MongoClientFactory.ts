@@ -15,7 +15,7 @@ export class MongoClientFactory {
     get(context: ExecutionContext): MongoClient {
         if (this.options.client) return this.options.client;
         if (!context.tenantId) throw new Error('A tenant is required for MongoDB access');
-        const uri = this.options.serverResolver?.(context.tenantId, context) ?? this.options.server;
+        const uri = this.options.serverResolver?.(context.tenantId.toLowerCase(), context) ?? this.options.server;
         if (!uri) throw new Error('MongoDB server resolver returned no server');
         let client = this.#clients.get(uri);
         if (!client) { client = new MongoClient(uri); this.#clients.set(uri, client); }

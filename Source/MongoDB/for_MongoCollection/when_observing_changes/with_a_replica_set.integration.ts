@@ -56,6 +56,37 @@ describe('when observing changes with a replica set', given(a_replica_set, conte
             } finally { await session.close(); }
         } finally { await scope.dispose(); }
     }, 30000);
+    it('should observe one document by id, including deletion, and close its stream on scope disposal', async () => {
+        const tenant = context.context('a');
+        const scope = application.server.services.createScope(tenant);
+        const collection = await scope.resolve(mongoCollection(TaskRecord));
+        try {
+            const observation = await collection.observeById(id);
+            const iterator = observation[Symbol.asyncIterator]();
+            should().equal((await iterator.next()).value, null);
+            await collection.native.insertOne(collection.codec.serialize(document));
+            (await iterator.next()).value!.title.should.equal('first');
+            await collection.native.deleteOne({ _id: collection.codec.id(id) } as Filter<Document>);
+            should().equal((await iterator.next()).value, null);
+            await scope.dispose();
+            ((await iterator.next()).done ?? false).should.equal(true);
+        } finally { await scope.dispose(); }
+    }, 30000);
+    it('should honor application default sorting when Arc has not requested a sort', async () => {
+        const tenant = context.context('a');
+        const scope = application.server.services.createScope(tenant);
+        try {
+            const collection = await scope.resolve(mongoCollection(TaskRecord));
+            await collection.native.insertMany([
+                collection.codec.serialize(Object.assign(new TaskRecord(), { id, title: 'z' })),
+                collection.codec.serialize(Object.assign(new TaskRecord(), {
+                    id: Guid.parse('11112233-4455-6677-8899-aabbccddeeff'), title: 'a'
+                }))
+            ]);
+            const page = await collection.queryPage({}, { paging: { page: 0, pageSize: 1 } }, { sort: { title: 1 } });
+            page.items[0]!.title.should.equal('a');
+        } finally { await scope.dispose(); }
+    });
     it('should push Arc sorting and paging into MongoDB with a total count', async () => {
         const tenant = context.context('a');
         const scope = application.server.services.createScope(tenant);

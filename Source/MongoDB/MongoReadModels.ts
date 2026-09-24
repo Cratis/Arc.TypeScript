@@ -34,7 +34,8 @@ export class MongoReadModels<T extends Document, I> {
 
     /** Only primitive or BSON ObjectId identities are accepted; never interpret caller input as a filter. */
     async findById(context: ExecutionContext, input: I, id: string | number | boolean | bigint | ObjectId): Promise<WithId<T> | null> {
-        if (!(id instanceof ObjectId) && !(typeof id === 'string' || typeof id === 'boolean' || typeof id === 'bigint' || typeof id === 'number' && Number.isFinite(id)))
+        if (!(id instanceof ObjectId) && !(typeof id === 'string' || typeof id === 'boolean' ||
+            typeof id === 'bigint' || typeof id === 'number' && Number.isFinite(id)))
             throw new TypeError('A primitive or BSON ObjectId is required for findById');
         const collection = this.collection(context);
         const filter = this.options.filterFor(input, context);
@@ -42,24 +43,30 @@ export class MongoReadModels<T extends Document, I> {
     }
 
     /** Require Arc's actual paging options; never fabricate a request or silently ignore sorting. */
-    async queryPage(context: ExecutionContext, input: I, options: QueryOptions, findOptions?: MongoPageFindOptions<T>): Promise<QueryPage<WithId<T>>> {
+    async queryPage(context: ExecutionContext, input: I, options: QueryOptions,
+        findOptions?: MongoPageFindOptions<T>): Promise<QueryPage<WithId<T>>> {
         if (!options?.paging) throw new Error('MongoDB queryPage requires options.paging');
         const sorting = options.sorting;
         if (sorting && sorting.direction !== 'asc' && sorting.direction !== 'desc')
             throw new TypeError('MongoDB sorting direction must be asc or desc');
         if (sorting && !this.options.sortableFields?.includes(sorting.field))
             throw new Error(`MongoDB sorting is not allowed for field: ${sorting.field}`);
-        const sort = sorting ? { ...findOptions?.sort, [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const } : findOptions?.sort;
+        const sort = sorting ? { [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
+            ...Object.fromEntries(Object.entries(findOptions?.sort ?? {})
+                .filter(([field]) => field !== sorting.field)) } : findOptions?.sort;
         const page = await this.page(context, input, options.paging, { ...findOptions, sort });
         return createQueryPage(page.items, page.paging.totalItems, sorting);
     }
 
     async page(context: ExecutionContext, input: I, request: PageRequest, options?: MongoPageFindOptions<T>): Promise<MongoPage<T>> {
-        if (!Number.isSafeInteger(request.page) || request.page < 0 || !Number.isSafeInteger(request.pageSize) || request.pageSize <= 0 || !Number.isSafeInteger(request.page * request.pageSize))
+        if (!Number.isSafeInteger(request.page) || request.page < 0 ||
+            !Number.isSafeInteger(request.pageSize) || request.pageSize <= 0 ||
+            !Number.isSafeInteger(request.page * request.pageSize))
             throw new RangeError('Paging requires a nonnegative page and positive pageSize within safe integer bounds');
         if (request.pageSize > (this.options.maxPageSize ?? 100)) throw new RangeError('Paging exceeds maxPageSize');
         const sort = options?.sort;
-        if (sort !== undefined && (typeof sort !== 'object' || sort === null || Array.isArray(sort) || Object.getPrototypeOf(sort) !== Object.prototype && Object.getPrototypeOf(sort) !== null ||
+        if (sort !== undefined && (typeof sort !== 'object' || sort === null || Array.isArray(sort) ||
+            Object.getPrototypeOf(sort) !== Object.prototype && Object.getPrototypeOf(sort) !== null ||
             Object.entries(sort).some(([field, direction]) => !field || direction !== 1 && direction !== -1)))
             throw new TypeError('Paged MongoDB sort requires an object of field names and 1 or -1 directions');
         const orderedSort = { ...sort, ...(!sort || !Object.hasOwn(sort, '_id') ? { _id: 1 as const } : {}) };
@@ -67,9 +74,13 @@ export class MongoReadModels<T extends Document, I> {
         const filter = this.options.filterFor(input, context);
         const { collation, hint, session, readPreference, readConcern, maxTimeMS, comment } = options ?? {};
         // Driver 6.21 accepts signal in the aggregation cursor used by countDocuments, but omits it from CountDocumentsOptions.
-        const countOptions: CountDocumentsOptions & { signal: AbortSignal } = { collation, hint, session, readPreference, readConcern, maxTimeMS, comment, signal: context.signal };
+        const countOptions: CountDocumentsOptions & { signal: AbortSignal } = {
+            collation, hint, session, readPreference, readConcern, maxTimeMS, comment, signal: context.signal
+        };
         const totalItems = await collection.countDocuments(filter, countOptions);
-        const items = await collection.find(filter, { ...options, sort: orderedSort, signal: context.signal }).skip(request.page * request.pageSize).limit(request.pageSize).toArray();
-        return { items, paging: { page: request.page, size: request.pageSize, totalItems, totalPages: Math.ceil(totalItems / request.pageSize) } };
+        const items = await collection.find(filter, { ...options, sort: orderedSort, signal: context.signal })
+            .skip(request.page * request.pageSize).limit(request.pageSize).toArray();
+        return { items, paging: { page: request.page, size: request.pageSize,
+            totalItems, totalPages: Math.ceil(totalItems / request.pageSize) } };
     }
 }

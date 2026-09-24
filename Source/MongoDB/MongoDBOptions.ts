@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ExecutionContext } from '@cratis/arc.core';
 import type { MongoClient } from 'mongodb';
+import type { MongoNamingPolicy } from './MongoNamingPolicy.js';
 
 /** Application-owned client routing and read-model registrations. */
 export interface MongoDBOptions {
@@ -14,7 +15,9 @@ export interface MongoDBOptions {
     readonly serverResolver?: (tenantId: string, context: ExecutionContext) => string;
     /** Model classes registered for scoped injection. */
     readonly readModels: readonly (new () => object)[];
-    /** Map model classes to physical collection names. Defaults to the class name. */
+    /** Defaults to .NET's DefaultNamingPolicy (declared property names, plural collections). */
+    readonly namingPolicy?: MongoNamingPolicy;
+    /** Override the selected naming policy's collection name. */
     readonly collectionName?: (model: new () => object) => string;
     /** Bypass metadata codecs for collections that already store driver-native documents. */
     readonly ignoreConventions?: boolean;

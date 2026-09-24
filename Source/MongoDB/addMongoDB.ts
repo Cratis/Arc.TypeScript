@@ -6,6 +6,7 @@ import { MongoClientFactory } from './MongoClientFactory.js';
 import { MongoCollection } from './MongoCollection.js';
 import type { MongoDBOptions } from './MongoDBOptions.js';
 import { mongoCollection } from './collectionToken.js';
+import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
 
 /** Register the MongoDB extension by importing this package. */
 declare module '@cratis/arc.core' {
@@ -18,25 +19,33 @@ declare module '@cratis/arc.core' {
 /** Public token for applications needing to resolve clients explicitly. */
 export const mongoClientFactory = serviceToken<MongoClientFactory>('MongoClientFactory');
 
-ArcApplicationBuilder.prototype.addMongoDB = function (options: MongoDBOptions): ArcApplicationBuilder {
+export function addMongoDB(builder: ArcApplicationBuilder, options: MongoDBOptions): ArcApplicationBuilder {
     if (!options.database && !options.databaseNameResolver) throw new Error('MongoDB requires database or databaseNameResolver');
     const factory = new MongoClientFactory(options);
-    this.services.addSingleton(mongoClientFactory, () => factory);
+    builder.services.addSingleton(mongoClientFactory, () => factory);
     for (const type of options.readModels) {
         const token = mongoCollection(type);
-        this.services.addScoped(token, async scope => {
+        builder.services.addScoped(token, async scope => {
             const context: ExecutionContext | undefined = scope.identity;
             if (!context?.tenantId) throw new Error('A tenant is required for MongoDB access');
-            const name = options.databaseNameResolver ? options.databaseNameResolver(context.tenantId, context) :
-                context.tenantId === 'default' ? options.database : `${options.database}+${context.tenantId}`;
+            const tenantId = context.tenantId.toLowerCase();
+            const name = options.databaseNameResolver ? options.databaseNameResolver(tenantId, context) :
+                tenantId === 'default' ? options.database : `${options.database}+${tenantId}`;
             if (!name) throw new Error('MongoDB database resolver returned no database');
             const client = (await scope.resolve(mongoClientFactory)).get(context);
             const database = client.db(name);
-            const collectionName = options.collectionName?.(type) ?? type.name;
+            const namingPolicy = options.namingPolicy ?? defaultMongoNamingPolicy;
+            const collectionName = options.collectionName?.(type) ?? namingPolicy.collectionName(type);
             if (!collectionName) throw new Error('MongoDB collection name is required');
-            return new MongoCollection(database.collection(collectionName), database, type, context,
-                options.ignoreConventions, options.maxObservableItems, options.maxPageSize);
+            return new MongoCollection(database.collection(collectionName), database, type, context, {
+                ignoreConventions: options.ignoreConventions, maxObservableItems: options.maxObservableItems,
+                maxPageSize: options.maxPageSize, namingPolicy
+            });
         });
     }
-    return this;
+    return builder;
+}
+
+ArcApplicationBuilder.prototype.addMongoDB = function (options: MongoDBOptions): ArcApplicationBuilder {
+    return addMongoDB(this, options);
 };

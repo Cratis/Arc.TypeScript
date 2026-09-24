@@ -8,6 +8,7 @@ export class MongoObservation<T> implements AsyncIterable<T> {
     #closed = false;
     #used = false;
     #closing?: Promise<void>;
+    readonly #signal: AbortSignal;
     constructor(private readonly stream: ChangeStream<Document>, private readonly read: () => Promise<T>,
         private readonly initial: T, signal: AbortSignal, private readonly release: () => void) {
         this.#signal = signal;
@@ -15,7 +16,6 @@ export class MongoObservation<T> implements AsyncIterable<T> {
         signal.addEventListener('abort', this.#abort, { once: true });
         if (signal.aborted) this.#abort();
     }
-    readonly #signal: AbortSignal;
     /** The initial value is available to an ordinary Arc snapshot GET. */
     current(): { hasValue: true; value: T } { return { hasValue: true, value: this.initial }; }
     async *[Symbol.asyncIterator](): AsyncGenerator<T> {
@@ -24,9 +24,16 @@ export class MongoObservation<T> implements AsyncIterable<T> {
         try {
             yield this.initial;
             while (!this.#closed && !this.#signal.aborted) {
-                const change = await this.stream.next();
+                let change;
+                try { change = await this.stream.next(); }
+                catch (error) {
+                    if (this.#closed || this.#signal.aborted) break;
+                    throw error;
+                }
                 if (!change || this.#closed || this.#signal.aborted) break;
-                yield await this.read();
+                // Collapse an already queued burst into one snapshot read.
+                while (!this.#closed && !this.#signal.aborted && await this.stream.tryNext()) { /* Drain. */ }
+                if (!this.#closed && !this.#signal.aborted) yield await this.read();
             }
             if (!this.#closed && !this.#signal.aborted) throw new Error('MongoDB change stream ended');
         } finally { await this.close(); }

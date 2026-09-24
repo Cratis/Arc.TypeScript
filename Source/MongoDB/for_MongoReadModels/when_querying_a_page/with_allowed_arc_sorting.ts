@@ -16,7 +16,7 @@ describe('when querying a page with allowed Arc sorting', given(a_tenant_collect
             databaseForTenant: tenant => `app_${tenant}`, filterFor: context.filterFor,
             sortableFields: ['title'] }, 'tasks');
         const server = new ArcServer({ queries: [defineQuery({ name: 'Tasks', schema: z.object({ owner: z.string() }),
-            perform: (input, ctx, options) => models.queryPage(ctx, input.owner, options) })] });
+            perform: (input, ctx, options) => models.queryPage(ctx, input.owner, options, { sort: { owner: 1 } }) })] });
         try { result = await server.performQuery('Tasks', { owner: 'alice' }, executionContext('a'), {
             paging: { page: 1, pageSize: 1 }, sorting: { field: 'title', direction: 'desc' }
         }); } finally { await server.dispose(); }
@@ -24,7 +24,7 @@ describe('when querying a page with allowed Arc sorting', given(a_tenant_collect
     it('should count and sort before skipping and limiting', () => {
         result.isSuccess.should.equal(true);
         result.paging!.totalItems.should.equal(3);
-        context.find.firstCall.args[1].sort.should.deep.equal({ title: -1, _id: 1 });
+        context.find.firstCall.args[1].sort.should.deep.equal({ title: -1, owner: 1, _id: 1 });
         context.skip.calledWith(1).should.equal(true);
         context.limit.calledWith(1).should.equal(true);
     });

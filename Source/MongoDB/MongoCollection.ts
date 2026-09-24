@@ -2,20 +2,33 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { queryPage } from '@cratis/arc.core';
 import type { ExecutionContext, QueryOptions, QueryPage } from '@cratis/arc.core';
-import type { Collection, Db, Document, Filter, FindOptions } from 'mongodb';
+import type { ChangeStream, Collection, Db, Document, Filter, FindOptions, Timestamp } from 'mongodb';
+import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
+import type { MongoNamingPolicy } from './MongoNamingPolicy.js';
 import { MongoDocumentCodec } from './MongoDocumentCodec.js';
 import { MongoObservation } from './MongoObservation.js';
+
+export type MongoCollectionOptions = {
+    ignoreConventions?: boolean;
+    maxObservableItems?: number;
+    maxPageSize?: number;
+    namingPolicy?: MongoNamingPolicy;
+};
 
 /** Tenant-bound model collection. The underlying driver collection remains available for writes. */
 export class MongoCollection<T extends object> {
     readonly #observations = new Set<MongoObservation<unknown>>();
     readonly codec: MongoDocumentCodec<T>;
-    constructor(readonly native: Collection<Document>, private readonly database: Db, type: new () => T, private readonly context: ExecutionContext,
-        ignoreConventions = false, private readonly maxObservableItems = 1000, private readonly maxPageSize = 100) {
-        this.codec = new MongoDocumentCodec(type, ignoreConventions);
-        if (!Number.isSafeInteger(maxObservableItems) || maxObservableItems <= 0 || maxObservableItems > 10000)
+    readonly #maxObservableItems: number;
+    readonly #maxPageSize: number;
+    constructor(readonly native: Collection<Document>, private readonly database: Db, type: new () => T,
+        private readonly context: ExecutionContext, options: MongoCollectionOptions = {}) {
+        this.#maxObservableItems = options.maxObservableItems ?? 1000;
+        this.#maxPageSize = options.maxPageSize ?? 100;
+        this.codec = new MongoDocumentCodec(type, options.ignoreConventions, options.namingPolicy ?? defaultMongoNamingPolicy);
+        if (!Number.isSafeInteger(this.#maxObservableItems) || this.#maxObservableItems <= 0 || this.#maxObservableItems > 10000)
             throw new RangeError('maxObservableItems must be between 1 and 10000');
-        if (!Number.isSafeInteger(maxPageSize) || maxPageSize <= 0 || maxPageSize > 10000)
+        if (!Number.isSafeInteger(this.#maxPageSize) || this.#maxPageSize <= 0 || this.#maxPageSize > 10000)
             throw new RangeError('maxPageSize must be between 1 and 10000');
     }
     /** Find models matching an application-owned filter. */
@@ -29,17 +42,20 @@ export class MongoCollection<T extends object> {
         return document ? this.codec.deserialize(document) : null;
     }
     /** Count and page in MongoDB, using only fields declared in the model for client sorting. */
-    async queryPage(filter: Filter<Document>, options: QueryOptions, findOptions?: FindOptions): Promise<QueryPage<T>> {
+    async queryPage(filter: Filter<Document>, options: QueryOptions,
+        findOptions?: Omit<FindOptions, 'sort' | 'skip' | 'limit'> & { sort?: Readonly<Record<string, 1 | -1>> }): Promise<QueryPage<T>> {
         if (!options.paging) throw new Error('MongoDB queryPage requires options.paging');
         const { page, pageSize } = options.paging;
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize <= 0 ||
-            pageSize > this.maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid MongoDB page');
+            pageSize > this.#maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid MongoDB page');
         const sorting = options.sorting;
         if (sorting && sorting.direction !== 'asc' && sorting.direction !== 'desc')
             throw new TypeError('MongoDB sorting direction must be asc or desc');
         const field = sorting ? this.codec.fieldName(sorting.field) : undefined;
         const sort = field && sorting ? { [field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
-            ...(field === '_id' ? {} : { _id: 1 as const }) } : { _id: 1 as const };
+            ...Object.fromEntries(Object.entries(findOptions?.sort ?? {}).filter(([name]) => name !== field)),
+            ...(field === '_id' ? {} : { _id: 1 as const }) } :
+            { ...findOptions?.sort, ...(!findOptions?.sort || !Object.hasOwn(findOptions.sort, '_id') ? { _id: 1 as const } : {}) };
         const total = await this.native.countDocuments(filter, { collation: findOptions?.collation, session: findOptions?.session,
             signal: this.context.signal } as Parameters<typeof this.native.countDocuments>[1]);
         const documents = await this.native.find(filter, { ...findOptions, sort, signal: this.context.signal })
@@ -47,35 +63,18 @@ export class MongoCollection<T extends object> {
         return queryPage(documents.map(document => this.codec.deserialize(document)), total, sorting);
     }
     private async readObservable(filter: Filter<Document>): Promise<T[]> {
-        const documents = await this.native.find(filter, { signal: this.context.signal }).limit(this.maxObservableItems + 1).toArray();
-        if (documents.length > this.maxObservableItems) throw new RangeError('MongoDB observation exceeds maxObservableItems');
+        const documents = await this.native.find(filter, { signal: this.context.signal }).limit(this.#maxObservableItems + 1).toArray();
+        if (documents.length > this.#maxObservableItems) throw new RangeError('MongoDB observation exceeds maxObservableItems');
         return documents.map(document => this.codec.deserialize(document));
     }
-    /** Open a replica-set change stream before reading the initial value; fail when change streams are unavailable. */
-    async observe(filter: Filter<Document> = {}): Promise<MongoObservation<T[]>> {
+    private async openObservation<V>(read: () => Promise<V>, pipeline: Document[]): Promise<MongoObservation<V>> {
         const hello = await this.database.command({ hello: 1 }, { signal: this.context.signal });
-        if (typeof hello.setName !== 'string') throw new Error('MongoDB observe requires a replica set with change streams');
-        const stream = this.native.watch([], { maxAwaitTimeMS: 100 });
+        if (typeof hello.setName !== 'string' && hello.msg !== 'isdbgrid')
+            throw new Error('MongoDB observe requires a replica set with change streams');
+        const operationTime = (hello.operationTime ?? hello.$clusterTime?.clusterTime) as Timestamp | undefined;
+        if (!operationTime) throw new Error('MongoDB observe requires an operation time from the server');
+        const stream: ChangeStream<Document> = this.native.watch(pipeline, { startAtOperationTime: operationTime });
         try {
-            await stream.tryNext(); // Force the server to create the cursor before taking the snapshot.
-            const initial = await this.readObservable(filter);
-            const observation = new MongoObservation(stream, () => this.readObservable(filter), initial, this.context.signal,
-                () => { this.#observations.delete(observation as MongoObservation<unknown>); });
-            if (this.context.signal.aborted) { await observation.close(); throw new DOMException('Aborted', 'AbortError'); }
-            this.#observations.add(observation as MongoObservation<unknown>);
-            return observation;
-        } catch (error) { await stream.close(); throw error; }
-    }
-    /** Observe a keyed document, including deletion as `null`. */
-    async observeById(id: unknown): Promise<MongoObservation<T | null>> {
-        const hello = await this.database.command({ hello: 1 }, { signal: this.context.signal });
-        if (typeof hello.setName !== 'string') throw new Error('MongoDB observe requires a replica set with change streams');
-        const filter = { _id: this.codec.id(id) } as Filter<Document>;
-        const stream = this.native.watch([], { maxAwaitTimeMS: 100 });
-        try {
-            await stream.tryNext();
-            const read = () => this.native.findOne(filter, { signal: this.context.signal })
-                .then(document => document ? this.codec.deserialize(document) : null);
             const initial = await read();
             const observation = new MongoObservation(stream, read, initial, this.context.signal,
                 () => { this.#observations.delete(observation as MongoObservation<unknown>); });
@@ -83,6 +82,17 @@ export class MongoCollection<T extends object> {
             this.#observations.add(observation as MongoObservation<unknown>);
             return observation;
         } catch (error) { await stream.close(); throw error; }
+    }
+    /** Observe a collection snapshot from a server operation time captured before the initial read. */
+    observe(filter: Filter<Document> = {}): Promise<MongoObservation<T[]>> {
+        return this.openObservation(() => this.readObservable(filter), []);
+    }
+    /** Observe a keyed document, including deletion as `null`. */
+    observeById(id: unknown): Promise<MongoObservation<T | null>> {
+        const filter = { _id: this.codec.id(id) } as Filter<Document>;
+        const read = () => this.native.findOne(filter, { signal: this.context.signal })
+            .then(document => document ? this.codec.deserialize(document) : null);
+        return this.openObservation(read, [{ $match: { 'documentKey._id': filter._id } }]);
     }
     /** End all observations with the owning Arc execution scope. */
     async [Symbol.asyncDispose](): Promise<void> {

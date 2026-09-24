@@ -22,6 +22,8 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
     describe(`when serving a paged MongoDB query through ${adapter}`, given(a_replica_set, context => {
         let result: { data: { title: string }[]; paging: { totalItems: number } };
         let status: number;
+        let unknownStatus: number;
+        let operatorStatus: number;
         beforeEach(async () => {
             if (!process.env.ARC_MONGO_TEST_URI) throw new Error('ARC_MONGO_TEST_URI is required');
             await context.client.connect();
@@ -70,6 +72,8 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
                 const response = await fetch(`http://127.0.0.1:${address.port}${route}?page=0&pageSize=1&sortBy=title&sortDirection=ascending`);
                 status = response.status;
                 result = await response.json();
+                unknownStatus = (await fetch(`http://127.0.0.1:${address.port}${route}?page=0&pageSize=1&sortBy=unknown&sortDirection=ascending`)).status;
+                operatorStatus = (await fetch(`http://127.0.0.1:${address.port}${route}?page=0&pageSize=1&sortBy=%24where&sortDirection=ascending`)).status;
             } finally {
                 if (listener && adapter !== 'Fastify') await new Promise<void>((resolve, reject) =>
                     listener!.close(error => error ? reject(error) : resolve()));
@@ -85,6 +89,10 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
             status.should.equal(200);
             result.data[0]!.title.should.equal('a');
             result.paging.totalItems.should.equal(2);
+        });
+        it('should reject unknown and operator sort fields with 400', () => {
+            unknownStatus.should.equal(400);
+            operatorStatus.should.equal(400);
         });
     }));
 }
