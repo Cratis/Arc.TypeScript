@@ -8,5 +8,6 @@ export interface SourceModel {
     readonly fields: readonly SourceField[];
     readonly members?: readonly { name: string; value: string | number }[];
     readonly base?: string;
+    readonly baseKey?: string;
     readonly derivedTypeId?: string;
 }

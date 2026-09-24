@@ -39,7 +39,7 @@ Query arguments need explicit `@query(argument(...))` descriptors. Standard-mode
 
 ## Diagnostics
 
-An unsupported result type, an unbound query parameter, or an ambiguous model name fails with a file and line location instead of falling back to `any`. Two reachable models with the same class name in different namespaces fail with `Ambiguous model name`; namespace-qualified model keys are not supported yet.
+An unsupported result type or an unbound query parameter fails with a file and line location instead of falling back to `any`. Model identities include namespace and class name; the generator emits same-named models from different folders to their respective namespace folders. Two models that resolve to the same namespace and name still fail with `Ambiguous model name`. Import aliases for two different models with the same class name in one generated file are not supported.
 
 ## Related
 

@@ -5,16 +5,17 @@ import type { ClassType } from '../../reflection/ClassType.js';
 import type { MethodDecorator } from '../../reflection/MethodDecorator.js';
 import type { Parameter } from './Parameter.js';
 import type { ParameterValues } from './ParameterValues.js';
+import type { QueryHttpMethod } from './QueryHttpMethod.js';
 
 /** Mark a public static read-model method as a query. */
 export function query(): MethodDecorator<[], false, true>;
 export function query<const Parameters extends readonly Parameter[]>(
     ...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
 export function query<const Parameters extends readonly Parameter[]>(
-    options: { observable?: boolean; argumentsModel?: ClassType },
+    options: { observable?: boolean; argumentsModel?: ClassType; httpMethod?: QueryHttpMethod; treatWarningsAsErrors?: boolean },
     ...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
 export function query(...declarations: readonly (Parameter | {
-    observable?: boolean; argumentsModel?: ClassType
+    observable?: boolean; argumentsModel?: ClassType; httpMethod?: QueryHttpMethod; treatWarningsAsErrors?: boolean
 })[]): MethodDecorator<readonly unknown[]> {
     const first = declarations[0];
     const options = first && !('kind' in first) ? first : {};

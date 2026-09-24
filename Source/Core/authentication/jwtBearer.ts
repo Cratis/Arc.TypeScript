@@ -4,6 +4,10 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AuthenticationHandler } from './AuthenticationHandler.js';
 import { AuthenticationStatus } from './AuthenticationStatus.js';
 
+const bearerHandlers = new WeakSet<AuthenticationHandler>();
+/** Identify registered bearer handlers without mistaking cookie or ingress authentication for bearer. */
+export function isJwtBearer(handler: AuthenticationHandler): boolean { return bearerHandlers.has(handler); }
+
 /** Explicit JWT verifier configuration. Never derive the issuer or keys from an untrusted token. */
 export interface JwtBearerOptions {
     readonly jwksUrl: URL;
@@ -30,7 +34,7 @@ export function jwtBearer(options: JwtBearerOptions): AuthenticationHandler {
         ...(options.jwksTimeoutMs === undefined ? {} : { timeoutDuration: options.jwksTimeoutMs }),
         ...(options.jwksCooldownMs === undefined ? {} : { cooldownDuration: options.jwksCooldownMs })
     });
-    return async request => {
+    const handler: AuthenticationHandler = async request => {
         const header = request.headers.get('authorization');
         if (header === null || !/^Bearer(?:\s|$)/i.test(header)) return { status: AuthenticationStatus.Anonymous };
         const match = /^Bearer ([^\s]+)$/i.exec(header);
@@ -49,4 +53,6 @@ export function jwtBearer(options: JwtBearerOptions): AuthenticationHandler {
             } };
         } catch { return { status: AuthenticationStatus.Failed }; }
     };
+    bearerHandlers.add(handler);
+    return handler;
 }

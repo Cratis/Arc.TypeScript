@@ -14,13 +14,14 @@ import type { SourceType } from './SourceType.js';
 import { extractValidatorRules, type ValidatorRules } from './extractValidatorRules.js';
 import type { RecordedRule } from './RecordedRule.js';
 import { sourceProgram } from './sourceProgram.js';
+import { warningOption, httpMethodOption } from './sourceOperationOptions.js';
 
 export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
     program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void): SourceAnalysis {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
     const hasMetadata = generatedMetadata;
-    const resolver = new SourceTypeResolver(checker, root, hasMetadata);
+    const resolver = new SourceTypeResolver(checker, root, hasMetadata, rootNamespace);
     const diagnostics: string[] = [];
     const discovered = discoveryFiles(root).map(file => resolve(file));
     const operations: SourceOperation[] = [];
@@ -47,6 +48,34 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
             if (target) validators.push(extractValidatorRules(declaration, target));
             if (annotation(checker, declaration, 'derivedType', 'fundamentals'))
                 resolver.resolve(checker.getTypeAtLocation(declaration), declaration);
+            if (annotation(checker, declaration, 'identityDetailsProvider')) {
+                const resolveIdentity = (type: ts.Type, location: ts.Node): void => {
+                    const model = type.symbol?.declarations?.find(ts.isClassDeclaration);
+                    if (!model) return;
+                    const file = model.getSourceFile();
+                    if (file.isDeclarationFile || relative(root, file.fileName).split(sep).includes('..')) {
+                        diagnostics.push(`${path}: identity details model ${file.fileName} is outside the artifacts root or declaration-only; skipped`);
+                        return;
+                    }
+                    resolver.resolve(type, location);
+                };
+                const details = declaration.members.find(member => ts.isPropertyDeclaration(member) && member.name.getText() === 'detailsType');
+                if (details && ts.isPropertyDeclaration(details) && details.initializer) {
+                    const symbol = originalSymbol(checker, details.initializer);
+                    const model = symbol?.declarations?.find(ts.isClassDeclaration);
+                    if (model) resolveIdentity(checker.getTypeAtLocation(model), model);
+                }
+                const provide = declaration.members.find(member => ts.isMethodDeclaration(member) && member.name.getText() === 'provide');
+                if (provide && ts.isMethodDeclaration(provide)) {
+                    const signature = checker.getSignatureFromDeclaration(provide);
+                    if (signature) {
+                        const result = checker.getReturnTypeOfSignature(signature);
+                        const unwrapped = checker.getAwaitedType(result) ?? result;
+                        const candidate = unwrapped.isUnion() ? unwrapped.types.find(type => type.symbol?.declarations?.some(ts.isClassDeclaration)) : unwrapped;
+                        if (candidate?.symbol?.declarations?.some(ts.isClassDeclaration)) resolveIdentity(candidate, provide);
+                    }
+                }
+            }
             const isCommand = !!annotation(checker, declaration, 'command');
             const isModel = !!annotation(checker, declaration, 'readModel');
             if (!isCommand && !isModel) continue;
@@ -71,6 +100,7 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                 const result = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(handle)!);
                 const unwrapped = checker.getAwaitedType(result) ?? result;
                 operations.push({ kind: 'command', name: owner, owner, namespace, routeOverride: pathOverride,
+                    treatWarningsAsErrors: warningOption(annotation(checker, declaration, 'command'), checker),
                     roles: classRoles, fields, result: resolver.resolve(unwrapped, handle) });
             }
             if (isModel) for (const member of declaration.members) {
@@ -133,6 +163,7 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                     throw new Error(`${path}:${file.getLineAndCharacterOfPosition(member.getStart()).line + 1}: Unsupported paged query element`);
                 const response: SourceType = result.paged ? { ...element, text: `${element.text}[]`, enumerable: true } : element;
                 operations.push({ kind: result.observable ? 'observable' : 'query', name, owner, namespace,
+                    treatWarningsAsErrors: warningOption(queryAnnotation, checker), httpMethod: httpMethodOption(queryAnnotation, checker),
                     routeOverride: stringArgument(annotation(checker, member, 'path') ?? annotation(checker, member, 'route')) ?? pathOverride,
                     roles: annotation(checker, member, 'allowAnonymous') || annotation(checker, member, 'authorize') || annotation(checker, member, 'roles') ?
                         roles(checker, member) : classRoles, fields: parameters, result: response });

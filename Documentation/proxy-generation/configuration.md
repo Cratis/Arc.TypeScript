@@ -19,11 +19,13 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 
 | Option | Default | Server equivalent |
 | --- | --- | --- |
-| `--root-namespace <namespace>` | None | `discover(folder, { rootNamespace })` |
+| `--root-namespace <namespace>` | None | `discover(folder, { rootNamespace })`; also prefixes generated model folders |
 | `--segments-to-skip <n>` | `0` | `generatedApis.segmentsToSkipForRoute` |
 | `--api-prefix <prefix>` | `api` | `generatedApis.routePrefix` |
 | `--skip-command-name-in-route` | Off | `generatedApis.includeCommandNameInRoute: false` |
 | `--skip-query-name-in-route` | Off | `generatedApis.includeQueryNameInRoute: false` |
+
+**Changed for upgrades:** `--root-namespace App` now writes models under `App/...` rather than only changing their routes. For example, `Orders/Order.ts` becomes `App/Orders/Order.ts`; generation removes the old file unless `--skip-output-deletion` is set. Update direct model imports before regenerating.
 
 ## Output
 
