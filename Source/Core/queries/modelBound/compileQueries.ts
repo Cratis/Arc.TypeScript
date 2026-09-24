@@ -5,14 +5,14 @@ import type { CompiledQuery } from './CompiledQuery.js';
 import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentifier.js';
 import { reflectedParameters } from '../../reflection/reflectedParameters.js';
 import { resolveAll } from '../../reflection/resolveAll.js';
-import { encodeObservable } from './encodeObservable.js';
 import { ownMetadata } from '../../reflection/ownMetadata.js';
 import type { ClassType } from '../../reflection/ClassType.js';
 import type { Parameter } from './Parameter.js';
 import type { WireType } from '../../reflection/WireType.js';
 import type { QueryMetadata } from './QueryMetadata.js';
 import type { QueryOptions } from '../QueryOptions.js';
-import { decode, encode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
+import type { ObservableSource } from '../observable/ObservableSource.js';
+import { decode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 
 const argumentsOnly = (parameters: readonly Parameter[]): Extract<Parameter, { kind: 'argument' }>[] =>
@@ -93,13 +93,13 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
         name, namespace: [metadata.namespace ?? namespace, type.name].filter(Boolean).join('.'),
         routeNamespace: metadata.namespace ?? namespace,
         path: metadata.methodRoutes?.get(name) ?? metadata.path,
-        authorization, schema: z.object(shape),
+        authorization, schema: z.object(shape), wireOutput: true, wireType: type,
         wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services,
         validate: graph ? (input: unknown, context: { signal: AbortSignal; correlationId: string }) =>
             validateInput(parameters, declaration, graph, input, context) : undefined
     };
     if (declaration.observable) return {
-        definition: { ...descriptor, observe: async (input, _context, options) => encodeObservable(await perform(input, options)) },
+        definition: { ...descriptor, observe: async (input, _context, options) => await perform(input, options) as ObservableSource<unknown> },
         dependencies: services, observable: true
     };
     return {
@@ -109,7 +109,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
                 (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {
                 throw new Error(`Snapshot query ${type.name}.${name} returned an observable`);
             }
-            return encode(value);
+            return value;
         } },
         dependencies: services, observable: false
     };

@@ -9,6 +9,8 @@ import type { FieldOptions } from './FieldOptions.js';
 export interface ArtifactMetadata {
     command?: boolean;
     responseValueHandler?: boolean;
+    queryRenderer?: boolean;
+    readModelInterceptor?: boolean;
     readModel?: boolean;
     namespace?: string;
     authorization?: Authorization;

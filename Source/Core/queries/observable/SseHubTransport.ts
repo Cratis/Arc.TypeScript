@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { HubFrame } from './HubFrame.js';
+import { stringifyWire } from '../../reflection/stringifyWire.js';
 import type { HubTransport } from './HubTransport.js';
 import { ObservableTransportError } from './ObservableTransportError.js';
 import { ObservableLimits } from './ObservableLimits.js';
@@ -61,7 +62,7 @@ export class SseHubTransport implements HubTransport {
         }
         let data: string;
         try {
-            data = JSON.stringify(frame);
+            data = stringifyWire(frame);
             if (Buffer.byteLength(data) > this.limits.outboundFrameBytes)
                 throw new ObservableTransportError('Observable SSE hub frame exceeds maximum size');
         } catch (error) {

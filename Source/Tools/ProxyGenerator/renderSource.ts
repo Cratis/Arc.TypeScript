@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { dirname, join, relative } from 'node:path';
-import { includeRouteName, routeFor } from '@cratis/arc.core';
+import { includeRouteName, routeFor, wireName } from '@cratis/arc.core';
 import type { SourceAnalysis } from './SourceAnalysis.js';
 import type { SourceModel } from './SourceModel.js';
 import type { SourceType } from './SourceType.js';
@@ -50,7 +50,7 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
     if (options.emitInterfaces) {
         const imports = [...new Set(model.fields.flatMap(field => typeImports(field.type, path, destinations, options)).concat(model.base ?
             typeImports({ text: model.base, constructor: model.base, model: model.base, enumerable: false, nullable: false, void: false }, path, destinations, options) : []))].sort();
-        return `${imports.join('\n')}${imports.length ? '\n\n' : ''}export interface ${model.name}${model.base ? ` extends ${model.base}` : ''} {\n${model.fields.map(field => `    ${field.name}${field.optional ? '?' : ''}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n')}\n}\n`;
+        return `${imports.join('\n')}${imports.length ? '\n\n' : ''}export interface ${model.name}${model.base ? ` extends ${model.base}` : ''} {\n${model.fields.map(field => `    ${wireName(field.name)}${field.optional ? '?' : ''}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n')}\n}\n`;
     }
     const imports = [...new Set([
         ...model.fields.flatMap(field => typeImports(field.type, path, destinations, options)),
@@ -61,7 +61,7 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
         .flatMap(line => line.match(/import \{ (.*?) \}/)?.[1]?.split(', ') ?? []),
         ...(model.fields.length ? ['field'] : []), ...(model.derivedTypeId ? ['derivedType'] : [])]);
     if (fundamentals.size) imports.unshift(`import { ${[...fundamentals].sort().join(', ')} } from '@cratis/fundamentals';`);
-    const fields = model.fields.map(field => `    @field(${field.type.constructor}${field.type.enumerable ? ', true' : ''})\n    ${field.name}${field.optional ? '?' : '!'}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n\n');
+    const fields = model.fields.map(field => `    @field(${field.type.constructor}${field.type.enumerable ? ', true' : ''})\n    ${wireName(field.name)}${field.optional ? '?' : '!'}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n\n');
     return `${imports.join('\n')}${imports.length ? '\n\n' : ''}${model.derivedTypeId ? `@derivedType(${quote(model.derivedTypeId)})\n` : ''}export class ${model.name}${model.base ? ` extends ${model.base}` : ''} {${fields ? `\n${fields}\n` : '\n'}}\n`;
 }
 /** Render analyzer results without importing or executing the application. */

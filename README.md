@@ -54,7 +54,7 @@ export class TaskItem {
 | `@cratis/arc.drizzle` | [`Source/Drizzle`](Source/Drizzle) | `builder.addDrizzle`, tenant-scoped SQL handles, explicit column codecs and provider-owned paging; SQLite and PostgreSQL tested, MySQL and observation unverified |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.addChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.5.1 imports natively; an opt-in kernel suite exercises all three HTTP adapters. No .NET transaction, aggregate, or reactor-command parity. |
 
-Every package manifest is at version 0.12.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, MongoDB, and Drizzle packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.13.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, MongoDB, and Drizzle packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -84,7 +84,7 @@ Also supported, each one explicit or opt-in:
 - **Testing.** `@cratis/arc.testing` runs decorated commands, queries, and observable queries through real pipelines with scoped services and JSON wire round trips; `ArcScenario` still covers low-level definitions and HTTP. See [test real pipelines](Documentation/guides/services-and-testing.md#test-a-decorated-command).
 - **Generated clients, bounded.** Run `arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <existing-folder>` against decorated commands and read models. It reads the TypeScript program, not application startup, and generates command/query/observable classes, nested models and hooks. These compile with the published `@cratis/arc` and `@cratis/arc.react` 22.19.1 in strict Bundler mode with `skipLibCheck: false`; the model-bound command, query, paging, sorting and observable hub run against all three adapters. Extensionless imports are the default for Vite/Bundler; use `--js-import-specifiers` for compiled native Node ESM. The Tasks sample's cross-platform `generate-proxies` script generates and compiles this output in CI. `NodeNext` consumer compilation is not supported by those published declarations. For low-level `define*` definitions, keep using `exportClientManifest` and the positional JSON CLI, whose narrower contract excludes nested DTOs, React hooks and shared validation rules. See [Generate command and query clients](Documentation/guides/generate-clients.md).
 
-A paired suite checks 44 bounded HTTP cases, including model-bound command and query validation, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
+A paired suite checks 48 bounded HTTP cases, including model-bound validation, acronym naming, enum and named-float JSON output, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
 
 Not implemented:
 
@@ -108,6 +108,9 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 - [Decide command outcomes](Documentation/guides/command-outcomes.md)
 - [Bind query arguments, page, and sort](Documentation/guides/queries.md)
 - [Configure the server](Documentation/guides/configuration.md)
+- [Observe Arc requests](Documentation/observability.md) with an application-owned OpenTelemetry SDK
+- [Render provider queries](Documentation/queries/renderers.md) and [intercept read models](Documentation/queries/read-model-interception.md)
+- [Model-bound JSON wire format](Documentation/queries/wire-format.md) for derived types, acronyms and named floats
 - [Compose services and test pipelines](Documentation/guides/services-and-testing.md)
 - [Read models from MongoDB](Documentation/guides/mongodb.md)
 - [Read models from SQL with Drizzle](Documentation/sql/index.md)

@@ -9,7 +9,7 @@ export { discoveryFiles } from './reflection/discoveryFiles.js';
 export { encode as encodeWireValue } from './reflection/wireSchema.js';
 export { ArcApplicationServices } from './ArcApplicationServices.js';
 export { key } from './reflection/key.js';
-export { fieldsFor } from './reflection/wireSchema.js';
+export { fieldsFor, wireName } from './reflection/wireSchema.js';
 export type { ClassType } from './reflection/ClassType.js';
 export type { WireField } from './reflection/WireField.js';
 export { optional } from './reflection/optional.js';

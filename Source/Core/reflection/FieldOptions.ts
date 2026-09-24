@@ -7,4 +7,6 @@ export interface FieldOptions {
     defaultValue?: unknown;
     values?: readonly (string | number | boolean)[];
     key?: boolean;
+    /** Accept named nonfinite JSON literals on input for this numeric field. */
+    namedFloats?: boolean;
 }

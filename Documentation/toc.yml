@@ -4,6 +4,10 @@
   href: getting-started.md
 - name: Guides
   href: guides/toc.yml
+- name: Observability
+  href: observability.md
+- name: Query rendering and wire format
+  href: queries/toc.yml
 - name: Identity and authorization
   href: identity/toc.yml
 - name: Tenancy

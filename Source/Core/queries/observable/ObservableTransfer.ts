@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { QueryResult } from '../QueryResult.js';
+import { stringifyNamedFloats } from '../../reflection/stringifyWire.js';
 import { computeChangeSet } from './computeChangeSet.js';
 import { ObservableTransferMode } from './ObservableTransferMode.js';
 
@@ -17,7 +18,7 @@ export class ObservableTransfer {
 
     /** Prepare a frame without advancing the baseline until its write succeeds. */
     prepare(result: QueryResult): { payload: QueryResult; commit(): void } {
-        const serialized = result.data === undefined ? undefined : JSON.stringify(result.data);
+        const serialized = result.data === undefined ? undefined : stringifyNamedFloats(result.data);
         const current = serialized === undefined ? undefined : JSON.parse(serialized) as unknown;
         if (!Array.isArray(current) || this.#mode === ObservableTransferMode.Full) {
             return { payload: { ...result, ...(current === undefined ? {} : { data: current }) }, commit() {} };
