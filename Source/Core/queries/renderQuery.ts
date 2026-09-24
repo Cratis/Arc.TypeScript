@@ -4,7 +4,7 @@ import type { ArcServerOptions } from '../ArcServerOptions.js';
 import type { DescriptorBase } from '../DescriptorBase.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
-import { encode } from '../reflection/wireSchema.js';
+import { encode, fieldsFor, wireName } from '../reflection/wireSchema.js';
 import type { WireType } from '../reflection/WireType.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { isQueryPage, queryPage } from './QueryPage.js';
@@ -23,7 +23,10 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
     if (!settings.readModelInterceptors?.length)
         return renderQueryData(definition, definition.wireOutput ? encode(data, definition.wireType, definition.wireType) : data, context, options);
     const interceptors = await Promise.all(settings.readModelInterceptors.map(token => scope.resolve(token)));
-    const page = Array.isArray(data) ? renderQueryData({ clientOutput: undefined }, data, context, options) : undefined;
+    const field = definition.wireType && options.sorting ? fieldsFor(definition.wireType)
+        .find(candidate => wireName(candidate.name) === options.sorting?.field) : undefined;
+    const rawOptions = field && options.sorting ? { ...options, sorting: { ...options.sorting, field: field.name } } : options;
+    const page = Array.isArray(data) ? renderQueryData({ clientOutput: undefined }, data, context, rawOptions) : undefined;
     if (page && !page.isSuccess) return page;
     if (page) data = page.data;
     const intercept = async (item: unknown): Promise<unknown> => {
