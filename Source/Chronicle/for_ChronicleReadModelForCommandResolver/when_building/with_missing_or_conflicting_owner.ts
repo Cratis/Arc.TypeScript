@@ -12,7 +12,7 @@ import '../../index.js';
 @readModel() @chronicleModel() class View { @field(String) id = ''; }
 @command() class ReadView {
     @field(String) @key() id = '';
-    @inject(commandReadModel(View)) handle(_view: View) { return 'found'; }
+    @inject(commandReadModel(View)) handle(view: View) { return view.id; }
 }
 class CompetingResolver implements ReadModelForCommandResolver {
     supports(type: ClassType): boolean { return type === View; }
