@@ -3,6 +3,7 @@
 export { defineChronicleCommand } from './ChronicleCommand.js';
 export { addChronicle } from './addChronicle.js';
 export { ChronicleReadModels } from './ChronicleReadModels.js';
+export { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCommandResolver.js';
 export { ChronicleArtifacts } from './ChronicleArtifacts.js';
 export { eventSourceType, eventStreamType, eventStreamId, eventSubject } from './eventRouting.js';
 export { notAudited } from './notAudited.js';

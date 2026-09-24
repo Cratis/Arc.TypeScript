@@ -26,6 +26,7 @@ import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
+import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
 
@@ -36,6 +37,7 @@ export class ArcApplicationBuilder {
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
+    readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
     #commandRunner?: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>;
     #built = false;
@@ -54,6 +56,11 @@ export class ArcApplicationBuilder {
     /** Add a key resolver before the built-in @key/getKey resolver. */
     addCommandKeyResolver(token: ServiceIdentifier<CommandKeyResolver>): this {
         this.#keyResolvers.push(token);
+        return this;
+    }
+    /** Add a source for command-keyed read models (Chronicle, MongoDB, or an application source). */
+    addReadModelForCommandResolver(token: ServiceIdentifier<ReadModelForCommandResolver>): this {
+        this.#readModelResolvers.push(token);
         return this;
     }
     /** Admit and observe integration-owned artifacts alongside Arc's own artifacts. */
@@ -117,7 +124,8 @@ export class ArcApplicationBuilder {
         const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
         const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
         this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
-        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers,
+        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers, ...this.#readModelResolvers,
+            ...this.options.readModelForCommandResolvers ?? [],
             ...this.options.commandResponseValueHandlers ?? [], ...this.options.commandContextValuesProviders ?? [],
             ...this.options.commandKeyResolvers ?? []);
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
@@ -128,6 +136,7 @@ export class ArcApplicationBuilder {
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
             commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
             commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
+            readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }

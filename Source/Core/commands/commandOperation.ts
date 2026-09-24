@@ -11,6 +11,7 @@ import type { Operation } from '../http/Operation.js';
 import { recordFailure } from '../results/failureTracking.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
+import { ReadModelForCommandError } from './ReadModelForCommandError.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { prepareDependencies, dependencyFailure, validate, validatorFailure } from './OperationValidation.js';
 import { createCommandContext } from './createCommandContext.js';
@@ -33,9 +34,10 @@ function disposition(scopes: readonly CommandExecutionScope[], context: CommandC
 }
 function failure(context: CommandContext, error: unknown, previous?: CommandResult): CommandResult {
     const result = commandResult(context, { isAuthorized: previous?.isAuthorized,
-        validationResults: [...previous?.validationResults ?? [], ...(error instanceof ServiceDependencyError ? dependencyFailure(error) : [])],
+        validationResults: [...previous?.validationResults ?? [], ...(error instanceof ServiceDependencyError ? dependencyFailure(error) : []),
+            ...(error instanceof ReadModelForCommandError ? [{ severity: 3, message: error.message, members: [], reason: 'rule' as const }] : [])],
         authorizationFailureReason: previous?.authorizationFailureReason,
-        exceptionMessages: [...previous?.exceptionMessages ?? [], String(error)],
+        exceptionMessages: [...previous?.exceptionMessages ?? [], ...(error instanceof ReadModelForCommandError ? [] : [String(error)])],
         exceptionStackTrace: error instanceof Error ? error.stack ?? '' : previous?.exceptionStackTrace });
     recordFailure(result, error, previous);
     return result;

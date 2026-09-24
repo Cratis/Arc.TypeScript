@@ -21,5 +21,6 @@ export async function createCommandContext(command: unknown, execution: Executio
         if (key) values.set('resolvedKey', key);
     }
     const key = values.get('resolvedKey');
-    return { ...execution, command, key: typeof key === 'string' && key.length ? key : undefined, values };
+    return { ...execution, command, key: typeof key === 'string' && key.length ? key : undefined,
+        values, readModelResolvers: options.readModelForCommandResolvers };
 }

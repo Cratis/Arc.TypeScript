@@ -10,6 +10,7 @@ export { MongoCollection } from './MongoCollection.js';
 export { MongoDocumentCodec } from './MongoDocumentCodec.js';
 export type { MongoDBOptions } from './MongoDBOptions.js';
 export { MongoReadModels } from './MongoReadModels.js';
+export { MongoReadModelForCommandResolver } from './MongoReadModelForCommandResolver.js';
 export type { MongoPageFindOptions } from './MongoReadModels.js';
 export type { MongoPage } from './MongoPage.js';
 export type { MongoReadModelsOptions } from './MongoReadModelsOptions.js';

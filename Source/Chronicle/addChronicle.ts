@@ -4,6 +4,7 @@ import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { Constructor } from '@cratis/fundamentals';
 import { ChronicleArtifacts } from './ChronicleArtifacts.js';
 import { ChronicleReadModels } from './ChronicleReadModels.js';
+import { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCommandResolver.js';
 import { ChronicleResponseHandler } from './ChronicleResponseHandler.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
@@ -16,6 +17,9 @@ export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleR
     builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(options, artifacts));
     builder.services.addScoped(ChronicleReadModels, async scope =>
         new ChronicleReadModels(await scope.resolve(ChronicleRuntime), scope.identity!));
+    builder.services.addScoped(ChronicleReadModelForCommandResolver, async scope =>
+        new ChronicleReadModelForCommandResolver(await scope.resolve(ChronicleRuntime), artifacts));
+    builder.addReadModelForCommandResolver(ChronicleReadModelForCommandResolver);
     builder.services.addScoped(ChronicleResponseHandler, async scope =>
         new ChronicleResponseHandler(await scope.resolve(ChronicleRuntime)));
     builder.addCommandResponseValueHandler(ChronicleResponseHandler);
