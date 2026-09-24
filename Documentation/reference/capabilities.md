@@ -33,7 +33,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Several return values | Supported, bounded | `tuple(...)` returns a branded group serialized as an array of response values. No type-directed selection of event versus response, and no automatic conversion of union variants. |
 | Command operations and effects | Not implemented | No preflight, compensation, or indeterminate-outcome handling. |
 | Command keys and read models in handlers | Not implemented | |
-| Calling the pipelines from code | Supported | `executeCommand` and `performQuery`, described in [Call Arc from code](../guides/direct-calls.md). |
+| Calling the pipelines from code | Supported | `executeCommand`, `performQuery`, and `server.execute(instance, context)` for a decorated command, described in [Call Arc from code](../guides/direct-calls.md). |
 | Controller-based commands and queries | Not applicable | ASP.NET Core MVC only. |
 
 ## Queries
@@ -70,7 +70,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Failing validators | Supported | A validator that throws produces 400 with reason `validatorFailed` and no exception text. For HTTP requests, the original error goes to the configured logger. |
 | [Severity filtering](/arc/backend/csharp/commands/validation-severity-filtering/) | Supported, with a deliberate difference | See [Deliberate differences](#deliberate-differences). |
 | Concept and model validators | Supported, bounded | `ConceptValidator<T>` and `ModelValidator<T>` apply through declared `@field` graph members; arrays keep their collection path, cycles and shared references are visited once. `ignoreConceptRules()` suppresses only the direct member's concept validator. No arbitrary getter reflection or DataAnnotations. |
-| Validation rules shared with the client | Server rules only | The server implements the client rule-name vocabulary plus a bounded set of server-only predicates, conditions, severity and state. Rules are recorded as immutable descriptors with `clientSafe` classification, but generated proxies still carry no model-bound rules; `validate()` asks the server. Complex FluentValidation features and exact default-message/regex/Unicode parity are unverified or unavailable. |
+| Validation rules shared with the client | Server rules only | The server implements the client rule-name vocabulary plus a bounded set of server-only predicates, conditions, severity and state. Rules use internal immutable descriptors, but generated proxies still carry no model-bound rules; `validate()` asks the server. Complex FluentValidation features and exact default-message/regex/Unicode parity are unverified or unavailable. |
 
 ## Security, identity, tenancy, and correlation
 
