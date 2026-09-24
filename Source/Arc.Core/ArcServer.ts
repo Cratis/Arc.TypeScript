@@ -18,6 +18,7 @@ import { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import { withServices } from './dependencyInjection/ServiceScope.js';
 import { requestContext } from './execution/RequestContextStore.js';
 import { isObservableOperation } from './queries/observable/ObservableOperation.js';
+import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { ObservableSessions } from './queries/ObservableSessions.js';
 import { closeNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
@@ -44,6 +45,10 @@ export class ArcServer {
 
     constructor(options: ArcServerOptions) {
         this.options = options;
+        if (options.commandCompensationTimeoutMs !== undefined &&
+            (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
+                options.commandCompensationTimeoutMs > 4_294_967_294))
+            throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
         validateTenancy(options.tenancy);
         if (options.nativePrincipal && options.authentication?.length) throw new Error('Native principal and Arc authentication handlers cannot be combined');
         if (options.identityDetails && (!(options.identityDetails.schema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function' || options.identityDetailsSchema))
@@ -120,7 +125,9 @@ export class ArcServer {
     }
 
     private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly = false): Promise<CommandResult | QueryResult> {
-        return this.runOwned(context, async () => {
+        if (operation.kind === 'command' && CommandOperationBoundary.attempt(this))
+            return Promise.resolve(commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
+        const run = () => this.runOwned(context, async () => {
             try { return await operation.run(input, context, options, validateOnly); }
             catch (error) {
                 const result = operation.kind === 'command'
@@ -136,6 +143,7 @@ export class ArcServer {
             recordFailure(result, error, previous);
             return result;
         });
+        return operation.kind === 'command' ? CommandOperationBoundary.command(this, run) : run();
     }
 
     async dispose(): Promise<void> {

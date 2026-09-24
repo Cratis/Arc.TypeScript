@@ -54,7 +54,7 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
         const commandDefinitions = options.commands ?? [];
         const queryDefinitions = [...options.queries ?? [], ...options.observableQueries ?? []];
         const commands = commandDefinitions.map(item => commandOperation(item, routeFor(item, prefix, skip,
-            includeRouteName(item, commandDefinitions, skip, includeCommandName))));
+            includeRouteName(item, commandDefinitions, skip, includeCommandName)), options));
         const queries = [
             ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip,
                 includeRouteName(item, queryDefinitions, skip, includeQueryName)))),

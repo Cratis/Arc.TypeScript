@@ -23,19 +23,40 @@ import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.
 import { Severity } from './validation/Severity.js';
 import { BaseValidator } from './validation/BaseValidator.js';
 import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
+import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
+import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
+import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
 export class ArcApplicationBuilder {
     readonly services = new ArcApplicationServices();
     readonly #artifacts: Artifact[] = [];
+    readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
+    readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
+    readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
+    /** Add an ordered scoped response handler registered in services. */
+    addCommandResponseValueHandler(token: ServiceIdentifier<CommandResponseValueHandler>): this {
+        this.#responseHandlers.push(token);
+        return this;
+    }
+    /** Add an ordered scoped context value provider registered in services. */
+    addCommandContextValuesProvider(token: ServiceIdentifier<CommandContextValuesProvider>): this {
+        this.#valueProviders.push(token);
+        return this;
+    }
+    /** Add a key resolver before the built-in @key/getKey resolver. */
+    addCommandKeyResolver(token: ServiceIdentifier<CommandKeyResolver>): this {
+        this.#keyResolvers.push(token);
+        return this;
+    }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
     add(...types: ClassType[]): this {
         for (const type of types) {
             const metadata = ownMetadata(type);
-            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget) {
+            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) {
                 throw new Error(`Not an Arc artifact: ${type.name}`);
             }
             this.register(type, metadata.namespace ?? '');
@@ -44,7 +65,7 @@ export class ArcApplicationBuilder {
     }
     private register(type: ClassType, namespace: string): void {
         const metadata = ownMetadata(type);
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget) return;
+        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
@@ -81,10 +102,16 @@ export class ArcApplicationBuilder {
         const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
         const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
         this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
+        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers,
+            ...this.options.commandResponseValueHandlers ?? [], ...this.options.commandContextValuesProviders ?? [],
+            ...this.options.commandKeyResolvers ?? []);
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
             throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
         const server = new ArcServer({ ...this.options, commands, queries, observableQueries,
+            commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
+            commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
+            commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }
@@ -94,7 +121,7 @@ export class ArcApplicationBuilder {
         if (this.options.services && !Array.isArray(this.options.services) &&
             (this.services.registrations.length || this.#artifacts.some(({ type }) => {
                 const metadata = ownMetadata(type);
-                return metadata.lifetime || metadata.validatorTarget;
+                return metadata.lifetime || metadata.validatorTarget || metadata.responseValueHandler;
             }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
     }
     private registerValidators(dependencies: ServiceIdentifier<unknown>[]): Map<ClassType, ClassType<BaseValidator<unknown>>> {
@@ -120,6 +147,14 @@ export class ArcApplicationBuilder {
         observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[]): void {
         for (const { type, namespace } of this.#artifacts) {
             const metadata = ownMetadata(type);
+            if (metadata.responseValueHandler) {
+                if (metadata.command || metadata.readModel || metadata.validatorTarget)
+                    throw new Error(`Conflicting Arc response handler artifact: ${type.name}`);
+                if (typeof type.prototype.canHandle !== 'function' || typeof type.prototype.handle !== 'function')
+                    throw new Error(`Response handler ${type.name} requires canHandle() and handle()`);
+                this.#responseHandlers.push(type as ServiceIdentifier<CommandResponseValueHandler>);
+                if (!metadata.lifetime) this.services.addScoped(type);
+            }
             if (metadata.lifetime && !metadata.validatorTarget) {
                 const registration = metadata.lifetime === 'singleton' ? 'addSingleton' :
                     metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient';
