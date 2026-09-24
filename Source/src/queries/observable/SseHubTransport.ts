@@ -3,9 +3,10 @@
 import type { HubFrame } from './HubFrame.js';
 import type { HubTransport } from './HubTransport.js';
 import { ObservableTransportError } from './ObservableTransportError.js';
+import { ObservableLimits } from './ObservableLimits.js';
 
 interface QueuedFrame {
-    readonly frame: HubFrame;
+    readonly data: string;
     readonly resolve: () => void;
     readonly reject: (reason: unknown) => void;
 }
@@ -20,8 +21,9 @@ export class SseHubTransport implements HubTransport {
     #stream: ReadableStreamDefaultController<Uint8Array> | undefined;
     #wake: (() => void) | undefined;
     #lastActivity = Date.now();
+    #activity: (() => void) | undefined;
 
-    constructor() {
+    constructor(readonly limits: ObservableLimits = new ObservableLimits({})) {
         this.body = new ReadableStream<Uint8Array>({
             start: controller => { this.#stream = controller; },
             pull: async controller => {
@@ -31,8 +33,9 @@ export class SseHubTransport implements HubTransport {
                 const queued = this.#queue.shift();
                 if (!queued) return;
                 try {
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(queued.frame)}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${queued.data}\n\n`));
                     this.#lastActivity = Date.now();
+                    this.#activity?.();
                     queued.resolve();
                 } catch (error) {
                     queued.reject(new ObservableTransportError('Observable SSE hub write failed', { cause: error }));
@@ -45,15 +48,29 @@ export class SseHubTransport implements HubTransport {
 
     get signal(): AbortSignal { return this.#controller.signal; }
     get lastActivity(): number { return this.#lastActivity; }
+    onActivity(callback: () => void): () => void {
+        this.#activity = callback;
+        return () => { if (this.#activity === callback) this.#activity = undefined; };
+    }
 
     send(frame: HubFrame): Promise<void> {
         if (this.signal.aborted) return Promise.reject(new Error('Observable SSE hub connection is closed'));
-        if (this.#queue.length >= 64) {
+        if (this.#queue.length >= this.limits.outboundFrames) {
             this.close();
             return Promise.reject(new ObservableTransportError('Observable SSE hub outbound queue is full'));
         }
+        let data: string;
+        try {
+            data = JSON.stringify(frame);
+            if (Buffer.byteLength(data) > this.limits.outboundFrameBytes)
+                throw new ObservableTransportError('Observable SSE hub frame exceeds maximum size');
+        } catch (error) {
+            this.close();
+            return Promise.reject(error instanceof ObservableTransportError ? error :
+                new ObservableTransportError('Observable SSE hub serialization failed', { cause: error }));
+        }
         return new Promise<void>((resolve, reject) => {
-            this.#queue.push({ frame, resolve, reject });
+            this.#queue.push({ data, resolve, reject });
             this.#wake?.();
             this.#wake = undefined;
         });

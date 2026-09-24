@@ -6,6 +6,9 @@ export interface ExecutionContext {
     readonly correlationId: string;
     readonly principal: Principal | undefined;
     readonly tenantId: string | undefined;
+    /** Trusted transport identity for anonymous subscription admission. */
+    readonly connectionId?: string;
+    readonly remoteAddress?: string;
     readonly signal: AbortSignal;
     readonly allowedSeverity: Severity;
 }

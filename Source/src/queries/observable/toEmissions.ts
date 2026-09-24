@@ -3,7 +3,6 @@
 import type { ObservableSource } from './ObservableSource.js';
 import type { Subscribable } from './Subscribable.js';
 
-const maximumPending = 64;
 const cancellationTimeoutMs = 1000;
 const aborted = (): DOMException => new DOMException('Observable query subscription was canceled', 'AbortError');
 
@@ -22,7 +21,8 @@ async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
 }
 
 /** Convert a structural observable or async iterable into a cancellable, bounded stream. */
-export async function* toEmissions<T>(source: ObservableSource<T>, signal: AbortSignal): AsyncGenerator<T> {
+export async function* toEmissions<T>(source: ObservableSource<T>, signal: AbortSignal,
+    maximumPending = 256): AsyncGenerator<T> {
     if (signal.aborted) return;
     if (Symbol.asyncIterator in source) {
         const iterator = (source as AsyncIterable<T>)[Symbol.asyncIterator]();

@@ -36,6 +36,14 @@ describe('observable subscription revisions', () => {
         states.subscribe('q1', 1, 'expired', 100 + 120_000).should.equal(true);
     });
 
+    it('should honor a configured tombstone cap', () => {
+        const states = new SubscriptionRevisions(1);
+        states.unsubscribe('old', 1).should.equal(true);
+        states.unsubscribe('recent', 1).should.equal(true);
+        states.subscribe('old', 1, 'evicted').should.equal(true);
+        states.subscribe('recent', 1, 'retained').should.equal(false);
+    });
+
     it('should only accept positive safe-integer revisions', () => {
         for (const value of [undefined, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '1', null])
             SubscriptionRevisions.valid(value).should.equal(false);

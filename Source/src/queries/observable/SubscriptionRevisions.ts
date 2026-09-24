@@ -9,11 +9,11 @@ interface RevisionState {
 }
 
 const retentionMs = 2 * 60 * 1000;
-const maximumTombstones = 1024;
 
 /** Atomic per-query revision precedence with bounded, expiring unsubscribe tombstones. */
 export class SubscriptionRevisions {
     readonly #states = new Map<string, RevisionState>();
+    constructor(readonly maximumTombstones = 1024) {}
 
     static valid(revision: unknown): revision is number {
         return typeof revision === 'number' && Number.isSafeInteger(revision) && revision > 0;
@@ -66,7 +66,7 @@ export class SubscriptionRevisions {
                 this.#states.delete(id);
         }
         const tombstones = [...this.#states].filter(([, state]) => !state.active && state.tombstoneAt !== undefined);
-        for (let index = 0; index < tombstones.length - maximumTombstones; index++)
+        for (let index = 0; index < tombstones.length - this.maximumTombstones; index++)
             this.#states.delete(tombstones[index]![0]);
     }
 }

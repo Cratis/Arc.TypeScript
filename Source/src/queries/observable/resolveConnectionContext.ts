@@ -6,13 +6,15 @@ import type { NativeRequestContext } from '../../NativeRequestContext.js';
 import { Severity } from '../../Severity.js';
 import { authenticate, correlation, verifiedPrincipal } from '../../security.js';
 import { resolveConfiguredTenant, tenantId } from '../../tenancy.js';
+import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 
 /** Match HTTP authentication, tenancy and correlation for an upgraded or hub connection. */
 export async function resolveConnectionContext(server: ArcServer, request: Request, native?: NativeRequestContext):
-    Promise<{ context: ExecutionContext; authenticationFailed: boolean }> {
+    Promise<ResolvedConnectionContext> {
     const initial: ExecutionContext = {
         correlationId: correlation(request.headers.get(server.options.correlationHeader ?? 'X-Correlation-ID')),
-        principal: undefined, tenantId: undefined, signal: request.signal, allowedSeverity: Severity.Warning
+        principal: undefined, tenantId: undefined, remoteAddress: native?.remoteAddress,
+        signal: request.signal, allowedSeverity: Severity.Warning
     };
     const authentication = server.options.nativePrincipal
         ? { failed: false, principal: native?.principal === undefined ? undefined : verifiedPrincipal(native.principal) }

@@ -12,9 +12,14 @@ should();
 class RecordedOutput {
     readonly controller = new AbortController();
     readonly frames: HubFrame[] = [];
+    readonly sentAt: number[] = [];
     lastActivity = Date.now();
     get signal(): AbortSignal { return this.controller.signal; }
-    async send(frame: HubFrame): Promise<void> { this.frames.push(frame); this.lastActivity = Date.now(); }
+    async send(frame: HubFrame): Promise<void> {
+        this.frames.push(frame);
+        this.lastActivity = Date.now();
+        this.sentAt.push(this.lastActivity);
+    }
     close(): void { this.controller.abort(); }
 }
 
@@ -35,8 +40,11 @@ describe('observable hub keep-alive', () => {
             await output.send({ type: HubFrameType.QueryResult });
             await vi.advanceTimersByTimeAsync(500);
             output.frames.filter(frame => frame.type === HubFrameType.Ping).should.have.lengthOf(0);
-            await vi.advanceTimersByTimeAsync(1000);
+            await vi.advanceTimersByTimeAsync(500);
             output.frames.filter(frame => frame.type === HubFrameType.Ping).should.have.lengthOf(1);
+            const dataTime = output.sentAt[1]!;
+            const pingTime = output.sentAt[2]!;
+            (pingTime - dataTime <= 1000).should.equal(true);
         } finally { await connection.close(); await server.dispose(); vi.useRealTimers(); }
     });
 

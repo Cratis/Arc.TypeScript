@@ -11,6 +11,7 @@ import { toEmissions } from './toEmissions.js';
 import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
 import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
 import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
+import { clonePrincipal } from './clonePrincipal.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
 export class ObservableQuerySession {
@@ -25,9 +26,10 @@ export class ObservableQuerySession {
     #closed: Promise<void> | undefined;
     #scopeClosed: Promise<void> | undefined;
     #terminalFailure: unknown;
+    #released = false;
 
     private constructor(private readonly config: ObservableSessionConfig) {
-        this.#context = Object.freeze({ ...config.context,
+        this.#context = Object.freeze({ ...config.context, principal: clonePrincipal(config.context.principal),
             signal: AbortSignal.any([config.context.signal, this.#controller.signal]) });
         this.#scope = config.services.createScope(this.#context);
     }
@@ -81,6 +83,7 @@ export class ObservableQuerySession {
     close(): Promise<void> {
         if (this.#closed) return this.#closed;
         this.#controller.abort();
+        this.releaseAdmission();
         this.#closed = (async () => {
             const failures: unknown[] = [];
             if (this.#activeIterator) {
@@ -111,7 +114,7 @@ export class ObservableQuerySession {
         try {
             if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
-            for await (const value of toEmissions(this.#source, this.#context.signal)) {
+            for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions)) {
                 const result = await this.run(() => this.config.operation.render(this.config.input,
                     this.#context, this.config.options, value));
                 await this.reportResult(result);
@@ -134,8 +137,15 @@ export class ObservableQuerySession {
         } finally { await this.closeScope(); }
     }
 
+    private releaseAdmission(): void {
+        if (this.#released) return;
+        this.#released = true;
+        this.config.onRelease();
+    }
+
     private closeScope(): Promise<void> {
         if (this.#scopeClosed) return this.#scopeClosed;
+        this.releaseAdmission();
         this.#scopeClosed = this.#scope.dispose().finally(this.config.onClose);
         return this.#scopeClosed;
     }

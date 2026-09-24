@@ -131,6 +131,10 @@ for (const kind of ['express', 'fastify', 'hono']) test(`raw observable hubs on 
             headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
             body: JSON.stringify({ ...payload, revision: 0 }) });
         assert.equal(invalidRevision.status, 400);
+        const unsafeContentType = await fetch(subscribeUrl, { method: 'POST',
+            headers: { authorization: 'Bearer alice', 'content-type': 'text/plain' },
+            body: JSON.stringify(payload) });
+        assert.equal(unsafeContentType.status, 415);
         const next = new Promise(resolve => { events.onmessage = event => resolve(JSON.parse(event.data)); });
         const accepted = await fetch(subscribeUrl, { method: 'POST',
             headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },

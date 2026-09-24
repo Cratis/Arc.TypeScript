@@ -9,6 +9,7 @@ import type { TenancyOptions } from './TenancyOptions.js';
 import type { DevelopmentUser } from './DevelopmentUser.js';
 import type { DevelopmentTenant } from './DevelopmentTenant.js';
 import type { ExecutionContext } from './ExecutionContext.js';
+import type { NativeRequestContext } from './NativeRequestContext.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 import type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
 import type { ServiceToken } from './ServiceToken.js';
@@ -18,10 +19,29 @@ export interface ArcServerOptions {
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
     /** Observable queries share query routes and the full query pipeline. */
     observableQueries?: readonly ObservableQueryDefinition<z.ZodType, unknown>[];
-    /** Maximum simultaneous live and opening subscriptions; defaults to 128. */
+    /** Maximum simultaneous subscriptions; defaults to 4096. */
     maxObservableSubscriptions?: number;
-    /** Maximum retained subscriptions for one authenticated principal and tenant (anonymous callers share eight slots). */
+    /** Per authenticated principal or anonymous connection/address; defaults to the global 4096 limit. */
     maxObservableSubscriptionsPerCaller?: number;
+    /** Maximum physical hub connections across the server; defaults to 512. */
+    maxObservableHubConnections?: number;
+    /** Maximum hub connections for one principal or anonymous address; defaults to the global 512 limit. */
+    maxObservableHubConnectionsPerCaller?: number;
+    /** Maximum subscriptions on one hub connection; defaults to 256. */
+    maxObservableHubSubscriptionsPerConnection?: number;
+    /** Maximum queued inbound or outbound frames; defaults to 256 each. */
+    maxObservableInboundFrames?: number;
+    maxObservableOutboundFrames?: number;
+    maxObservablePendingEmissions?: number;
+    /** Maximum inbound WS frame and SSE control body (default 64 KiB), and outbound frame (default 1 MiB). */
+    maxObservableInboundFrameBytes?: number;
+    maxObservableOutboundFrameBytes?: number;
+    /** Maximum retained unsubscribe tombstones per hub connection; defaults to 1024. */
+    maxObservableTombstones?: number;
+    /** Maximum duration for an upgrade before its handshake finishes; defaults to 10 seconds. */
+    observableHandshakeTimeoutMs?: number;
+    /** Allowed WS/SSE control Origins. By default only the trusted native authority is allowed. */
+    allowedOrigins?: readonly string[] | ((origin: string, request: Request, native?: NativeRequestContext) => boolean | Promise<boolean>);
     /** Advertised hub keep-alive cadence in milliseconds (0 disables); defaults to 30 seconds. */
     observableKeepAliveIntervalMs?: number;
     /** Opt in to caller-scoped query health; disabled by default because connection metadata is sensitive. */

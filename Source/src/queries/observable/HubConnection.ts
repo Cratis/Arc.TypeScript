@@ -12,15 +12,19 @@ import type { HubTransport } from './HubTransport.js';
 import { ObservableTransfer } from './ObservableTransfer.js';
 import { parseHubRequest } from './parseHubRequest.js';
 import { SubscriptionRevisions } from './SubscriptionRevisions.js';
+import { observableCallerKey } from './observableCallerKey.js';
+import { clonePrincipal } from './clonePrincipal.js';
 
 /** Owns bounded, revision-aware subscriptions on one physical WS or SSE connection. */
 export class HubConnection {
     readonly id = randomUUID();
     readonly establishedAt = new Date().toISOString();
-    readonly #states = new SubscriptionRevisions();
+    readonly #states: SubscriptionRevisions;
     readonly #subscriptions = new Map<string, HubSubscription>();
     readonly #context: ExecutionContext;
-    #keepAlive: ReturnType<typeof setInterval> | undefined;
+    readonly ownerKey: string;
+    #keepAlive: ReturnType<typeof setTimeout> | undefined;
+    #removeActivity: (() => void) | undefined;
     #closing: Promise<void> | undefined;
 
     constructor(
@@ -32,7 +36,10 @@ export class HubConnection {
         readonly onClose: () => void,
         readonly onChange: () => void
     ) {
-        this.#context = Object.freeze({ ...context, signal: AbortSignal.any([context.signal, output.signal]) });
+        this.ownerKey = observableCallerKey(context, false);
+        this.#context = Object.freeze({ ...context, connectionId: this.id,
+            principal: clonePrincipal(context.principal), signal: AbortSignal.any([context.signal, output.signal]) });
+        this.#states = new SubscriptionRevisions(server.observableLimits.tombstones);
         output.signal.addEventListener('abort', () => { void this.close(); }, { once: true });
     }
 
@@ -46,17 +53,30 @@ export class HubConnection {
         await this.output.send({ type: HubFrameType.Connected, payload: this.id,
             keepAliveIntervalMs: this.intervalMs, supportsSubscriptionRevisions: true });
         if (this.intervalMs > 0) {
-            this.#keepAlive = setInterval(() => {
-                if (Date.now() - this.output.lastActivity < this.intervalMs) return;
-                void this.output.send({ type: HubFrameType.Ping }).catch(() => this.close());
-            }, this.intervalMs);
+            this.#removeActivity = this.output.onActivity?.(() => this.scheduleKeepAlive());
+            this.scheduleKeepAlive();
         }
+    }
+
+    private scheduleKeepAlive(): void {
+        if (this.closed || this.intervalMs <= 0) return;
+        if (this.#keepAlive) clearTimeout(this.#keepAlive);
+        const remaining = this.output.lastActivity + this.intervalMs - Date.now();
+        this.#keepAlive = setTimeout(() => {
+            if (this.closed) return;
+            if (Date.now() - this.output.lastActivity < this.intervalMs) {
+                this.scheduleKeepAlive();
+                return;
+            }
+            void this.output.send({ type: HubFrameType.Ping })
+                .then(() => this.scheduleKeepAlive(), () => this.close());
+        }, Math.max(1, remaining));
     }
 
     /** Process a bounded WS control frame without letting one slow producer block later revisions. */
     async accept(raw: string): Promise<void> {
         try {
-            if (raw.length > 64 * 1024) throw new BadRequest();
+            if (Buffer.byteLength(raw) > this.server.observableLimits.inboundFrameBytes) throw new BadRequest();
             const frame: unknown = JSON.parse(raw);
             if (!frame || typeof frame !== 'object' || Array.isArray(frame)) throw new BadRequest();
             const message = frame as Record<string, unknown>;
@@ -85,16 +105,20 @@ export class HubConnection {
         this.queryId(queryId);
         const request = parseHubRequest(payload);
         const previous = this.#subscriptions.get(queryId);
-        if (!previous && this.#states.activeCount >= 32) {
+        if (!previous && this.#states.activeCount >= this.server.observableLimits.hubSubscriptionsPerConnection) {
             return this.output.send({ type: HubFrameType.Error, queryId,
                 ...(revision === undefined ? {} : { revision }), payload: 'Connection subscription limit reached' })
                 .then(() => HubSubscriptionOutcome.Limited);
         }
         if (!this.#states.subscribe(queryId, revision, JSON.stringify(request)))
             return Promise.resolve(HubSubscriptionOutcome.Stale);
-        if (previous) void previous.session?.close().catch(() => this.close());
+        if (previous) {
+            previous.controller.abort();
+            void previous.session?.close().catch(error => this.recordCleanupFailure(error));
+        }
         const subscription: HubSubscription = { queryId, queryName: request.queryName,
-            connectedAt: new Date().toISOString(), revision, transfer: new ObservableTransfer(request.transferMode) };
+            connectedAt: new Date().toISOString(), revision, transfer: new ObservableTransfer(request.transferMode),
+            controller: new AbortController() };
         this.#subscriptions.set(queryId, subscription);
         this.onChange();
         const current = (): boolean => !this.closed && !this.output.signal.aborted &&
@@ -105,7 +129,9 @@ export class HubConnection {
             this.#states.complete(queryId, revision);
             this.onChange();
         };
-        const runner = new HubSubscriptionRunner(this.server, this.#context, this.output, subscription,
+        const subscriptionContext = Object.freeze({ ...this.#context,
+            signal: AbortSignal.any([this.#context.signal, subscription.controller.signal]) });
+        const runner = new HubSubscriptionRunner(this.server, subscriptionContext, this.output, subscription,
             request, current, completed, this.onChange);
         const admission = runner.admit();
         subscription.admission = admission;
@@ -117,26 +143,49 @@ export class HubConnection {
         const current = this.#subscriptions.get(queryId);
         this.#subscriptions.delete(queryId);
         this.onChange();
-        if (current) await current.session?.close();
+        if (current) {
+            current.controller.abort();
+            try { await current.session?.close(); }
+            catch (error) { await this.recordCleanupFailure(error); }
+        }
+    }
+
+    private async recordCleanupFailure(error: unknown): Promise<void> {
+        this.server.recordObservableCleanupFailure(error);
+        try { await this.server.options.logger?.(error, this.#context.correlationId); }
+        catch (loggingError) { this.server.recordObservableCleanupFailure(loggingError); }
     }
 
     close(): Promise<void> {
         if (this.#closing) return this.#closing;
-        if (this.#keepAlive) clearInterval(this.#keepAlive);
+        if (this.#keepAlive) clearTimeout(this.#keepAlive);
+        this.#removeActivity?.();
         this.#closing = Promise.resolve().then(async () => {
             this.output.close();
             const errors: unknown[] = [];
             const active = [...this.#subscriptions.values()];
             this.#subscriptions.clear();
-            const results = await Promise.allSettled(active.map(async subscription => {
+            for (const subscription of active) subscription.controller.abort();
+            const joined = Promise.allSettled(active.map(async subscription => {
                 await subscription.session?.close();
                 await subscription.admission;
                 await subscription.delivery;
             }));
-            for (const result of results) if (result.status === 'rejected') errors.push(result.reason);
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                const results = await Promise.race([
+                    joined,
+                    new Promise<never>((_, reject) => {
+                        timer = setTimeout(() => reject(new Error('Observable hub shutdown timed out')),
+                            this.server.observableLimits.handshakeTimeoutMs);
+                    })
+                ]);
+                for (const result of results) if (result.status === 'rejected') errors.push(result.reason);
+            } catch (error) { errors.push(error); }
+            finally { if (timer) clearTimeout(timer); }
+            for (const error of errors) await this.recordCleanupFailure(error);
             this.onClose();
             this.onChange();
-            if (errors.length) throw new AggregateError(errors, 'Observable hub cleanup failed');
         });
         return this.#closing;
     }

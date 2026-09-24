@@ -12,13 +12,15 @@ export class CurrentValueSubject<T> implements Subscribable<T> {
     #failure: unknown;
     #hasFailure = false;
 
-    constructor(initial?: T | CurrentValue<T>) {
-        if (!arguments.length) return;
-        if (initial !== null && typeof initial === 'object' && 'hasValue' in initial &&
-            typeof initial.hasValue === 'boolean' && (!initial.hasValue || 'value' in initial))
-            this.#value = initial as CurrentValue<T>;
-        else this.#value = { hasValue: true, value: initial as T };
+    constructor(initial?: T) {
+        if (arguments.length) this.#value = { hasValue: true, value: initial as T };
     }
+
+    /** A current value, including an explicit undefined value. */
+    static of<T>(value: T): CurrentValueSubject<T> { return new CurrentValueSubject(value); }
+
+    /** No value exists yet; ordinary HTTP snapshots answer 202. */
+    static pending<T>(): CurrentValueSubject<T> { return new CurrentValueSubject<T>(); }
 
     /** An explicit presence marker distinguishes pending from a present undefined. */
     current(): CurrentValue<T> { return this.#value; }

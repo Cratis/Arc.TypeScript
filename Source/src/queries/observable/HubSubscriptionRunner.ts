@@ -41,11 +41,11 @@ export class HubSubscriptionRunner {
             const { input, options } = bindHubRequest(this.request, operation);
             const session = await this.server.openObservableQuery(this.request.queryName, input, this.context, options);
             this.subscription.session = session;
-            if (!this.isCurrent()) { await session.close(); return HubSubscriptionOutcome.Stale; }
+            if (!this.isCurrent()) { await this.closeSession(session); return HubSubscriptionOutcome.Stale; }
             if (session.rejection) {
                 await this.output.send({ type: session.rejection.isAuthorized ? HubFrameType.Error : HubFrameType.Unauthorized,
                     ...tag, ...(session.rejection.isAuthorized ? { payload: 'Invalid observable query' } : {}) });
-                await session.close();
+                await this.closeSession(session);
                 this.onCompleted();
                 return session.rejection.isAuthorized ? HubSubscriptionOutcome.Invalid : HubSubscriptionOutcome.Unauthorized;
             }
@@ -66,7 +66,7 @@ export class HubSubscriptionRunner {
                     ? 'Subscription limit reached' : 'Observable query failed';
                 await this.output.send({ type: HubFrameType.Error, ...tag, payload: message });
             } catch { this.output.close(); }
-            await this.subscription.session?.close();
+            if (this.subscription.session) await this.closeSession(this.subscription.session);
             this.onCompleted();
             return error instanceof ObservableSubscriptionLimitError ? HubSubscriptionOutcome.Limited : HubSubscriptionOutcome.Invalid;
         }
@@ -99,8 +99,17 @@ export class HubSubscriptionRunner {
             if (this.isCurrent() && !this.output.signal.aborted)
                 await this.output.send({ type: HubFrameType.Error, ...tag, payload: 'Observable query failed' });
         } finally {
-            await session.close();
+            await this.closeSession(session);
             this.onCompleted();
+        }
+    }
+
+    private async closeSession(session: ObservableQuerySession): Promise<void> {
+        try { await session.close(); }
+        catch (error) {
+            this.server.recordObservableCleanupFailure(error);
+            try { await this.server.options.logger?.(error, this.context.correlationId); }
+            catch (loggingError) { this.server.recordObservableCleanupFailure(loggingError); }
         }
     }
 

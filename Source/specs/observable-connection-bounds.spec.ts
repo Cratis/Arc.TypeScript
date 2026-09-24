@@ -8,6 +8,7 @@ import type { HubFrame } from '../src/queries/observable/HubFrame.js';
 import { HubConnection } from '../src/queries/observable/HubConnection.js';
 import { HubFrameType } from '../src/queries/observable/HubFrameType.js';
 import { HubSubscriptionOutcome } from '../src/queries/observable/HubSubscriptionOutcome.js';
+import { shouldRejectWithError } from './shouldRejectWithError.js';
 
 should();
 
@@ -36,8 +37,33 @@ describe('observable connection bounds', () => {
         } finally { await connection.close(); await server.dispose(); }
     });
 
+    it('should bound connection shutdown while a producer is still opening', async () => {
+        let release!: () => void;
+        const blocked = new Promise<void>(resolve => { release = resolve; });
+        let started!: () => void;
+        const opening = new Promise<void>(resolve => { started = resolve; });
+        const server = new ArcServer({ observableHandshakeTimeoutMs: 10,
+            observableQueries: [defineObservableQuery({ name: 'Slow', schema: z.object({}),
+                observe: async () => { started(); await blocked; return CurrentValueSubject.of(1); } })] });
+        const controller = new AbortController();
+        const output = { signal: controller.signal, lastActivity: Date.now(),
+            async send() { this.lastActivity = Date.now(); }, close() { controller.abort(); }
+        };
+        const context: ExecutionContext = { correlationId: crypto.randomUUID(), principal: undefined,
+            tenantId: undefined, signal: controller.signal, allowedSeverity: Severity.Warning };
+        const connection = new HubConnection(server, 'WebSocket', output, context, 0, () => {}, () => {});
+        await connection.connect();
+        const admission = connection.subscribe('q', 1, { queryName: 'Slow' });
+        await opening;
+        await connection.close();
+        release();
+        (await admission).should.equal(HubSubscriptionOutcome.Stale);
+        await shouldRejectWithError(server.dispose(), /Observable hub shutdown timed out/);
+    });
+
     it('should reject a 33rd subscription on one physical connection', async () => {
         const server = new ArcServer({ maxObservableSubscriptions: 64, maxObservableSubscriptionsPerCaller: 64,
+            maxObservableHubSubscriptionsPerConnection: 32,
             observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}),
                 observe: () => new CurrentValueSubject<number[]>([1]) })] });
         const controller = new AbortController();

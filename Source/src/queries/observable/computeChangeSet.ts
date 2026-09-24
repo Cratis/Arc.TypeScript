@@ -2,18 +2,20 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ChangeSet } from './ChangeSet.js';
 
-function identity(item: unknown): string | undefined {
+type Identity = string | number | boolean;
+
+function identity(item: unknown): Identity | undefined {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
     const keys = Object.keys(item).filter(name => name.toLowerCase() === 'id');
     if (keys.length !== 1) return undefined;
     const id: unknown = Reflect.get(item, keys[0]!);
-    if (typeof id === 'string') return id.toLowerCase();
-    if (typeof id === 'number' && Number.isSafeInteger(id)) return String(id);
+    if (typeof id === 'string' || typeof id === 'boolean') return id;
+    if (typeof id === 'number' && Number.isFinite(id) && Number.isSafeInteger(Math.trunc(id))) return id;
     return undefined;
 }
 
-function identified(items: readonly unknown[]): Map<string, unknown> | undefined {
-    const indexed = new Map<string, unknown>();
+function identified(items: readonly unknown[]): Map<Identity, unknown> | undefined {
+    const indexed = new Map<Identity, unknown>();
     for (const item of items) {
         const id = identity(item);
         if (id === undefined || indexed.has(id)) return undefined;
@@ -23,27 +25,15 @@ function identified(items: readonly unknown[]): Map<string, unknown> | undefined
 }
 
 function byJson(previous: readonly unknown[], current: readonly unknown[]): ChangeSet<unknown> {
-    const before = new Map<string, number>();
-    const after = new Map<string, number>();
     const key = (item: unknown): string => JSON.stringify(item) ?? 'undefined';
-    for (const item of previous) before.set(key(item), (before.get(key(item)) ?? 0) + 1);
-    for (const item of current) after.set(key(item), (after.get(key(item)) ?? 0) + 1);
-    const added = current.filter(item => {
-        const serialized = key(item);
-        const count = before.get(serialized) ?? 0;
-        if (count) before.set(serialized, count - 1);
-        return count === 0;
-    });
-    const removed = previous.filter(item => {
-        const serialized = key(item);
-        const count = after.get(serialized) ?? 0;
-        if (count) after.set(serialized, count - 1);
-        return count === 0;
-    });
+    const before = new Set(previous.map(key));
+    const after = new Set(current.map(key));
+    const added = current.filter(item => !before.has(key(item)));
+    const removed = previous.filter(item => !after.has(key(item)));
     return { added, replaced: [], removed };
 }
 
-/** Match identity case-insensitively; ambiguous or missing IDs use JSON multiset comparison. */
+/** Discover the id property case-insensitively; compare identity values by type and case. */
 export function computeChangeSet(previous: readonly unknown[], current: readonly unknown[]): ChangeSet<unknown> {
     const old = identified(previous);
     const next = identified(current);

@@ -75,20 +75,21 @@ describe('observable HTTP snapshots and admission', () => {
 
     it('should return 503 when anonymous callers fill their slots but still allow current snapshots', async () => {
         const subject = new CurrentValueSubject<number>(1);
-        const server = new ArcServer({ maxObservableSubscriptions: 16, observableQueries: [defineObservableQuery({
+        const server = new ArcServer({ maxObservableSubscriptions: 16, maxObservableSubscriptionsPerCaller: 8,
+            observableQueries: [defineObservableQuery({
             name: 'Value', schema: z.object({}), observe: () => subject
         })] });
         const streams: Response[] = [];
         for (let index = 0; index < 8; index++) {
             const stream = await server.handle(new Request('http://localhost/api/value', {
                 headers: { accept: 'text/event-stream' }
-            }));
+            }), { remoteAddress: '127.0.0.1' });
             stream?.status.should.equal(200);
             streams.push(stream!);
         }
         const limited = await server.handle(new Request('http://localhost/api/value', {
             headers: { accept: 'text/event-stream' }
-        }));
+        }), { remoteAddress: '127.0.0.1' });
         limited?.status.should.equal(503);
         limited?.headers.get('retry-after')?.should.equal('1');
         (await limited!.json()).hasExceptions.should.equal(true);

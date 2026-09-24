@@ -24,7 +24,7 @@ async function within(promise, label) {
 }
 
 for (const kind of ['express', 'fastify', 'hono']) test(`generated installed client receives direct SSE from live ${kind}`, async () => {
-    const subject = new CurrentValueSubject({ hasValue: true, value: [{ id: '1', name: 'first' }] });
+    const subject = CurrentValueSubject.of([{ id: '1', name: 'first' }]);
     let active = 0;
     let released;
     const tracked = {

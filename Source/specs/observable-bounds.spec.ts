@@ -6,6 +6,7 @@ import { describe, it, should } from 'vitest';
 import { SseHubTransport } from '../src/queries/observable/SseHubTransport.js';
 import { WebSocketTransport } from '../src/queries/observable/WebSocketTransport.js';
 import { HubFrameType } from '../src/queries/observable/HubFrameType.js';
+import { ObservableLimits } from '../src/queries/observable/ObservableLimits.js';
 
 should();
 
@@ -21,7 +22,7 @@ class BlockingSocket extends EventEmitter {
 
 describe('observable hub outbound bounds', () => {
     it('should close an SSE connection rather than queueing a 65th pending frame', async () => {
-        const output = new SseHubTransport();
+        const output = new SseHubTransport(new ObservableLimits({ maxObservableOutboundFrames: 64 }));
         await output.send({ type: HubFrameType.Connected });
         const waiting = Array.from({ length: 64 }, () => output.send({ type: HubFrameType.QueryResult }));
         const rejected = output.send({ type: HubFrameType.QueryResult });
@@ -32,7 +33,8 @@ describe('observable hub outbound bounds', () => {
 
     it('should cancel pending socket writes and their queue when a connection is overloaded', async () => {
         const socket = new BlockingSocket();
-        const output = new WebSocketTransport(socket as unknown as WebSocket);
+        const output = new WebSocketTransport(socket as unknown as WebSocket,
+            new ObservableLimits({ maxObservableOutboundFrames: 64 }));
         const waiting = Array.from({ length: 64 }, () => output.send({ type: HubFrameType.QueryResult }));
         const rejected = output.send({ type: HubFrameType.QueryResult });
         const outcomes = await Promise.allSettled([...waiting, rejected]);

@@ -22,8 +22,11 @@ import { snapshot, snapshotOptions } from './queries/observable/snapshot.js';
 import { directSse } from './queries/observable/directSse.js';
 import { closeNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
 import { ObservableSubscriptionLimitError } from './queries/observable/ObservableSubscriptionLimitError.js';
+import { ObservableLimits } from './queries/observable/ObservableLimits.js';
+import { observableCallerKey } from './queries/observable/observableCallerKey.js';
 import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
-import type { WebSocketTransport } from './queries/observable/WebSocketTransport.js';
+import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
+import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -47,13 +50,16 @@ export class ArcServer {
     readonly endpoints: ReadonlyMap<string, string>;
     readonly options: ArcServerOptions;
     readonly services: ServiceRegistry;
+    readonly observableLimits: ObservableLimits;
     readonly #ownsServices: boolean;
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #observableSessions = new Set<ObservableQuerySession>();
     readonly #snapshotSessions = new Set<ObservableQuerySession>();
+    readonly #retiringSessions = new Set<ObservableQuerySession>();
     readonly #observableOwners = new Map<ObservableQuerySession, string>();
     readonly #hub: ObservableQueryHub;
     readonly #openingOwners = new Map<string, number>();
+    readonly #observableCleanupFailures: unknown[] = [];
     #openingObservableSessions = 0;
     #openingSnapshots = 0;
     #disposed = false;
@@ -66,17 +72,20 @@ export class ArcServer {
             throw new Error('Identity details require a provider schema; legacy schema cannot be combined');
         if ((options.developmentUsers || options.developmentTenants) && !options.development) throw new Error('Discovery providers require development mode');
         this.#identitySchema = options.identityDetails ? z.toJSONSchema(options.identityDetails.schema) : undefined;
+        this.observableLimits = new ObservableLimits(options);
+        if (options.allowedOrigins !== undefined && !Array.isArray(options.allowedOrigins) &&
+            typeof options.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');
+        if (Array.isArray(options.allowedOrigins) && options.allowedOrigins.some(origin => {
+            if (typeof origin !== 'string') return true;
+            try {
+                const parsed = new URL(origin);
+                return parsed.origin !== origin || !['http:', 'https:'].includes(parsed.protocol);
+            } catch { return true; }
+        })) throw new Error('Invalid allowed Origin');
         this.#ownsServices = !(options.services instanceof ServiceRegistry);
         this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
         if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
-        if (options.maxObservableSubscriptions !== undefined &&
-            (!Number.isSafeInteger(options.maxObservableSubscriptions) || options.maxObservableSubscriptions < 1 || options.maxObservableSubscriptions > 1024))
-            throw new Error('Invalid maximum observable subscriptions');
-        if (options.maxObservableSubscriptionsPerCaller !== undefined &&
-            (!Number.isSafeInteger(options.maxObservableSubscriptionsPerCaller) ||
-                options.maxObservableSubscriptionsPerCaller < 1 || options.maxObservableSubscriptionsPerCaller > 128))
-            throw new Error('Invalid per-caller observable subscription limit');
         if (options.observableKeepAliveIntervalMs !== undefined &&
             (!Number.isSafeInteger(options.observableKeepAliveIntervalMs) || options.observableKeepAliveIntervalMs < 0 ||
                 options.observableKeepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
@@ -199,13 +208,16 @@ export class ArcServer {
         });
     }
 
+    /** Internal transport boundary: preserve cleanup failures for the owning server's shutdown verdict. */
+    recordObservableCleanupFailure(error: unknown): void { this.#observableCleanupFailures.push(error); }
+
     async dispose(): Promise<void> {
         this.#disposed = true;
         const activeHubConnections = this.#hub.connections.length;
         const hubClosing = this.#hub.dispose();
         const closing = closeNodeWebSockets(this);
-        const sessions = [...this.#observableSessions, ...this.#snapshotSessions];
-        if (!sessions.length && !closing && !activeHubConnections) {
+        const sessions = [...new Set([...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
+        if (!sessions.length && !closing && !activeHubConnections && !this.#observableCleanupFailures.length) {
             if (this.#ownsServices) await this.services.dispose();
             return;
         }
@@ -224,22 +236,24 @@ export class ArcServer {
             try { await this.services.dispose(); }
             catch (error) { failures.push(error); }
         }
+        failures.push(...this.#observableCleanupFailures);
         if (failures.length === 1) throw failures[0];
         if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     }
 
-    private callerKey(context: ExecutionContext): string {
-        const caller = context.principal?.isAuthenticated ? context.principal.id : 'anonymous';
-        return `${context.tenantId ?? ''}\0${caller}`;
+    private callerKey(context: ExecutionContext): string { return observableCallerKey(context); }
+
+    private hasSessionCapacity(context: ExecutionContext): boolean {
+        const key = this.callerKey(context);
+        const owned = [...this.#observableOwners.values()].filter(owner => owner === key).length;
+        return !this.#disposed && this.observableLimits.hasSubscriptionCapacity(
+            this.#observableSessions.size, this.#openingObservableSessions,
+            owned, this.#openingOwners.get(key) ?? 0);
     }
 
     private reserveSession(session: ObservableQuerySession, context: ExecutionContext): void {
         const key = this.callerKey(context);
-        const maximum = context.principal?.isAuthenticated ? this.options.maxObservableSubscriptionsPerCaller ?? 16 : 8;
-        const owned = [...this.#observableOwners.values()].filter(owner => owner === key).length;
-        if (this.#disposed || this.#observableSessions.size + this.#openingObservableSessions >=
-            (this.options.maxObservableSubscriptions ?? 128) || owned + (this.#openingOwners.get(key) ?? 0) >= maximum)
-            throw new ObservableSubscriptionLimitError();
+        if (!this.hasSessionCapacity(context)) throw new ObservableSubscriptionLimitError();
         this.#snapshotSessions.delete(session);
         this.#observableSessions.add(session);
         this.#observableOwners.set(session, key);
@@ -253,19 +267,27 @@ export class ArcServer {
     private async openSession(name: string, input: unknown, context: ExecutionContext, options: QueryOptions | undefined,
         admission: 'subscription' | 'snapshot'): Promise<ObservableQuerySession> {
         if (this.#disposed) throw new Error('Arc server is disposed');
+        if (context.signal.aborted) throw new Error('Observable subscription was canceled');
         const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation || !isObservableOperation(operation)) throw new Error(`Unknown observable query: ${name}`);
         const key = this.callerKey(context);
+        let releaseOwner = (): void => {};
         if (admission === 'subscription') {
-            const maximum = context.principal?.isAuthenticated ? this.options.maxObservableSubscriptionsPerCaller ?? 16 : 8;
-            const owned = [...this.#observableOwners.values()].filter(owner => owner === key).length;
-            if (this.#observableSessions.size + this.#openingObservableSessions >=
-                (this.options.maxObservableSubscriptions ?? 128) || owned + (this.#openingOwners.get(key) ?? 0) >= maximum)
-                throw new ObservableSubscriptionLimitError();
+            if (!this.hasSessionCapacity(context)) throw new ObservableSubscriptionLimitError();
             this.#openingOwners.set(key, (this.#openingOwners.get(key) ?? 0) + 1);
             this.#openingObservableSessions++;
+            let ownerReleased = false;
+            releaseOwner = (): void => {
+                if (ownerReleased) return;
+                ownerReleased = true;
+                const remaining = (this.#openingOwners.get(key) ?? 1) - 1;
+                if (remaining) this.#openingOwners.set(key, remaining);
+                else this.#openingOwners.delete(key);
+            };
+            context.signal.addEventListener('abort', releaseOwner, { once: true });
+            if (context.signal.aborted) releaseOwner();
         } else {
-            if (++this.#openingSnapshots + this.#snapshotSessions.size > (this.options.maxObservableSubscriptions ?? 128)) {
+            if (++this.#openingSnapshots + this.#snapshotSessions.size > this.observableLimits.subscriptions) {
                 this.#openingSnapshots--;
                 throw new ObservableSubscriptionLimitError();
             }
@@ -275,12 +297,21 @@ export class ArcServer {
             const session = await ObservableQuerySession.open({
                 operation, input, context, options, services: this.services,
                 guards: this.options.observableEmissionGuards ?? [], development: this.options.development === true,
+                pendingEmissions: this.observableLimits.pendingEmissions,
                 reportFailure: error => Promise.resolve(this.options.logger?.(error, context.correlationId)),
+                onRelease: () => {
+                    if (!held.session) return;
+                    this.#observableSessions.delete(held.session);
+                    this.#snapshotSessions.delete(held.session);
+                    this.#observableOwners.delete(held.session);
+                    this.#retiringSessions.add(held.session);
+                },
                 onClose: () => {
                     if (!held.session) return;
                     this.#observableSessions.delete(held.session);
                     this.#snapshotSessions.delete(held.session);
                     this.#observableOwners.delete(held.session);
+                    this.#retiringSessions.delete(held.session);
                 }
             });
             held.session = session;
@@ -299,17 +330,20 @@ export class ArcServer {
         } finally {
             if (admission === 'snapshot') this.#openingSnapshots--;
             else {
+                context.signal.removeEventListener('abort', releaseOwner);
+                releaseOwner();
                 this.#openingObservableSessions--;
-                const remaining = (this.#openingOwners.get(key) ?? 1) - 1;
-                if (remaining) this.#openingOwners.set(key, remaining);
-                else this.#openingOwners.delete(key);
             }
         }
     }
 
+    /** Internal admission check before accepting a hub WebSocket upgrade. */
+    canAdmitObservableHubConnection(context: ExecutionContext): boolean { return this.#hub.canAdmit(context); }
+
     /** Multiplexed socket entry point shared by all Node host bridges. */
-    handleObservableHubSocket(request: Request, transport: WebSocketTransport, native?: NativeRequestContext): Promise<void> {
-        return this.#hub.webSocket(request, transport, native);
+    handleObservableHubSocket(request: Request, transport: ObservableSocket, native?: NativeRequestContext,
+        resolved?: ResolvedConnectionContext): Promise<void> {
+        return this.#hub.webSocket(request, transport, native, resolved);
     }
 
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
@@ -327,12 +361,12 @@ export class ArcServer {
         finally { await session.close(); }
     }
 
-    async handle(request: Request, native?: NativeRequestContext | (() => NativeRequestContext)): Promise<Response | null> {
+    async handle(request: Request, native?: NativeRequestContext | (() => NativeRequestContext | Promise<NativeRequestContext>)): Promise<Response | null> {
         const path = new URL(request.url).pathname;
         if (path === '/.cratis/queries/ws') return new Response(null, { status: 426, headers: { upgrade: 'websocket' } });
         if (path === '/.cratis/queries/sse' || path === '/.cratis/queries/sse/subscribe' ||
             path === '/.cratis/queries/sse/unsubscribe')
-            return this.#hub.http(request, typeof native === 'function' ? native() : native);
+            return this.#hub.http(request, typeof native === 'function' ? await native() : native);
         const operation = this.routes.get(path);
         if (!this.endpoints.has(path)) return null;
         const introspection = !operation;
@@ -375,7 +409,7 @@ export class ArcServer {
             ? commandResult(context, { exceptionMessages: ['An unexpected error occurred'] })
             : queryResult(context, { exceptionMessages: ['An unexpected error occurred'] }), 500);
         try {
-            const trustedNative = typeof native === 'function' ? native() : native;
+            const trustedNative = typeof native === 'function' ? await native() : native;
             const authentication = this.options.nativePrincipal
                 ? { failed: false, principal: trustedNative?.principal === undefined ? undefined : verifiedPrincipal(trustedNative.principal) }
                 : await authenticate(request, this.options.authentication ?? []);
@@ -392,7 +426,8 @@ export class ArcServer {
                     ? resolveConfiguredTenant(request, authentication.principal, trustedNative, this.options.tenancy, this.options.tenantHeader ?? 'x-cratis-tenant-id')
                     : request.headers.get(this.options.tenantHeader ?? 'x-cratis-tenant-id') ?? undefined;
             const tenant = this.options.tenancy && !this.options.resolveTenant && resolved !== undefined ? tenantId(resolved) : resolved;
-            context = Object.freeze({ ...context, principal: authentication.principal, tenantId: tenant });
+            context = Object.freeze({ ...context, principal: authentication.principal,
+                tenantId: tenant, remoteAddress: trustedNative?.remoteAddress });
             return await requestContext.run(context, async () => {
                 try {
                     if (isIdentity) {

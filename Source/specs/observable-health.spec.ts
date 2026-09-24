@@ -6,8 +6,9 @@ import { ArcServer, AuthenticationStatus, CurrentValueSubject, defineObservableQ
 
 should();
 
-function server(): ArcServer {
+function server(maxConnectionsPerCaller?: number): ArcServer {
     return new ArcServer({ enableObservableHealth: true,
+        ...(maxConnectionsPerCaller === undefined ? {} : { maxObservableHubConnectionsPerCaller: maxConnectionsPerCaller }),
         authentication: [request => {
             const id = request.headers.get('authorization');
             return id === 'alice' || id === 'bob'
@@ -44,7 +45,7 @@ describe('caller-scoped observable query health', () => {
     });
 
     it('should bound authenticated SSE hub connections per caller', async () => {
-        const arc = server();
+        const arc = server(8);
         const streams: Response[] = [];
         for (let index = 0; index < 8; index++) {
             const opened = await arc.handle(new Request('http://localhost/.cratis/queries/sse', {

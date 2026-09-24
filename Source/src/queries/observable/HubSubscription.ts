@@ -12,6 +12,7 @@ export interface HubSubscription {
     lastDataServedAt?: string;
     readonly revision?: number;
     readonly transfer: ObservableTransfer;
+    readonly controller: AbortController;
     session?: ObservableQuerySession;
     admission?: Promise<HubSubscriptionOutcome>;
     delivery?: Promise<void>;

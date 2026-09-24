@@ -18,7 +18,7 @@ const execution = (overrides: Partial<ExecutionContext> = {}): ExecutionContext 
 
 describe('observable query pipeline', () => {
     it('should return a current snapshot and close its scope on GET', async () => {
-        const subject = new CurrentValueSubject<number[]>({ hasValue: true, value: [1, 2] });
+        const subject = CurrentValueSubject.of<number[]>([1, 2]);
         const server = new ArcServer({ observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
         })] });
@@ -72,7 +72,7 @@ describe('observable query pipeline', () => {
     });
 
     it('should send direct SSE frames without a hub envelope', async () => {
-        const subject = new CurrentValueSubject<number[]>({ hasValue: true, value: [5] });
+        const subject = CurrentValueSubject.of<number[]>([5]);
         const server = new ArcServer({ observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
         })] });
@@ -155,7 +155,7 @@ describe('observable query pipeline', () => {
     });
 
     it('should suppress an emission without publishing it and allow the next in the subscription scope', async () => {
-        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const subject = CurrentValueSubject.of(1);
         const token = serviceToken<ObservableEmissionGuard>('emission policy');
         let suppressed!: () => void;
         const suppressedOnce = new Promise<void>(resolve => { suppressed = resolve; });
@@ -185,7 +185,7 @@ describe('observable query pipeline', () => {
     });
 
     it('should redact a failed source before streaming the terminal result', async () => {
-        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const subject = CurrentValueSubject.of(1);
         const logged: unknown[] = [];
         const server = new ArcServer({ logger: error => { logged.push(error); }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
@@ -208,7 +208,7 @@ describe('observable query pipeline', () => {
             check: () => ObservableEmissionDecision.Suppress
         }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}),
-            observe: () => new CurrentValueSubject<number>({ hasValue: true, value: 7 })
+            observe: () => CurrentValueSubject.of(7)
         })] });
         const response = await server.handle(new Request('http://localhost/api/numbers'));
         response?.status.should.equal(202);
@@ -217,7 +217,7 @@ describe('observable query pipeline', () => {
     });
 
     it('should deny and terminate on a failing emission policy without publishing data', async () => {
-        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const subject = CurrentValueSubject.of(1);
         const token = serviceToken<ObservableEmissionGuard>('failing policy');
         const logged: unknown[] = [];
         const server = new ArcServer({ logger: error => { logged.push(error); },
@@ -239,7 +239,7 @@ describe('observable query pipeline', () => {
     });
 
     it('should collect emissions through an observable scenario and release its scope', async () => {
-        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const subject = CurrentValueSubject.of(1);
         const scenario = new ArcScenario({ observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
         })] });

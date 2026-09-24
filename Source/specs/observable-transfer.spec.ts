@@ -25,7 +25,7 @@ describe('observable transfer modes', () => {
 
     it('should send a full first delta and later changes without data', () => {
         const transfer = new ObservableTransfer('delta');
-        const first = transfer.prepare(result([{ ID: 'First', name: 'old' }, { id: 'removed', name: 'gone' }]));
+        const first = transfer.prepare(result([{ ID: 'first', name: 'old' }, { id: 'removed', name: 'gone' }]));
         should().equal(first.payload.changeSet, undefined);
         first.commit();
         const second = transfer.prepare(result([{ id: 'first', name: 'new' }, { Id: 'added', name: 'fresh' }]));
@@ -72,6 +72,23 @@ describe('observable transfer modes', () => {
         const duplicate = new ObservableTransfer('legacy');
         duplicate.prepare(result([{ id: 'x', value: 1 }, { id: 'x', value: 2 }])).commit();
         duplicate.prepare(result([{ id: 'x', value: 2 }])).payload.changeSet?.removed.should.deep.equal([{ id: 'x', value: 1 }]);
+    });
+
+    it('should compare identity values by case and JSON primitive type', () => {
+        const transfer = new ObservableTransfer('legacy');
+        transfer.prepare(result([{ id: 'A' }, { id: 1 }])).commit();
+        const next = transfer.prepare(result([{ ID: 'a' }, { ID: '1' }]));
+        next.payload.changeSet?.added.should.deep.equal([{ ID: 'a' }, { ID: '1' }]);
+        next.payload.changeSet?.removed.should.deep.equal([{ id: 'A' }, { id: 1 }]);
+        next.payload.changeSet?.replaced.should.deep.equal([]);
+    });
+
+    it('should use JSON set comparison when only duplicate counts differ', () => {
+        const transfer = new ObservableTransfer('legacy');
+        transfer.prepare(result([{ name: 'same' }, { name: 'same' }])).commit();
+        const next = transfer.prepare(result([{ name: 'same' }]));
+        next.payload.changeSet?.added.should.deep.equal([]);
+        next.payload.changeSet?.removed.should.deep.equal([]);
     });
 
     it('should never omit scalar data, even in delta mode', () => {

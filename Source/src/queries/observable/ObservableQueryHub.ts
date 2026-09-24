@@ -5,15 +5,20 @@ import type { ExecutionContext } from '../../ExecutionContext.js';
 import { CurrentValueSubject } from './CurrentValueSubject.js';
 import type { ObservableSource } from './ObservableSource.js';
 import { buildQueryHealth } from './buildQueryHealth.js';
+import { FilteredHealthSource } from './FilteredHealthSource.js';
 import type { QueryHealthSnapshot } from './QueryHealthSnapshot.js';
+import { observableCallerKey } from './observableCallerKey.js';
+import { originAllowed } from './originAllowed.js';
 import { BadRequest, body } from '../../binding.js';
 import type { NativeRequestContext } from '../../NativeRequestContext.js';
 import { HubConnection } from './HubConnection.js';
 import { HubSubscriptionOutcome } from './HubSubscriptionOutcome.js';
 import { parseHubRequest } from './parseHubRequest.js';
 import { resolveConnectionContext } from './resolveConnectionContext.js';
+import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
+import { correlation } from '../../security.js';
 import { SseHubTransport } from './SseHubTransport.js';
-import type { WebSocketTransport } from './WebSocketTransport.js';
+import type { ObservableSocket } from './ObservableSocket.js';
 
 const ssePath = '/.cratis/queries/sse';
 const subscribePath = `${ssePath}/subscribe`;
@@ -30,25 +35,16 @@ export class ObservableQueryHub {
 
     get connections(): readonly HubConnection[] { return [...this.#connections.values()]; }
 
-    private canAdmit(context: ExecutionContext): boolean {
-        if (this.#disposed || this.#connections.size >= 64) return false;
-        const principal = context.principal?.isAuthenticated ? context.principal.id : undefined;
-        const maximum = principal ? 8 : 4;
-        const matching = this.connections.filter(connection =>
-            connection.context.tenantId === context.tenantId &&
-            (connection.context.principal?.isAuthenticated ? connection.context.principal.id : undefined) === principal);
-        return matching.length < maximum;
+    canAdmit(context: ExecutionContext): boolean {
+        if (this.#disposed || this.#connections.size >= this.server.observableLimits.hubConnections) return false;
+        const key = observableCallerKey(context, false);
+        return this.connections.filter(connection => connection.ownerKey === key).length <
+            this.server.observableLimits.hubConnectionsPerCaller;
     }
 
     /** Health has a current value and emits only this authenticated caller's connections. */
     observeHealth(caller: ExecutionContext): ObservableSource<QueryHealthSnapshot> {
-        return {
-            current: () => ({ hasValue: true, value: buildQueryHealth(this.connections, caller) }),
-            subscribe: observer => this.#healthChanged.subscribe({
-                next: () => observer.next(buildQueryHealth(this.connections, caller)),
-                error: error => observer.error(error), complete: () => observer.complete()
-            })
-        };
+        return new FilteredHealthSource(this.#healthChanged, () => buildQueryHealth(this.connections, caller));
     }
 
     private changed(): void {
@@ -57,12 +53,17 @@ export class ObservableQueryHub {
     }
 
     /** One physical upgraded socket may carry many revision-aware subscriptions. */
-    async webSocket(request: Request, output: WebSocketTransport, native?: NativeRequestContext): Promise<void> {
+    async webSocket(request: Request, output: ObservableSocket, native?: NativeRequestContext,
+        resolved?: ResolvedConnectionContext): Promise<void> {
         let connection: HubConnection | undefined;
+        let correlationId = resolved?.context.correlationId ??
+            correlation(request.headers.get(this.server.options.correlationHeader ?? 'X-Correlation-ID'));
         try {
-            const identity = await resolveConnectionContext(this.server, request, native);
+            const identity = resolved ?? await resolveConnectionContext(this.server, request, native);
+            correlationId = identity.context.correlationId;
             if (identity.authenticationFailed || !this.canAdmit(identity.context)) {
-                output.close();
+                output.close(identity.authenticationFailed ? 1008 : 1013,
+                    identity.authenticationFailed ? 'Unauthorized' : 'Hub capacity reached');
                 return;
             }
             connection = new HubConnection(this.server, 'WebSocket', output, identity.context,
@@ -73,7 +74,7 @@ export class ObservableQueryHub {
             await connection.connect();
             for await (const raw of output) await connection.accept(raw);
         } catch (error) {
-            await this.server.options.logger?.(error, 'websocket-hub');
+            await this.server.options.logger?.(error, correlationId);
         } finally {
             if (connection) await connection.close();
             else output.close();
@@ -102,13 +103,16 @@ export class ObservableQueryHub {
     }
 
     private async openSse(request: Request, native?: NativeRequestContext): Promise<Response> {
+        const correlationId = correlation(request.headers.get(this.server.options.correlationHeader ?? 'X-Correlation-ID'));
         try {
+            if (!await originAllowed(request.headers.get('origin'), request, native, this.server.options))
+                return new Response(null, { status: 403 });
             const identity = await resolveConnectionContext(this.server, request, native);
             if (identity.authenticationFailed || !identity.context.principal?.isAuthenticated)
                 return new Response(null, { status: 401 });
             if (!this.canAdmit(identity.context))
                 return new Response(null, { status: 503, headers: { 'retry-after': '1' } });
-            const output = new SseHubTransport();
+            const output = new SseHubTransport(this.server.observableLimits);
             const connection = new HubConnection(this.server, 'SSE', output, identity.context,
                 this.server.options.observableKeepAliveIntervalMs ?? 30_000,
                 () => { this.#connections.delete(connection.id); this.changed(); }, () => this.changed());
@@ -125,14 +129,20 @@ export class ObservableQueryHub {
             }).catch(() => output.close());
             return new Response(output.body, { status: 200, headers });
         } catch (error) {
-            await this.server.options.logger?.(error, 'sse-hub');
+            await this.server.options.logger?.(error, correlationId);
             return new Response(null, { status: 500 });
         }
     }
 
     private async control(request: Request, path: string, native?: NativeRequestContext): Promise<Response> {
+        const correlationId = correlation(request.headers.get(this.server.options.correlationHeader ?? 'X-Correlation-ID'));
         try {
-            const payload = await body(request, this.server.options.maxBodyBytes ?? 1024 * 1024);
+            const contentType = request.headers.get('content-type');
+            if (!contentType || !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(contentType))
+                return new Response(null, { status: 415 });
+            const maximum = Math.min(this.server.options.maxBodyBytes ?? 1024 * 1024,
+                this.server.observableLimits.inboundFrameBytes);
+            const payload = await body(request, maximum);
             if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new BadRequest();
             const raw = payload as Record<string, unknown>;
             if (typeof raw.connectionId !== 'string' || typeof raw.queryId !== 'string') throw new BadRequest();
@@ -140,7 +150,7 @@ export class ObservableQueryHub {
             const connection = this.#connections.get(raw.connectionId);
             const identity = await resolveConnectionContext(this.server, request, native);
             if (!connection || connection.protocol !== 'SSE' || connection.closed || identity.authenticationFailed ||
-                !this.sameCaller(connection, identity.context.principal?.id, identity.context.tenantId, request, native))
+                !await this.sameCaller(connection, identity.context.principal?.id, identity.context.tenantId, request, native))
                 return new Response(null, { status: 404 });
             const revision = connection.revision(raw);
             const queryId = connection.queryId(raw.queryId);
@@ -153,18 +163,16 @@ export class ObservableQueryHub {
                 : outcome === HubSubscriptionOutcome.Limited ? 503 : 200 });
         } catch (error) {
             if (error instanceof BadRequest) return new Response(null, { status: 400 });
-            await this.server.options.logger?.(error, 'sse-hub-control');
+            await this.server.options.logger?.(error, correlationId);
             return new Response(null, { status: 500 });
         }
     }
 
-    private sameCaller(connection: HubConnection, id: string | undefined, tenant: string | undefined,
-        request: Request, native?: NativeRequestContext): boolean {
+    private async sameCaller(connection: HubConnection, id: string | undefined, tenant: string | undefined,
+        request: Request, native?: NativeRequestContext): Promise<boolean> {
         const owner = connection.context.principal;
         if (!owner?.isAuthenticated || !id || owner.id !== id || connection.context.tenantId !== tenant) return false;
-        const origin = request.headers.get('origin');
-        if (!origin) return true;
-        return origin === `${native?.secure ? 'https' : 'http'}://${request.headers.get('host')}`;
+        return originAllowed(request.headers.get('origin'), request, native, this.server.options);
     }
 
     private methodNotAllowed(allow: string): Response {

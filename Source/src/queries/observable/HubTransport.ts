@@ -7,5 +7,7 @@ export interface HubTransport {
     readonly signal: AbortSignal;
     readonly lastActivity: number;
     send(frame: HubFrame): Promise<void>;
-    close(): void;
+    /** Observe successful writes so idle keep-alive can reschedule from actual activity. */
+    onActivity?(callback: () => void): () => void;
+    close(code?: number, reason?: string): void;
 }

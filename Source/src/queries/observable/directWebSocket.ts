@@ -9,11 +9,12 @@ import { correlation } from '../../security.js';
 import { Severity } from '../../Severity.js';
 import { isObservableOperation } from './ObservableOperation.js';
 import { resolveConnectionContext } from './resolveConnectionContext.js';
+import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 import type { WebSocketTransport } from './WebSocketTransport.js';
 
 /** The query route uses direct Data/Ping/Pong frames, never hub envelopes. */
 export async function directWebSocket(server: ArcServer, request: Request, transport: WebSocketTransport,
-    native?: NativeRequestContext): Promise<void> {
+    native?: NativeRequestContext, resolved?: ResolvedConnectionContext): Promise<void> {
     let context: ExecutionContext = {
         correlationId: correlation(request.headers.get(server.options.correlationHeader ?? 'X-Correlation-ID')),
         principal: undefined, tenantId: undefined, signal: transport.signal, allowedSeverity: Severity.Warning
@@ -21,7 +22,7 @@ export async function directWebSocket(server: ArcServer, request: Request, trans
     try {
         const operation = server.routes.get(new URL(request.url).pathname);
         if (!operation || !isObservableOperation(operation)) throw new BadRequest();
-        const identity = await resolveConnectionContext(server, request, native);
+        const identity = resolved ?? await resolveConnectionContext(server, request, native);
         context = identity.context;
         if (identity.authenticationFailed) {
             await transport.send({ type: 'Data', data: queryResult(context, { isAuthorized: false }) });
