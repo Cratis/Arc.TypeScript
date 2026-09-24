@@ -1,8 +1,9 @@
 ---
 title: Define read models and queries
+description: Put static query methods on a read-model class, bind their arguments and services in order, and expose an observable query.
 ---
 
-Put related read operations on a `@readModel()` class as static methods. The [Tasks sample](../../Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) exposes a list, a named lookup, and an observable list:
+Put related read operations on a `@readModel()` class as static methods. The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) exposes a list, a named lookup, and an observable list:
 
 ```typescript
 @readModel()

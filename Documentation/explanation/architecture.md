@@ -38,10 +38,10 @@ Keeping the core framework-independent means a behavior is implemented and teste
 | Command and query execution | Runs the pipeline, including authorization before validation | Nothing |
 | Results and status codes | Builds the envelope and selects the status code | Writes the status, headers, and body |
 | Correlation and tenancy | Resolves the correlation ID and tenant, and makes them available to the running operation | Nothing |
-| Authentication and authorization | Runs the configured authentication handlers, then evaluates authorization against the principal | Nothing; a principal from the framework's own authentication is not handed over |
+| Authentication and authorization | Runs the configured authentication handlers, then evaluates authorization against the principal | Nothing by default. With `nativePrincipal: true`, passes on a principal the host already verified, through an explicit callback |
 | Cancellation | Passes the signal to every callback as `context.signal` | Express and Fastify abort it when the client disconnects; Hono passes the request's own signal |
 
-Observable queries are not implemented, so neither layer handles server-sent events or WebSocket yet. WebSocket support differs between Express, Fastify, and Hono, so those transports will depend on each adapter.
+Observable queries use the same split. The core owns the subscription pipeline, snapshots, server-sent events, and the WebSocket protocol. Each adapter owns how a WebSocket upgrade reaches the core, because Express, Fastify, and Hono accept upgrades differently; [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#mount-observable-websockets-on-nodejs) shows each one.
 
 ## The request path
 
@@ -62,13 +62,13 @@ Parity means the same observable behavior on the wire, not the same implementati
 
 | Arc on .NET relies on | Arc for TypeScript |
 | --- | --- |
-| Attributes and runtime reflection (`[Command]`, `[ReadModel]`, parameter types) | TypeScript types are erased at runtime, so commands and queries are declared explicitly with Zod schemas that describe their inputs |
-| Dependency injection with per-request scopes | Explicit typed service tokens and singleton, scoped, or transient registrations. Each operation owns a scope; singleton construction belongs to the registry and receives no request identity. Automatic discovery and .NET container integration are not implemented |
+| Attributes and runtime reflection (`[Command]`, `[ReadModel]`, parameter types) | Decorators (`@command()`, `@readModel()`, `@query()`, Fundamentals `@field`). TypeScript erases types at runtime, so fields name their wire type, and query parameters and injected services are listed in order. The builder discovers decorated classes in a folder, or you add them explicitly. Zod-backed `defineCommand` and `defineQuery` remain the low-level path |
+| Dependency injection with per-request scopes | Class or `serviceToken` tokens with singleton, scoped, or transient registrations. Each operation owns a scope; singleton construction belongs to the registry and receives no request identity. There is no integration with another container |
 | `AsyncLocal` ambient context | Node.js `AsyncLocalStorage`, with a frozen context per request or direct call, so one request's principal, tenant, or correlation never leaks into another |
 | `CancellationToken` | `AbortSignal` |
-| `IObservable<T>` and `ISubject<T>` | Not decided. A source that holds a current value is needed to answer an HTTP snapshot with 200 instead of 202 |
+| `IObservable<T>` and `ISubject<T>` | An async iterable or a structural subscribable. `CurrentValueSubject` holds a current value, so an HTTP snapshot answers 200 instead of 202 |
 | `IQueryable<T>` paging and sorting | In-memory paging and sorting of arrays, or a page the data source already cut, returned with `queryPage` |
-| FluentValidation and DataAnnotations | Zod schemas for shape, and validator functions for rules |
+| FluentValidation and DataAnnotations | Field types for shape, and `CommandValidator`, `QueryValidator`, and `ConceptValidator` classes with `ruleFor` rules. The low-level path uses Zod schemas and validator functions |
 | Roslyn analyzers and a proxy generator that reads compiled assemblies | No build-time analyzers. A bounded generator renders proxies from a manifest built from the output shapes you declare in `clientOutput`; it does not read TypeScript types, discover definitions, or cover the full type graph. See [Generate command and query clients](../guides/generate-clients.md) |
 
 Some differences are in the language itself and affect the wire:
@@ -99,10 +99,10 @@ The MongoDB integration follows the same rule: the application owns the client, 
 
 These questions do not have an answer yet. Each one affects behavior a client can observe:
 
-- How commands and queries are discovered: explicit registration only, or build-time generation.
-- Whether client generation grows beyond explicit manifests toward the coverage of Arc's .NET proxy generator.
-- Which source type observable queries use, and which adapters support WebSocket.
-- Broader identity-provider integrations, admission limits, and which SQL tooling a SQL integration builds on.
+- Whether compiler-generated metadata replaces the ordered query descriptors and explicit injection tokens.
+- Whether client generation grows beyond explicit manifests, including model-bound commands and queries, toward the coverage of Arc's .NET proxy generator.
+- Whether and how command keys resolve read models into handlers and validators.
+- Broader identity-provider integrations, and which SQL tooling a SQL integration builds on.
 
 ## Related
 
