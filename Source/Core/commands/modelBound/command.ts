@@ -4,6 +4,6 @@ import { metadataFor } from '../../reflection/metadataFor.js';
 import type { DualClassDecorator } from '../../reflection/DualClassDecorator.js';
 
 /** Mark a class as a command with an optional stable namespace. */
-export function command(options: { namespace?: string } = {}): DualClassDecorator {
+export function command(options: { namespace?: string; treatWarningsAsErrors?: boolean } = {}): DualClassDecorator {
     return target => { const data = metadataFor(target); data.command = true; data.namespace = options.namespace; };
 }

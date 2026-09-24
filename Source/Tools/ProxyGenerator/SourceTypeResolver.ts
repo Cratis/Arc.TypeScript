@@ -11,12 +11,13 @@ const fundamentals = new Set(['Guid', 'DateOnly', 'TimeOnly', 'TimeSpan']);
 const primitive = (text: string, constructor: string): SourceType => ({ text, constructor, enumerable: false, nullable: false, void: false });
 export class SourceTypeResolver {
     readonly models = new Map<string, SourceModel>();
+    private readonly declarations = new Map<string, ts.Declaration>();
     constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string,
-        private readonly generatedMetadata = false) {}
+        private readonly generatedMetadata = false, private readonly rootNamespace = '') {}
     private namespace(declaration: ts.Declaration): string {
         const segments = relative(this.artifacts, dirname(declaration.getSourceFile().fileName)).split(sep).filter(Boolean);
         if (segments.includes('..')) throw new Error(`${declaration.getSourceFile().fileName}: reachable model is outside the artifacts root`);
-        return segments.join('.');
+        return [this.rootNamespace, ...segments].filter(Boolean).join('.');
     }
     resolve(type: ts.Type, location: ts.Node, optional = false): SourceType {
         const parts = type.isUnion() ? type.types : [type];
@@ -63,7 +64,8 @@ export class SourceTypeResolver {
         const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
         if (symbol?.declarations?.some(ts.isEnumDeclaration)) return this.resolveEnum(symbol, type, location, nullable);
         if (declaration && name && !declaration.getSourceFile().isDeclarationFile) {
-            const key = declaration.getSourceFile().fileName + ':' + name;
+            const key = [this.namespace(declaration), name].filter(Boolean).join('.');
+            this.checkIdentity(key, declaration);
             if (!this.models.has(key)) {
                 this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields: [] });
                 const fields: SourceField[] = declaration.members.filter(ts.isPropertyDeclaration).filter(member => {
@@ -102,9 +104,10 @@ export class SourceTypeResolver {
                     return isPackageSymbol(this.checker, symbol, 'derivedType', '@cratis/fundamentals');
                 });
                 const derivedTypeId = derived && ts.isCallExpression(derived) && derived.arguments[0] && ts.isStringLiteral(derived.arguments[0]) ? derived.arguments[0].text : undefined;
-                this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields, base: base?.model, derivedTypeId });
+                this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields,
+                    base: base?.model, baseKey: base?.modelKey, derivedTypeId });
             }
-            return { ...primitive(name, name), model: name, nullable };
+            return { ...primitive(name, name), model: name, modelKey: key, nullable };
         }
         return this.unsupported(type, location);
     }
@@ -114,10 +117,17 @@ export class SourceTypeResolver {
         const name = symbol.getName();
         const members = declaration.members.map(member => ({ name: fieldName(member.name), value: this.checker.getConstantValue(member) }));
         if (members.some(member => typeof member.value !== 'number' && typeof member.value !== 'string')) return this.unsupported(type, location);
-        this.models.set(declaration.getSourceFile().fileName + ':' + name, {
+        const key = [this.namespace(declaration), name].filter(Boolean).join('.');
+        this.checkIdentity(key, declaration);
+        this.models.set(key, {
             kind: 'enum', name, namespace: this.namespace(declaration), fields: [], members: members as { name: string; value: number | string }[]
         });
-        return { ...primitive(name, typeof members[0]?.value === 'string' ? 'String' : 'Number'), model: name, nullable };
+        return { ...primitive(name, typeof members[0]?.value === 'string' ? 'String' : 'Number'), model: name, modelKey: key, nullable };
+    }
+    private checkIdentity(key: string, declaration: ts.Declaration): void {
+        const previous = this.declarations.get(key);
+        if (previous && previous !== declaration) throw new Error(`Ambiguous model name: ${key}`);
+        this.declarations.set(key, declaration);
     }
     private unsupported(type: ts.Type, location: ts.Node): never {
         const position = location.getSourceFile().getLineAndCharacterOfPosition(location.getStart());
