@@ -21,7 +21,7 @@ trap 'exit 143' TERM
 container_id=$(docker run --rm -d --name "$name" -e POSTGRES_PASSWORD=arc_test -e POSTGRES_DB=arc_test -p 127.0.0.1::5432 postgres:16-alpine)
 ready=0
 for attempt in $(seq 1 60); do
-    if docker exec "$container_id" pg_isready -U postgres -d arc_test >/dev/null; then
+    if docker exec "$container_id" pg_isready -h 127.0.0.1 -U postgres -d arc_test >/dev/null; then
         ready=1
         break
     fi

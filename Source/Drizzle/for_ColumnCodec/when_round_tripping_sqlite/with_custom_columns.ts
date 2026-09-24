@@ -1,21 +1,22 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { describe, it, should } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import initSqlJs from 'sql.js';
+import { drizzle } from 'drizzle-orm/sql-js';
 import { sqliteTable } from 'drizzle-orm/sqlite-core';
 import { ConceptAs, DateOnly, Guid, TimeOnly, TimeSpan } from '@cratis/fundamentals';
 import { conceptCodec, dateOnlyCodec, guidCodec, jsonCodec, timeOnlyCodec, timeSpanCodec } from '../../ColumnCodec.js';
 import { sqliteColumn } from '../../columns.js';
 
 should();
-class TaskName extends ConceptAs<string> {}
-class TaskScore extends ConceptAs<number> {}
-class TaskId extends ConceptAs<Guid> {}
+class TaskName extends ConceptAs<string> { static readonly valueType = String; }
+class TaskScore extends ConceptAs<number> { static readonly valueType = Number; }
+class TaskId extends ConceptAs<Guid> { static readonly valueType = Guid; }
 
 describe('when round-tripping SQLite custom columns', () => {
-    it('should reconstruct each concrete Fundamentals type and validated JSON through the Drizzle driver', () => {
-        const connection = new Database(':memory:');
+    it('should reconstruct each concrete Fundamentals type and validated JSON through the Drizzle driver', async () => {
+        const SQL = await initSqlJs();
+        const connection = new SQL.Database();
         try {
             const records = sqliteTable('records', {
                 id: sqliteColumn(guidCodec('sqlite'))('id').primaryKey(),
@@ -31,7 +32,7 @@ describe('when round-tripping SQLite custom columns', () => {
                     return value as { label: string };
                 }))('details').notNull()
             });
-            connection.exec('create table records (id text primary key, concept_id text, name text, score real, date text, time text, span text, details text)');
+            connection.run('create table records (id text primary key, concept_id text, name text, score real, date text, time text, span text, details text)');
             const db = drizzle(connection);
             const id = Guid.parse('00112233-4455-6677-8899-aabbccddeeff');
             db.insert(records).values({ id, conceptId: new TaskId(id), name: new TaskName('hello'),

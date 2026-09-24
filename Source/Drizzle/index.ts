@@ -2,10 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import './addDrizzle.js';
 export { addDrizzle } from './addDrizzle.js';
-export { drizzle, drizzleReadModel } from './drizzleToken.js';
+export { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 export { DrizzleHandle } from './DrizzleHandle.js';
 export { DrizzleReadModels } from './DrizzleReadModels.js';
-export { DrizzleModelCodec } from './DrizzleModelCodec.js';
 export type { DrizzleOptions, DrizzleDatabase, DrizzleFilter } from './DrizzleOptions.js';
 export type { ColumnCodec } from './ColumnCodec.js';
 export { conceptCodec, guidCodec, dateOnlyCodec, timeOnlyCodec, timeSpanCodec, jsonCodec } from './ColumnCodec.js';

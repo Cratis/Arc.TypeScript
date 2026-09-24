@@ -6,8 +6,8 @@ import type { DrizzleHandle } from './DrizzleHandle.js';
 import type { DrizzleDatabase } from './DrizzleOptions.js';
 import type { DrizzleReadModels } from './DrizzleReadModels.js';
 
-/** Writable tenant-specific database token; inject with `service(drizzle())` when writes are intended. */
-export const drizzle = <T extends DrizzleDatabase = DrizzleDatabase>(): ServiceToken<DrizzleHandle<T>> =>
+/** Writable tenant-specific database token; inject with `service(drizzleDatabase())` when writes are intended. */
+export const drizzleDatabase = <T extends DrizzleDatabase = DrizzleDatabase>(): ServiceToken<DrizzleHandle<T>> =>
     databaseToken as ServiceToken<DrizzleHandle<T>>;
 const databaseToken = serviceToken<DrizzleHandle>('DrizzleDatabase');
 const tokens = new WeakMap<new () => object, ServiceToken<DrizzleReadModels<object>>>();

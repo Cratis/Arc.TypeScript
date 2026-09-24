@@ -5,9 +5,9 @@ import { ConceptAs, DateOnly, Guid, TimeOnly, TimeSpan } from '@cratis/fundament
 import { conceptCodec, dateOnlyCodec, guidCodec, jsonCodec, timeOnlyCodec, timeSpanCodec } from '../../ColumnCodec.js';
 
 should();
-class TaskId extends ConceptAs<Guid> {}
-class TaskName extends ConceptAs<string> {}
-class TaskNumber extends ConceptAs<number> {}
+class TaskId extends ConceptAs<Guid> { static readonly valueType = Guid; }
+class TaskName extends ConceptAs<string> { static readonly valueType = String; }
+class TaskNumber extends ConceptAs<number> { static readonly valueType = Number; }
 
 describe('when converting SQL column values', () => {
     it('should round-trip concrete concepts and provider GUID types', () => {
@@ -20,6 +20,11 @@ describe('when converting SQL column values', () => {
         }
         conceptCodec(TaskName, 'string', 'sqlite').fromDriver('name').value.should.equal('name');
         conceptCodec(TaskNumber, 'number', 'sqlite').fromDriver(42).value.should.equal(42);
+    });
+    it('should reject a mismatched kind and support indexed MySQL string concepts', () => {
+        (() => conceptCodec(TaskName, 'number' as 'string', 'sqlite')).should.throw('does not match number');
+        conceptCodec(TaskName, 'string', 'mysql', 120).sqlType.should.equal('varchar(120)');
+        (() => conceptCodec(TaskName, 'string', 'mysql', 0)).should.throw('varcharLength');
     });
     it('should round-trip temporal and validated JSON data', () => {
         dateOnlyCodec.fromDriver(dateOnlyCodec.toDriver(DateOnly.parse('2026-03-02'))).toString().should.equal('2026-03-02');

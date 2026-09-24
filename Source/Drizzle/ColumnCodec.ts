@@ -11,27 +11,34 @@ export interface ColumnCodec<T, Driver = string> {
 
 /** String, finite number and UUID-backed concepts retain their concrete runtime type. */
 export function conceptCodec<V extends string | number | Guid, T extends ConceptAs<V>>(
-    type: new (value: V) => T, value: V extends Guid ? 'guid' : V extends number ? 'number' : 'string',
-    dialect: 'postgresql' | 'mysql' | 'sqlite'
+    type: (new (value: V) => T) & { readonly valueType: typeof Guid | typeof Number | typeof String },
+    kind: V extends Guid ? 'guid' : V extends number ? 'number' : 'string',
+    dialect: 'postgresql' | 'mysql' | 'sqlite', varcharLength?: number
 ): ColumnCodec<T, string | number> {
+    const expected = kind === 'guid' ? Guid : kind === 'number' ? Number : String;
+    if (type.valueType !== expected) throw new TypeError(`Concept ${type.name} does not match ${kind}`);
+    if (varcharLength !== undefined && (dialect !== 'mysql' || kind !== 'string' ||
+        !Number.isSafeInteger(varcharLength) || varcharLength < 1 || varcharLength > 65535))
+        throw new RangeError('varcharLength requires a MySQL string concept and a length between 1 and 65535');
     const guid = guidCodec(dialect);
     return {
-        sqlType: value === 'number' ? dialect === 'sqlite' ? 'real' : 'double precision' :
-            value === 'guid' ? guid.sqlType : 'text',
+        sqlType: kind === 'number' ? dialect === 'sqlite' ? 'real' : dialect === 'mysql' ? 'double' : 'double precision' :
+            kind === 'guid' ? guid.sqlType : varcharLength ? `varchar(${varcharLength})` : 'text',
         toDriver(concept) {
             const primitive = concept.value;
-            if (value === 'number') {
+            if (kind === 'number') {
                 if (typeof primitive !== 'number' || !Number.isFinite(primitive)) throw new TypeError('Concept number must be finite');
                 return primitive;
             }
-            if (value === 'guid') return guid.toDriver(primitive instanceof Guid ? primitive : Guid.parse(String(primitive)));
+            if (kind === 'guid') return guid.toDriver(primitive instanceof Guid ? primitive : Guid.parse(String(primitive)));
             if (typeof primitive !== 'string') throw new TypeError('Concept string is required');
             return primitive;
         },
         fromDriver(raw) {
-            const primitive = value === 'guid' ? guid.fromDriver(String(raw)) : raw;
-            if (value === 'number' && (typeof primitive !== 'number' || !Number.isFinite(primitive)))
+            const primitive = kind === 'guid' ? guid.fromDriver(String(raw)) : raw;
+            if (kind === 'number' && (typeof primitive !== 'number' || !Number.isFinite(primitive)))
                 throw new TypeError('Concept number must be finite');
+            if (kind === 'string' && typeof primitive !== 'string') throw new TypeError('Concept string is required');
             return new type(primitive as V);
         }
     };

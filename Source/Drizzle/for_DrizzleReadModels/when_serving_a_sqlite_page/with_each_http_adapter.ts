@@ -23,6 +23,7 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
         let unknown: number;
         let data: { data: { title: string }[]; paging: { totalItems: number } };
         beforeEach(async () => {
+            await context.establish();
             const builder = ArcApplication.createBuilder({ resolveTenant: () => 'default' });
             builder.add(TaskQueries).addDrizzle({ dialect: 'sqlite', database: context.database,
                 readModels: [{ type: TaskRecord, table: context.table }] });

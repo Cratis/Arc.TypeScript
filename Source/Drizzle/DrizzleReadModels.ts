@@ -1,36 +1,70 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { asc, desc, getTableColumns, sql } from 'drizzle-orm';
-import type { SQL, Table } from 'drizzle-orm';
+import { asc, desc, getTableColumns } from 'drizzle-orm';
+import type { Column, SQL, Table } from 'drizzle-orm';
 import { InvalidQuerySort, queryPage } from '@cratis/arc.core';
 import type { QueryOptions, QueryPage } from '@cratis/arc.core';
-import type { DrizzleDatabase, DrizzleFilter, DrizzleOptions } from './DrizzleOptions.js';
+import type { DrizzleDatabase, DrizzleFilter } from './DrizzleOptions.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
 
-/** Read-only, tenant-bound SQL access. No writer or native connection is reachable through this handle. */
+// Each Drizzle driver implements these query-builder operations and maps selected columns on execute.
+type SelectQuery = {
+    where(filter: DrizzleFilter): SelectQuery;
+    orderBy(...columns: SQL[]): SelectQuery;
+    limit(size: number): SelectQuery;
+    offset(index: number): SelectQuery;
+    execute(): Promise<Record<string, unknown>[]> | Record<string, unknown>[];
+};
+type ReadDatabase = {
+    select(fields: Record<string, Column>): { from(table: Table): SelectQuery };
+    $count(table: Table, filter: DrizzleFilter): PromiseLike<number> | number;
+};
+
+/** Tenant-bound read API; this handle exposes no writer, but does not enforce database permissions. */
 export class DrizzleReadModels<T extends object> {
     private readonly codec: DrizzleModelCodec<T>;
-    constructor(private readonly database: DrizzleDatabase, private readonly dialect: DrizzleOptions['dialect'],
-        readonly table: Table, type: new () => T, private readonly maxPageSize = 100) {
+    private readonly keys: Column[];
+    private readonly columns: Record<string, Column>;
+    constructor(private readonly database: DrizzleDatabase, readonly table: Table, type: new () => T,
+        private readonly maxPageSize = 100, codec?: DrizzleModelCodec<T>) {
         if (!Number.isSafeInteger(maxPageSize) || maxPageSize <= 0 || maxPageSize > 10000)
             throw new RangeError('maxPageSize must be between 1 and 10000');
-        const columns = getTableColumns(table);
-        if (!Object.values(columns).some(column => column.primary))
-            throw new Error('A Drizzle read model requires a primary key for stable paging');
-        this.codec = new DrizzleModelCodec(type, columns);
+        this.columns = getTableColumns(table);
+        this.keys = Object.values(this.columns).filter(column => column.primary);
+        if (!this.keys.length) throw new Error('A Drizzle read model requires a primary key for stable paging');
+        this.codec = codec ?? new DrizzleModelCodec(type, this.columns);
     }
 
-    private async rows(statement: SQL): Promise<Record<string, unknown>[]> {
-        if (this.dialect === 'sqlite') {
-            const database = this.database as { all(query: SQL): Promise<Record<string, unknown>[]> | Record<string, unknown>[] };
-            return database.all(statement);
-        }
-        if (this.dialect === 'postgresql') {
-            const database = this.database as { execute(query: SQL): Promise<{ rows: Record<string, unknown>[] }> };
-            return (await database.execute(statement)).rows;
-        }
-        const database = this.database as { execute(query: SQL): Promise<[Record<string, unknown>[], unknown]> };
-        return (await database.execute(statement))[0];
+    private get db(): ReadDatabase { return this.database as ReadDatabase; }
+
+    private order(sorting?: QueryOptions['sorting']): SQL[] {
+        if (sorting && (sorting.direction !== 'asc' && sorting.direction !== 'desc' ||
+            !this.codec.sortableFields.has(sorting.field)))
+            throw new InvalidQuerySort(`Unknown Drizzle model field: ${sorting.field}`);
+        const sortColumn = sorting ? this.columns[sorting.field]! : this.keys[0]!;
+        return [sorting?.direction === 'desc' ? desc(sortColumn) : asc(sortColumn),
+            ...this.keys.filter(key => key !== sortColumn).map(key => asc(key))];
+    }
+
+    private async select(filter: DrizzleFilter, sorting: QueryOptions['sorting'], limit: number, offset = 0): Promise<T[]> {
+        const order = this.order(sorting);
+        const rows = await this.db.select(this.codec.selection).from(this.table).where(filter)
+            .orderBy(...order).limit(limit).offset(offset).execute();
+        return rows.map(row => this.codec.deserialize(row));
+    }
+
+    /** Return at most maxPageSize matches, never an unbounded result. */
+    async find(filter: DrizzleFilter, sorting?: QueryOptions['sorting']): Promise<T[]> {
+        this.order(sorting);
+        const total = await this.db.$count(this.table, filter);
+        if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
+        if (total > this.maxPageSize) throw new RangeError('Drizzle find exceeds maxPageSize');
+        return this.select(filter, sorting, this.maxPageSize);
+    }
+
+    /** Return the first match in stable primary-key order. */
+    async findOne(filter: DrizzleFilter): Promise<T | undefined> {
+        return (await this.select(filter, undefined, 1))[0];
     }
 
     /** Push a typed predicate, count, sort and page into SQL; never load the unbounded result before paging. */
@@ -39,22 +73,10 @@ export class DrizzleReadModels<T extends object> {
         const { page, pageSize } = options.paging;
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize < 1 ||
             pageSize > this.maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid Drizzle page');
-        const columns = getTableColumns(this.table);
-        const sorting = options.sorting;
-        if (sorting && (sorting.direction !== 'asc' && sorting.direction !== 'desc' || !Object.hasOwn(columns, sorting.field)))
-            throw new InvalidQuerySort(`Unknown Drizzle model field: ${sorting.field}`);
-        const entries = Object.entries(columns);
-        const selection = sql.join(entries.map(([name, column]) => sql`${column} as ${sql.identifier(name)}`), sql`, `);
-        const where = filter ? sql` where ${filter}` : sql``;
-        const count = await this.rows(sql`select count(*) as total from ${this.table}${where}`);
-        const total = Number(count[0]?.total);
+        this.order(options.sorting);
+        const total = await this.db.$count(this.table, filter);
         if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
-        const keys = entries.filter(([, column]) => column.primary).map(([, column]) => column);
-        const sortColumn = sorting ? columns[sorting.field]! : keys[0]!;
-        const order = sorting && sorting.direction === 'desc' ? desc(sortColumn) : asc(sortColumn);
-        const tie = sql.join(keys.filter(key => key !== sortColumn).map(key => sql`, ${asc(key)}`), sql``);
-        const result = await this.rows(sql`select ${selection} from ${this.table}${where} order by ${order}${tie} limit ${pageSize} offset ${page * pageSize}`);
-        const items = result.map(row => this.codec.deserialize(row));
-        return queryPage(items, total, sorting);
+        const items = await this.select(filter, options.sorting, pageSize, page * pageSize);
+        return queryPage(items, total, options.sorting);
     }
 }

@@ -33,10 +33,11 @@
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
     "@cratis/fundamentals": "7.19.3",
-    "@types/better-sqlite3": "^7.6.0",
     "@types/pg": "^8.0.0",
-    "better-sqlite3": "^12.0.0",
+    "@types/sql.js": "^1.4.11",
     "drizzle-orm": "^0.45.0",
-    "pg": "^8.0.0"
+    "pg": "^8.0.0",
+    "postgres": "^3.4.9",
+    "sql.js": "^1.14.2"
   }
 }
