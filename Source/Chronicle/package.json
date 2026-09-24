@@ -17,6 +17,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -25,12 +29,19 @@
   ],
   "peerDependencies": {
     "@cratis/arc.core": "^0.9.0",
+    "@cratis/arc.testing": "^0.9.0",
     "@cratis/chronicle": "^6.5.0",
     "@cratis/fundamentals": "^7.19.6",
     "zod": "^4.1.0"
   },
+  "peerDependenciesMeta": {
+    "@cratis/arc.testing": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
+    "@cratis/arc.testing": "workspace:^",
     "@cratis/chronicle": "6.5.0",
     "@cratis/fundamentals": "7.19.6",
     "zod": "^4.1.0"

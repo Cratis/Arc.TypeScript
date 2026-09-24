@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { randomUUID } from 'node:crypto';
-import { ArcApplication, Severity, type ExecutionContext } from '@cratis/arc.core';
+import { ArcApplication, Severity, type ArcApplicationBuilder, type ExecutionContext } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 import { ScenarioServices } from './ScenarioServices.js';
 
@@ -13,12 +13,21 @@ export class ScenarioHost {
     #application?: Promise<ArcApplication>;
     #closed = false;
     #closing?: Promise<void>;
+    #extensions: ((builder: ArcApplicationBuilder) => void)[] = [];
 
     constructor(private readonly artifacts: readonly ClassType[]) {
         this.services = new ScenarioServices(() => {
             this.assertOpen();
             if (this.#application) throw new Error('Register scenario services before the first pipeline call');
         });
+    }
+
+    /** Install an integration on the builder before the first pipeline call. */
+    extend(install: (builder: ArcApplicationBuilder) => void): this {
+        this.assertOpen();
+        if (this.#application) throw new Error('Register scenario extensions before the first pipeline call');
+        this.#extensions.push(install);
+        return this;
     }
 
     /** Set caller identity and request values before executing. */
@@ -53,6 +62,7 @@ export class ScenarioHost {
         this.assertOpen();
         if (!this.#application) {
             const builder = ArcApplication.createBuilder();
+            for (const install of this.#extensions) install(builder);
             builder.add(...this.artifacts);
             this.services.install(builder.services);
             this.#application = builder.build();

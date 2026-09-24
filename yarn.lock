@@ -39,14 +39,19 @@ __metadata:
   resolution: "@cratis/arc.chronicle@workspace:Source/Chronicle"
   dependencies:
     "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.testing": "workspace:^"
     "@cratis/chronicle": "npm:6.5.0"
     "@cratis/fundamentals": "npm:7.19.6"
     zod: "npm:^4.1.0"
   peerDependencies:
     "@cratis/arc.core": ^0.9.0
+    "@cratis/arc.testing": ^0.9.0
     "@cratis/chronicle": ^6.5.0
     "@cratis/fundamentals": ^7.19.6
     zod: ^4.1.0
+  peerDependenciesMeta:
+    "@cratis/arc.testing":
+      optional: true
   languageName: unknown
   linkType: soft
 
