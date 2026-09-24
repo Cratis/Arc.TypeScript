@@ -110,6 +110,9 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             '/api/by-id?id=not-a-guid', undefined,
             { status: 200, body: query(200, { data: { value: '00000000-0000-0000-0000-000000000000' } }) },
             { status: 400, body: query(400, { validationResults: [malformedTypeScript] }) });
+        await parity('tuple response validation consumes the response', 'POST', '/api/tuple-echo', { value: 'candidate' }, {
+            status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Cannot echo', members: ['value'], reason: 'rule' }] })
+        });
         await count('initial handler count is zero', 0);
         await parity('valid /validate does not produce a response', 'POST', '/api/echo-value/validate', { value: 'ok' }, {
             status: 200, body: command(200)

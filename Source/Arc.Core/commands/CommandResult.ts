@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ValidationResult } from '../validation/ValidationResult.js';
+import type { CommandRecoverySummary } from './CommandRecoverySummary.js';
+import type { CommandOperationOutcome } from './CommandOperationOutcome.js';
 export interface CommandResult<T = unknown> {
     correlationId: string;
     isAuthorized: boolean;
@@ -12,4 +14,7 @@ export interface CommandResult<T = unknown> {
     hasExceptions: boolean;
     isSuccess: boolean;
     response?: T;
+    /** Backend-only recovery observations (not serialized). */
+    readonly recovery?: CommandRecoverySummary;
+    readonly operationOutcomes?: readonly CommandOperationOutcome[];
 }

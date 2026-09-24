@@ -9,11 +9,12 @@ const uncheckedInject = inject() as (method: object, context: ClassMethodDecorat
 @command()
 class MisplacedInjection {
     @uncheckedInject
+    unrelated(): string { return 'unused'; }
     provide(): string { return 'prepared'; }
     handle(prepared: string): void { if (!prepared) throw new Error('Missing preparation'); }
 }
 
-describe('when building with injection on provide', given(an_application_builder, context => {
+describe('when building with injection on an unrelated method', given(an_application_builder, context => {
     let error: unknown;
     beforeEach(async () => {
         const builder = context.create();
@@ -22,6 +23,6 @@ describe('when building with injection on provide', given(an_application_builder
         catch (failure) { error = failure; }
     });
     it('should reject injection that would otherwise be applied to handle', () => {
-        (error as Error).message.should.contain('@inject on MisplacedInjection.provide');
+        (error as Error).message.should.contain('@inject on MisplacedInjection.unrelated');
     });
 }));

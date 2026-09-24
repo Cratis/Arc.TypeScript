@@ -9,6 +9,8 @@ import type { DescriptorBase } from '../DescriptorBase.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;
+    /** Materialize a model-bound command for context and key resolution. */
+    commandFactory?: (input: z.output<S>) => unknown;
     /** Preflight without constructing handler services during validation-only requests. */
     handlerDependencies?: readonly ServiceIdentifier<unknown>[];
     /** Constructed before validation; validators can access them through currentServices(). */
