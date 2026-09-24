@@ -10,6 +10,8 @@ import type { DevelopmentUser } from './DevelopmentUser.js';
 import type { DevelopmentTenant } from './DevelopmentTenant.js';
 import type { ExecutionContext } from './ExecutionContext.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
+import type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
+import type { ServiceToken } from './ServiceToken.js';
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
@@ -18,6 +20,8 @@ export interface ArcServerOptions {
     observableQueries?: readonly ObservableQueryDefinition<z.ZodType, unknown>[];
     /** Maximum simultaneous live and opening subscriptions; defaults to 128. */
     maxObservableSubscriptions?: number;
+    /** Resolve emission policies in each subscription's service scope. */
+    observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
     prefix?: string;
     segmentsToSkip?: number;
     enableQueryMethod?: boolean;

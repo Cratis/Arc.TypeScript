@@ -23,6 +23,8 @@ export type { DevelopmentUser } from './DevelopmentUser.js';
 export type { DevelopmentTenant } from './DevelopmentTenant.js';
 export { defineCommand, defineQuery, defineObservableQuery } from './define.js';
 export { CurrentValueSubject } from './queries/observable/CurrentValueSubject.js';
+export { ObservableEmissionDecision } from './queries/observable/ObservableEmissionDecision.js';
+export type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
 export { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 export type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 export type { ObservableObserver, Subscribable, CurrentValue, ObservableSource } from './queries/observable/ObservableSource.js';

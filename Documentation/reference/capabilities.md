@@ -56,7 +56,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Observable definitions and HTTP snapshots | Supported, bounded | `defineObservableQuery` accepts async iterables, structural subscribables and `CurrentValueSubject`. Each subscription uses the query authorization and validation pipeline and owns a service scope. Current value answers 200; pending answers 202; a bounded wait answers 408 on timeout or 500 on completion without data. [Stream a query](../guides/observable-queries.md). |
 | Direct SSE | Supported, bounded | The query route streams direct result frames through real Express, Fastify and Hono adapters; the installed 22.19.1 client receives updates from all three. Each client subscription holds one connection. No direct WebSocket transport yet. |
 | Direct WebSocket and multiplexed hubs | Not implemented | No WebSocket upgrades, SSE hub controls, subscription revisions or transfer modes. |
-| Emission guards | Not implemented | No per-emission policy checks or delta baseline. |
+| Emission guards | Supported for snapshots and direct SSE | Register service tokens with `observableEmissionGuards`. Guards run within the subscription scope after rendering. `Allow` delivers, `Suppress` withholds without advancing the stream, and `DenyAndTerminate` sends a terminal unauthorized result. Guard failures deny. No hub or delta baseline yet. |
 | Query health endpoint | Not implemented | The .NET health route includes caller and connection metadata; its security policy needs separate review. |
 
 ## Validation

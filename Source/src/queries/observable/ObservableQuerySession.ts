@@ -10,6 +10,9 @@ import { withServices } from '../../ServiceScope.js';
 import type { ObservableOperation } from './ObservableOperation.js';
 import type { ObservableSource } from './ObservableSource.js';
 import { toEmissions } from './toEmissions.js';
+import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
+import type { ObservableEmissionGuard } from './ObservableEmissionGuard.js';
+import type { ServiceToken } from '../../ServiceToken.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
 export class ObservableQuerySession {
@@ -25,6 +28,7 @@ export class ObservableQuerySession {
         readonly input: unknown,
         readonly options: QueryOptions | undefined,
         readonly services: ServiceRegistry,
+        readonly guards: readonly ServiceToken<ObservableEmissionGuard>[],
         context: ExecutionContext,
         readonly onClose: () => void
     ) {
@@ -34,8 +38,8 @@ export class ObservableQuerySession {
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
     static async open(operation: ObservableOperation, input: unknown, context: ExecutionContext, options: QueryOptions | undefined,
-        services: ServiceRegistry, onClose: () => void): Promise<ObservableQuerySession> {
-        const session = new ObservableQuerySession(operation, input, options, services, context, onClose);
+        services: ServiceRegistry, guards: readonly ServiceToken<ObservableEmissionGuard>[], onClose: () => void): Promise<ObservableQuerySession> {
+        const session = new ObservableQuerySession(operation, input, options, services, guards, context, onClose);
         try {
             const result = await session.run(() => operation.run(input, session.#context) as Promise<QueryResult<ObservableSource<unknown>>>);
             session.#result = result;
@@ -56,7 +60,8 @@ export class ObservableQuerySession {
         if (!this.#source?.current) return undefined;
         const snapshot = this.#source.current();
         if (!snapshot.hasValue) return undefined;
-        return this.run(() => this.operation.render(this.input, this.#context, this.options, snapshot.value));
+        const result = await this.run(() => this.operation.render(this.input, this.#context, this.options, snapshot.value));
+        return this.guarded(result);
     }
 
     /** Cancel the producer and dispose the subscription scope exactly once. */
@@ -74,14 +79,41 @@ export class ObservableQuerySession {
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal)) {
                 const result = await this.run(() => this.operation.render(this.input, this.#context, this.options, value));
-                yield result;
-                if (!result.isAuthorized || result.hasExceptions || !result.isValid) return;
+                const guarded = await this.guarded(result);
+                if (!guarded) continue;
+                yield guarded;
+                if (!guarded.isAuthorized || guarded.hasExceptions || !guarded.isValid) return;
             }
         } catch (error) {
             if (!this.#context.signal.aborted) yield queryResult(this.#context, { exceptionMessages: [String(error)] });
         } finally {
             await this.close();
         }
+    }
+
+    private async guarded(result: QueryResult): Promise<QueryResult | undefined> {
+        if (!result.isSuccess || !this.guards.length) return result;
+        try {
+            const decision = await this.run(async () => {
+                this.#scope.registry.preflight(this.guards);
+                let mostRestrictive = ObservableEmissionDecision.Allow;
+                for (const token of this.guards) {
+                    const policy = await this.#scope.resolve(token);
+                    const identity = Object.freeze({ ...this.#context,
+                        principal: this.#context.principal ? structuredClone(this.#context.principal) : undefined });
+                    const outcome = await policy.check(structuredClone(this.input), structuredClone(result.data), identity);
+                    if (outcome === ObservableEmissionDecision.DenyAndTerminate) return outcome;
+                    if (outcome === ObservableEmissionDecision.Suppress) mostRestrictive = outcome;
+                    else if (outcome !== ObservableEmissionDecision.Allow) throw new Error('Invalid observable emission decision');
+                }
+                return mostRestrictive;
+            });
+            if (decision === ObservableEmissionDecision.Allow) return result;
+            if (decision === ObservableEmissionDecision.Suppress) return undefined;
+        } catch {
+            // An unknown guard result, resolution failure or thrown policy must never publish data.
+        }
+        return queryResult(this.#context, { isAuthorized: false });
     }
 
     private run<T>(callback: () => Promise<T>): Promise<T> {

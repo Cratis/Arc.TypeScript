@@ -3,7 +3,7 @@ title: Stream a query over Server-Sent Events
 description: Define a current-value observable query, read its HTTP snapshot, and subscribe to direct SSE updates.
 ---
 
-Use an observable query when callers need a current snapshot and updates from the same query route. This source preview supports HTTP snapshots and **direct SSE** in Express, Fastify, and Hono. WebSockets, multiplexed hubs, revisions, transfer modes, emission guards, and the query-health endpoint are **not implemented**. No package is published to npm yet.
+Use an observable query when callers need a current snapshot and updates from the same query route. This source preview supports HTTP snapshots and **direct SSE** in Express, Fastify, and Hono. WebSockets, multiplexed hubs, revisions, transfer modes, and the query-health endpoint are **not implemented**. No package is published to npm yet.
 
 ## Define the source and mount the server
 
@@ -38,7 +38,7 @@ process.once('SIGINT', () => {
 
 Run `node --experimental-strip-types observable.ts` with Node.js 26 in the workspace. Then run `curl http://127.0.0.1:3000/api/numbers`. You receive a 200 query-result envelope with `data: [1]` (or a later number). If you construct `new CurrentValueSubject<number[]>()` instead, the same GET returns 202 with `isReady: false` until the first publication. A current value is explicitly tagged so even `undefined` can be distinguished from no value.
 
-The source can also be an `AsyncIterable<T>` or an object with an RxJS-compatible `subscribe({ next, error, complete })` method returning an unsubscribe handle. Arc does not require RxJS at runtime. The `observe` callback runs after authorization and validation and may resolve services through `currentServices()`. Its `context.signal` is canceled when the subscription ends. Each subscription owns its own service scope; do not reuse scoped service instances across subscriptions.
+The source can also be an `AsyncIterable<T>` or an object with an RxJS-compatible `subscribe({ next, error, complete })` method returning an unsubscribe handle. Arc does not require RxJS at runtime. The `observe` callback runs after authorization and validation and may resolve services through `currentServices()`. Its `context.signal` is canceled when the subscription ends. Each subscription owns its own service scope; do not reuse scoped service instances across subscriptions. For per-emission authorization, register `ServiceToken<ObservableEmissionGuard>` services and list their tokens in `observableEmissionGuards`. Return `ObservableEmissionDecision.Allow`, `Suppress`, or `DenyAndTerminate`. A thrown guard denies and ends the subscription, including when evaluating a current HTTP snapshot.
 
 ## Subscribe to direct SSE
 

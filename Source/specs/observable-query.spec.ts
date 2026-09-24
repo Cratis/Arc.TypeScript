@@ -3,9 +3,10 @@
 import { describe, it, should } from 'vitest';
 import { z } from 'zod';
 import {
-    ArcServer, CurrentValueSubject, Severity, currentServices, defineObservableQuery, exportClientManifest, serviceToken
+    ArcServer, CurrentValueSubject, ObservableEmissionDecision, Severity, currentServices,
+    defineObservableQuery, exportClientManifest, serviceToken
 } from '../src/index.js';
-import type { ExecutionContext, ObservableObserver } from '../src/index.js';
+import type { ExecutionContext, ObservableEmissionGuard, ObservableObserver } from '../src/index.js';
 import { shouldRejectWithError } from './shouldRejectWithError.js';
 import { ArcScenario } from '../src/testing/index.js';
 
@@ -150,6 +151,62 @@ describe('observable query pipeline', () => {
         const operation = exportClientManifest(server).operations[0]!;
         operation.kind.should.equal('observable');
         operation.queryName?.should.equal('Samples.Numbers');
+        await server.dispose();
+    });
+
+    it('should suppress an emission without publishing it and allow the next in the subscription scope', async () => {
+        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const token = serviceToken<ObservableEmissionGuard>('emission policy');
+        let suppressed!: () => void;
+        const suppressedOnce = new Promise<void>(resolve => { suppressed = resolve; });
+        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+            check: (_input, data, context) => {
+                context.tenantId?.should.equal('first');
+                if (data === 1) { suppressed(); return ObservableEmissionDecision.Suppress; }
+                return ObservableEmissionDecision.Allow;
+            }
+        }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+            name: 'Numbers', schema: z.object({}), observe: () => subject
+        })] });
+        const session = await server.openObservableQuery('Numbers', {}, execution());
+        const stream = session.results();
+        const first = stream.next();
+        await suppressedOnce;
+        subject.next(2);
+        (await first).value?.data.should.equal(2);
+        await stream.return(undefined);
+        await server.dispose();
+    });
+
+    it('should not expose a suppressed current value over HTTP', async () => {
+        const token = serviceToken<ObservableEmissionGuard>('suppress snapshots');
+        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+            check: () => ObservableEmissionDecision.Suppress
+        }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+            name: 'Numbers', schema: z.object({}),
+            observe: () => new CurrentValueSubject<number>({ hasValue: true, value: 7 })
+        })] });
+        const response = await server.handle(new Request('http://localhost/api/numbers'));
+        response?.status.should.equal(202);
+        should().equal((await response!.json()).data, undefined);
+        await server.dispose();
+    });
+
+    it('should deny and terminate on a failing emission policy without publishing data', async () => {
+        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const token = serviceToken<ObservableEmissionGuard>('failing policy');
+        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+            check: () => { throw new Error('secret'); }
+        }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+            name: 'Numbers', schema: z.object({}), observe: () => subject
+        })] });
+        const session = await server.openObservableQuery('Numbers', {}, execution());
+        const stream = session.results();
+        const denial = await stream.next();
+        should().equal(denial.value?.isAuthorized, false);
+        should().equal(denial.value?.data, undefined);
+        subject.next(2);
+        should().equal((await stream.next()).done, true);
         await server.dispose();
     });
 
