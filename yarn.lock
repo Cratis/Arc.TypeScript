@@ -43,7 +43,7 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.3"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.5.0
+    "@cratis/arc.core": ^0.6.0
     "@cratis/chronicle": ^6.2.0
     "@cratis/fundamentals": ^7.19.3
     zod: ^4.1.0
@@ -159,7 +159,7 @@ __metadata:
     "@cratis/arc.core": "workspace:^"
     mongodb: "npm:^6.21.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.5.0
+    "@cratis/arc.core": ^0.6.0
     mongodb: ^6.21.0
   languageName: unknown
   linkType: soft

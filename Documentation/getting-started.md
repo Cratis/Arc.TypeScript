@@ -55,6 +55,6 @@ curl -X POST http://127.0.0.1:3000/api/tasks/registration/register-task/validate
   -d '{"id":"1a638f8e-4444-4444-8888-a0b10cdd9977","title":"Not stored"}'
 ```
 
-You can inspect generated request schemas at `/.cratis/commands`, `/.cratis/queries`, and `/openapi.json`. These describe the decorated field types. They do not generate a TypeScript client proxy from the classes yet.
+You can inspect generated request schemas at `/.cratis/commands`, `/.cratis/queries`, and `/openapi.json`. These describe the decorated field types. To get a typed client for your frontend, run `arc-proxygenerator`; see [Generate command and query clients](guides/generate-clients.md).
 
 Next, [add a command](guides/commands.md), [bind a query](guides/read-models-and-queries.md), or [configure an application](guides/application-setup.md). If you already use explicit Zod definitions, [the low-level APIs](guides/low-level-definitions.md) remain available.
