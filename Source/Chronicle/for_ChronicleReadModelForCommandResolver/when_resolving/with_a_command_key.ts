@@ -31,6 +31,13 @@ class Author { @field(String) id = ''; @field(String) name = ''; }
     @inject(provided(Author), commandReadModel(Author))
     handle(prepared: Author, author: Author): string { return `${prepared.name} ${author.id}`; }
 }
+@command() class RenameUsingEventSourceId {
+    @field(String) @key() id = '';
+    @field(String) sourceId = '';
+    getEventSourceId() { return this.sourceId; }
+    @inject(commandReadModel(Author))
+    handle(author: Author): string { return author.name; }
+}
 @command() class FindOptionalAuthor {
     @field(String) @key() id = '';
     @inject(commandReadModel(Author, { optional: true }))
@@ -48,7 +55,7 @@ describe('when resolving a Chronicle read model by the command key', () => {
         getStore.callsFake(async (): Promise<IEventStore> => ({ readModels: { findInstanceById: find } }) as unknown as IEventStore);
         const builder = ArcApplication.createBuilder();
         builder.addChronicle({ eventStore: 'Authors', client: { getEventStore: getStore } as unknown as IChronicleClient });
-        builder.add(RenameAuthor, PrepareRename, PrepareAndHandle, FindOptionalAuthor, Author, AuthorAdded);
+        builder.add(RenameAuthor, RenameUsingEventSourceId, PrepareRename, PrepareAndHandle, FindOptionalAuthor, Author, AuthorAdded);
         application = await builder.build();
     });
     afterEach(async () => { await application.dispose(); });
@@ -56,6 +63,11 @@ describe('when resolving a Chronicle read model by the command key', () => {
         const result = await application.server.executeCommand('RenameAuthor', { id: 'author-1' }, context('tenant-a'));
         (result.response as string).should.equal('Ada');
         getStore.calledWith('Authors', 'tenant-a').should.equal(true);
+        find.calledWith(Author, 'author-1').should.equal(true);
+    });
+    it('should resolve a read model using the Chronicle event source id over the key field', async () => {
+        const result = await application.server.executeCommand('RenameUsingEventSourceId', { id: 'other', sourceId: 'author-1' }, context());
+        result.isSuccess.should.equal(true);
         find.calledWith(Author, 'author-1').should.equal(true);
     });
     it('should resolve a provide parameter', async () => {

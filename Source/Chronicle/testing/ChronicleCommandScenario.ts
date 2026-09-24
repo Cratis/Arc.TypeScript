@@ -6,8 +6,11 @@ import { EventSequenceNumber, type AppendOptions, type AppendResult, type EventF
 type ClassType<T extends object = object> = new () => T;
 import '../index.js';
 
-interface Appended { readonly tenant: string; readonly source: string; readonly event: object }
+interface Appended { readonly tenant: string; readonly source: string; readonly event: object;
+    readonly eventSourceType?: string; readonly eventStreamType?: string; readonly eventStreamId?: string;
+    readonly subject?: string; readonly tags?: EventForEventSourceId['tags'] }
 type AppendedEventAssertion = {
+    readonly appendedEvents: readonly Appended[];
     shouldHaveAppendedEvent<E>(type: new (...args: never[]) => E, eventSourceId?: string,
         predicate?: (event: E) => boolean): void;
 };
@@ -27,12 +30,14 @@ export class ChronicleCommandScenario<T extends object> {
             if (!store) {
                 const eventLog = {
                     appendMany: async (entries: EventForEventSourceId[], options?: AppendOptions): Promise<AppendResult[]> => {
-                        if (options?.concurrencyScopes || options?.concurrencyScope)
-                            throw new Error('In-memory Chronicle does not support concurrency scopes; use the live kernel');
+                        // The scenario records routing and supports the caller's scope lookup; only the live kernel enforces concurrency.
+                        void options;
                         if (!entries.every(entry => this.#types.includes(entry.event.constructor as ClassType)))
                             throw new Error('In-memory Chronicle cannot append an unregistered event');
                         const start = this.#appended.length;
-                        for (const entry of entries) this.#appended.push({ tenant, source: entry.eventSourceId, event: entry.event });
+                        for (const entry of entries) this.#appended.push({ tenant, source: entry.eventSourceId, event: entry.event,
+                            eventSourceType: entry.eventSourceType, eventStreamType: entry.eventStreamType,
+                            eventStreamId: entry.eventStreamId, subject: entry.subject, tags: entry.tags });
                         return entries.map((_, index) => ({ sequenceNumber: new EventSequenceNumber(BigInt(start + index)),
                             isSuccess: true, errors: [], constraintViolations: [],
                             waitForCompletion: async () => ({ isSuccess: true, failedPartitions: [] }) }) as AppendResult);
@@ -61,10 +66,12 @@ export class ChronicleCommandScenario<T extends object> {
         return this;
     }
     async execute(command: T | Partial<T>): Promise<ScenarioCommandResult & AppendedEventAssertion> {
+        const start = this.#appended.length;
         const result = await this.#scenario.execute(command);
-        return Object.assign(result, { shouldHaveAppendedEvent: <E>(type: new (...args: never[]) => E,
+        const appended = this.#appended.slice(start);
+        return Object.assign(result, { appendedEvents: appended, shouldHaveAppendedEvent: <E>(type: new (...args: never[]) => E,
             eventSourceId?: string, predicate?: (event: E) => boolean): void => {
-            const matches = this.#appended.filter(item => item.event instanceof type &&
+            const matches = appended.filter(item => item.event instanceof type &&
                 (eventSourceId === undefined || item.source === eventSourceId) &&
                 (predicate === undefined || predicate(item.event as E)));
             if (!matches.length) throw new Error(`Expected ${type.name} to have been appended${eventSourceId ? ` to ${eventSourceId}` : ''}`);

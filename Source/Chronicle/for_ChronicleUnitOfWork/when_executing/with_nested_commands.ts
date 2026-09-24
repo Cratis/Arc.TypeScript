@@ -16,11 +16,31 @@ let application: ArcApplication;
         return new Created();
     }
 }
+@command() class CrossTenantNested {
+    @field(String) @key() id = '';
+    @inject(commandContext())
+    async handle(execution: CommandContext) {
+        await application.server.executeCommand('CreateMany', { id: this.id }, { ...execution, tenantId: 'other-tenant' });
+        return new Created();
+    }
+}
 @command() class IgnoreNestedFailure {
     @field(String) @key() id = '';
     @inject(commandContext())
     async handle(execution: CommandContext) {
         await application.server.executeCommand('CreateRejected', { id: this.id }, execution);
+        return new Created();
+    }
+}
+let detached: Promise<unknown>;
+@command() class DetachedNested {
+    @field(String) @key() id = '';
+    @inject(commandContext())
+    handle(execution: CommandContext) {
+        const id = this.id;
+        detached = new Promise(resolve => {
+            setImmediate(async () => resolve(await application.server.executeCommand('CreateMany', { id }, execution)));
+        });
         return new Created();
     }
 }
@@ -43,7 +63,7 @@ describe('when returned events from nested commands join one Chronicle append', 
         const builder = ArcApplication.createBuilder();
         const { getEventStore } = setup;
         builder.addChronicle({ client: { getEventStore } as never, eventStore: 'Tasks' });
-        builder.add(CreateNested, RejectAfterNested, IgnoreNestedFailure, CreateMany, CreateRejected, Created);
+        builder.add(CreateNested, DetachedNested, CrossTenantNested, RejectAfterNested, IgnoreNestedFailure, CreateMany, CreateRejected, Created);
         application = await builder.build();
     });
     afterEach(async () => { await application.dispose(); });
@@ -53,12 +73,26 @@ describe('when returned events from nested commands join one Chronicle append', 
         setup.appendMany.calledOnce.should.equal(true);
         setup.appendMany.firstCall.args[0].should.have.lengthOf(3);
     });
+    it('should append a detached nested command after its outer unit has completed', async () => {
+        const outer = await application.server.executeCommand('DetachedNested', { id: 'source-2' }, context());
+        outer.isSuccess.should.equal(true);
+        const nested = await detached as { isSuccess: boolean };
+        nested.isSuccess.should.equal(true);
+        setup.appendMany.calledTwice.should.equal(true);
+        setup.appendMany.firstCall.args[0].should.have.lengthOf(1);
+        setup.appendMany.secondCall.args[0].should.have.lengthOf(2);
+    });
     it('should reject a partial or unknown append acknowledgment', async () => {
         setup.appendMany.resolves([]);
         const result = await application.server.executeCommand('CreateNested', { id: 'source-1' }, context());
         result.isSuccess.should.equal(false);
         result.hasExceptions.should.equal(true);
         (result.response === undefined).should.equal(true);
+    });
+    it('should refuse a cross-tenant nested command and discard outer events', async () => {
+        const result = await application.server.executeCommand('CrossTenantNested', { id: 'source-1' }, context());
+        result.isSuccess.should.equal(false);
+        setup.appendMany.called.should.equal(false);
     });
     it('should discard staged events when a nested command fails even if the outer command ignores it', async () => {
         const result = await application.server.executeCommand('IgnoreNestedFailure', { id: 'source-1' }, context());

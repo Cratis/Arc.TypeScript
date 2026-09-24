@@ -91,6 +91,9 @@ try {
                 const resolved = await call(listener.url, 'read-live-in-command', id, tenant, adapter);
                 assert.equal(resolved.body.isSuccess, true, JSON.stringify(resolved));
                 assert.equal(resolved.body.response, adapter);
+                const missing = await call(listener.url, 'read-live-in-command', randomUUID(), tenant, adapter);
+                assert.equal(missing.body.isSuccess, false, JSON.stringify(missing));
+                assert.equal(missing.body.validationResults?.[0]?.reason, 'rule', JSON.stringify(missing));
                 const batchId = randomUUID();
                 const batch = await call(listener.url, 'create-live-batch', batchId, tenant, adapter);
                 assert.equal(batch.body.isSuccess, true, JSON.stringify(batch));

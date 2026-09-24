@@ -4,12 +4,19 @@ import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { command, key } from '@cratis/arc.core';
 import { ChronicleCommandScenario } from '../../testing/index.js';
+import { eventSourceType, eventForEventSourceId } from '../../index.js';
 
 @eventType() class Registered { @field(String) name = ''; }
-@command() class Register {
+@command() @eventSourceType('Task', { concurrency: true }) class Register {
     @field(String) @key() id = '';
     @field(String) name = '';
     handle(): Registered { return Object.assign(new Registered(), { name: this.name }); }
+}
+
+@command() class RegisterRouted {
+    @field(String) @key() id = '';
+    handle() { return eventForEventSourceId({ eventSourceId: 'routed', event: new Registered(),
+        eventSourceType: 'Override', subject: 'subject-1', tags: ['tag-1'] }); }
 }
 
 describe('when executing a Chronicle command without a kernel', () => {
@@ -21,6 +28,24 @@ describe('when executing a Chronicle command without a kernel', () => {
         result.isSuccess.should.equal(true);
         result.shouldHaveAppendedEvent(Registered, 'source-1', event => event.name === 'Ada');
         scenario.appendedEvents.should.have.lengthOf(1);
+        String(result.appendedEvents[0]!.eventSourceType).should.equal('Task');
+    });
+    it('should scope an assertion to the current execution', async () => {
+        await scenario.execute({ id: 'source-1', name: 'Ada' });
+        const second = await scenario.execute({ id: 'source-2', name: 'Grace' });
+        (() => second.shouldHaveAppendedEvent(Registered, 'source-1')).should.throw('Expected Registered');
+        second.shouldHaveAppendedEvent(Registered, 'source-2');
+    });
+    it('should record explicit event routing, subject, and tags', async () => {
+        const routed = ChronicleCommandScenario.for(RegisterRouted, Registered);
+        try {
+            const result = await routed.execute({ id: 'unused' });
+            result.isSuccess.should.equal(true);
+            result.shouldHaveAppendedEvent(Registered, 'routed');
+            String(result.appendedEvents[0]!.eventSourceType).should.equal('Override');
+            String(result.appendedEvents[0]!.subject).should.equal('subject-1');
+            result.appendedEvents[0]!.tags!.should.deep.equal(['tag-1']);
+        } finally { await routed.dispose(); }
     });
     it('should reject an assertion for an event that was not appended', async () => {
         const result = await scenario.execute({ id: 'source-1', name: 'Ada' });

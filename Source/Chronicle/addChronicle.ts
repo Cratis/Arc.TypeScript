@@ -6,6 +6,7 @@ import { ChronicleArtifacts } from './ChronicleArtifacts.js';
 import { ChronicleReadModels } from './ChronicleReadModels.js';
 import { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCommandResolver.js';
 import { ChronicleResponseHandler } from './ChronicleResponseHandler.js';
+import { ChronicleCommandKeyResolver } from './ChronicleCommandKeyResolver.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
@@ -23,6 +24,8 @@ export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleR
     builder.services.addScoped(ChronicleResponseHandler, async scope =>
         new ChronicleResponseHandler(await scope.resolve(ChronicleRuntime)));
     builder.addCommandResponseValueHandler(ChronicleResponseHandler);
+    builder.services.addScoped(ChronicleCommandKeyResolver);
+    builder.addCommandKeyResolver(ChronicleCommandKeyResolver);
     builder.addCommandExecutionRunner(runChronicleCommand);
     return builder;
 }

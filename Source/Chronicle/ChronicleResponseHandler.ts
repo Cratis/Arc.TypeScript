@@ -11,12 +11,10 @@ import { ChronicleRuntime } from './ChronicleRuntime.js';
 import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 import { eventRoutingFor } from './eventRouting.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
-
-function wrapped(value: unknown): value is EventForEventSourceId {
-    return typeof value === 'object' && value !== null && 'event' in value && 'eventSourceId' in value;
-}
+import { EventSourceIdResponse } from './eventSourceIdResponse.js';
+import { isRoutedEvent } from './eventForEventSourceId.js';
 function eventLike(value: unknown): boolean {
-    return typeof value === 'object' && value !== null && (wrapped(value) || hasEventType(value.constructor));
+    return typeof value === 'object' && value !== null && (isRoutedEvent(value) || hasEventType(value.constructor));
 }
 function identifier(value: unknown): string | undefined {
     if (typeof value === 'string') return value || undefined;
@@ -25,32 +23,33 @@ function identifier(value: unknown): string | undefined {
 }
 /** Consume only registered Chronicle events, leaving ordinary DTOs in the Arc response pipeline. */
 export class ChronicleResponseHandler implements CommandResponseValueHandler {
+    readonly incompatibleWithOperations = true;
     constructor(private readonly runtime: ChronicleRuntime) {}
     canHandle(_context: CommandContext, value: unknown): boolean {
         if (value instanceof EventsWithConcurrencyScopes) return true;
-        if (Array.isArray(value)) return value.some(eventLike);
+        if (Array.isArray(value)) return value.length === 0 || value.some(eventLike);
         return eventLike(value);
     }
     async handle(context: CommandContext, value: unknown) {
-        const store = await this.runtime.getStore(context);
         const exact = value instanceof EventsWithConcurrencyScopes ? value : undefined;
         const values = exact ? [...exact.events] : Array.isArray(value) ? [...value] : [value];
-        if (!values.length) throw new Error('Chronicle cannot append an empty event batch');
-        if (!values.every(item => isRegisteredEvent(store, wrapped(item) ? item.event : item)))
+        if (!values.length) return;
+        const store = await this.runtime.getStore(context);
+        if (!values.every(item => isRegisteredEvent(store, isRoutedEvent(item) ? item.event : item)))
             throw new Error('Every appended event must be registered in the selected Chronicle event store');
-        const responseId = identifier(context.response);
+        const responseId = context.response instanceof EventSourceIdResponse ? context.response.value : undefined;
+        if (responseId !== undefined) context.response = responseId;
         const sourceId = responseId ?? context.key ?? randomUUID();
         if (!sourceId.trim()) throw new Error('A Chronicle event source id must not be empty');
         const route = eventRoutingFor((context.command as object).constructor);
         const command = context.command as { getEventSourceId?: () => unknown; getEventStreamId?: () => string; getSubject?: () => string };
-        const supplied = command.getEventSourceId?.();
-        const selectedId = responseId ?? (supplied === undefined ? sourceId : identifier(supplied));
+        const selectedId = sourceId;
         if (!selectedId?.trim()) throw new Error('The command provided an invalid event source id');
         const streamId = command.getEventStreamId?.() ?? route.eventStreamId;
         const subjectField = getSubjectPropertyName((context.command as object).constructor);
         const subject = command.getSubject?.() ?? (subjectField ? identifier(Reflect.get(context.command as object, subjectField)) : undefined) ?? route.subject;
         const entries: EventForEventSourceId[] = values.map(item => {
-            const original = wrapped(item) ? item : { eventSourceId: selectedId, event: item as object };
+            const original: EventForEventSourceId = isRoutedEvent(item) ? item : { eventSourceId: selectedId, event: item as object };
             if (typeof original.eventSourceId !== 'string' || !original.eventSourceId.trim())
                 throw new Error('Every appended event must have a nonempty event source id');
             return { eventSourceId: original.eventSourceId, event: original.event,

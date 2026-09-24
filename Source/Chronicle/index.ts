@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export { defineChronicleCommand } from './ChronicleCommand.js';
 export { addChronicle } from './addChronicle.js';
+export { eventSourceIdResponse, EventSourceIdResponse } from './eventSourceIdResponse.js';
+export { eventForEventSourceId } from './eventForEventSourceId.js';
 export { ChronicleReadModels } from './ChronicleReadModels.js';
 export { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCommandResolver.js';
 export { ChronicleArtifacts } from './ChronicleArtifacts.js';
