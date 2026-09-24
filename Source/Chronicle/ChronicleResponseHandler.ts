@@ -10,6 +10,7 @@ import { checkResults } from './ChronicleCommand.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 import { eventRoutingFor } from './eventRouting.js';
+import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 
 function wrapped(value: unknown): value is EventForEventSourceId {
     return typeof value === 'object' && value !== null && 'event' in value && 'eventSourceId' in value;
@@ -74,6 +75,8 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         context.signal.throwIfAborted();
         const options: AppendOptions = { correlationId: context.correlationId,
             ...(Object.keys(scopes).length ? { concurrencyScopes: scopes } : {}) };
+        const unit = ChronicleUnitOfWork.active();
+        if (unit) { unit.stage(store, context, entries, options); return; }
         const results = await store.eventLog.appendMany(entries, options);
         return checkResults(results, entries.length);
     }

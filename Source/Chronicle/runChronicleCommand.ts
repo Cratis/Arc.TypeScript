@@ -6,6 +6,7 @@ import { Identity, identityProvider } from '@cratis/chronicle/identity';
 import { getPIIMetadata, getTypePIIMetadata } from '@cratis/chronicle/compliance';
 import type { CommandContext, CommandResult } from '@cratis/arc.core';
 import { notAuditedFields } from './notAudited.js';
+import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 
 /** Isolate Chronicle's ambient audit identity and causation around a full command execution. */
 export function runChronicleCommand(context: CommandContext, execute: () => Promise<CommandResult>): Promise<CommandResult> {
@@ -22,6 +23,12 @@ export function runChronicleCommand(context: CommandContext, execute: () => Prom
     }
     const principal = context.principal;
     const identity = principal?.isAuthenticated ? new Identity(principal.id, principal.name ?? principal.id) : Identity.system;
-    return identityProvider.run(identity, () => correlationIdManager.run(new CorrelationId(context.correlationId), () =>
-        causationManager.run(new CausationType('Arc.Command'), properties, execute)));
+    const outer = ChronicleUnitOfWork.active();
+    const unit = outer ?? new ChronicleUnitOfWork(context);
+    return ChronicleUnitOfWork.run(unit, () => identityProvider.run(identity, () =>
+        correlationIdManager.run(new CorrelationId(context.correlationId), () =>
+            causationManager.run(new CausationType('Arc.Command'), properties, async () => {
+                const result = await execute();
+                return outer ? unit.nestedCompleted(result) : unit.commit(result);
+            }))));
 }

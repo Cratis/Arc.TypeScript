@@ -4,7 +4,7 @@ import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
-import { command, key, readModel, query, argument, service } from '@cratis/arc.core';
+import { command, key, readModel, query, argument, service, inject, commandReadModel } from '@cratis/arc.core';
 import { ChronicleReadModels } from '../ChronicleReadModels.js';
 import { eventsWithConcurrencyScopes } from '../EventsWithConcurrencyScopes.js';
 import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
@@ -40,4 +40,19 @@ export class LiveView {
     static async byId(id: string, models: ChronicleReadModels): Promise<LiveView | null> {
         return models.findInstanceById(LiveView, id);
     }
+}
+
+@command()
+export class ReadLiveInCommand {
+    @field(String) @key() id = '';
+    @inject(commandReadModel(LiveView))
+    handle(view: LiveView): string { return view.name; }
+}
+
+@command()
+export class CreateLiveBatch {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    handle(): LiveCreated[] { return [Object.assign(new LiveCreated(), { name: this.name }),
+        Object.assign(new LiveCreated(), { name: this.name })]; }
 }

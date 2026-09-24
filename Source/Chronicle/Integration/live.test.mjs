@@ -18,12 +18,12 @@ import { ArcApplication } from '@cratis/arc.core';
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
 import { ChronicleArtifacts } from '../dist/ChronicleArtifacts.js';
 import '../dist/index.js';
-import { CreateLive, CreateLiveExactlyOnce, LiveCreated, LiveView } from '../dist/Integration/LiveArtifacts.js';
+import { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView } from '../dist/Integration/LiveArtifacts.js';
 
 const connectionString = process.env.ARC_CHRONICLE_TEST_URL;
 if (!connectionString) throw new Error('ARC_CHRONICLE_TEST_URL is required; do not silently skip the kernel suite');
 const artifacts = new ChronicleArtifacts();
-for (const type of [CreateLive, CreateLiveExactlyOnce, LiveCreated, LiveView]) artifacts.register(type);
+for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView]) artifacts.register(type);
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
     clientArtifactsProvider: artifacts, discoveryPatterns: []
 }));
@@ -31,7 +31,7 @@ const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
 const builder = ArcApplication.createBuilder({ development: true,
     resolveTenant: request => request.headers.get('x-test-tenant') ?? undefined });
 builder.addChronicle({ client, eventStore: storeName });
-builder.add(CreateLive, CreateLiveExactlyOnce, LiveCreated, LiveView);
+builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView);
 const application = await builder.build();
 
 async function host(kind) {
@@ -88,6 +88,13 @@ try {
                 const query = await globalThis.fetch(`${listener.url}/api/by-id?id=${id}`, { headers: { 'x-test-tenant': tenant } });
                 const result = await query.json();
                 assert.equal(result.data.name, adapter, JSON.stringify(result));
+                const resolved = await call(listener.url, 'read-live-in-command', id, tenant, adapter);
+                assert.equal(resolved.body.isSuccess, true, JSON.stringify(resolved));
+                assert.equal(resolved.body.response, adapter);
+                const batchId = randomUUID();
+                const batch = await call(listener.url, 'create-live-batch', batchId, tenant, adapter);
+                assert.equal(batch.body.isSuccess, true, JSON.stringify(batch));
+                assert.equal((await store.eventLog.getForEventSourceIdAndEventTypes(batchId, [LiveCreated])).length, 2);
             } finally { await listener.close(); }
         });
     }
