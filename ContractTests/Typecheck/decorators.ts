@@ -1,0 +1,29 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { argument, inject, query, service } from '@cratis/arc.core';
+class Provider { fetch(): string { return ''; } }
+class NarrowProvider extends Provider { narrow(): void {} }
+class Samples {
+    @inject(Provider)
+    exact(provider: Provider): void { provider.fetch(); }
+    @inject(Provider)
+    optional(provider?: Provider): void { provider?.fetch(); }
+    // @ts-expect-error injected Provider is not assignable to NarrowProvider
+    @inject(Provider)
+    narrow(provider: NarrowProvider): void { provider.narrow(); }
+    // @ts-expect-error missing injected parameter
+    @inject(Provider)
+    missing(): void {}
+    // @ts-expect-error unbound extra parameter
+    @inject(Provider)
+    extra(provider: Provider, extra: number): void { void provider; void extra; }
+    @query(argument('id', String), service(Provider))
+    static named(id: string, provider: Provider): string { return id + provider.fetch(); }
+    // @ts-expect-error query descriptors are ordered; reversed arguments cannot compile
+    @query(argument('id', String), service(Provider))
+    static reversed(provider: Provider, id: string): string { return id + provider.fetch(); }
+    // @ts-expect-error unbound query parameter
+    @query(service(Provider))
+    static unbound(provider: Provider, extra: number): void { void provider; void extra; }
+}
+void Samples;
