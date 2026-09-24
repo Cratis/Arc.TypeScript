@@ -132,8 +132,8 @@ export async function generateClient(input: unknown, outputRoot: string): Promis
     } catch (error) {
         const cleanupErrors: unknown[] = [];
         for (const item of pending) { try { await unlink(item.temp); } catch (cleanup) { if (!(cleanup instanceof Error) || !('code' in cleanup) || cleanup.code !== 'ENOENT') cleanupErrors.push(cleanup); } }
-        if (committed.length) throw new AggregateError([error, ...cleanupErrors], `Client generation partially committed: ${committed.join(', ')}`);
-        if (cleanupErrors.length) throw new AggregateError([error, ...cleanupErrors], 'Client generation and cleanup failed');
+        if (committed.length) throw new AggregateError([error, ...cleanupErrors], `Client generation partially committed: ${committed.join(', ')}`, { cause: error });
+        if (cleanupErrors.length) throw new AggregateError([error, ...cleanupErrors], 'Client generation and cleanup failed', { cause: error });
         throw error;
     }
     return changed.map(item => item.path);
