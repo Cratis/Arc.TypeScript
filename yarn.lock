@@ -90,6 +90,7 @@ __metadata:
   resolution: "@cratis/arc.core.sample.tasks@workspace:Samples/Tasks"
   dependencies:
     "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.testing": "workspace:^"
     "@cratis/fundamentals": "npm:7.19.3"
   languageName: unknown
   linkType: soft
