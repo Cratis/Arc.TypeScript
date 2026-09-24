@@ -4,7 +4,7 @@ title: Declare command operations
 
 Return a `CommandOperation` when a command decides *what* should happen but wants Arc to coordinate the effect and its recovery. A direct call to `handle()` only returns the declaration. Execute the command through Arc to run the operation.
 
-This decorated-command example records calls in memory to make the order visible; replace that recorder with a real service before using it for business effects. The [low-level operation specification](../../Source/Arc.Core/for_ArcServer/given/an_operation_command.ts) uses `defineCommand` instead.
+This decorated-command example records calls in memory to make the order visible; replace that recorder with a real service before using it for business effects. The [low-level operation specification](../../Source/Core/for_ArcServer/given/an_operation_command.ts) uses `defineCommand` instead.
 
 ```typescript
 import { field } from '@cratis/fundamentals';

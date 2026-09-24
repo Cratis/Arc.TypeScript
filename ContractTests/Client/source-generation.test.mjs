@@ -269,8 +269,8 @@ test('installed non-symlinked Arc package resolves decorators and root namespace
     const features = join(src, 'Features');
     await mkdir(features, { recursive: true });
     await mkdir(installed, { recursive: true });
-    await cp(join(root, 'Source/Arc.Core/package.json'), join(installed, 'package.json'));
-    await cp(join(root, 'Source/Arc.Core/dist'), join(installed, 'dist'), { recursive: true,
+    await cp(join(root, 'Source/Core/package.json'), join(installed, 'package.json'));
+    await cp(join(root, 'Source/Core/dist'), join(installed, 'dist'), { recursive: true,
         filter: path => !path.endsWith('.tsbuildinfo') });
     assert.equal((await lstat(installed)).isSymbolicLink(), false);
     await writeFile(join(src, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
