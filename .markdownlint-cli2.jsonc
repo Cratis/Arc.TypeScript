@@ -3,5 +3,9 @@
         "MD013": false
     },
     "globs": ["README.md", "CONTRIBUTING.md", "SECURITY.md", "Documentation/**/*.md"],
-    "ignores": ["node_modules/**", ".ai-work/**", ".cratis/**"]
+    // Snippet files are code fragments the documentation site embeds in the shared Arc
+    // pages through <ArcBackendTabs>, not standalone pages, so they are deliberately
+    // headerless. Documentation/validate-client-snippets.py checks their shape and
+    // compiles them instead.
+    "ignores": ["node_modules/**", ".ai-work/**", ".cratis/**", "Documentation/client-snippets/**"]
 }
