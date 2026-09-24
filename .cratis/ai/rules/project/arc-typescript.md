@@ -16,10 +16,14 @@ slices, sample domains, read models, or UI code to framework source.
   it; it does not need a decision record first.
 - Do not document a package name, API, or capability as available until it is implemented and
   verified.
-- Express, Fastify, and Hono are intended host frameworks. None is implemented. Describe them as
-  planned until an adapter exists and is verified.
-- Chronicle and MongoDB are intended optional integrations. The core must never require event
-  sourcing or a database.
+- Express, Fastify, and Hono adapters share the core pipelines. Test each adapter's real HTTP
+  behavior; a core-only check does not establish adapter compatibility.
+- Chronicle and MongoDB are optional integrations. The core must never require event sourcing
+  or a database. Document each integration's actual consistency and lifecycle guarantees.
+- `@cratis/arc.server.chronicle` is experimental and `private`. Keep it unpublished and do not
+  describe it as a supported or live integration until the published Chronicle SDK imports in
+  Node.js and the integration passes against a live Chronicle kernel. Specs with typed
+  substitutes are not integration evidence.
 
 ### Reference implementation and parity
 
@@ -29,6 +33,9 @@ slices, sample domains, read models, or UI code to framework source.
 - Parity means matching observable behavior in idiomatic TypeScript, not porting .NET mechanics.
   Claim parity per area, only with a passing executable check behind it; an unverified area is
   reported as unverified.
+- Some differences are deliberate safety choices, such as capping HTTP `X-Allowed-Severity` at
+  Warning. Do not "fix" them toward .NET behavior; keep them documented in the capability
+  reference and pinned in the paired HTTP checks.
 
 ### Boundaries
 
@@ -52,7 +59,8 @@ slices, sample domains, read models, or UI code to framework source.
 
 - Minor and patch releases, and release-automation setup, may proceed once the local gates pass;
   they need no separate request.
-- npm publication stays disabled until it is configured.
+- npm publication stays disabled until it is configured. Never run `npm publish` or an
+  equivalent from a session.
 - No `major` release until full parity with Arc on .NET is verified **and** a human explicitly
   merges it. Never enable auto-merge on, or merge on someone's behalf, a pull request labeled
   `major`.

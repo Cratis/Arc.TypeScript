@@ -16,7 +16,7 @@ Leave credentials, personal data, customer data, and production logs out of the 
 
 ## Supported versions
 
-This repository has not published any packages or releases. Reports against the current `main` branch are welcome.
+This project is an early source preview, with no stable release or published npm packages. Reports against the current `main` branch and the latest GitHub source preview are welcome.
 
 ## Scope
 

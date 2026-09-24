@@ -1,0 +1,14 @@
+{
+  "name": "@cratis/arc.server-http-contract",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test conformance.test.mjs"
+  },
+  "dependencies": {
+    "@cratis/arc.server": "workspace:^",
+    "@cratis/arc.server.express": "workspace:^",
+    "express": "^5.1.0",
+    "zod": "^4.1.0"
+  }
+}

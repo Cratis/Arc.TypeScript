@@ -1,0 +1,74 @@
+# Copyright (c) Cratis. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+name: Release preview (no publication)
+
+on:
+  workflow_dispatch:
+    inputs:
+      intent:
+        description: 'Release intent (major is never automatic)'
+        required: true
+        type: choice
+        options:
+          - minor
+          - patch
+      release_notes:
+        description: 'User-facing Markdown with a supported release-note section and at least one bullet'
+        required: true
+        type: string
+      expected_current_version:
+        description: 'Optional stable version to check against the latest vX.Y.Z tag'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-preview-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      RELEASE_INTENT: ${{ inputs.intent }}
+      RELEASE_NOTES: ${{ inputs.release_notes }}
+      EXPECTED_CURRENT_VERSION: ${{ inputs.expected_current_version }}
+      NPM_PUBLISHING: 'off'
+    steps:
+      - name: Refuse non-default branch dispatch
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo 'Release previews require the default branch.' >&2
+            exit 1
+          fi
+      - name: Check out dispatch commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Validate candidate before installing dependencies
+        run: |
+          git fetch --tags origin "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+          node scripts/release-plan.mjs
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Test release guards
+        run: node --test scripts/for_release/*.test.mjs
+      - name: Run the complete local gate
+        run: yarn ci
+      - name: Recheck default-branch commit and tags, then print preview
+        run: |
+          git fetch --tags origin "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+          node scripts/release-plan.mjs
