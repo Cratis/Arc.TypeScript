@@ -167,7 +167,7 @@ SNIPPETS: dict[str, Context | None] = {
     "tutorial/real-time/observable-query": Context(
         host=AUTHOR_READ_MODEL,
         imports=(FUNDAMENTALS_FIELD,
-                 "import { query, readModel, service, type ObservableSource } from '@cratis/arc.core';")),
+                 "import { query, readModel, service } from '@cratis/arc.core';", "import type { BehaviorSubject } from 'rxjs';")),
     "scenarios/provide-data-to-a-command/assess-loan": MODULE,
     "scenarios/provide-data-to-a-command/test-the-decision": Context(
         siblings=(("AssessLoan", "scenarios/provide-data-to-a-command/assess-loan"),)),
@@ -216,6 +216,7 @@ FIXTURES: dict[str, str] = {
     "library": """
         import { ConceptAs, field, Guid } from '@cratis/fundamentals';
         import { command, inject, readModel, type ObservableSource } from '@cratis/arc.core';
+        import type { BehaviorSubject } from 'rxjs';
 
         export class AuthorId extends ConceptAs<Guid> {
             static readonly valueType = Guid;
@@ -241,7 +242,7 @@ FIXTURES: dict[str, str] = {
         export abstract class AuthorRepository {
             abstract save(author: Author): Promise<void>;
             abstract all(): Promise<Author[]>;
-            abstract observeAll(): ObservableSource<Author[]>;
+            abstract observeAll(): BehaviorSubject<Author[]>;
             abstract findById(id: AuthorId, signal?: AbortSignal): Promise<Author | undefined>;
             abstract existsByName(name: AuthorName, signal?: AbortSignal): Promise<boolean>;
         }

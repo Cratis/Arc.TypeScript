@@ -28,7 +28,7 @@ The generator shares Arc's discovery walk: only exported classes under `--artifa
 | --- | --- |
 | A value, or `Promise<T>` | The value type |
 | `QueryPage<T>` | A paged query of `T` |
-| `ObservableSource<T>` or `AsyncIterable<T>` | An observable query of `T` |
+| RxJS `Observable<T>`, `Subject<T>`, `BehaviorSubject<T>`, `ReplaySubject<T>`, `ObservableSource<T>`, or `AsyncIterable<T>` | An observable query of `T`; RxJS types must resolve to symbols declared by the `rxjs` package |
 | An array | An enumerable result; the generator emits the array generic that matches the runtime constructor |
 
 ## Field behavior

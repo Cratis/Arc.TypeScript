@@ -30,7 +30,7 @@ export class LiveView {
 
 This excerpt is from the [kernel suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts), where `LiveCreated` is the event type. A class used by both Arc queries and Chronicle projections needs **both** `@readModel()` decorators; alias one import, as here.
 
-`ChronicleReadModels` is a tenant-scoped service. Inject it with `service(ChronicleReadModels)` in a query or `@inject(ChronicleReadModels)` in a command, and call `findInstanceById` or `watch`.
+`ChronicleReadModels` is a tenant-scoped service. Inject it with `service(ChronicleReadModels)` in a query or `@inject(ChronicleReadModels)` in a command, and call `findInstanceById` or `watch`. `watch(type)` returns an RxJS `Observable<ReadModelChangeset<T>>`; unsubscribe when done. `watchIterable(type)` retains the async-iterable path. Chronicle remains an experimental integration.
 
 ## Load a read model into a command
 
