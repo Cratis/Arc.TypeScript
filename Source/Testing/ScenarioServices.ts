@@ -22,6 +22,13 @@ export class ScenarioServices {
         return this;
     }
 
+    /** Register a factory-owned transient service, constructed on each resolution. */
+    addTransient<T extends object>(token: ServiceToken<T> | ClassType<T>, factory: (scope: ServiceScope) => T | Promise<T>): this {
+        this.assertOpen();
+        this.#registrations.push(services => services.addTransient(token, factory));
+        return this;
+    }
+
     install(services: ArcApplicationServices): void {
         for (const register of this.#registrations) register(services);
         this.#registrations.length = 0;

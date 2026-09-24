@@ -6,4 +6,6 @@ import type { QueryResult } from '@cratis/arc.core';
 export interface ObservableScenarioResult<T> {
     readonly rejection?: QueryResult;
     readonly emissions: readonly QueryResult<T>[];
+    /** True only when the producer completed before reaching the emission limit. */
+    readonly completed: boolean;
 }

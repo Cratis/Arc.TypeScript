@@ -17,7 +17,7 @@ describe('when asserting a dependency-only command failure', () => {
         (() => result.shouldHaveValidationErrors()).should.throw('dependency');
     });
     it('should refuse a member assertion', () => {
-        (() => result.shouldHaveValidationErrorFor('name')).should.throw("Expected validation error for 'name'");
+        (() => result.shouldHaveValidationErrorForMember('name')).should.throw("Expected validation error for member 'name'");
     });
     it('should allow an explicit reason assertion', () => {
         result.shouldHaveValidationErrorBecauseOf('dependencyUnavailable').should.equal(result);

@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { encodeWireValue, type ExecutionContext } from '@cratis/arc.core';
+import { encodeWireValue, type ExecutionContext, type Severity } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 import { ScenarioHost } from './ScenarioHost.js';
 import { wireRoundTrip } from './wireRoundTrip.js';
@@ -25,8 +25,10 @@ export class CommandScenario<T extends object> {
     get context() { return this.#host.context; }
     /** Set trusted principal, tenant, correlation ID or signal for pipeline calls. */
     withContext(values: Partial<ExecutionContext>): this { this.#host.withContext(values); return this; }
-    /** Disable the JSON serialization boundary for object-only checks. */
+    /** Skip JSON stringify/parse while still encoding values into Arc's wire shape. */
     withSerializationRoundTrip(enabled: boolean): this { this.#host.withSerializationRoundTrip(enabled); return this; }
+    /** Set the command validation severity threshold. */
+    withAllowedValidationSeverity(severity: Severity): this { this.#host.withAllowedValidationSeverity(severity); return this; }
 
     /** Execute values or an instance; return the actual pipeline result with focused assertions. */
     async execute(command: T | Partial<T>): Promise<ScenarioCommandResult> { return this.run(command, false); }
@@ -37,11 +39,14 @@ export class CommandScenario<T extends object> {
 
     private async run(command: T | Partial<T>, validateOnly: boolean): Promise<ScenarioCommandResult> {
         const application = await this.#host.application();
-        const operation = application.server.commands.find(item => item.name === this.#type.name);
-        if (!operation) throw new Error(`Unregistered Arc command: ${this.#type.name}`);
         const instance = command instanceof this.#type ? command : Object.assign(Reflect.construct(this.#type, []) as T, command);
+        const matches = application.server.commands.filter(item => item.name === this.#type.name);
+        if (matches.length !== 1) throw new Error(`Ambiguous or unregistered Arc command: ${this.#type.name}`);
+        const operation = matches[0]!;
         const input = this.#host.serializationRoundTrip ? wireRoundTrip(instance) : encodeWireValue(instance);
         const name = [operation.namespace, operation.name].filter(Boolean).join('.');
-        return withCommandAssertions(await application.server.executeCommand(name, input, this.#host.execution(), validateOnly));
+        const result = await application.server.executeCommand(name, input, this.#host.execution(), validateOnly);
+        if (this.#host.serializationRoundTrip && result.response !== undefined) result.response = wireRoundTrip(result.response);
+        return withCommandAssertions(result);
     }
 }

@@ -35,10 +35,18 @@ export class ScenarioHost {
         return this;
     }
 
-    execution(): ExecutionContext {
+    /** Set the maximum severity accepted by command validation. Query calls always use Warning. */
+    withAllowedValidationSeverity(severity: Severity): this {
         this.assertOpen();
-        return { correlationId: randomUUID(), principal: undefined, tenantId: undefined,
+        Object.assign(this.context, { allowedSeverity: severity });
+        return this;
+    }
+
+    execution(signal?: AbortSignal): ExecutionContext {
+        this.assertOpen();
+        const context = { correlationId: randomUUID(), principal: undefined, tenantId: undefined,
             allowedSeverity: Severity.Warning, signal: new AbortController().signal, ...this.context };
+        return signal ? { ...context, signal: AbortSignal.any([context.signal, signal]) } : context;
     }
 
     async application(): Promise<ArcApplication> {
@@ -57,7 +65,11 @@ export class ScenarioHost {
         if (this.#closing) return this.#closing;
         this.#closed = true;
         this.#closing = (async () => {
-            if (this.#application) await (await this.#application).dispose();
+            if (this.#application) {
+                // A failed build owns no application to dispose; preserve its original error at the call site.
+                const application = await this.#application.catch(() => undefined);
+                if (application) await application.dispose();
+            }
         })();
         return this.#closing;
     }
