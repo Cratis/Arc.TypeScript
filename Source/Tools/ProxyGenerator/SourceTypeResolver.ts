@@ -76,7 +76,17 @@ export class SourceTypeResolver {
                     const fieldName = member.name.getText();
                     return { name: fieldName, type: this.resolve(this.checker.getTypeAtLocation(member), member, !!member.questionToken), optional: !!member.questionToken };
                 });
-                this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields });
+                const baseType = type.getBaseTypes()?.find(base => base.symbol?.declarations?.some(ts.isClassDeclaration) &&
+                    !base.symbol.declarations.every(origin => origin.getSourceFile().isDeclarationFile));
+                const base = baseType ? this.resolve(baseType, declaration) : undefined;
+                const derived = (ts.getDecorators(declaration) ?? []).map(decorator => decorator.expression).find(expression => {
+                    if (!ts.isCallExpression(expression) || !ts.isIdentifier(expression.expression)) return false;
+                    const symbol = this.checker.getSymbolAtLocation(expression.expression);
+                    const original = symbol && symbol.flags & ts.SymbolFlags.Alias ? this.checker.getAliasedSymbol(symbol) : symbol;
+                    return original?.name === 'derivedType' && original.declarations?.some(origin => origin.getSourceFile().fileName.includes('fundamentals'));
+                });
+                const derivedTypeId = derived && ts.isCallExpression(derived) && derived.arguments[0] && ts.isStringLiteral(derived.arguments[0]) ? derived.arguments[0].text : undefined;
+                this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields, base: base?.model, derivedTypeId });
             }
             return { ...primitive(name, name), model: name, nullable };
         }

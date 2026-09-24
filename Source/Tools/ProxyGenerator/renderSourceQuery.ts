@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { SourceModel } from './SourceModel.js';
 import type { SourceOperation } from './SourceOperation.js';
-import { quote, typeImports } from './renderSource.js';
+import { quote, typeImports, type SourceRenderOptions } from './renderSource.js';
 import { renderRecordedRules } from './renderRecordedRules.js';
 import type { RecordedRule } from './RecordedRule.js';
 
 export function renderSourceQuery(operation: SourceOperation, path: string, destinations: ReadonlyMap<string, string>, route: string, modelDefinition?: SourceModel,
-    rules: readonly RecordedRule[] = [], diagnostic: (message: string) => void = message => process.stderr.write(`${message}\n`)): string {
+    rules: readonly RecordedRule[] = [], diagnostic: (message: string) => void = message => process.stderr.write(`${message}\n`), options: SourceRenderOptions = {}): string {
     const name = operation.name;
     const result = operation.result;
     if (result.void) throw new Error(`Query ${name} cannot return void`);
@@ -18,7 +18,7 @@ export function renderSourceQuery(operation: SourceOperation, path: string, dest
     const validation = renderRecordedRules(name, 'QueryValidator', parameterType || 'object', rules, diagnostic);
     const generic = `${result.text}${parameterType ? `, ${parameterType}` : ''}`;
     const base = observable ? 'ObservableQueryFor' : 'QueryFor';
-    const imports = [...new Set([result, ...operation.fields.map(field => field.type)].flatMap(type => typeImports(type, path, destinations)))].sort();
+    const imports = [...new Set([result, ...operation.fields.map(field => field.type)].flatMap(type => typeImports(type, path, destinations, options)))].sort();
     const fields = operation.fields.map(field => `    ${field.name}!: ${field.type.text};`).join('\n');
     const params = operation.fields.length ? `export interface ${parameterType} {\n${operation.fields.map(field => `    ${field.name}${field.optional ? '?' : ''}: ${field.type.text};`).join('\n')}\n}\n\n` : '';
     const request = operation.fields.filter(field => !field.optional).map(field => `            ${quote(field.name)},`).join('\n');

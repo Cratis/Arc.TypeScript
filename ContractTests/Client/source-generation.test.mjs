@@ -16,7 +16,7 @@ import { observableHost } from './observableHost.mjs';
 const root = resolve(import.meta.dirname, '../..');
 const project = join(root, 'Samples/Tasks/tsconfig.json');
 const artifacts = join(root, 'Samples/Tasks/Features');
-const options = { project, artifacts, useProxyFileSuffix: true };
+const options = { project, artifacts, useProxyFileSuffix: true, jsImportSpecifiers: true };
 async function within(promise, message) {
     let timer;
     try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), 3000); })]); }
@@ -41,9 +41,13 @@ test('source analyzer resolves imported decorator symbols, types, routes and sta
     const analysis = analyzeSource(project, artifacts);
     assert.deepEqual(analysis.operations.map(item => item.name).sort(), ['RegisterTask', 'allTasks', 'observeAllTasks', 'taskById']);
     assert.equal(analysis.operations.find(item => item.name === 'RegisterTask').result.text, 'Guid');
+    assert.deepEqual(analysis.recordedRules.get('Tasks.Registration.RegisterTask').map(rule => rule.kind), ['notEmpty', 'maxLength']);
+    assert.ok(analysis.diagnostics.some(message => message.includes('Server-only validator rule on value')));
     const rendered = renderSource(analysis, options);
     assert.match(rendered.get('Tasks/Listing/observeAllTasks.proxy.ts'), /ObservableQueryFor<TaskItem\[\]>/);
     assert.match(rendered.get('Tasks/Listing/taskById.proxy.ts'), /\/api\/tasks\/listing\/task-by-id/);
+    assert.match(rendered.get('Tasks/Registration/RegisterTask.proxy.ts'), /ruleFor\(c => c.title\).notEmpty\(\).withMessage\('A title is required'\)/);
+    assert.match(renderSource(analysis).get('Tasks/Listing/taskById.ts'), /from '\.\/TaskItem'/);
     const { output } = await generated();
     assert.match(await readFile(join(output, 'Tasks/Registration/RegisterTask.proxy.ts'), 'utf8'), /propertyChanged\('title'\)/);
     const own = join(output, 'Tasks/Listing/allTasks.proxy.ts');
@@ -83,8 +87,9 @@ for (const kind of ['express', 'fastify', 'hono']) test(`analyzer-generated publ
         const observable = new observeAllTasks(); observable.setOrigin(listening.origin);
         assert.equal(observable.queryName, 'Tasks.Listing.TaskItem.observeAllTasks');
         assert.equal((await observable.perform()).data[0].title, 'First');
-        const previous = Globals.queryDirectMode;
+        const previous = { direct: Globals.queryDirectMode, mode: Globals.observableQueryTransferMode };
         Globals.queryDirectMode = false;
+        Globals.observableQueryTransferMode = 'full';
         let subscription;
         try {
             const update = Promise.withResolvers();
@@ -97,7 +102,7 @@ for (const kind of ['express', 'fastify', 'hono']) test(`analyzer-generated publ
             const timer = setInterval(() => { void sendUpdate().catch(update.reject); }, 100);
             try { await within(update.promise, 'Hub update timed out'); }
             finally { clearInterval(timer); }
-        } finally { subscription?.unsubscribe(); Globals.queryDirectMode = previous; resetSharedMultiplexer(); }
+        } finally { subscription?.unsubscribe(); Globals.queryDirectMode = previous.direct; Globals.observableQueryTransferMode = previous.mode; resetSharedMultiplexer(); }
     } finally { await listening.close(); await app.stop(); }
 });
 
@@ -108,8 +113,9 @@ test('recorded portable rules emit a typed browser validator and server-only rul
         { path: ['title'], kind: 'must', args: [], clientSafe: false }
     ]]]);
     const rendered = renderSource(analyzeSource(project, artifacts), { ...options, recordedRules: rules, onDiagnostic: message => diagnostics.push(message) });
-    assert.match(rendered.get('Tasks/Registration/RegisterTask.proxy.ts'), /ruleFor\(c => c.title\).notEmpty\(\).withMessage\("Required"\)/);
-    assert.deepEqual(diagnostics, ['Server-only validation rule on RegisterTask.title: must']);
+    assert.match(rendered.get('Tasks/Registration/RegisterTask.proxy.ts'), /ruleFor\(c => c.title\).notEmpty\(\).withMessage\('Required'\)/);
+    assert.ok(diagnostics.some(message => message.includes('Server-only validator rule on value')));
+    assert.ok(diagnostics.includes('Server-only validation rule on RegisterTask.title: must'));
     await generated({ recordedRules: rules, onDiagnostic: () => undefined });
 });
 

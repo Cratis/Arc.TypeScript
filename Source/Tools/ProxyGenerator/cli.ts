@@ -12,9 +12,9 @@ async function main(): Promise<void> {
         const options: Record<string, string | boolean> = {};
         for (let index = 0; index < values.length; index++) {
             const key = values[index]!;
-            if (!['--project', '--artifacts', '--output', '--segments-to-skip', '--api-prefix', '--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix'].includes(key) || key in options)
+            if (!['--project', '--artifacts', '--output', '--segments-to-skip', '--api-prefix', '--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers'].includes(key) || key in options)
                 throw new Error(`Unknown or duplicate option: ${key}`);
-            if (['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix'].includes(key)) options[key] = true;
+            if (['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers'].includes(key)) options[key] = true;
             else options[key] = values[++index] ?? '';
         }
         if (typeof options['--project'] !== 'string' || typeof options['--artifacts'] !== 'string' || typeof options['--output'] !== 'string')
@@ -26,7 +26,8 @@ async function main(): Promise<void> {
             apiPrefix: typeof options['--api-prefix'] === 'string' ? options['--api-prefix'] : undefined,
             skipCommandNameInRoute: options['--skip-command-name-in-route'] === true,
             skipQueryNameInRoute: options['--skip-query-name-in-route'] === true,
-            useProxyFileSuffix: options['--use-proxy-file-suffix'] === true
+            useProxyFileSuffix: options['--use-proxy-file-suffix'] === true,
+            jsImportSpecifiers: options['--js-import-specifiers'] === true
         };
         const changed = await generateFromSource(configuration);
         process.stdout.write(`Generated ${changed.length} changed client file(s)\n`);

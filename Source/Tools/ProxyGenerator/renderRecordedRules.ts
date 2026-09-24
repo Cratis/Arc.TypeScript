@@ -28,7 +28,8 @@ export function renderRecordedRules(name: string, base: 'CommandValidator' | 'Qu
             diagnostic(`Unsupported validation argument on ${name}.${rule.path.join('.')}: ${rule.kind}`);
             continue;
         }
-        lines.push(`        this.ruleFor(c => c.${rule.path[0]}).${rule.kind}(${argument})${rule.message === undefined ? '' : `.withMessage(${JSON.stringify(rule.message)})`};`);
+        const message = rule.message?.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('\n', '\\n').replaceAll('\r', '\\r');
+        lines.push(`        this.ruleFor(c => c.${rule.path[0]}).${rule.kind}(${argument})${message === undefined ? '' : `.withMessage('${message}')`};`);
     }
     if (!lines.length) return '';
     return `export class ${name}Validator extends ${base}<${target}> {\n    constructor() {\n        super();\n${lines.join('\n')}\n    }\n}\n\n`;

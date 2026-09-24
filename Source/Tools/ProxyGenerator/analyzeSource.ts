@@ -7,6 +7,8 @@ import type { SourceAnalysis } from './SourceAnalysis.js';
 import type { SourceField } from './SourceField.js';
 import type { SourceOperation } from './SourceOperation.js';
 import type { SourceType } from './SourceType.js';
+import { extractValidatorRules, type ValidatorRules } from './extractValidatorRules.js';
+import type { RecordedRule } from './RecordedRule.js';
 
 function annotation(checker: ts.TypeChecker, node: ts.Node, name: string, owner: 'arc' | 'fundamentals' = 'arc'): ts.CallExpression | ts.Identifier | undefined {
     for (const decorator of ts.canHaveDecorators(node) ? ts.getDecorators(node) ?? [] : []) {
@@ -58,22 +60,39 @@ export function analyzeSource(project: string, artifacts: string): SourceAnalysi
     const root = resolve(artifacts);
     const resolver = new SourceTypeResolver(checker, root);
     const operations: SourceOperation[] = [];
+    const validators: ValidatorRules[] = [];
+    const targets = new Map<string, ts.Symbol>();
+    const concepts = new Map<string, { name: string; symbol: ts.Symbol }[]>();
     for (const file of program.getSourceFiles()) {
         const path = resolve(file.fileName);
         if (file.isDeclarationFile || !(path === root || path.startsWith(root + sep)) || path.includes(`${sep}for_`)) continue;
         for (const declaration of file.statements) {
             if (!ts.isClassDeclaration(declaration) || !declaration.name) continue;
+            const validator = annotation(checker, declaration, 'validator');
+            if (validator && ts.isCallExpression(validator)) {
+                const extracted = extractValidatorRules(declaration, checker, validator);
+                if (extracted) validators.push(extracted);
+            }
+            if (annotation(checker, declaration, 'derivedType', 'fundamentals'))
+                resolver.resolve(checker.getTypeAtLocation(declaration), declaration);
             const isCommand = !!annotation(checker, declaration, 'command');
             const isModel = !!annotation(checker, declaration, 'readModel');
             if (!isCommand && !isModel) continue;
             const namespace = stringArgument(annotation(checker, declaration, isCommand ? 'command' : 'readModel'), 'namespace') ??
                 relative(root, dirname(path)).split(sep).filter(Boolean).join('.');
             const owner = declaration.name.text;
+            const key = [namespace, owner].filter(Boolean).join('.');
+            const classSymbol = checker.getSymbolAtLocation(declaration.name);
+            if (isCommand && classSymbol) targets.set(key, classSymbol);
             const pathOverride = stringArgument(annotation(checker, declaration, 'path') ?? annotation(checker, declaration, 'route'));
             const classRoles = roles(checker, declaration);
             if (isCommand) {
                 const fields: SourceField[] = declaration.members.filter(ts.isPropertyDeclaration).filter(member => !!annotation(checker, member, 'field', 'fundamentals'))
                     .map(member => ({ name: member.name.getText(), type: resolver.resolve(checker.getTypeAtLocation(member), member, !!member.questionToken), optional: !!member.questionToken }));
+                concepts.set(key, declaration.members.filter(ts.isPropertyDeclaration).flatMap(member => {
+                    const symbol = checker.getTypeAtLocation(member).getSymbol();
+                    return symbol && member.name && ts.isIdentifier(member.name) ? [{ name: member.name.text, symbol }] : [];
+                }));
                 const handle = declaration.members.find(member => ts.isMethodDeclaration(member) && member.name.getText() === 'handle');
                 if (!handle || !ts.isMethodDeclaration(handle)) throw new Error(`${path}: ${owner} requires handle()`);
                 const result = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(handle)!);
@@ -87,9 +106,13 @@ export function analyzeSource(project: string, artifacts: string): SourceAnalysi
                 const parameters: SourceField[] = [];
                 const queryAnnotation = annotation(checker, member, 'query');
                 const explicit = queryAnnotation && ts.isCallExpression(queryAnnotation) ? queryAnnotation.arguments : [];
-                if (explicit[0] && ts.isObjectLiteralExpression(explicit[0]) && explicit[0].properties.some(property =>
-                    ts.isPropertyAssignment(property) && property.name.getText() === 'argumentsModel'))
-                    throw new Error(`${path}:${file.getLineAndCharacterOfPosition(member.getStart()).line + 1}: query argumentsModel generation is not supported yet`);
+                const argumentsModel = explicit[0] && ts.isObjectLiteralExpression(explicit[0]) ? explicit[0].properties.find(property =>
+                    ts.isPropertyAssignment(property) && property.name.getText() === 'argumentsModel') : undefined;
+                const modelNode = argumentsModel && ts.isPropertyAssignment(argumentsModel) ? argumentsModel.initializer : undefined;
+                const importedModel = modelNode && checker.getSymbolAtLocation(modelNode);
+                const modelSymbol = importedModel?.flags && importedModel.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(importedModel) : importedModel;
+                const queryKey = [namespace, owner, name].filter(Boolean).join('.');
+                if (modelSymbol) targets.set(queryKey, modelSymbol);
                 for (const parameter of member.parameters) {
                     const parameterName = parameter.name.getText();
                     const binding = explicit.find(item => ts.isCallExpression(item) && item.expression.getText() === 'argument' &&
@@ -121,5 +144,16 @@ export function analyzeSource(project: string, artifacts: string): SourceAnalysi
         }
     }
     if (!operations.length) throw new Error(`No @command or @readModel queries below ${root} in ${project}`);
-    return { operations, models: [...resolver.models.values()] };
+    const recordedRules = new Map<string, readonly RecordedRule[]>();
+    const diagnostics: string[] = [];
+    for (const [key, target] of targets) {
+        const direct = validators.filter(item => item.target === target);
+        const inherited = (concepts.get(key) ?? []).flatMap(field => validators.filter(item => item.target === field.symbol).flatMap(item =>
+            item.rules.filter(rule => rule.path.length === 1 && rule.path[0] === 'value').map(rule => ({ ...rule, path: [field.name] }))));
+        const rules = [...direct.flatMap(item => item.rules), ...inherited];
+        if (rules.length) recordedRules.set(key, rules);
+    }
+    // Source-only predicates and conditional rules cannot be represented by the browser validator.
+    for (const validator of validators) diagnostics.push(...validator.diagnostics);
+    return { operations, models: [...resolver.models.values()], recordedRules, diagnostics: [...new Set(diagnostics)] };
 }
