@@ -26,14 +26,11 @@ These happen outside the batch and cannot be rolled back with it:
 
 - an immediate SDK append inside `handle()`;
 - a low-level `defineChronicleCommand`;
-- a completed aggregate, or any non-Chronicle effect such as a MongoDB write;
 - operations performed by a separate nested command or directly inside a handler.
 
-Returning Chronicle events and [command operations](../../commands/operations/index.md) together is rejected before either effect runs, and the batch is not a commit participant for operations.
+A command may return both Chronicle events and [command operations](../../commands/operations/index.md). Arc runs the operations first, then commits the returned-event batch. A constraint or concurrency rejection prevents the append and compensates the operations in reverse order. If Chronicle reports an incomplete, partial, or unknown outcome, Arc reports the command as failed but **does not compensate**: committed events cannot safely be undone. Operations must provide compensation for a known rejection. This is not a distributed transaction over external systems.
 
-## Reactors
-
-No aggregate-root or Arc reactor-command integration is provided. The SDK constructs reactors itself, and its side-effect dispatcher does not run Arc commands or fail a reactor partition when a command fails. Use the SDK directly for its own event-returning reactors; do not expect Arc on .NET's reactor command side-effect semantics.
+An aggregate's `commit()` stages its events in the same batch; see [aggregates](../aggregates/index.md).
 
 ## Related
 
