@@ -55,8 +55,10 @@ It runs, in order:
 3. The build (`yarn build`).
 4. The client generation checks (`yarn test:client-generation:verify`): a strict `Bundler` compile of the proxy fixtures with `skipLibCheck: false`, then the generation tests with Node.js. Run `yarn test:client-generation` on its own to build first.
 5. The Vitest specs (`yarn test`), including the MongoDB unit specs and the Chronicle specs, which use typed substitutes and never load the Chronicle SDK.
-6. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
-7. The release guard specs (`node --test scripts/for_release/*.test.mjs`).
+6. The legacy-decorator and decorator-type contract checks (`yarn test:legacy-decorators`, `yarn test:decorator-types`).
+7. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
+8. The shared-docs snippet gate: `yarn docs:snippets:self-test` proves the gate still catches planted mistakes, then `yarn docs:snippets` checks every file in `Documentation/client-snippets` and compiles each TypeScript snippet against the built packages. With a sibling `../Arc` checkout it also compares the snippet ids with the `<ArcBackendTabs>` macros on the shared Arc pages; pass `--arc-documentation <path>` to point at another checkout.
+9. The release guard specs (`node --test scripts/for_release/*.test.mjs`).
 
 Run a single step while you work, and the whole gate before you push. Add or update a spec for every behavior you change.
 

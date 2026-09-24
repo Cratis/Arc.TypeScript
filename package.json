@@ -16,6 +16,8 @@
   "scripts": {
     "lint": "eslint Source Samples",
     "docs:lint": "markdownlint-cli2",
+    "docs:snippets": "python3 Documentation/validate-client-snippets.py",
+    "docs:snippets:self-test": "python3 Documentation/validate-client-snippets.py --self-test",
     "test:client-generation": "yarn build && yarn test:client-generation:verify",
     "test:client-generation:verify": "yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn tsc -p ContractTests/Client/tsconfig.json && node --test ContractTests/Client/*.test.mjs",
     "test:decorator-types": "yarn build && yarn tsc -p ContractTests/Typecheck/tsconfig.json",
@@ -25,7 +27,7 @@
     "build": "tsc -b",
     "test": "vitest run",
     "specs": "yarn test",
-    "ci": "yarn lint && yarn typecheck && yarn build && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && node --test scripts/for_release/*.test.mjs"
+    "ci": "yarn lint && yarn typecheck && yarn build && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs"
   },
   "devDependencies": {
     "@cratis/fundamentals": "7.19.3",

@@ -8,19 +8,19 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, and then keeping all of it in step with what the generated TypeScript clients expect. With it, commands and queries run through one pipeline that owns those concerns, so the wire behavior follows Arc on .NET instead of being re-invented per endpoint.
 
 :::caution[Unpublished, without full parity]
-Arc for TypeScript is not ready for production use. No package is published to npm, and npm publication is not configured. The package manifests are at version 0.5.0 for a source preview, not an npm release. Parity with Arc on .NET is **not** achieved: discovery of commands and queries is not implemented, client generation covers only a bounded set of explicitly declared shapes, and the Chronicle integration is private and unverified against a live kernel. The [capability reference](reference/capabilities.md) lists what is supported. Package names and APIs can still change.
+Arc for TypeScript is not ready for production use. No package is published to npm, and npm publication is not configured. The package manifests are at version 0.5.0 for a source preview, not an npm release. Parity with Arc on .NET is **not** achieved: command keys and read models resolved into handlers are not implemented, client generation covers only explicitly declared low-level shapes and not model-bound commands and queries, and the Chronicle integration is private and unverified against a live kernel. The [capability reference](reference/capabilities.md) lists what is supported. Package names and APIs can still change.
 :::
 
 ## What the server core provides
 
 Beyond the command and query pipelines, the core offers these explicit or opt-in features:
 
-- **Services.** Register services against a `serviceToken` with a `singleton`, `scoped`, or `transient` lifetime, and declare the tokens a definition needs. Arc creates and disposes a scope per call, and disposes singletons when you dispose the server, or the `ServiceRegistry` you passed in. Nothing is discovered automatically, and there is no integration with an application's dependency injection container. See [Compose services and test pipelines](guides/services-and-testing.md).
+- **Services.** Register a class or a `serviceToken` with a `singleton`, `scoped`, or `transient` lifetime, and declare the services a command, query, or validator needs. Classes decorated with `@singleton()`, `@scoped()`, or `@transient()` register themselves when you discover or add them. Arc creates and disposes a scope per call, and disposes singletons when you dispose the application, or the `ServiceRegistry` you passed in. There is no integration with another dependency injection container. See [Register model-bound services](guides/dependency-injection.md) and [Compose services and test pipelines](guides/services-and-testing.md).
 - **Identity details.** The `identityDetails` option registers `/.cratis/me`, which sets a client-readable display cookie. That cookie is not a credential.
 - **Host principals.** `nativePrincipal: true` accepts a principal your host framework already verified, through an explicit adapter callback, instead of Arc authentication handlers.
 - **Tenancy.** The `tenancy` option adds ordered header, query, claim, fixed, and subdomain sources, with optional required-tenant and membership checks.
 - **Testing.** The `@cratis/arc.testing` package runs specs through the real command, query, and HTTP pipelines.
-- **Client manifests.** `exportClientManifest` writes a JSON contract from the operations you registered with explicit `clientOutput` shapes, and `@cratis/arc.proxygenerator` turns it into proxies for the published `@cratis/arc` client. It does not discover definitions or read TypeScript types. See [Generate command and query clients](guides/generate-clients.md).
+- **Client manifests.** `exportClientManifest` writes a JSON contract from the operations you registered with explicit `clientOutput` shapes, and `@cratis/arc.proxygenerator` turns it into proxies for the published `@cratis/arc` client. It does not discover definitions or read TypeScript types, and model-bound commands and queries do not declare output shapes yet, so they cannot be exported. See [Generate command and query clients](guides/generate-clients.md).
 
 ## A server for the clients you already have
 
@@ -53,6 +53,16 @@ Two integrations are separate packages. [MongoDB](guides/mongodb.md) is an optio
 ## Host frameworks
 
 The core does not own an HTTP server. Host adapters for [Express](https://expressjs.com) 5, [Fastify](https://fastify.dev) 5, and [Hono](https://hono.dev) 4 connect it to the framework you already use. The [architecture](explanation/architecture.md) explains what the core owns and what each adapter owns.
+
+## On the shared Arc pages
+
+The shared Arc pages, such as the [tutorial](/arc/tutorial/first-slice/) and the scenarios, show a TypeScript tab beside C#, Kotlin, and Java wherever they show backend code. The TypeScript snippets use the model-bound API and are compiled against this repository's packages. Read them with these differences in mind:
+
+- Repositories and catalogs in the snippets, such as `AuthorRepository`, are application-owned abstract classes that you implement and register with `builder.services`. An abstract class serves as its own service token; an interface does not exist at runtime.
+- An observable query declares `@query({ observable: true }, ...)` in addition to returning an observable source.
+- `provide()` takes no parameters. It resolves services with `currentServices()` and reads the request's cancellation signal from `currentContext()`, as [Define model-bound commands](guides/commands.md) describes.
+- Where a page covers something Arc for TypeScript does not do yet, the tab says so instead of showing code. That applies to resolving a read model by command key into a handler or validator, and to the Chronicle integration's event appends and test seeding.
+- Proxy generation on those pages describes the C# and JVM generators. A model-bound TypeScript command or query cannot be exported to a client manifest yet.
 
 ## Releases
 
