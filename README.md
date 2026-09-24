@@ -43,7 +43,7 @@ export class TaskItem {
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
+| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
 | `@cratis/arc.express` | [`Source/Express`](Source/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |
@@ -52,7 +52,7 @@ export class TaskItem {
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
 
-Every package manifest is at version 0.4.1. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.5.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
