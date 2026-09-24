@@ -3,7 +3,7 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { ArcApplication } from '@cratis/arc.core';
-import { Echo } from '../../../Arc.Core/for_ArcApplicationBuilder/given/Echo.js';
+import { Echo } from '../../../Core/for_ArcApplicationBuilder/given/Echo.js';
 import { mountHono } from '../../index.js';
 
 describe('when mounting a model-bound application in Hono', () => {

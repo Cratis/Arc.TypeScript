@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.chronicle",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.7.0",
+    "@cratis/arc.core": "^0.8.0",
     "@cratis/chronicle": "^6.5.0",
     "@cratis/fundamentals": "^7.19.6",
     "zod": "^4.1.0"

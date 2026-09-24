@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/1182595891576717413?label=Discord&logo=discord&logoColor=white)](https://discord.gg/kt4AMpV8WV)
 
 > [!IMPORTANT]
-> **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, an optional MongoDB read helper, a bounded source-based client generator, and an experimental, private Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
+> **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections, a bounded source-based client generator, and an experimental, private Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
 
 Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js as idiomatic TypeScript, not as a line-by-line port.
 
@@ -43,16 +43,16 @@ export class TaskItem {
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
+| `@cratis/arc.core` | [`Source/Core`](Source/Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
 | `@cratis/arc.express` | [`Source/Express`](Source/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |
 | `@cratis/arc.testing` | [`Source/Testing`](Source/Testing) | `ArcScenario` and `shouldHaveRuleFailure` for testing real pipelines |
 | `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `analyzeSource`, `renderSource`, `generateFromSource`, and the `arc-proxygenerator` CLI generate published-client proxies from decorated source. The original `renderClientManifest`/`generateClient` JSON path remains available for low-level definitions. See [Generate command and query clients](Documentation/guides/generate-clients.md). |
-| `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
+| `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.addMongoDB`, tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `builder.addChronicle` and `addChronicle` append model-bound returned events, with a tenant-scoped read-model service. SDK 6.5.0 imports natively; an opt-in live-kernel suite exercises the three HTTP adapters. No .NET transaction or aggregate parity. |
 
-Every package manifest is at version 0.7.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.8.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -71,7 +71,7 @@ The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops 
 
 ## What works and what does not
 
-Supported, with specs in this repository: commands and queries with Zod schemas, observable queries (HTTP snapshots, direct SSE and WebSocket, and the multiplexed WebSocket and SSE hubs used by the `@cratis/arc` client), validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and the MongoDB read helper.
+Supported, with specs in this repository: commands and queries with Zod schemas, observable queries (HTTP snapshots, direct SSE and WebSocket, and the multiplexed WebSocket and SSE hubs used by the `@cratis/arc` client), validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and tenant-scoped MongoDB collections with live replica-set specs.
 
 Also supported, each one explicit or opt-in:
 

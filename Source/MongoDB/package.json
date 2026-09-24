@@ -1,12 +1,12 @@
 {
   "name": "@cratis/arc.mongodb",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "description": "Explicit tenant-aware MongoDB read-model access for Arc Server",
+  "description": "Tenant-scoped MongoDB collections, BSON codecs, and observable Arc queries",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
@@ -26,11 +26,13 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.7.0",
+    "@cratis/arc.core": "^0.8.0",
+    "@cratis/fundamentals": "^7.19.6",
     "mongodb": "^6.21.0"
   },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
+    "@cratis/fundamentals": "7.19.6",
     "mongodb": "^6.21.0"
   }
 }

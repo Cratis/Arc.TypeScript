@@ -61,8 +61,8 @@ NODE_MODULES = REPO_ROOT / "node_modules"
 TSC = NODE_MODULES / ".bin" / "tsc"
 BASE_TSCONFIG = REPO_ROOT / "tsconfig.json"
 BUILD_OUTPUTS = (
-    REPO_ROOT / "Source" / "Arc.Core" / "dist" / "index.d.ts",
-    REPO_ROOT / "Source" / "Arc.Core" / "dist" / "index.js",
+    REPO_ROOT / "Source" / "Core" / "dist" / "index.d.ts",
+    REPO_ROOT / "Source" / "Core" / "dist" / "index.js",
 )
 
 EXIT_CLEAN, EXIT_DEFECTS, EXIT_BLOCKED = 0, 1, 2
