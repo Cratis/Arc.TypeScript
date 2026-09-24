@@ -17,8 +17,8 @@ export function createConfig() {
         }],
         resolve: {
             alias: [
-                { find: /^@cratis\/arc\.core\/hosting$/, replacement: fileURLToPath(new URL('./Source/Arc.Core/hosting.ts', import.meta.url)) },
-                { find: /^@cratis\/arc\.core$/, replacement: fileURLToPath(new URL('./Source/Arc.Core/index.ts', import.meta.url)) },
+                { find: /^@cratis\/arc\.core\/hosting$/, replacement: fileURLToPath(new URL('./Source/Core/hosting.ts', import.meta.url)) },
+                { find: /^@cratis\/arc\.core$/, replacement: fileURLToPath(new URL('./Source/Core/index.ts', import.meta.url)) },
                 { find: /^@cratis\/arc\.testing$/, replacement: fileURLToPath(new URL('./Source/Testing/index.ts', import.meta.url)) }
             ]
         },

@@ -43,7 +43,7 @@ export class TaskItem {
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
+| `@cratis/arc.core` | [`Source/Core`](Source/Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
 | `@cratis/arc.express` | [`Source/Express`](Source/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |

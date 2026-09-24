@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { afterAll, beforeEach, describe, it, should } from 'vitest';
-import { currentServices } from '../../../Arc.Core/dependencyInjection/ServiceScope.js';
+import { currentServices } from '../../../Core/dependencyInjection/ServiceScope.js';
 import { given } from '../../given.js';
 import { shouldHaveRuleFailure } from '../../shouldHaveRuleFailure.js';
 import { an_owned_service_scenario } from '../given/an_owned_service_scenario.js';

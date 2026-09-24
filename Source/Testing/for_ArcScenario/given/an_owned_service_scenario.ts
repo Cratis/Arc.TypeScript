@@ -1,12 +1,12 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import { defineCommand } from '../../../Arc.Core/commands/defineCommand.js';
-import { currentServices } from '../../../Arc.Core/dependencyInjection/ServiceScope.js';
-import { serviceToken } from '../../../Arc.Core/dependencyInjection/ServiceToken.js';
-import { defineQuery } from '../../../Arc.Core/queries/defineQuery.js';
-import { Severity } from '../../../Arc.Core/validation/Severity.js';
-import { validation } from '../../../Arc.Core/validation/ValidationResult.js';
+import { defineCommand } from '../../../Core/commands/defineCommand.js';
+import { currentServices } from '../../../Core/dependencyInjection/ServiceScope.js';
+import { serviceToken } from '../../../Core/dependencyInjection/ServiceToken.js';
+import { defineQuery } from '../../../Core/queries/defineQuery.js';
+import { Severity } from '../../../Core/validation/Severity.js';
+import { validation } from '../../../Core/validation/ValidationResult.js';
 import { ArcScenario } from '../../ArcScenario.js';
 
 export class an_owned_service_scenario {
