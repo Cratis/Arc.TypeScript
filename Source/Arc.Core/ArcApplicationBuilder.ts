@@ -16,6 +16,7 @@ import { compileQueries } from './modelBound/queries/compileQueries.js';
 import { ownMetadata, type ClassType } from './modelBound/reflection/metadata.js';
 import type { Artifact } from './modelBound/reflection/Artifact.js';
 import { validateMetadata } from './modelBound/reflection/validateMetadata.js';
+import { ensureDiscoveryRootSafe } from './modelBound/reflection/ensureDiscoveryRootSafe.js';
 import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
 import { BaseValidator } from './validation/BaseValidator.js';
 import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
@@ -52,9 +53,7 @@ export class ArcApplicationBuilder {
     async discover(root: URL, options: { rootNamespace?: string } = {}): Promise<this> {
         if (root.protocol !== 'file:') throw new Error('Arc discovery requires a file URL');
         const folder = await realpath(fileURLToPath(root));
-        const bootstrap = process.argv[1] ? await realpath(process.argv[1]).catch(() => undefined) : undefined;
-        if (bootstrap && (bootstrap === folder || bootstrap.startsWith(folder + sep)))
-            throw new Error('Arc discovery cannot import the bootstrap folder');
+        await ensureDiscoveryRootSafe(folder);
         const files: string[] = [];
         const walk = async (directory: string): Promise<void> => {
             for (const entry of await readdir(directory, { withFileTypes: true })) {
