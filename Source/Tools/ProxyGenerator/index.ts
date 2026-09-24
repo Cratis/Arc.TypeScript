@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export { renderClientManifest, generateClient } from './generate.js';
 export { analyzeSource } from './analyzeSource.js';
+export { renderGeneratedMetadata } from './renderGeneratedMetadata.js';
 export { renderSource } from './renderSource.js';
 export { generateFromSource } from './generateFromSource.js';
 export type { SourceGeneratorOptions } from './generateFromSource.js';

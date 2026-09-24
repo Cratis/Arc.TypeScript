@@ -2,6 +2,8 @@
   href: index.md
 - name: Configuration
   href: configuration.md
+- name: Generated artifact metadata
+  href: generated-artifact-metadata.md
 - name: Type mapping
   href: type-mapping.md
 - name: Validation rules

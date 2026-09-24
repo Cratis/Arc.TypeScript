@@ -7,7 +7,7 @@ describe('when analyzing decorated artifacts with the Tasks sample', () => {
     let names: string[];
     beforeEach(() => {
         const root = resolve(process.cwd(), 'Samples/Tasks');
-        names = analyzeSource(resolve(root, 'tsconfig.json'), resolve(root, 'Features')).operations.map(operation => operation.name);
+        names = analyzeSource(resolve(root, 'tsconfig.json'), resolve(root, 'Features'), '', true).operations.map(operation => operation.name);
     });
     it('should discover the command and every read-model query', () => {
         names.sort().should.deep.equal(['RegisterTask', 'allTasks', 'observeAllTasks', 'taskById']);

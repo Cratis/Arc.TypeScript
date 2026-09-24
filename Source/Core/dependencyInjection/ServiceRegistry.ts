@@ -115,6 +115,10 @@ export class ServiceRegistry {
         finally { frame.state = ServiceExecutionState.Drained; this.#executions.delete(completion); finish(); }
         return completed ? completed(result, this.hasLivingExecution() || hasLivingServiceResolution(this)) : result;
     }
+    /** @internal Check only registration existence; never hide a failing service factory. */
+    hasRegistration(identifier: ServiceIdentifier<unknown>): boolean {
+        return this.#registrations.has(normalizeServiceToken(identifier).key);
+    }
     registration(identifier: ServiceIdentifier<unknown>): ServiceRegistration<unknown> {
         const token = normalizeServiceToken(identifier);
         if (!token || typeof token.key !== 'symbol' || typeof token.name !== 'string')

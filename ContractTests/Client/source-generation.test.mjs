@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { cp, lstat, mkdir, readFile, readdir, symlink, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -17,7 +17,7 @@ import { observableHost } from './observableHost.mjs';
 const root = resolve(import.meta.dirname, '../..');
 const project = join(root, 'Samples/Tasks/tsconfig.json');
 const artifacts = join(root, 'Samples/Tasks/Features');
-const options = { project, artifacts, useProxyFileSuffix: true, jsImportSpecifiers: true };
+const options = { project, artifacts, generatedMetadata: true, useProxyFileSuffix: true, jsImportSpecifiers: true };
 async function within(promise, message) {
     let timer;
     try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), 3000); })]); }
@@ -40,7 +40,7 @@ async function generated(overrides = {}) {
     return { output, changed, modules };
 }
 test('source analyzer resolves imported decorator symbols, types, routes and stable owned output', async () => {
-    const analysis = analyzeSource(project, artifacts);
+    const analysis = analyzeSource(project, artifacts, '', true);
     assert.deepEqual(analysis.operations.map(item => item.name).sort(), ['RegisterTask', 'allTasks', 'observeAllTasks', 'taskById']);
     assert.equal(analysis.operations.find(item => item.name === 'RegisterTask').result.text, 'Guid');
     assert.deepEqual(analysis.recordedRules.get('Tasks.Registration.RegisterTask').map(rule => rule.kind), ['notEmpty', 'maxLength']);
@@ -74,6 +74,8 @@ for (const kind of ['express', 'fastify', 'hono']) test(`analyzer-generated publ
     const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
     const builder = ArcApplication.createBuilder({ development: true, authentication: [() => ({ status: AuthenticationStatus.Authenticated,
         principal: { id: 'client', isAuthenticated: true, roles: [] } })] });
+    const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
+    builder.useGeneratedMetadata(metadata);
     builder.services.addSingleton(Tasks);
     await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));
     const app = await builder.build();
@@ -122,6 +124,8 @@ test('generated API prefix and namespace skipping match live model-bound routes'
     const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
     const builder = ArcApplication.createBuilder({ development: true,
         generatedApis: { routePrefix: 'v2', segmentsToSkipForRoute: 1 } });
+    const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
+    builder.useGeneratedMetadata(metadata);
     builder.services.addSingleton(Tasks);
     await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));
     const app = await builder.build();
@@ -144,7 +148,7 @@ test('recorded portable rules emit a typed browser validator and server-only rul
         { path: ['title'], kind: 'must', args: [], clientSafe: false },
         { path: ['unknown'], kind: 'notEmpty', args: [], clientSafe: true }
     ]]]);
-    const rendered = renderSource(analyzeSource(project, artifacts), { ...options, recordedRules: rules, onDiagnostic: message => diagnostics.push(message) });
+    const rendered = renderSource(analyzeSource(project, artifacts, '', true), { ...options, recordedRules: rules, onDiagnostic: message => diagnostics.push(message) });
     assert.match(rendered.get('Tasks/Registration/RegisterTask.proxy.ts'), /ruleFor\(c => c.title\).notEmpty\(\).withMessage\('Required'\)/);
     assert.ok(diagnostics.some(message => message.includes('Server-only validator rule on value')));
     assert.ok(diagnostics.includes('Server-only validation rule on RegisterTask.title: must'));
@@ -313,6 +317,73 @@ test('unbound query parameters fail before any files are written', async () => {
         models: [], recordedRules: new Map(), diagnostics: [] }), /Unsafe generated name/);
 });
 
+test('CLI watch debounces external service edits and ignores generated output', async () => {
+    const directory = await scratch();
+    const src = join(directory, 'src');
+    const features = join(src, 'Features');
+    const output = join(src, 'proxies');
+    await mkdir(features, { recursive: true }); await mkdir(output);
+    const service = join(src, 'Service.ts');
+    await writeFile(service, 'export class Service {}\n');
+    await writeFile(join(src, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'ESNext',
+        moduleResolution: 'Bundler', strict: true, skipLibCheck: false }, include: ['Features/**/*.ts', 'Service.ts'] }));
+    await writeFile(join(features, 'Save.ts'), `import { command } from '@cratis/arc.core';
+import { Service } from '../Service.js';
+@command() export class Save { handle(service: Service): void { void service; } }
+`);
+    const cli = join(root, 'Source/Tools/ProxyGenerator/dist/cli.js');
+    const child = spawn(process.execPath, [cli, '--project', join(src, 'tsconfig.json'), '--artifacts', features,
+        '--output', output, '--watch', '--use-generated-metadata'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    let outputText = ''; let errors = '';
+    child.stdout.on('data', value => { outputText += value.toString(); });
+    child.stderr.on('data', value => { errors += value.toString(); });
+    const nextGeneration = async count => within(new Promise((resolve, reject) => {
+        const onExit = code => { child.stdout.off('data', check); reject(new Error(`Watch exited: ${code} ${errors}`)); };
+        const check = () => {
+            if ((outputText.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= count) {
+                child.stdout.off('data', check); child.off('exit', onExit); resolve();
+            }
+        };
+        child.once('exit', onExit);
+        child.stdout.on('data', check); check();
+    }), `Timed out waiting for watch generation ${count}: ${errors}`);
+    try {
+        await nextGeneration(1);
+        await within(new Promise(resolve => {
+            const ready = () => {
+                if (outputText.includes('Watching artifact sources')) { child.stdout.off('data', ready); resolve(); }
+            };
+            child.stdout.on('data', ready); ready();
+        }), 'Watch did not start');
+        await writeFile(service, 'export class Service { readonly marker = 1; }\n');
+        await nextGeneration(2);
+        assert.match(outputText, /Generated 0 changed file\(s\)/);
+        assert.equal(errors, '');
+    } finally {
+        child.kill('SIGTERM');
+        await new Promise(resolve => child.once('close', resolve));
+    }
+});
+
+test('CLI checks generated metadata and refuses an edited module before publishing', async () => {
+    const directory = await scratch();
+    const output = join(directory, 'src'); await mkdir(output);
+    const metadata = join(output, 'generatedMetadata.ts');
+    const cli = join(root, 'Source/Tools/ProxyGenerator/dist/cli.js');
+    const args = [cli, '--project', project, '--artifacts', artifacts, '--output', output, '--metadata', metadata];
+    const published = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
+    assert.equal(published.status, 0, published.stderr);
+    const current = spawnSync(process.execPath, [...args, '--check-metadata'], { cwd: root, encoding: 'utf8' });
+    assert.equal(current.status, 0, current.stderr);
+    await writeFile(metadata, `${await readFile(metadata, 'utf8')}\n// handwritten edit\n`);
+    const stale = spawnSync(process.execPath, [...args, '--check-metadata'], { cwd: root, encoding: 'utf8' });
+    assert.notEqual(stale.status, 0);
+    assert.match(stale.stderr, /Stale or missing generated artifact metadata/);
+    const refused = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /review and delete the file before regenerating/);
+});
+
 test('CLI accepts equals options, help, root namespace and safe output switches', async () => {
     const directory = await scratch();
     const output = join(directory, 'src'); await mkdir(output);
@@ -321,7 +392,7 @@ test('CLI accepts equals options, help, root namespace and safe output switches'
     assert.equal(help.status, 0, help.stderr);
     assert.match(help.stdout, /--emit-interfaces/);
     const generated = spawnSync(process.execPath, [cli, `--project=${project}`, `--artifacts=${artifacts}`, `--output=${output}`,
-        '--root-namespace=App', '--api-prefix=v2', '--skip-index-generation', '--skip-output-deletion'], { cwd: root, encoding: 'utf8' });
+        '--root-namespace=App', '--api-prefix=v2', '--use-generated-metadata', '--skip-index-generation', '--skip-output-deletion'], { cwd: root, encoding: 'utf8' });
     assert.equal(generated.status, 0, generated.stderr);
     assert.match(await readFile(join(output, 'App/Tasks/Listing/AllTasks.ts'), 'utf8'), /'\/v2\/app\/tasks\/listing\/all-tasks'/);
     assert.ok(!(await readdir(join(output, 'App/Tasks/Listing'))).includes('index.ts'));

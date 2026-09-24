@@ -7,6 +7,7 @@ import type { Parameter } from './Parameter.js';
 import type { ParameterValues } from './ParameterValues.js';
 
 /** Mark a public static read-model method as a query. */
+export function query(): MethodDecorator<[], false, true>;
 export function query<const Parameters extends readonly Parameter[]>(
     ...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
 export function query<const Parameters extends readonly Parameter[]>(
@@ -28,7 +29,7 @@ export function query(...declarations: readonly (Parameter | {
         if (data.queryMethods.has(name)) throw new Error(`Duplicate query: ${name}`);
         data.queryMethods.set(name, {
             parameters: parameters.length ? parameters : undefined,
-            observable: options.observable === true, argumentsModel: options.argumentsModel
+            observable: options.observable === true, observableExplicit: Object.hasOwn(options, 'observable'), argumentsModel: options.argumentsModel
         });
     }) as MethodDecorator<readonly unknown[]>;
 }

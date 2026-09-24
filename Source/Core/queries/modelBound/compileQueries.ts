@@ -4,8 +4,9 @@ import { z } from 'zod';
 import type { CompiledQuery } from './CompiledQuery.js';
 import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentifier.js';
 import { reflectedParameters } from '../../reflection/reflectedParameters.js';
-import { resolveAll } from '../../reflection/resolveAll.js';
+import { currentServices } from '../../dependencyInjection/ServiceScope.js';
 import { ownMetadata } from '../../reflection/ownMetadata.js';
+import { validateGeneratedReturn } from '../../reflection/validateGeneratedReturn.js';
 import type { ClassType } from '../../reflection/ClassType.js';
 import type { Parameter } from './Parameter.js';
 import type { WireType } from '../../reflection/WireType.js';
@@ -24,7 +25,8 @@ function parametersFor(type: ClassType, name: string, declaration: QueryMetadata
     if (!declaration.parameters && method.length) {
         parameters = reflectedParameters(type, name, method.length).map(token => ({ kind: 'service', token }));
     }
-    if (method.length !== parameters.length) throw new Error(`Unbound parameters on ${type.name}.${name}`);
+    if (method.length !== parameters.length && !(declaration.generated && method.length < parameters.length))
+        throw new Error(`Unbound parameters on ${type.name}.${name}`);
     if (declaration.argumentsModel) {
         const declared = fieldsFor(declaration.argumentsModel as WireType);
         const arguments_ = argumentsOnly(parameters);
@@ -42,7 +44,7 @@ function inputFor(type: ClassType, name: string, parameters: readonly Parameter[
     const shape: Record<string, z.ZodType> = {};
     const services: ServiceIdentifier<unknown>[] = [];
     for (const parameter of parameters) {
-        if (parameter.kind === 'service') services.push(parameter.token);
+        if (parameter.kind === 'service' && !parameter.optional) services.push(parameter.token);
         else if (parameter.kind === 'argument') {
             const folded = parameter.name.toLowerCase();
             if (names.has(folded)) throw new Error(`Ambiguous query argument: ${type.name}.${name}.${parameter.name}`);
@@ -77,16 +79,20 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     const method: unknown = Reflect.get(type, name);
     if (typeof method !== 'function') throw new Error(`Query ${type.name}.${name} requires a static method`);
     const parameters = parametersFor(type, name, declaration, method as (...parameters: unknown[]) => unknown);
+    if (declaration.result && declaration.result.observable !== undefined && declaration.result.observable !== declaration.observable)
+        throw new Error(`Query ${type.name}.${name} observable declaration does not match its generated return metadata`);
+    if (declaration.result?.cardinality === 'paged' && declaration.observable)
+        throw new Error(`Query ${type.name}.${name} cannot return an observable page`);
     const { shape, services } = inputFor(type, name, parameters);
     const authorization = metadata.methodAuthorization?.get(name) ?? metadata.authorization;
     if (authorization?.anonymous && (authorization.authenticated || authorization.roles?.length))
         throw new Error(`Conflicting Arc authorization: ${type.name}.${name}`);
     const perform = async (input: unknown, options: QueryOptions): Promise<unknown> => {
         const values = input as Record<string, unknown>;
-        const resolved = await resolveAll(services);
-        let index = 0;
-        const arguments_ = parameters.map(parameter => parameter.kind === 'service' ? resolved[index++] :
-            parameter.kind === 'options' ? options : decode(parameter.type, values[parameter.name], parameter.element));
+        const scope = currentServices();
+        const arguments_ = await Promise.all(parameters.map(parameter => parameter.kind === 'service' ?
+            parameter.optional && !scope.registry.hasRegistration(parameter.token) ? null : scope.resolve(parameter.token) :
+            parameter.kind === 'options' ? options : decode(parameter.type, values[parameter.name], parameter.element)));
         return method.apply(type, arguments_);
     };
     const descriptor = {
@@ -105,6 +111,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     return {
         definition: { ...descriptor, perform: async (input, _context, options) => {
             const value = await perform(input, options);
+            validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             if (value && typeof value === 'object' &&
                 (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {
                 throw new Error(`Snapshot query ${type.name}.${name} returned an observable`);

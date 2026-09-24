@@ -34,12 +34,17 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 | `--emit-interfaces` | Off | Emit undecorated interfaces instead of model classes; model constructors in proxies become `Object`, so choose this only when you do not need decorated model hydration |
 | `--skip-index-generation` | Off | Do not write `index.ts` barrels |
 | `--skip-output-deletion` | Off | Keep stale generated files instead of removing them |
+| `--metadata <file>` | Off | Generate server artifact metadata at the given absolute path and infer undecorated bindings |
+| `--use-generated-metadata` | Off | Infer the same bindings for client-only generation without publishing a metadata module |
+| `--check-metadata` | Off | Read-only check that a module passed with `--metadata` matches current source |
+| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate |
 
 ## Programmatic use
 
-The package also exports `analyzeSource`, `renderSource`, and `generateFromSource` for the same pipeline, with the `SourceGeneratorOptions` and `SourceRenderOptions` types. `renderSource` accepts a `recordedRules` override. The low-level manifest path exports `renderClientManifest` and `generateClient`; see [Low-level manifest](low-level-manifest.md).
+The package also exports `analyzeSource`, `renderSource`, `renderGeneratedMetadata`, and `generateFromSource` for the same pipeline, with the `SourceGeneratorOptions` and `SourceRenderOptions` types. Programmatic `generateFromSource` accepts `metadata` or `generatedMetadata: true` for inference. `renderSource` accepts a `recordedRules` override. The low-level manifest path exports `renderClientManifest` and `generateClient`; see [Low-level manifest](low-level-manifest.md).
 
 ## Related
 
 - [Proxy generation](index.md)
 - [File index tracking](file-index-tracking.md)
+- [Generated artifact metadata](generated-artifact-metadata.md)

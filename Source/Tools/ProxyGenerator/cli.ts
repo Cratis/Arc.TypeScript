@@ -2,18 +2,22 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { readFile, stat } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { watch } from 'node:fs';
+import { dirname, isAbsolute, resolve, sep } from 'node:path';
+import { sourceProgram } from './sourceProgram.js';
 import { generateClient } from './generate.js';
 import { generateFromSource, type SourceGeneratorOptions } from './generateFromSource.js';
+import { renderGeneratedMetadata } from './renderGeneratedMetadata.js';
+import { checkGeneratedMetadata } from './publishGeneratedMetadata.js';
 
 async function main(): Promise<void> {
-    const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <folder> [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces]';
+    const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <folder> [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch] [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces]';
     if (process.argv.includes('--help')) { process.stdout.write(`${usage}\n`); return; }
     if (process.argv.slice(2).some(value => value === '--project' || value.startsWith('--project='))) {
         const values = process.argv.slice(2);
         const options: Record<string, string | boolean> = {};
-        const flags = ['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers', '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces'];
-        const arguments_ = ['--project', '--artifacts', '--output', '--segments-to-skip', '--api-prefix', '--root-namespace'];
+        const flags = ['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers', '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces', '--watch', '--check-metadata', '--use-generated-metadata'];
+        const arguments_ = ['--project', '--artifacts', '--output', '--metadata', '--segments-to-skip', '--api-prefix', '--root-namespace'];
         for (let index = 0; index < values.length; index++) {
             const [key, attached] = values[index]!.split(/=(.*)/s, 2);
             if ((!flags.includes(key!) && !arguments_.includes(key!)) || key! in options || flags.includes(key!) && attached !== undefined)
@@ -31,6 +35,8 @@ async function main(): Promise<void> {
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid segments to skip');
         const configuration: SourceGeneratorOptions = {
             project: options['--project'], artifacts: options['--artifacts'], output: options['--output'], segmentsToSkip: skip,
+            metadata: typeof options['--metadata'] === 'string' ? options['--metadata'] : undefined,
+            generatedMetadata: options['--use-generated-metadata'] === true,
             apiPrefix: typeof options['--api-prefix'] === 'string' ? options['--api-prefix'] : undefined,
             skipCommandNameInRoute: options['--skip-command-name-in-route'] === true,
             skipQueryNameInRoute: options['--skip-query-name-in-route'] === true,
@@ -41,8 +47,54 @@ async function main(): Promise<void> {
             skipOutputDeletion: options['--skip-output-deletion'] === true,
             emitInterfaces: options['--emit-interfaces'] === true
         };
-        const changed = await generateFromSource(configuration);
-        process.stdout.write(`Generated ${changed.length} changed client file(s)\n`);
+        if (options['--check-metadata']) {
+            if (!configuration.metadata || options['--watch']) throw new Error('--check-metadata requires --metadata and cannot watch');
+            await checkGeneratedMetadata(configuration.metadata,
+                renderGeneratedMetadata(configuration.project, configuration.artifacts, configuration.metadata));
+            process.stdout.write('Generated artifact metadata is current (1 module)\n');
+            return;
+        }
+        const generate = async (): Promise<void> => {
+            const changed = await generateFromSource(configuration);
+            process.stdout.write(`Generated ${changed.length} changed file(s)\n`);
+        };
+        await generate();
+        if (options['--watch']) {
+            const root = resolve(configuration.artifacts);
+            const metadata = configuration.metadata && resolve(configuration.metadata);
+            const outputRoot = resolve(configuration.output);
+            const external = sourceProgram(configuration.project).getSourceFiles()
+                .filter(file => !file.isDeclarationFile && !file.fileName.includes(`${sep}node_modules${sep}`))
+                .map(file => resolve(file.fileName)).filter(file => file !== metadata &&
+                    !file.startsWith(root + sep) && !file.startsWith(outputRoot + sep));
+            const watched = new Set(external);
+            let timer: NodeJS.Timeout | undefined;
+            let pending: Promise<void> = Promise.resolve();
+            const schedule = () => {
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => {
+                    pending = pending.then(generate).catch(error => { console.error(error); process.exitCode = 1; });
+                }, 150);
+            };
+            const watchers = [watch(root, { recursive: true }, (_, filename) => {
+                if (!filename) return schedule();
+                const file = resolve(root, filename);
+                if (file !== metadata && !file.startsWith(outputRoot + sep) && file.endsWith('.ts') && !file.endsWith('.d.ts') &&
+                    file.startsWith(root + sep)) schedule();
+            }), ...[...new Set(external.map(dirname))].map(directory => watch(directory, (_, filename) => {
+                if (filename && watched.has(resolve(directory, filename))) schedule();
+            }))];
+            process.stdout.write(`Watching artifact sources (${watchers.length} directories)\n`);
+            try {
+                await new Promise<void>((_, reject) => {
+                    for (const watcher of watchers) watcher.on('error', reject);
+                });
+            } finally {
+                if (timer) clearTimeout(timer);
+                for (const watcher of watchers) watcher.close();
+                await pending;
+            }
+        }
         return;
     }
     const [manifestPath, outputRoot, extra] = process.argv.slice(2);

@@ -11,6 +11,6 @@ const output = join(root, 'dist/proxies');
 mkdirSync(output, { recursive: true });
 execFileSync(process.execPath, [resolve(root, '../../Source/Tools/ProxyGenerator/dist/cli.js'),
     '--project', join(root, 'tsconfig.json'), '--artifacts', join(root, 'Features'), '--output', output,
-    '--use-proxy-file-suffix'], { stdio: 'inherit' });
+    '--metadata', join(root, 'Features/generatedMetadata.ts'), '--use-proxy-file-suffix'], { stdio: 'inherit' });
 execFileSync(resolve(root, '../../node_modules/.bin/tsc'),
     ['-p', join(root, 'tsconfig.proxies.json')], { stdio: 'inherit' });

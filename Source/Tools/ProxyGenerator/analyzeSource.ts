@@ -3,7 +3,7 @@
 import { dirname, relative, resolve, sep } from 'node:path';
 import { discoveryFiles } from '@cratis/arc.core';
 import { identifier, isPackageSymbol, originalSymbol } from './sourceSymbols.js';
-import { annotation, fieldsFor, roles, stringArgument } from './sourceAnnotations.js';
+import { annotation, classChain, fieldsFor, roles, stringArgument } from './sourceAnnotations.js';
 import { queryResult } from './queryResult.js';
 import ts from 'typescript';
 import { SourceTypeResolver } from './SourceTypeResolver.js';
@@ -13,37 +13,38 @@ import type { SourceOperation } from './SourceOperation.js';
 import type { SourceType } from './SourceType.js';
 import { extractValidatorRules, type ValidatorRules } from './extractValidatorRules.js';
 import type { RecordedRule } from './RecordedRule.js';
+import { sourceProgram } from './sourceProgram.js';
 
-export function analyzeSource(project: string, artifacts: string, rootNamespace = ''): SourceAnalysis {
-    const configFile = ts.readConfigFile(project, ts.sys.readFile);
-    if (configFile.error) throw new Error(ts.flattenDiagnosticMessageText(configFile.error.messageText, '\n'));
-    const config = ts.parseJsonConfigFileContent(configFile.config, ts.sys, dirname(resolve(project)), undefined, resolve(project));
-    if (config.errors.length) throw new Error(ts.formatDiagnosticsWithColorAndContext(config.errors, {
-        getCanonicalFileName: file => file, getCurrentDirectory: ts.sys.getCurrentDirectory, getNewLine: () => '\n'
-    }));
-    const program = ts.createProgram(config.fileNames, config.options);
+export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
+    program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void): SourceAnalysis {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
-    const resolver = new SourceTypeResolver(checker, root);
+    const hasMetadata = generatedMetadata;
+    const resolver = new SourceTypeResolver(checker, root, hasMetadata);
     const diagnostics: string[] = [];
-    const discovered = new Set(discoveryFiles(root).map(file => resolve(file)));
+    const discovered = discoveryFiles(root).map(file => resolve(file));
     const operations: SourceOperation[] = [];
     const validators: ValidatorRules[] = [];
     const targets = new Map<string, ts.Symbol>();
     const concepts = new Map<string, { name: string; symbol: ts.Symbol }[]>();
-    for (const file of program.getSourceFiles()) {
-        const path = resolve(file.fileName);
-        if (file.isDeclarationFile || !discovered.has(path)) continue;
+    for (const path of discovered) {
+        const file = program.getSourceFile(path);
+        if (!file || file.isDeclarationFile) continue;
         const module = checker.getSymbolAtLocation(file);
         const exports = new Set(module ? checker.getExportsOfModule(module).map(symbol =>
             symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol) : []);
         for (const declaration of file.statements) {
             if (!ts.isClassDeclaration(declaration) || !declaration.name || !exports.has(checker.getSymbolAtLocation(declaration.name)!)) continue;
+            visit?.(declaration);
             const validator = annotation(checker, declaration, 'validator');
-            if (validator && ts.isCallExpression(validator)) {
-                const extracted = extractValidatorRules(declaration, checker, validator);
-                if (extracted) validators.push(extracted);
-            }
+            const explicitTarget = validator && ts.isCallExpression(validator) && validator.arguments[0] ?
+                originalSymbol(checker, validator.arguments[0]) : undefined;
+            const inheritedTarget = hasMetadata && !validator ? declaration.heritageClauses?.flatMap(clause => clause.types)
+                .filter(base => ['CommandValidator', 'QueryValidator', 'ConceptValidator', 'ModelValidator'].some(name =>
+                    isPackageSymbol(checker, base.expression, name, '@cratis/arc.core')))
+                .map(base => base.typeArguments?.[0] && checker.getTypeFromTypeNode(base.typeArguments[0]).getSymbol())[0] : undefined;
+            const target = explicitTarget || inheritedTarget;
+            if (target) validators.push(extractValidatorRules(declaration, target));
             if (annotation(checker, declaration, 'derivedType', 'fundamentals'))
                 resolver.resolve(checker.getTypeAtLocation(declaration), declaration);
             const isCommand = !!annotation(checker, declaration, 'command');
@@ -58,12 +59,14 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
             const pathOverride = stringArgument(annotation(checker, declaration, 'path') ?? annotation(checker, declaration, 'route'));
             const classRoles = roles(checker, declaration);
             if (isCommand) {
-                const fields = fieldsFor(declaration, checker, resolver, diagnostics);
-                concepts.set(key, declaration.members.filter(ts.isPropertyDeclaration).flatMap(member => {
+                const fields = fieldsFor(declaration, checker, resolver, diagnostics, hasMetadata);
+                const chain = classChain(declaration, checker);
+                concepts.set(key, chain.flatMap(owner => owner.members.filter(ts.isPropertyDeclaration)).flatMap(member => {
                     const symbol = checker.getTypeAtLocation(member).getSymbol();
                     return symbol && member.name && ts.isIdentifier(member.name) ? [{ name: member.name.text, symbol }] : [];
                 }));
-                const handle = declaration.members.find(member => ts.isMethodDeclaration(member) && member.name.getText() === 'handle');
+                const handle = [...chain].reverse().flatMap(owner => owner.members).find(member =>
+                    ts.isMethodDeclaration(member) && member.name.getText() === 'handle');
                 if (!handle || !ts.isMethodDeclaration(handle)) throw new Error(`${path}: ${owner} requires handle()`);
                 const result = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(handle)!);
                 const unwrapped = checker.getAwaitedType(result) ?? result;
@@ -91,9 +94,20 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                     if (!binding) {
                         const serviceBinding = explicit.some(item => ts.isCallExpression(item) && isPackageSymbol(checker, item.expression, 'service', '@cratis/arc.core') &&
                             item.arguments[0] && originalSymbol(checker, item.arguments[0]) === checker.getTypeAtLocation(parameter).symbol);
-                        const legacyClassService = config.options.experimentalDecorators === true && !explicit.length &&
-                            !!checker.getTypeAtLocation(parameter).symbol?.declarations?.some(ts.isClassDeclaration);
-                        if (!serviceBinding && !legacyClassService)
+                        const type = checker.getTypeAtLocation(parameter);
+                        const actual = type.isUnion() ? type.types.find(part =>
+                            !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined))) ?? type : type;
+                        const declaration = actual.symbol?.declarations?.find(ts.isClassDeclaration);
+                        const inferredService = !explicit.length && !!declaration && !declaration.members.some(member =>
+                            !!annotation(checker, member, 'field', 'fundamentals')) &&
+                            !actual.getBaseTypes()?.some(base => base.symbol?.getName() === 'ConceptAs');
+                        if (hasMetadata && !explicit.length && !inferredService) {
+                            const optional = !!parameter.questionToken || !!parameter.initializer || type.isUnion() &&
+                                type.types.some(part => !!(part.flags & ts.TypeFlags.Undefined));
+                            parameters.push({ name: parameterName, type: resolver.resolve(type, parameter, optional), optional });
+                            continue;
+                        }
+                        if (!serviceBinding && !(inferredService && (hasMetadata || program.getCompilerOptions().experimentalDecorators === true)))
                             throw new Error(`${path}:${file.getLineAndCharacterOfPosition(parameter.getStart()).line + 1}: unbound query parameter ${parameterName}`);
                         continue;
                     }
@@ -112,7 +126,8 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                 const options = explicit[0];
                 const declaredObservable = options && ts.isObjectLiteralExpression(options) && options.properties.some(property =>
                     ts.isPropertyAssignment(property) && property.name.getText() === 'observable' && property.initializer.kind === ts.SyntaxKind.TrueKeyword);
-                if (result.observable !== !!declaredObservable) throw new Error(`${path}: ${owner}.${name} observable return must match @query({ observable: true })`);
+                if (result.observable !== !!declaredObservable && (!hasMetadata || !!declaredObservable))
+                    throw new Error(`${path}: ${owner}.${name} observable return must match @query({ observable: true })`);
                 const element = resolver.resolve(result.type, member);
                 if (result.paged && (element.enumerable || element.void || element.nullable))
                     throw new Error(`${path}:${file.getLineAndCharacterOfPosition(member.getStart()).line + 1}: Unsupported paged query element`);
