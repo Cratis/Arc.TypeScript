@@ -1,7 +1,12 @@
 {
   "name": "@cratis/arc.server.codegen",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Deterministic manifest-based TypeScript clients for Arc Server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "CodeGeneration"
+  },
   "type": "module",
   "license": "MIT",
   "publishConfig": {

@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.server.mongodb",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -26,7 +26,7 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@cratis/arc.server": "^0.2.0",
+    "@cratis/arc.server": "^0.3.0",
     "mongodb": "^6.21.0"
   },
   "devDependencies": {

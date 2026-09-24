@@ -25,6 +25,7 @@ flowchart LR
 - **The core** owns everything that defines Arc behavior: the command and query pipelines, route conventions, result envelopes, validation, authorization, authentication handlers, correlation, and tenancy. It does not import an HTTP framework or a storage driver.
 - **A host adapter** translates between one HTTP framework and the core. It routes matching requests to the core, hands over the raw body and a cancellation signal, and writes the response. It adds no Arc behavior of its own.
 - **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.server.mongodb` reads query results from MongoDB. `@cratis/arc.server.chronicle` is an experimental, private package that appends events returned from a command.
+- **Client generation** is build-time tooling beside the runtime. The core exports a JSON manifest with `exportClientManifest`, and `@cratis/arc.server.codegen` renders proxies from that JSON. The core does not depend on `@cratis/arc` or on browser code.
 
 Keeping the core framework-independent means a behavior is implemented and tested once, and every adapter inherits it. A difference between adapters is either a limit of the host framework, documented per adapter, or a bug.
 
@@ -68,7 +69,7 @@ Parity means the same observable behavior on the wire, not the same implementati
 | `IObservable<T>` and `ISubject<T>` | Not decided. A source that holds a current value is needed to answer an HTTP snapshot with 200 instead of 202 |
 | `IQueryable<T>` paging and sorting | In-memory paging and sorting of arrays, or a page the data source already cut, returned with `queryPage` |
 | FluentValidation and DataAnnotations | Zod schemas for shape, and validator functions for rules |
-| Roslyn analyzers and a proxy generator that reads compiled assemblies | Neither can read TypeScript. Build-time checks and proxy generation need TypeScript-specific tooling, which is not built |
+| Roslyn analyzers and a proxy generator that reads compiled assemblies | No build-time analyzers. A bounded generator renders proxies from a manifest built from the output shapes you declare in `clientOutput`; it does not read TypeScript types, discover definitions, or cover the full type graph. See [Generate command and query clients](../guides/generate-clients.md) |
 
 Some differences are in the language itself and affect the wire:
 
@@ -90,7 +91,7 @@ The full list is in the [capability reference](../reference/capabilities.md#deli
 
 ## Integrations stay outside the core
 
-Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built against the public interfaces of the Chronicle TypeScript client, `@cratis/chronicle`. Namespace, correlation, and event routing are passed explicitly per request; there is no transaction, audit chain, or observer wait. The published SDK does not load in Node.js today, so the package stays private and experimental. See [Append Chronicle events from commands](../guides/chronicle.md).
+Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built against the public interfaces of the Chronicle TypeScript client, `@cratis/chronicle`. Namespace, correlation, and event routing are passed explicitly per request. The adapter adds no transaction, command-audit bridge, or observer-completion guarantee; the SDK retains its own auditing behavior. The pinned SDK 6.2.0 does not load in native Node.js, and this adapter remains unverified against a live kernel, so the package stays private and experimental. See [Append Chronicle events from commands](../guides/chronicle.md).
 
 The MongoDB integration follows the same rule: the application owns the client, the tenant-to-database mapping, and the filter, and the package only reads. See [Read models from MongoDB](../guides/mongodb.md).
 
@@ -98,12 +99,10 @@ The MongoDB integration follows the same rule: the application owns the client, 
 
 These questions do not have an answer yet. Each one affects behavior a client can observe:
 
-- How services and per-request dependencies reach handlers.
 - How commands and queries are discovered: explicit registration only, or build-time generation.
-- How TypeScript proxies are generated from a TypeScript backend.
+- Whether client generation grows beyond explicit manifests toward the coverage of Arc's .NET proxy generator.
 - Which source type observable queries use, and which adapters support WebSocket.
-- Whether adapters can hand over a principal from the host framework's authentication.
-- Tenant enforcement beyond `authorize`, admission limits, and which SQL tooling a SQL integration builds on.
+- Broader identity-provider integrations, admission limits, and which SQL tooling a SQL integration builds on.
 
 ## Related
 
