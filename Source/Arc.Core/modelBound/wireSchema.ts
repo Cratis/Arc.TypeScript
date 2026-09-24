@@ -74,7 +74,7 @@ export function decode(type: WireType, value: unknown, element?: WireType): unkn
 }
 export function encode(value: unknown): unknown {
     if (value === null || value === undefined) return value;
-    if (value instanceof ConceptAs) return encode(value.value);
+    if (value instanceof ConceptAs) return encode((value as ConceptAs<unknown>).value);
     if (value instanceof Date) return value.toISOString();
     if (value instanceof Guid || value instanceof DateOnly || value instanceof TimeOnly || value instanceof TimeSpan) return value.toString();
     if (Array.isArray(value)) return value.map(encode);

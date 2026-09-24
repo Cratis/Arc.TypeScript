@@ -33,7 +33,7 @@ export class ModelGraphValidator {
                             if (member == null) { member = undefined; break; }
                             member = Reflect.get(member as object, part);
                         }
-                        if (rule.kind !== 'notNull' && member instanceof ConceptAs) member = member.value;
+                        if (rule.kind !== 'notNull' && member instanceof ConceptAs) member = (member as ConceptAs<unknown>).value;
                         const applicable = rule.condition ? await rule.condition(value) : true;
                         if (signal.aborted) throw signal.reason ?? new Error('Validation cancelled');
                         if (!applicable) continue;

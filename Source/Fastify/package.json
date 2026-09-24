@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.fastify",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -27,7 +27,8 @@
   ],
   "dependencies": {
     "@cratis/arc.core": "workspace:^",
-    "@fastify/websocket": "^11.3.1"
+    "@fastify/websocket": "^11.3.1",
+    "fastify-plugin": "^6.0.0"
   },
   "peerDependencies": {
     "fastify": "^5.0.0"

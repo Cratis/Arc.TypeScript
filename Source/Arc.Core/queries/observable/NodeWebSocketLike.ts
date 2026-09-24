@@ -5,7 +5,7 @@
 export interface NodeWebSocketLike {
     readonly readyState: number;
     readonly bufferedAmount: number;
-    on(event: 'message', listener: (data: { toString(): string }, binary: boolean) => void): unknown;
+    on(event: 'message', listener: (data: { readonly byteLength?: number; toString(): string }, binary: boolean) => void): unknown;
     on(event: 'close' | 'error', listener: () => void): unknown;
     send(data: string, callback: (error?: Error) => void): void;
     close(code?: number, reason?: string): void;

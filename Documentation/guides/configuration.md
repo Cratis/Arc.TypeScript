@@ -182,10 +182,10 @@ With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticat
 | `maxObservableHubSubscriptionsPerConnection` | `number` | `256` | Subscriptions on one hub connection |
 | `maxObservableInboundFrames` / `maxObservableOutboundFrames` | `number` | `256` / `256` | Bounded transport queues |
 | `maxObservablePendingEmissions` | `number` | `256` | Pending snapshots from one structural subscribable |
-| `maxObservableInboundFrameBytes` / `maxObservableOutboundFrameBytes` | `number` | `65536` / `1048576` | Maximum incoming WS frame or SSE control JSON / outgoing frame |
+| `maxObservableInboundFrameBytes` / `maxObservableOutboundFrameBytes` | `number` | `65536` / `1048576` | Maximum incoming WS frame or SSE control JSON / outgoing frame; Arc closes oversized WS frames with 1009 even with shared WebSocket servers (set their `maxPayload` too) |
 | `maxObservableTombstones` | `number` | `1024` | Unsubscribe tombstones retained per hub connection for two minutes |
 | `observableHandshakeTimeoutMs` | `number` | `10000` | Maximum time to complete a Node WS upgrade handshake |
-| `observableShutdownTimeoutMs` | `number` | `10000` | Maximum time to join hub subscriptions during shutdown; independent of the handshake timeout |
+| `observableShutdownTimeoutMs` | `number` | `10000` | Maximum time to join hub subscriptions and direct WebSocket work during shutdown; independent of the handshake timeout and `runArc.close()` deadline |
 | `observableKeepAliveIntervalMs` | `number` | `30000` | Idle time before a hub Ping; `0` disables keep-alive |
 | `correlationHeader` | `string` | `'X-Correlation-ID'` | Header read and written for the correlation ID |
 | `tenantHeader` | `string` | `'x-cratis-tenant-id'` | Header read for the tenant when there is no `resolveTenant` |

@@ -11,6 +11,7 @@ import { stripPathBase } from '../../http/requestPath.js';
 import { directWebSocket } from './directWebSocket.js';
 import { prepareObservableUpgrade } from './prepareObservableUpgrade.js';
 import { WebSocketTransport } from './WebSocketTransport.js';
+import { handleObservableHubSocket } from './observableHosting.js';
 
 const bridges = new WeakMap<ArcServer, Map<HttpServer, () => Promise<void>>>();
 const reasons: Record<number, string> = {
@@ -28,9 +29,6 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
         perMessageDeflate: false });
     const connections = new Set<{ transport: WebSocketTransport; work: Promise<void> }>();
     const onUpgrade = (request: IncomingMessage, socket: Socket, head: Buffer): void => {
-        const onSocketError = (): void => { socket.destroy(); };
-        socket.on('error', onSocketError);
-        socket.once('close', () => socket.off('error', onSocketError));
         const raw = request.url ?? '';
         const rawPath = raw.split('?')[0];
         const path = rawPath ? stripPathBase(rawPath, pathBase) : undefined;
@@ -48,9 +46,15 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
             let ownedAlias: boolean;
             try { ownedAlias = !!path && arc.endpoints.has(decodeURIComponent(path)); }
             catch { ownedAlias = true; }
-            if (ownedAlias || host.listenerCount('upgrade') === 1) reject(404);
+            if (ownedAlias || host.listenerCount('upgrade') === 1) {
+                socket.on('error', () => socket.destroy());
+                reject(404);
+            }
             return;
         }
+        const onSocketError = (): void => { socket.destroy(); };
+        socket.on('error', onSocketError);
+        socket.once('close', () => socket.off('error', onSocketError));
         const perform = async (): Promise<void> => {
             let url: URL;
             try { url = new URL(raw, 'http://arc.invalid'); }
@@ -59,14 +63,14 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
             const routed = new URL(`${path}${url.search}`, 'http://arc.invalid');
             socket.setTimeout(arc.observableLimits.handshakeTimeoutMs, () => reject(408));
             const provided = await native?.(request);
-            if (socket.destroyed) return;
+            if (socket.destroyed || closing) { if (closing) reject(503); return; }
             const trusted: NativeRequestContext = { ...provided,
                 secure: provided?.secure ?? (request.socket instanceof TLSSocket && request.socket.encrypted === true),
                 remoteAddress: provided?.remoteAddress ?? request.socket.remoteAddress };
             const handshake = new Request(routed, { headers: new Headers(request.headers as Record<string, string>) });
             const prepared = await prepareObservableUpgrade(arc, handshake, trusted);
             if (prepared.status !== 101 || !prepared.resolved) { reject(prepared.status); return; }
-            if (socket.destroyed) return;
+            if (socket.destroyed || closing) { if (closing) reject(503); return; }
             socket.setTimeout(0);
             webSockets.handleUpgrade(request, socket, head, connection => {
                 socket.off('error', onSocketError);
@@ -75,7 +79,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
                     headers: new Headers(request.headers as Record<string, string>), signal: transport.signal
                 });
                 const work = path === '/.cratis/queries/ws'
-                    ? arc.handleObservableHubSocket(incoming, transport, trusted, prepared.resolved)
+                    ? handleObservableHubSocket(arc, incoming, transport, trusted, prepared.resolved)
                     : directWebSocket(arc, incoming, transport, trusted, prepared.resolved);
                 const active = { transport, work };
                 connections.add(active);
@@ -95,10 +99,23 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
         host.off('upgrade', onUpgrade);
         owned.delete(host);
         for (const connection of connections) connection.transport.close();
-        closing = Promise.allSettled([...connections].map(connection => connection.work)).then(outcomes => {
-            const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
-            if (failures.length) throw new AggregateError(failures, 'Arc WebSocket shutdown failed');
-        });
+        const active = [...connections];
+        closing = (async () => {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                const outcomes = await Promise.race([
+                    Promise.allSettled(active.map(connection => connection.work)),
+                    new Promise<never>((_, reject) => {
+                        timer = setTimeout(() => {
+                            for (const connection of active) connection.transport.socket.terminate();
+                            reject(new Error('Arc WebSocket shutdown timed out'));
+                        }, arc.observableLimits.shutdownTimeoutMs);
+                    })
+                ]);
+                const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+                if (failures.length) throw new AggregateError(failures, 'Arc WebSocket shutdown failed');
+            } finally { if (timer) clearTimeout(timer); }
+        })();
         return closing;
     };
     owned.set(host, dispose);

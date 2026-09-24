@@ -18,6 +18,9 @@ export class WebSocketTransport implements AsyncIterable<string> {
     constructor(readonly socket: NodeWebSocketLike, readonly limits: ObservableLimits = new ObservableLimits({})) {
         socket.on('message', (data, binary) => {
             if (binary) { this.close(1008, 'Text frames required'); return; }
+            if ((data.byteLength ?? Buffer.byteLength(data.toString())) > this.limits.inboundFrameBytes) {
+                this.close(1009, 'Inbound frame too large'); return;
+            }
             if (this.#pending.length >= this.limits.inboundFrames) { this.close(1013, 'Inbound queue full'); return; }
             this.#pending.push(data.toString());
             this.#wake?.();
