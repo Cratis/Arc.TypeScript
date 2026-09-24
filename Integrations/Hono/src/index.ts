@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Context, Env, Hono } from 'hono';
+import type { IncomingMessage, Server as HttpServer } from 'node:http';
+import { attachNodeWebSockets } from '@cratis/arc.server';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
 /** No TLS or principal is inferred from Fetch URLs/headers. Explicit callback must attest both. */
@@ -34,4 +36,10 @@ export function mountHono<E extends Env>(app: Hono<E>, server: ArcServer, native
         context.res.headers.delete(server.options.correlationHeader ?? 'X-Correlation-ID');
         return new Response(result.body, { status: result.status, statusText: result.statusText, headers });
     });
+}
+
+/** Attach Node upgrades after serve({ fetch: app.fetch }); Hono's Fetch responses still own HTTP/SSE. */
+export function mountHonoWebSockets(host: HttpServer, server: ArcServer,
+    native?: (request: IncomingMessage) => Omit<NativeRequestContext, 'secure'>): () => Promise<void> {
+    return attachNodeWebSockets(host, server, native);
 }

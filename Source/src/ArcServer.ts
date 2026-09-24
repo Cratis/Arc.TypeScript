@@ -20,6 +20,7 @@ import { observableOperation, isObservableOperation } from './queries/observable
 import { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { snapshot, snapshotOptions } from './queries/observable/snapshot.js';
 import { directSse } from './queries/observable/directSse.js';
+import { closeNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
 import { ObservableSubscriptionLimitError } from './queries/observable/ObservableSubscriptionLimitError.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
@@ -184,12 +185,17 @@ export class ArcServer {
 
     async dispose(): Promise<void> {
         this.#disposed = true;
+        const closing = closeNodeWebSockets(this);
         const sessions = [...this.#observableSessions, ...this.#snapshotSessions];
-        if (!sessions.length) {
+        if (!sessions.length && !closing) {
             if (this.#ownsServices) await this.services.dispose();
             return;
         }
         const failures: unknown[] = [];
+        if (closing) {
+            try { await closing; }
+            catch (error) { failures.push(error); }
+        }
         const outcomes = await Promise.allSettled(sessions.map(session => session.close()));
         failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown));
         if (this.#ownsServices) {

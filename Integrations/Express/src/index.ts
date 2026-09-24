@@ -4,7 +4,9 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
+import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import type { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import { attachNodeWebSockets } from '@cratis/arc.server';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
 const origin = 'http://arc.invalid';
@@ -45,4 +47,10 @@ export function mountExpress(app: Express, server: ArcServer, native?: (request:
             response.off('close', onClose);
         }
     });
+}
+
+/** Bridge upgrades on the listener returned by app.listen(); the Arc server owns protocol and shutdown. */
+export function mountExpressWebSockets(host: HttpServer, server: ArcServer,
+    native?: (request: IncomingMessage) => Omit<NativeRequestContext, 'secure'>): () => Promise<void> {
+    return attachNodeWebSockets(host, server, native);
 }

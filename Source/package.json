@@ -33,6 +33,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "ws": "^8.21.3",
     "zod": "^4.1.0"
   }
 }

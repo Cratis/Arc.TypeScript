@@ -4,6 +4,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
+import type { IncomingMessage } from 'node:http';
+import { attachNodeWebSockets } from '@cratis/arc.server';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
 const origin = 'http://arc.invalid';
@@ -56,4 +58,10 @@ export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (
                 handler: (request, reply) => dispatch(request, reply, path) });
         }
     });
+}
+
+/** Bridge upgrades on Fastify's Node server without replacing its HTTP routing. */
+export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
+    native?: (request: IncomingMessage) => Omit<NativeRequestContext, 'secure'>): () => Promise<void> {
+    return attachNodeWebSockets(app.server, server, native);
 }
