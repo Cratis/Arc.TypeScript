@@ -15,7 +15,7 @@ describe('when querying a page without paging or with Arc sorting', given(a_tena
     });
     it('should require Arc paging', () => should_reject_with_error(missing, 'requires options.paging'));
     it('should reject Arc sorting before database access', () => {
-        should_reject_with_error(unsupported, 'Arc sorting is not supported');
+        should_reject_with_error(unsupported, 'sorting is not allowed for field: title');
         context.db.notCalled.should.equal(true);
     });
 }));

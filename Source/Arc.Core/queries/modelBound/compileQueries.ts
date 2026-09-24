@@ -11,6 +11,7 @@ import type { ClassType } from '../../reflection/ClassType.js';
 import type { Parameter } from './Parameter.js';
 import type { WireType } from '../../reflection/WireType.js';
 import type { QueryMetadata } from './QueryMetadata.js';
+import type { QueryOptions } from '../QueryOptions.js';
 import { decode, encode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 
@@ -42,7 +43,7 @@ function inputFor(type: ClassType, name: string, parameters: readonly Parameter[
     const services: ServiceIdentifier<unknown>[] = [];
     for (const parameter of parameters) {
         if (parameter.kind === 'service') services.push(parameter.token);
-        else {
+        else if (parameter.kind === 'argument') {
             const folded = parameter.name.toLowerCase();
             if (names.has(folded)) throw new Error(`Ambiguous query argument: ${type.name}.${name}.${parameter.name}`);
             names.add(folded);
@@ -80,12 +81,12 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     const authorization = metadata.methodAuthorization?.get(name) ?? metadata.authorization;
     if (authorization?.anonymous && (authorization.authenticated || authorization.roles?.length))
         throw new Error(`Conflicting Arc authorization: ${type.name}.${name}`);
-    const perform = async (input: unknown): Promise<unknown> => {
+    const perform = async (input: unknown, options: QueryOptions): Promise<unknown> => {
         const values = input as Record<string, unknown>;
         const resolved = await resolveAll(services);
         let index = 0;
         const arguments_ = parameters.map(parameter => parameter.kind === 'service' ? resolved[index++] :
-            decode(parameter.type, values[parameter.name], parameter.element));
+            parameter.kind === 'options' ? options : decode(parameter.type, values[parameter.name], parameter.element));
         return method.apply(type, arguments_);
     };
     const descriptor = {
@@ -98,12 +99,12 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
             validateInput(parameters, declaration, graph, input, context) : undefined
     };
     if (declaration.observable) return {
-        definition: { ...descriptor, observe: async input => encodeObservable(await perform(input)) },
+        definition: { ...descriptor, observe: async (input, _context, options) => encodeObservable(await perform(input, options)) },
         dependencies: services, observable: true
     };
     return {
-        definition: { ...descriptor, perform: async input => {
-            const value = await perform(input);
+        definition: { ...descriptor, perform: async (input, _context, options) => {
+            const value = await perform(input, options);
             if (value && typeof value === 'object' &&
                 (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {
                 throw new Error(`Snapshot query ${type.name}.${name} returned an observable`);

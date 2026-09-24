@@ -3,6 +3,7 @@
 import { ConceptAs, DateOnly, Fields, Guid, TimeOnly, TimeSpan, type Field } from '@cratis/fundamentals';
 import { z } from 'zod';
 import { isArcTuple } from '../results/ArcTuple.js';
+import { isQueryPage, queryPage } from '../queries/QueryPage.js';
 import { readFieldOptions } from './readFieldOptions.js';
 import type { FieldOptions } from './FieldOptions.js';
 import type { WireType } from './WireType.js';
@@ -98,6 +99,7 @@ export function encode(value: unknown): unknown {
     if (value instanceof Guid || value instanceof DateOnly || value instanceof TimeOnly || value instanceof TimeSpan) {
         return value.toString();
     }
+    if (isQueryPage(value)) return queryPage(value.items.map(encode), value.totalItems, value.sorting);
     if (isArcTuple(value)) return value.values.map(encode);
     if (Array.isArray(value)) return value.map(encode);
     if (typeof value === 'object') {

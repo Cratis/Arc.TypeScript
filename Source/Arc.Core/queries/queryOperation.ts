@@ -10,6 +10,8 @@ import type { Operation } from '../http/Operation.js';
 import { recordFailure } from '../results/failureTracking.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
 import { prepareDependencies, dependencyFailure, validate, validatorFailure } from '../commands/OperationValidation.js';
+import { InvalidQuerySort } from './InvalidQuerySort.js';
+import { validation } from '../validation/ValidationResult.js';
 
 function querySchema(schema: z.ZodType): Record<string, unknown> {
     const json = z.toJSONSchema(schema);
@@ -43,6 +45,9 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 const data = await definition.perform(value, context, options);
                 return observable ? queryResult(context, { data }) : renderQueryData(definition, data, context, options);
             } catch (error) {
+                if (error instanceof InvalidQuerySort) return queryResult(context, {
+                    validationResults: [validation(error.message, ['sorting.field'])]
+                });
                 const failure = queryResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', ...(error instanceof ServiceDependencyError ? { validationResults: dependencyFailure(error) } : {}) });
                 recordFailure(failure, error);
                 return failure;
