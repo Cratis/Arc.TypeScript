@@ -3,6 +3,7 @@
 import type { z } from 'zod';
 import type { GeneratedApiOptions } from './GeneratedApiOptions.js';
 import type { AuthenticationHandler, CommandDefinition, Principal, QueryDefinition } from './index.js';
+import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import type { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
@@ -87,6 +88,10 @@ export interface ArcServerOptions {
     tenantHeader?: string;
     resolveTenant?: (request: Request, principal: Principal | undefined) => string | undefined | Promise<string | undefined>;
     authentication?: readonly AuthenticationHandler[];
+    /** Named authentication handlers, selected explicitly by @authorize({ schemes }). */
+    authenticationSchemes?: Readonly<Record<string, AuthenticationHandler>>;
+    /** Named policies checked at build time and evaluated in the command/query pipeline. */
+    authorizationPolicies?: Readonly<Record<string, AuthorizationPolicyRegistration>>;
     development?: boolean;
     logger?: (error: unknown, correlationId: string) => void;
     identityDetailsSchema?: Record<string, unknown>;
@@ -95,6 +100,8 @@ export interface ArcServerOptions {
     nativePrincipal?: boolean;
     tenancy?: TenancyOptions;
     /** Development-only anonymous discovery; never enabled by default. */
-    developmentUsers?: (context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>;
-    developmentTenants?: (context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>;
+    developmentUsers?: readonly ((context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>)[] |
+        ((context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>);
+    developmentTenants?: readonly ((context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>)[] |
+        ((context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>);
 }

@@ -29,6 +29,9 @@ import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
+import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
+import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
+import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
 export class ArcApplicationBuilder {
@@ -39,7 +42,9 @@ export class ArcApplicationBuilder {
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
     readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
-    #commandRunner?: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>;
+    readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
+    readonly #policies = new Map<string, AuthorizationPolicyRegistration>();
+    readonly #identityProviders: ClassType[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
@@ -68,10 +73,24 @@ export class ArcApplicationBuilder {
         this.#artifactObservers.push(observer);
         return this;
     }
-    /** Wrap validated command execution in an integration-owned asynchronous context. */
+    /** Wrap validated command execution in an ordered asynchronous context. */
     addCommandExecutionRunner(runner: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>): this {
-        if (this.#commandRunner || this.options.commandExecutionRunner) throw new Error('Only one command execution runner can be registered');
-        this.#commandRunner = runner;
+        this.#commandRunners.push(runner);
+        return this;
+    }
+    /** Register a unique named authorization policy before building the application. */
+    addAuthorizationPolicy(name: string, policy: AuthorizationPolicyRegistration): this {
+        if (!name.trim() || typeof policy !== 'function' || this.#policies.has(name) ||
+            Object.hasOwn(this.options.authorizationPolicies ?? {}, name)) throw new Error(`Invalid or duplicate authorization policy: ${name}`);
+        if (policy.prototype && typeof policy.prototype.authorize === 'function') {
+            const type = policy as (abstract new (...arguments_: never[]) => AuthorizationPolicy);
+            const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
+            const existing = registrations.find(registration => registration.token === type);
+            if (existing && existing.lifetime !== 'scoped')
+                throw new Error(`Authorization policy ${name} must be scoped`);
+            if (!existing) this.services.addScoped(type);
+        }
+        this.#policies.set(name, policy);
         return this;
     }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
@@ -86,6 +105,10 @@ export class ArcApplicationBuilder {
         let external = false;
         for (const observer of this.#artifactObservers) if (observer(type)) external = true;
         const metadata = ownMetadata(type);
+        if (isIdentityDetailsProvider(type)) {
+            if (!this.#identityProviders.includes(type)) this.#identityProviders.push(type);
+            return true;
+        }
         if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return external;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
@@ -131,8 +154,22 @@ export class ArcApplicationBuilder {
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
             throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
-        const server = new ArcServer({ ...this.options, commandExecutionRunner: this.#commandRunner ?? this.options.commandExecutionRunner,
-            commands, queries, observableQueries,
+        if (this.options.identityDetails && this.#identityProviders.length)
+            throw new Error('Explicit and discovered identity details providers cannot be combined');
+        if (!this.options.identityDetails && this.#identityProviders.length > 1)
+            throw new Error(`Multiple identity details providers found: ${this.#identityProviders.map(type => type.name).join(', ')}`);
+        const providerType = this.#identityProviders[0];
+        const instance = !this.options.identityDetails && providerType ? Reflect.construct(providerType, []) as IdentityDetailsProvider : undefined;
+        const discovered: IdentityDetailsProvider | undefined = instance && providerType ? {
+            schema: instance.schema, detailsType: instance.detailsType,
+            provide: (principal, context) => (Reflect.construct(providerType, []) as IdentityDetailsProvider).provide(principal, context)
+        } : undefined;
+        const runners = [...this.options.commandExecutionRunner ? [this.options.commandExecutionRunner] : [], ...this.#commandRunners];
+        const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
+            runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
+        const server = new ArcServer({ ...this.options, commands, queries, observableQueries, commandExecutionRunner,
+            identityDetails: this.options.identityDetails ?? discovered,
+            authorizationPolicies: { ...this.options.authorizationPolicies, ...Object.fromEntries(this.#policies) },
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
             commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
             commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
@@ -199,7 +236,9 @@ export class ArcApplicationBuilder {
     }
     private async preflight(server: ArcServer, dependencies: ServiceIdentifier<unknown>[],
         validators: ReadonlyMap<ClassType, ClassType<BaseValidator<unknown>>>): Promise<void> {
-        server.services.preflight(dependencies);
+        server.services.preflight([...dependencies, ...[...this.#policies.values()].filter(
+            (policy): policy is (abstract new (...arguments_: never[]) => AuthorizationPolicy) =>
+                typeof policy.prototype?.authorize === 'function')]);
         const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
             signal: new AbortController().signal, allowedSeverity: Severity.Error });
         try {

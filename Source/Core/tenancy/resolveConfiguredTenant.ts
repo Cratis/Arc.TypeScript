@@ -18,7 +18,7 @@ export function resolveConfiguredTenant(request: Request, principal: Principal |
     for (const source of options.sources) {
         if (source === 'header') selected = request.headers.get(header) ?? undefined;
         if (source === 'query') selected = url.searchParams.get(options.queryParameter ?? 'tenantId') ?? undefined;
-        if (source === 'fixed') selected = options.fixed;
+        if (source === 'fixed' || source === 'development') selected = options.fixed;
         if (source === 'claim') {
             const value = ownClaim(principal, options.claimType!);
             if (value !== undefined && typeof value !== 'string') throw new TenantRequestError(400);

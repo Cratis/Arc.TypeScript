@@ -79,7 +79,7 @@ The `ArcServer` constructor throws, so the process fails at startup instead of s
 - `allowedOrigins` is not a list of exact `http`/`https` origins or a predicate;
 - two operations share a namespace and name, compared case-insensitively;
 - two routes collide, including a command's `/validate` route and the reserved identity, discovery, metadata, and OpenAPI paths;
-- an `authorization` declaration combines `anonymous: true` with `authenticated: true` or with `roles`. `anonymous: true` together with an `authorize` callback is allowed, and the callback still runs;
+- an `authorization` declaration combines `anonymous: true` with `authenticated: true`, `roles`, `policy`, or `schemes`, or names an unknown policy or scheme. `anonymous: true` together with an `authorize` callback is allowed, and the callback still runs;
 - a schema has properties whose names differ only in case, or cannot be converted to JSON Schema.
 
 ## Disable the QUERY method
@@ -137,7 +137,7 @@ Leave `development` off in any environment a real user can reach. To keep the or
 
 ## Describe identity details and operations
 
-Use `identityDetails` to register `GET /.cratis/me`. Pair the callback with a Zod details schema; schema requests return its derived JSON Schema. The legacy `identityDetailsSchema` option still returns its value unchanged when no provider is configured; it cannot be combined with `identityDetails`.
+Use `identityDetails` to register `GET /.cratis/me`. Pair the callback with a Zod details schema or a `detailsType` with `@field` declarations; schema requests return its derived JSON Schema. The legacy `identityDetailsSchema` option still returns its value unchanged when no provider is configured; it cannot be combined with `identityDetails`.
 
 ```typescript title="arc.ts"
 import { ArcServer, AuthenticationStatus } from '@cratis/arc.core';
@@ -157,7 +157,7 @@ const arc = new ArcServer({
 
 With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticated:true,isAuthorized:true,roles,details}` and a Base64 `.cratis-identity` display cookie (`Path=/; SameSite=Lax`, not `HttpOnly`); anonymous returns 401, a provider returning `undefined` denies with 403. Its response always has `Cache-Control: no-store`. The cookie is not signed and **must never** be used to authenticate or authorize. The provider runs in the current execution context with owned scoped services, even on denial or error. Failure, including a rejected provider promise, returns a generic 500 without leaking provider details or setting an identity cookie. The JSON response retains Unicode; the cookie escapes non-ASCII JSON code units before Base64 so the existing client's `JSON.parse(atob(cookie))` can recover names and details, including emoji. The complete encoded Set-Cookie header is limited to 4096 bytes; oversized identities fail with a generic 500 rather than a partial display identity. Cookie bytes are not guaranteed to match .NET's JSON escaping.
 
-`/.cratis/users` and `/.cratis/tenants` return `[]` until you set `development: true` and explicitly supply `developmentUsers(context)` or `developmentTenants(context)` callbacks. Both routes are anonymous: never return secrets, production user inventories, or real tenant memberships. User entries have `{microsoftIdentity:{identityProvider,userId,userDetails,userRoles,claims:[{typ,val}]},details?}`; tenant entries have `{id,name}`. Results are capped at 100 entries and 32 KiB, preserving provider order and duplicates; invalid or failing providers return a generic 500. Discovery providers also have per-request owned service scopes.
+`/.cratis/users` and `/.cratis/tenants` return `[]` until you set `development: true` and explicitly supply `developmentUsers(context)` or `developmentTenants(context)` callbacks (or arrays of callbacks). Both routes are anonymous: never return secrets, production user inventories, or real tenant memberships. User entries have `{microsoftIdentity:{identityProvider,userId,userDetails,userRoles,claims:[{typ,val}]},details?}`; tenant entries have `{id,name}`. Results are capped at 100 entries and 32 KiB, preserving provider order and duplicates; invalid or failing providers return a generic 500. Discovery providers also have per-request owned service scopes.
 
 `summary` on a definition appears as `documentationSummary` in `/.cratis/commands` and `/.cratis/queries`, and as the operation summary in `/openapi.json`. The OpenAPI document uses OpenAPI 3.1, lists commands as POST with a JSON request body and queries as GET with query parameters, and has the fixed title `Arc` and version `0.1.0`.
 
@@ -189,15 +189,17 @@ With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticat
 | `correlationHeader` | `string` | `'X-Correlation-ID'` | Header read and written for the correlation ID |
 | `tenantHeader` | `string` | `'x-cratis-tenant-id'` | Header read for the tenant when there is no `resolveTenant` |
 | `resolveTenant` | `(request, principal) => string \| undefined`, or a promise of it | None | Resolves the tenant; its result is final |
-| `authentication` | `AuthenticationHandler[]` | `[]` | Handlers tried in order to authenticate the caller |
-| `nativePrincipal` | `boolean` | `false` | Trust only an explicit adapter-provided verified principal; cannot coexist with authentication handlers |
-| `tenancy` | `TenancyOptions` | None | Explicit ordered `sources` (`header`, `query`, `claim`, `fixed`, `subdomain`); optional `queryParameter`, `claimType`, `fixed`, `baseDomain`, `required`, `membershipClaim` |
+| `authentication` | `AuthenticationHandler[]` | `[]` | Handlers tried in order to authenticate the caller; use `jwtBearer()` or guarded `microsoftIdentityPlatform()` when appropriate |
+| `authenticationSchemes` | `Record<string, AuthenticationHandler>` | `{}` | Named handlers selected by `@authorize({ schemes })`; first recognized result wins |
+| `authorizationPolicies` | `Record<string, AuthorizationPolicy>` | `{}` | Named async rules; the builder also has `addAuthorizationPolicy(name, policy)` |
+| `nativePrincipal` | `boolean` | `false` | Trust only an explicit adapter-provided verified principal; cannot coexist with default authentication handlers |
+| `tenancy` | `TenancyOptions` | None | Explicit ordered `sources` (`header`, `query`, `claim`, `fixed`, `development`, `subdomain`); optional `queryParameter`, `claimType`, `fixed`, `baseDomain`, `required`, `membershipClaim` |
 | `development` | `boolean` | `false` | Return exception messages and stack traces to HTTP callers |
 | `logger` | `(error, correlationId) => void`, or a promise of `void` | None | Receives the original error for failed HTTP requests |
 | `identityDetailsSchema` | `Record<string, unknown>` | `{}` | Legacy schema body when no provider is configured |
-| `identityDetails` | `{schema: z.ZodType, provide(principal, context): unknown}` | None | Registers conditional me route; `undefined` denies; details must parse as schema |
-| `developmentUsers` | `(context) => DevelopmentUser[]`, or a promise | None | Explicit development-only anonymous discovery provider |
-| `developmentTenants` | `(context) => DevelopmentTenant[]`, or a promise | None | Explicit development-only anonymous discovery provider |
+| `identityDetails` | `{schema?: z.ZodType, detailsType?: WireType, provide(principal, context): unknown}` | None | Registers conditional me route; `undefined` denies; details must parse as schema |
+| `developmentUsers` | `(context) => DevelopmentUser[]`, a promise, or an array of providers | None | Explicit development-only anonymous discovery providers, aggregated |
+| `developmentTenants` | `(context) => DevelopmentTenant[]`, a promise, or an array of providers | None | Explicit development-only anonymous discovery providers, aggregated |
 
 Commands and queries share the fields `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, and `validatorDependencies`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required); an observable query takes `observe` (required) and may return an async iterable or structural subscribable. See [Stream an observable query](observable-queries.md).
 

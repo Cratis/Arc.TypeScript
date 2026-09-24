@@ -175,8 +175,8 @@ export function exportClientManifest(server: ArcServer): ClientManifest {
             roles: [...new Set((operation.authorization?.requirements ?? [operation.authorization])
                 .flatMap(requirement => requirement?.roles ?? []))],
             authentication: operation.authorization?.anonymous ? 'anonymous' :
-                operation.authorization?.authenticated || operation.authorization?.requirements?.some(requirement => requirement.roles?.length) ||
-                    operation.authorization?.roles?.length ? 'authenticated' : 'default',
+                operation.authorization?.authenticated || operation.authorization?.requirements?.some(requirement => requirement.authenticated || requirement.roles?.length || requirement.policy || requirement.schemes?.length) ||
+                    operation.authorization?.roles?.length || operation.authorization?.policy || operation.authorization?.schemes?.length ? 'authenticated' : 'default',
             dynamicAuthorization: operation.dynamicAuthorization === true,
             input, output: operation.clientOutput.output
         };

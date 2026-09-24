@@ -15,6 +15,7 @@
   "files": [],
   "references": [
     { "path": "Source/Core" },
+    { "path": "Source/CodeAnalysis" },
     { "path": "Source/Express" },
     { "path": "Source/Fastify" },
     { "path": "Source/Hono" },

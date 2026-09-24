@@ -40,13 +40,13 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.5.0"
+    "@cratis/chronicle": "npm:6.5.1"
     "@cratis/fundamentals": "npm:7.19.6"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.9.0
-    "@cratis/arc.testing": ^0.9.0
-    "@cratis/chronicle": ^6.5.0
+    "@cratis/arc.core": ^0.11.0
+    "@cratis/arc.testing": ^0.11.0
+    "@cratis/chronicle": ^6.5.1
     "@cratis/fundamentals": ^7.19.6
     zod: ^4.1.0
   peerDependenciesMeta:
@@ -106,6 +106,7 @@ __metadata:
   dependencies:
     "@cratis/arc.testing": "workspace:^"
     "@cratis/fundamentals": "npm:7.19.6"
+    jose: "npm:^6.1.0"
     ws: "npm:^8.21.3"
     zod: "npm:^4.1.0"
   peerDependencies:
@@ -166,7 +167,7 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.6"
     mongodb: "npm:^6.21.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.9.0
+    "@cratis/arc.core": ^0.11.0
     "@cratis/fundamentals": ^7.19.6
     mongodb: ^6.21.0
   languageName: unknown
@@ -225,9 +226,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.5.0":
-  version: 6.5.0
-  resolution: "@cratis/chronicle@npm:6.5.0"
+"@cratis/chronicle@npm:6.5.1":
+  version: 6.5.1
+  resolution: "@cratis/chronicle@npm:6.5.1"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
     "@cratis/chronicle.contracts": "npm:19.4.0"
@@ -239,14 +240,37 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/204bfaafa0cd5839e5cff6477307a42c43d3b07496fba4167b3d93f519c2a19ab2c80668aa1dfc620db0ab6cd0fe7195aa7cf38a0d3c2f312cc04449b32cdeef
+  checksum: 10c0/3a00926c51e61b06dca4b681afde22719cb8868c17daa15eba3d102d5243c4775e7ca8c9d952b20f23ca3a2abba7cb459136b7cca576d28a13bcef70c20ab771
   languageName: node
   linkType: hard
 
-"@cratis/fundamentals@npm:7.19.6, @cratis/fundamentals@npm:^7.19.3":
+"@cratis/eslint-plugin-arc-core@workspace:Source/CodeAnalysis":
+  version: 0.0.0-use.local
+  resolution: "@cratis/eslint-plugin-arc-core@workspace:Source/CodeAnalysis"
+  dependencies:
+    "@typescript-eslint/parser": "npm:^8.70.1"
+    "@typescript-eslint/rule-tester": "npm:^8.70.1"
+    "@typescript-eslint/utils": "npm:^8.70.1"
+    eslint: "npm:^10.11.0"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+  peerDependencies:
+    "@typescript-eslint/parser": ^8.70.0
+    eslint: ^10.0.0
+    typescript: ">=4.8.4 <6.1.0"
+  languageName: unknown
+  linkType: soft
+
+"@cratis/fundamentals@npm:7.19.6":
   version: 7.19.6
   resolution: "@cratis/fundamentals@npm:7.19.6"
   checksum: 10c0/815314c051bb17b72803746b71b9e330610d0ad9b5606a53b960796df7366c33dcbec436fc60fcc999b60fb6bd488f938a31440bb6d85cf87821bc60b62995b5
+  languageName: node
+  linkType: hard
+
+"@cratis/fundamentals@npm:^7.19.3":
+  version: 7.19.3
+  resolution: "@cratis/fundamentals@npm:7.19.3"
+  checksum: 10c0/e67e8c0d124f46b458346f52256956c5cce489a4ad980b4468085f5a8a6221ba8d7495a8e9e9c5a318372f4c727c5881811b5bcb95afbcab55cfd945dc2bf5ce
   languageName: node
   linkType: hard
 
@@ -1288,7 +1312,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:8.70.1":
+"@typescript-eslint/parser@npm:8.70.1, @typescript-eslint/parser@npm:^8.70.1":
   version: 8.70.1
   resolution: "@typescript-eslint/parser@npm:8.70.1"
   dependencies:
@@ -1314,6 +1338,24 @@ __metadata:
   peerDependencies:
     typescript: ">=4.8.4 <6.1.0"
   checksum: 10c0/3f168d3dd18fd63718e0758c6e4f28741640c2dc38f18a46c9f2276bdc8a6e0927bfcd1f0cf40e01b6c2e3c2eac179ff6ed916c5ad539e284fb66511066e1425
+  languageName: node
+  linkType: hard
+
+"@typescript-eslint/rule-tester@npm:^8.70.1":
+  version: 8.70.1
+  resolution: "@typescript-eslint/rule-tester@npm:8.70.1"
+  dependencies:
+    "@typescript-eslint/parser": "npm:8.70.1"
+    "@typescript-eslint/typescript-estree": "npm:8.70.1"
+    "@typescript-eslint/utils": "npm:8.70.1"
+    ajv: "npm:^6.12.6"
+    json-stable-stringify-without-jsonify: "npm:^1.0.1"
+    lodash.merge: "npm:4.6.2"
+    semver: "npm:^7.7.3"
+  peerDependencies:
+    eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+    typescript: ">=4.8.4 <6.1.0"
+  checksum: 10c0/8a3586b9d70a83ca427d57ea9b3f30e8722f29d0a5ac633ee4e519712aa3cd4eda42a27a0c747ca91371984f7b2aee2f89aa5398d6f6cdd9cf863c91db880cb4
   languageName: node
   linkType: hard
 
@@ -1378,7 +1420,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/utils@npm:8.70.1":
+"@typescript-eslint/utils@npm:8.70.1, @typescript-eslint/utils@npm:^8.70.1":
   version: 8.70.1
   resolution: "@typescript-eslint/utils@npm:8.70.1"
   dependencies:
@@ -1714,7 +1756,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^6.14.0":
+"ajv@npm:^6.12.6, ajv@npm:^6.14.0":
   version: 6.15.0
   resolution: "ajv@npm:6.15.0"
   dependencies:
@@ -1782,6 +1824,8 @@ __metadata:
     "@types/sinon": "npm:^17.0.4"
     "@types/sinon-chai": "npm:^4.0.0"
     "@types/ws": "npm:^8.18.1"
+    "@typescript-eslint/rule-tester": "npm:^8.70.1"
+    "@typescript-eslint/utils": "npm:^8.70.1"
     "@typescript/native": "npm:typescript@^7.0.2"
     chai: "npm:^5.3.3"
     chai-as-promised: "npm:^8.0.2"
@@ -3243,6 +3287,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jose@npm:^6.1.0":
+  version: 6.2.12
+  resolution: "jose@npm:6.2.12"
+  checksum: 10c0/e8582b946fabcae228819982dda4849908c353e9cb098f02f773635aa0d2f4917f17484c7441b8d526e564013b4cf96951455c94f81d0a39ee765bad44ce293d
+  languageName: node
+  linkType: hard
+
 "js-tokens@npm:^3.0.0 || ^4.0.0":
   version: 4.0.0
   resolution: "js-tokens@npm:4.0.0"
@@ -3492,6 +3543,13 @@ __metadata:
   version: 4.3.0
   resolution: "lodash.camelcase@npm:4.3.0"
   checksum: 10c0/fcba15d21a458076dd309fce6b1b4bf611d84a0ec252cb92447c948c533ac250b95d2e00955801ebc367e5af5ed288b996d75d37d2035260a937008e14eaf432
+  languageName: node
+  linkType: hard
+
+"lodash.merge@npm:4.6.2":
+  version: 4.6.2
+  resolution: "lodash.merge@npm:4.6.2"
+  checksum: 10c0/402fa16a1edd7538de5b5903a90228aa48eb5533986ba7fa26606a49db2572bf414ff73a2c9f5d5fd36b31c46a5d5c7e1527749c07cbcf965ccff5fbdf32c506
   languageName: node
   linkType: hard
 

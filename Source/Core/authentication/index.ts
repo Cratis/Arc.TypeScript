@@ -3,3 +3,6 @@
 export { AuthenticationStatus } from './AuthenticationStatus.js';
 export type { AuthenticationHandler } from './AuthenticationHandler.js';
 export type { AuthenticationResult } from './AuthenticationResult.js';
+export { microsoftIdentityPlatform, microsoftIdentityClaims } from './microsoftIdentityPlatform.js';
+export { jwtBearer } from './jwtBearer.js';
+export type { JwtBearerOptions } from './jwtBearer.js';

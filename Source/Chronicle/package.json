@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.chronicle",
-  "version": "0.9.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -28,9 +28,9 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.9.0",
-    "@cratis/arc.testing": "^0.9.0",
-    "@cratis/chronicle": "^6.5.0",
+    "@cratis/arc.core": "^0.11.0",
+    "@cratis/arc.testing": "^0.11.0",
+    "@cratis/chronicle": "^6.5.1",
     "@cratis/fundamentals": "^7.19.6",
     "zod": "^4.1.0"
   },
@@ -42,7 +42,7 @@
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
-    "@cratis/chronicle": "6.5.0",
+    "@cratis/chronicle": "6.5.1",
     "@cratis/fundamentals": "7.19.6",
     "zod": "^4.1.0"
   }
