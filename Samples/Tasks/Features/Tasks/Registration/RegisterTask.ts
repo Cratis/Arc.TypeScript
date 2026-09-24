@@ -6,6 +6,7 @@ import { TaskId } from '../TaskId.js';
 import { TaskTitle } from '../TaskTitle.js';
 import { Tasks } from '../Tasks.js';
 
+/** Register a task. */
 @command()
 export class RegisterTask {
     @field(TaskId) id!: TaskId;

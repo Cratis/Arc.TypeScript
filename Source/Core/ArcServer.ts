@@ -243,5 +243,5 @@ export class ArcServer {
             reserveSession: (session, context) => this.#sessions.reserveSession(session, context)
         }, request, native);
     }
-    openApi(): Record<string, unknown> { return renderOpenApi(this.commands, this.queries); }
+    openApi(): Record<string, unknown> { return renderOpenApi(this.commands, this.queries, this.options); }
 }

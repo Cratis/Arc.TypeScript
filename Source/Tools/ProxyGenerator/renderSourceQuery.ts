@@ -1,14 +1,17 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { QueryHttpMethod } from '@cratis/arc.core';
 import type { SourceModel } from './SourceModel.js';
 import type { SourceOperation } from './SourceOperation.js';
-import { queryClassName, quote, typeImports, type SourceRenderOptions } from './renderSource.js';
+import { aliasTypes, queryClassName, quote, typeImports, type SourceRenderOptions } from './renderSource.js';
 import { renderRecordedRules } from './renderRecordedRules.js';
 import type { RecordedRule } from './RecordedRule.js';
 
 export function renderSourceQuery(operation: SourceOperation, path: string, destinations: ReadonlyMap<string, string>, route: string, modelDefinition?: SourceModel,
     rules: readonly RecordedRule[] = [], diagnostic: (message: string) => void = message => process.stderr.write(`${message}\n`), options: SourceRenderOptions = {}): string {
     const name = queryClassName(operation.name);
+    const [resolvedResult, ...fieldTypes] = aliasTypes([operation.result, ...operation.fields.map(field => field.type)], path, destinations, name);
+    operation = { ...operation, result: resolvedResult!, fields: operation.fields.map((field, index) => ({ ...field, type: fieldTypes[index]! })) };
     const result = operation.result;
     if (result.void) throw new Error(`Query ${name} cannot return void`);
     const observable = operation.kind === 'observable';
@@ -18,7 +21,7 @@ export function renderSourceQuery(operation: SourceOperation, path: string, dest
     const validation = renderRecordedRules(name, 'QueryValidator', parameterType || 'object', rules, diagnostic, operation.fields.map(field => field.name));
     const generic = `${result.text}${parameterType ? `, ${parameterType}` : ''}`;
     const base = observable ? 'ObservableQueryFor' : 'QueryFor';
-    const imports = [...new Set([result, ...operation.fields.map(field => field.type)].flatMap(type => typeImports(type, path, destinations, options)))].sort();
+    const imports = [...new Set([result!, ...operation.fields.map(field => field.type)].flatMap(type => typeImports(type, path, destinations, options)))].sort();
     const fields = operation.fields.map(field => `    ${field.name}!: ${field.type.text};`).join('\n');
     const params = operation.fields.length ? `export interface ${parameterType} {\n${operation.fields.map(field => `    ${field.name}${field.optional ? '?' : ''}: ${field.type.text};`).join('\n')}\n}\n\n` : '';
     const request = operation.fields.filter(field => !field.optional).map(field => `            ${quote(field.name)},`).join('\n');
@@ -44,12 +47,12 @@ export function renderSourceQuery(operation: SourceOperation, path: string, dest
     hooks.push(`    static when(condition: boolean): ${when}<${name}, ${generic}> {\n        return new ${when}<${name}, ${generic}>(${name}, condition);\n    }`);
     const coreImports = [base, 'QueryResultWithState', ...(validation ? ['QueryValidator'] : []), ...(array ? ['Sorting', 'Paging'] : []),
         ...(array && modelDefinition?.fields.length ? ['SortingActions', observable ? 'SortingActionsForObservableQuery' : 'SortingActionsForQuery'] : []),
-        ...(observable && array ? ['ChangeSet'] : [])];
+        ...(observable && array ? ['ChangeSet'] : []), ...(operation.httpMethod ? ['QueryHttpMethod'] : [])];
     const reactImports = [hook, suspense, ...(array ? [`${hook}WithPaging`, `${suspense}WithPaging`, 'SetPage', 'SetPageSize'] : []),
         ...(observable && array ? ['useChangeStream'] : []), ...(!observable ? ['PerformQuery'] : []),
         ...(array || !observable ? ['SetSorting'] : []), when];
     const sortingMembers = array ? `\n    get sortBy(): ${name}SortBy { return this._sortBy; }\n    static get sortBy(): ${name}SortByWithoutQuery { return this._sortBy; }\n` : '';
     const sortingAction = observable ? 'SortingActionsForObservableQuery' : 'SortingActionsForQuery';
     const sortClasses = array ? `class ${name}SortBy {\n${modelDefinition?.fields.map(field => `    readonly ${field.name}: ${sortingAction}<${result.text}>;`).join('\n') ?? ''}\n    constructor(readonly query: ${name}) {\n${modelDefinition?.fields.map(field => `        this.${field.name} = new ${sortingAction}<${result.text}>(${quote(field.name)}, query);`).join('\n') ?? ''}\n    }\n}\nclass ${name}SortByWithoutQuery {\n${modelDefinition?.fields.map(field => `    readonly ${field.name} = new SortingActions(${quote(field.name)});`).join('\n') ?? ''}\n}\n\n` : '';
-    return `import { ${coreImports.map(item => ['QueryResultWithState', 'Sorting', 'ChangeSet'].includes(item) ? `type ${item}` : item).join(', ')} } from '@cratis/arc/queries';\nimport { ${reactImports.map(item => ['SetPage', 'SetPageSize', 'PerformQuery', 'SetSorting'].includes(item) ? `type ${item}` : item).join(', ')} } from '@cratis/arc.react/queries';\nimport { ParameterDescriptor } from '@cratis/arc/reflection';\n${imports.join('\n')}${imports.length ? '\n' : ''}\n${sortClasses}${params}${validation}export class ${name} extends ${base}<${generic}> {\n    readonly route: string = ${quote(route)};\n    readonly queryName: string = ${quote([operation.namespace, operation.owner, operation.name].filter(Boolean).join('.'))};\n${validation ? `    readonly validation: QueryValidator = new ${name}Validator();\n` : ''}    readonly treatWarningsAsErrors: boolean = false;\n    readonly roles: string[] = [${operation.roles.map(quote).join(', ')}];\n    readonly defaultValue: ${result.text} = ${array ? '[]' : `{} as ${result.text}`};\n${array ? `    private readonly _sortBy: ${name}SortBy;\n    private static readonly _sortBy: ${name}SortByWithoutQuery = new ${name}SortByWithoutQuery();\n` : ''}\n    constructor() {\n        super(${options.emitInterfaces && result.model ? 'Object' : result.constructor}, ${array});${array ? `\n        this._sortBy = new ${name}SortBy(this);` : ''}\n    }\n\n    get requiredRequestParameters(): string[] {\n        return [\n${request}\n        ];\n    }\n\n    readonly parameterDescriptors: ParameterDescriptor[] = [\n${descriptors}\n    ];\n${fields ? `\n${fields}\n` : ''}${sortingMembers}\n${hooks.join('\n\n')}\n}\n`;
+    return `import { ${coreImports.map(item => ['QueryResultWithState', 'Sorting', 'ChangeSet'].includes(item) ? `type ${item}` : item).join(', ')} } from '@cratis/arc/queries';\nimport { ${reactImports.map(item => ['SetPage', 'SetPageSize', 'PerformQuery', 'SetSorting'].includes(item) ? `type ${item}` : item).join(', ')} } from '@cratis/arc.react/queries';\nimport { ParameterDescriptor } from '@cratis/arc/reflection';\n${imports.join('\n')}${imports.length ? '\n' : ''}\n${sortClasses}${params}${validation}export class ${name} extends ${base}<${generic}> {\n    readonly route: string = ${quote(route)};\n    readonly queryName: string = ${quote([operation.namespace, operation.owner, operation.name].filter(Boolean).join('.'))};\n${validation ? `    readonly validation: QueryValidator = new ${name}Validator();\n` : ''}    readonly treatWarningsAsErrors: boolean = ${operation.treatWarningsAsErrors ?? false};\n    readonly roles: string[] = [${operation.roles.map(quote).join(', ')}];\n    readonly defaultValue: ${result.text} = ${array ? '[]' : `{} as ${result.text}`};\n${array ? `    private readonly _sortBy: ${name}SortBy;\n    private static readonly _sortBy: ${name}SortByWithoutQuery = new ${name}SortByWithoutQuery();\n` : ''}\n    constructor() {\n        super(${options.emitInterfaces && result.model ? 'Object' : result.constructor}, ${array});${array ? `\n        this._sortBy = new ${name}SortBy(this);` : ''}${operation.httpMethod ? `\n        this.setHttpMethod(QueryHttpMethod.${Object.entries(QueryHttpMethod).find(([, value]) => value === operation.httpMethod)?.[0]});` : ''}\n    }\n\n    get requiredRequestParameters(): string[] {\n        return [\n${request}\n        ];\n    }\n\n    readonly parameterDescriptors: ParameterDescriptor[] = [\n${descriptors}\n    ];\n${fields ? `\n${fields}\n` : ''}${sortingMembers}\n${hooks.join('\n\n')}\n}\n`;
 }
