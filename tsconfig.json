@@ -14,7 +14,7 @@
   },
   "files": [],
   "references": [
-    { "path": "Source/Arc.Core" },
+    { "path": "Source/Core" },
     { "path": "Source/Express" },
     { "path": "Source/Fastify" },
     { "path": "Source/Hono" },

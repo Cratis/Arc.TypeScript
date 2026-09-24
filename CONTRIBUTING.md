@@ -16,7 +16,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 
 | Folder | Contents |
 | --- | --- |
-| `Source/Arc.Core` | `@cratis/arc.core`, the host-independent core and standalone Node host, with co-located specs |
+| `Source/Core` | `@cratis/arc.core`, the host-independent core and standalone Node host, with co-located specs |
 | `Source/Express`, `Source/Fastify`, `Source/Hono` | The framework-specific adapters, each with co-located specs |
 | `Source/Testing` | `@cratis/arc.testing`, the scenario and assertion helpers |
 | `Source/MongoDB` | The optional MongoDB read helper, with unit specs and a live replica-set spec |

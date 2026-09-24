@@ -3,7 +3,7 @@
 import { createServer, type Server } from 'node:http';
 import express from 'express';
 import { ArcApplication } from '@cratis/arc.core';
-import { Echo } from '../../../Arc.Core/for_ArcApplicationBuilder/given/Echo.js';
+import { Echo } from '../../../Core/for_ArcApplicationBuilder/given/Echo.js';
 import { mountExpress } from '../../index.js';
 
 describe('when mounting a model-bound application in Express', () => {

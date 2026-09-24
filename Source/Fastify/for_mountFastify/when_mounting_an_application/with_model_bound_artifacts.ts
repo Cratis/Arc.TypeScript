@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ArcApplication } from '@cratis/arc.core';
-import { Echo } from '../../../Arc.Core/for_ArcApplicationBuilder/given/Echo.js';
+import { Echo } from '../../../Core/for_ArcApplicationBuilder/given/Echo.js';
 import { mountFastify } from '../../index.js';
 
 describe('when mounting a model-bound application in Fastify', () => {

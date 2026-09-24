@@ -44,7 +44,7 @@ Give the query an `argumentsModel` with matching `@field` declarations, and targ
 static byTerm(term: SearchTerm): string { return term.value; }
 ```
 
-The [executable example](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Arc.Core/validation/for_ModelGraphValidator/given/Search.ts) shows the surrounding read model. The query model validator runs once, then Arc visits its fields for concept validators. Without an arguments model, the query validates each supplied non-null argument's concept graph under that argument name. Queries ignore `X-Allowed-Severity`.
+The [executable example](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Core/validation/for_ModelGraphValidator/given/Search.ts) shows the surrounding read model. The query model validator runs once, then Arc visits its fields for concept validators. Without an arguments model, the query validates each supplied non-null argument's concept graph under that argument name. Queries ignore `X-Allowed-Severity`.
 
 ## Use services or asynchronous rules
 
