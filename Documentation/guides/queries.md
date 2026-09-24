@@ -6,7 +6,7 @@ description: Send query arguments with GET or QUERY, page and sort results in me
 A query receives its arguments from a URL or a JSON body, and a client often asks for one page of the result in a particular order. Arc for TypeScript binds the arguments to your Zod schema, and either pages and sorts the returned array itself or accepts a page your data source has already produced.
 
 ```typescript title="tasks.ts"
-import { ArcServer, defineQuery, queryPage } from '@cratis/arc.server';
+import { ArcServer, defineQuery, queryPage } from '@cratis/arc.core';
 import { z } from 'zod';
 
 interface Task { id: string; title: string; tags: string[] }

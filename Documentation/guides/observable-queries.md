@@ -12,8 +12,8 @@ In the Arc for TypeScript workspace, put this in `observable.ts`. The example bi
 ```typescript title="observable.ts"
 import express from 'express';
 import { z } from 'zod';
-import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.server';
-import { mountExpress, mountExpressWebSockets } from '@cratis/arc.server.express';
+import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.core';
+import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
 
 const numbers = CurrentValueSubject.of<number[]>([1]);
 const query = defineObservableQuery({

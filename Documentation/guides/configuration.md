@@ -12,8 +12,8 @@ These options come from the current source and can still change. Identity and te
 ## A configured server
 
 ```typescript title="arc.ts"
-import { ArcServer, AuthenticationStatus, currentContext, defineCommand, defineQuery } from '@cratis/arc.server';
-import type { AuthenticationHandler } from '@cratis/arc.server';
+import { ArcServer, AuthenticationStatus, currentContext, defineCommand, defineQuery } from '@cratis/arc.core';
+import type { AuthenticationHandler } from '@cratis/arc.core';
 import { z } from 'zod';
 
 // Development only: a fixed token instead of real token verification.
@@ -141,7 +141,7 @@ Leave `development` off in any environment a real user can reach. To keep the or
 Use `identityDetails` to register `GET /.cratis/me`. Pair the callback with a Zod details schema; schema requests return its derived JSON Schema. The legacy `identityDetailsSchema` option still returns its value unchanged when no provider is configured; it cannot be combined with `identityDetails`.
 
 ```typescript title="arc.ts"
-import { ArcServer, AuthenticationStatus } from '@cratis/arc.server';
+import { ArcServer, AuthenticationStatus } from '@cratis/arc.core';
 import { z } from 'zod';
 
 // Local development only; verify real credentials with a trusted authenticator.

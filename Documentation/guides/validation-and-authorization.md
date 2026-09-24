@@ -14,8 +14,8 @@ Named authorization policies, authentication schemes, concept validators, and va
 This command renames a task. It is an illustration: the bearer tokens are fixed development values, not real token verification.
 
 ```typescript title="tasks.ts"
-import { ArcServer, AuthenticationStatus, defineCommand, rejected, response, validation } from '@cratis/arc.server';
-import type { AuthenticationHandler, CommandFilter } from '@cratis/arc.server';
+import { ArcServer, AuthenticationStatus, defineCommand, rejected, response, validation } from '@cratis/arc.core';
+import type { AuthenticationHandler, CommandFilter } from '@cratis/arc.core';
 import { z } from 'zod';
 
 interface Task { id: string; tenant: string; owner: string; title: string }

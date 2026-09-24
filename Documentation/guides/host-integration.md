@@ -17,17 +17,17 @@ The adapters are not published to npm. Observable queries use the same HTTP rout
 
 | Package | Export | Host framework peer range |
 | --- | --- | --- |
-| `@cratis/arc.server` | `ArcServer`, `defineCommand`, `defineQuery`, `defineObservableQuery`, and result helpers | None |
-| `@cratis/arc.server.express` | `mountExpress(app, server)` | `express` `^5.0.0` |
-| `@cratis/arc.server.fastify` | `mountFastify(app, server)` | `fastify` `^5.0.0` |
-| `@cratis/arc.server.hono` | `mountHono(app, server)` | `hono` `^4.0.0` |
+| `@cratis/arc.core` | `ArcServer`, `defineCommand`, `defineQuery`, `defineObservableQuery`, and result helpers | None |
+| `@cratis/arc.express` | `mountExpress(app, server)` | `express` `^5.0.0` |
+| `@cratis/arc.fastify` | `mountFastify(app, server)` | `fastify` `^5.0.0` |
+| `@cratis/arc.hono` | `mountHono(app, server)` | `hono` `^4.0.0` |
 
 ## Define the server once
 
 Keep your definitions and the `ArcServer` in their own module, so every host imports the same instance:
 
 ```typescript title="arc.ts"
-import { ArcServer, defineCommand } from '@cratis/arc.server';
+import { ArcServer, defineCommand } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const echo = defineCommand({
@@ -45,7 +45,7 @@ The constructor validates the definitions and options, and throws when something
 
 ```typescript title="server.ts"
 import express from 'express';
-import { mountExpress } from '@cratis/arc.server.express';
+import { mountExpress } from '@cratis/arc.express';
 import { arc } from './arc.js';
 
 const app = express();
@@ -65,7 +65,7 @@ Arc reads the raw request body itself. If `express.json()` or another body parse
 
 ```typescript title="server.ts"
 import Fastify from 'fastify';
-import { mountFastify } from '@cratis/arc.server.fastify';
+import { mountFastify } from '@cratis/arc.fastify';
 import { arc } from './arc.js';
 
 const app = Fastify();
@@ -89,7 +89,7 @@ Fastify enforces its own `bodyLimit`, 1 MiB by default, before Arc reads the bod
 ```typescript title="server.ts"
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { mountHono } from '@cratis/arc.server.hono';
+import { mountHono } from '@cratis/arc.hono';
 import { arc } from './arc.js';
 
 const app = new Hono<{ Variables: { startedAt: number } }>();

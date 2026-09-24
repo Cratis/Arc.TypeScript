@@ -34,7 +34,7 @@ It runs exactly what an adapter runs: authentication handlers, tenant resolution
 
 ```typescript
 import { randomUUID } from 'node:crypto';
-import { Severity } from '@cratis/arc.server';
+import { Severity } from '@cratis/arc.core';
 import { arc } from './arc.js';
 
 const result = await arc.executeCommand('Echo', { value: 'hello' }, {

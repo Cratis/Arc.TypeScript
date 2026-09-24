@@ -10,7 +10,7 @@ Use a service token when a command or query needs a dependency that must live fo
 This self-contained example creates a distinct journal for every execution. A validation-only call checks that the journal is registered but never constructs it or calls the handler.
 
 ```typescript
-import { ArcServer, currentServices, defineCommand, serviceToken, Severity } from '@cratis/arc.server';
+import { ArcServer, currentServices, defineCommand, serviceToken, Severity } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const journal = serviceToken<{ append(text: string): void; entries: string[] }>('journal');
@@ -50,11 +50,11 @@ Arc creates and disposes a scope per HTTP or direct call, including a denied or 
 
 ## Test the real pipeline
 
-Use `@cratis/arc.server/testing` for specs that need the same command, query, or HTTP behavior as production. `ArcScenario` accepts the same registrations and definitions as `ArcServer`, optional default context fields, and per-call overrides. It delegates to the real server. After your assertions, call `dispose()`; if you passed an existing registry, dispose that registry yourself.
+Use `@cratis/arc.testing` for specs that need the same command, query, or HTTP behavior as production. `ArcScenario` accepts the same registrations and definitions as `ArcServer`, optional default context fields, and per-call overrides. It delegates to the real server. After your assertions, call `dispose()`; if you passed an existing registry, dispose that registry yourself.
 
 ```typescript
-import { ArcScenario, shouldHaveRuleFailure } from '@cratis/arc.server/testing';
-import { defineCommand, Severity, validation } from '@cratis/arc.server';
+import { ArcScenario, shouldHaveRuleFailure } from '@cratis/arc.testing';
+import { defineCommand, Severity, validation } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const scenario = new ArcScenario({ commands: [defineCommand({

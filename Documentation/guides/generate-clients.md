@@ -12,7 +12,7 @@ Create `export-clients.mjs` in a project that depends on the Arc Server workspac
 ```js
 import { writeFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { ArcServer, defineCommand, defineQuery, exportClientManifest } from '@cratis/arc.server';
+import { ArcServer, defineCommand, defineQuery, exportClientManifest } from '@cratis/arc.core';
 
 const widget = {
     kind: 'dto', name: 'Widget', fields: [
@@ -51,7 +51,7 @@ yarn install --immutable
 yarn build
 mkdir -p my-app/frontend/src/generated
 node export-clients.mjs
-node CodeGeneration/dist/cli.js "$PWD/client-manifest.json" "$PWD/my-app/frontend/src/generated"
+node Source/Tools/ProxyGenerator/dist/cli.js "$PWD/client-manifest.json" "$PWD/my-app/frontend/src/generated"
 ```
 
 The exported routes come from the server's resolved operation graph, including namespace skipping and custom paths. The manifest is a portable product contract, not an authentication credential or verification receipt. Review the static definitions you load to export it: the CLI itself reads JSON only and **never imports an application startup module**. Export does not call handlers, validators, `provide`, service factories, or authorization callbacks. Input Zod defaults and refinements are rejected before legacy JSON Schema conversion can evaluate a default factory.

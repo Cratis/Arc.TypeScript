@@ -35,8 +35,8 @@ Results passed to `rejected(...)` go through the same severity filter as validat
 A scope runs code around `provide` and `handle`, for example to open and commit a unit of work or to measure time. `scopes` takes a list of factories, and Arc creates new scope objects for every execution:
 
 ```typescript
-import { defineCommand } from '@cratis/arc.server';
-import type { CommandExecutionScope } from '@cratis/arc.server';
+import { defineCommand } from '@cratis/arc.core';
+import type { CommandExecutionScope } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const timing = (): CommandExecutionScope => {

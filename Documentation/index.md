@@ -19,8 +19,8 @@ Beyond the command and query pipelines, the core offers these explicit or opt-in
 - **Identity details.** The `identityDetails` option registers `/.cratis/me`, which sets a client-readable display cookie. That cookie is not a credential.
 - **Host principals.** `nativePrincipal: true` accepts a principal your host framework already verified, through an explicit adapter callback, instead of Arc authentication handlers.
 - **Tenancy.** The `tenancy` option adds ordered header, query, claim, fixed, and subdomain sources, with optional required-tenant and membership checks.
-- **Testing.** The `@cratis/arc.server/testing` export runs specs through the real command, query, and HTTP pipelines.
-- **Client manifests.** `exportClientManifest` writes a JSON contract from the operations you registered with explicit `clientOutput` shapes, and `@cratis/arc.server.codegen` turns it into proxies for the published `@cratis/arc` client. It does not discover definitions or read TypeScript types. See [Generate command and query clients](guides/generate-clients.md).
+- **Testing.** The `@cratis/arc.testing` package runs specs through the real command, query, and HTTP pipelines.
+- **Client manifests.** `exportClientManifest` writes a JSON contract from the operations you registered with explicit `clientOutput` shapes, and `@cratis/arc.proxygenerator` turns it into proxies for the published `@cratis/arc` client. It does not discover definitions or read TypeScript types. See [Generate command and query clients](guides/generate-clients.md).
 
 ## A server for the clients you already have
 
@@ -30,11 +30,11 @@ Arc's TypeScript **client** packages already exist. They are built and released 
 | --- | --- | --- |
 | `@cratis/arc` | Client runtime for commands, queries, validation, identity, and observable queries | Arc repository, published to npm |
 | `@cratis/arc.react`, `@cratis/arc.react.mvvm` | React bindings and MVVM support on top of the client | Arc repository, published to npm |
-| `@cratis/arc.server` | Server core: pipelines, routing, results, and cross-cutting concerns | This repository, unpublished |
-| `@cratis/arc.server.express`, `.fastify`, `.hono` | Host adapters that connect the core to a Node.js HTTP framework | This repository, unpublished |
-| `@cratis/arc.server.codegen` | Bounded generator and JSON-only CLI that write `@cratis/arc` proxies from an exported client manifest | This repository, unpublished |
-| `@cratis/arc.server.mongodb` | Optional tenant-aware MongoDB read helper | This repository, unpublished |
-| `@cratis/arc.server.chronicle` | Experimental Chronicle event append for commands | This repository, private, not published |
+| `@cratis/arc.core` | Server core: pipelines, routing, results, and cross-cutting concerns | This repository, unpublished |
+| `@cratis/arc.express`, `.fastify`, `.hono` | Host adapters that connect the core to a Node.js HTTP framework | This repository, unpublished |
+| `@cratis/arc.proxygenerator` | Bounded generator and JSON-only CLI that write `@cratis/arc` proxies from an exported client manifest | This repository, unpublished |
+| `@cratis/arc.mongodb` | Optional tenant-aware MongoDB read helper | This repository, unpublished |
+| `@cratis/arc.chronicle` | Experimental Chronicle event append for commands | This repository, private, not published |
 
 The client packages are the compatibility target. A frontend should work against an Arc for TypeScript backend for the capabilities marked supported, within the [deliberate differences](reference/capabilities.md#deliberate-differences). See [Frontend](/arc/frontend/) for the client side.
 

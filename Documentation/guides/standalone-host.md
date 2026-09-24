@@ -7,15 +7,15 @@ Use the standalone Node host when you want Arc routes and a built frontend on th
 
 ## Prerequisites
 
-Use Node.js 22 or later and an ES module package in this repository's workspace. Run `yarn install && yarn build` first. Install Zod 4; use the `workspace:^` dependency for `@cratis/arc.server` and `@cratis/arc.server.node` until publication. Place a public `index.html` in a `public` directory. Do not place credentials or private uploads there.
+Use Node.js 22 or later and an ES module package in this repository's workspace. Run `yarn install && yarn build` first. Install Zod 4; use the `workspace:^` dependency for `@cratis/arc.core` and `@cratis/arc.core` until publication. Place a public `index.html` in a `public` directory. Do not place credentials or private uploads there.
 
 ## Start the host
 
 Save this as `server.ts` and run it in the workspace with `node server.ts` on Node.js 26 (which strips types by default), or compile it with TypeScript and run the emitted JavaScript with Node.js 22 or later.
 
 ```typescript title="server.ts"
-import { ArcServer, defineCommand } from '@cratis/arc.server';
-import { runArc } from '@cratis/arc.server.node';
+import { ArcServer, defineCommand } from '@cratis/arc.core';
+import { runArc } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const echo = defineCommand({

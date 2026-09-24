@@ -15,7 +15,7 @@ Package names are working names, and APIs are not final. For what is supported t
 flowchart LR
     Client["Arc clients<br/>@cratis/arc, generated proxies"] -->|Arc HTTP contract| Adapter
     subgraph Server["Node.js process"]
-        Adapter["Host adapter<br/>Express, Fastify, or Hono"] --> Core["Arc core<br/>@cratis/arc.server"]
+        Adapter["Host adapter<br/>Express, Fastify, or Hono"] --> Core["Arc core<br/>@cratis/arc.core"]
         Core --> App["Your commands<br/>and queries"]
         App -.optional.-> Mongo[("MongoDB<br/>read helper")]
         App -.experimental.-> Chronicle[("Chronicle<br/>event store")]
@@ -24,8 +24,8 @@ flowchart LR
 
 - **The core** owns everything that defines Arc behavior: the command and query pipelines, route conventions, result envelopes, validation, authorization, authentication handlers, correlation, and tenancy. It does not import an HTTP framework or a storage driver.
 - **A host adapter** translates between one HTTP framework and the core. It routes matching requests to the core, hands over the raw body and a cancellation signal, and writes the response. It adds no Arc behavior of its own.
-- **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.server.mongodb` reads query results from MongoDB. `@cratis/arc.server.chronicle` is an experimental, private package that appends events returned from a command.
-- **Client generation** is build-time tooling beside the runtime. The core exports a JSON manifest with `exportClientManifest`, and `@cratis/arc.server.codegen` renders proxies from that JSON. The core does not depend on `@cratis/arc` or on browser code.
+- **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.mongodb` reads query results from MongoDB. `@cratis/arc.chronicle` is an experimental, private package that appends events returned from a command.
+- **Client generation** is build-time tooling beside the runtime. The core exports a JSON manifest with `exportClientManifest`, and `@cratis/arc.proxygenerator` renders proxies from that JSON. The core does not depend on `@cratis/arc` or on browser code.
 
 Keeping the core framework-independent means a behavior is implemented and tested once, and every adapter inherits it. A difference between adapters is either a limit of the host framework, documented per adapter, or a bug.
 

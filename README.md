@@ -13,8 +13,8 @@ Arc is an opinionated CQRS application framework. You declare what your backend 
 ## A command and a query
 
 ```typescript
-import { ArcServer, defineCommand, defineQuery, validation } from '@cratis/arc.server';
-import { mountHono } from '@cratis/arc.server.hono';
+import { ArcServer, defineCommand, defineQuery, validation } from '@cratis/arc.core';
+import { mountHono } from '@cratis/arc.hono';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
@@ -45,14 +45,14 @@ This is a self-contained example, not a copy of the sample. It serves `POST /api
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.server` | [`Source`](Source) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, and `exportClientManifest`. The `@cratis/arc.server/testing` export provides `ArcScenario` and `shouldHaveRuleFailure`. |
-| `@cratis/arc.server.express` | [`Integrations/Express`](Integrations/Express) | `mountExpress` for Express 5 |
-| `@cratis/arc.server.fastify` | [`Integrations/Fastify`](Integrations/Fastify) | `mountFastify` for Fastify 5 |
-| `@cratis/arc.server.hono` | [`Integrations/Hono`](Integrations/Hono) | `mountHono` for Hono 4 |
-| `@cratis/arc.server.node` | [`Integrations/Node`](Integrations/Node) | `createArcNodeHandler` and `runArc` for standalone Node HTTP/HTTPS hosting, public static files and SPA fallback |
-| `@cratis/arc.server.codegen` | [`CodeGeneration`](CodeGeneration) | `renderClientManifest`, `generateClient`, and the `arc-server-codegen` CLI, which turn an exported JSON client manifest into `.proxy.ts` files for the published `@cratis/arc` client. Bounded to the shapes in [Generate command and query clients](Documentation/guides/generate-clients.md). |
-| `@cratis/arc.server.mongodb` | [`Integrations/MongoDB`](Integrations/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
-| `@cratis/arc.server.chronicle` | [`Integrations/Chronicle`](Integrations/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
+| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
+| `@cratis/arc.express` | [`Source/Express`](Source/Express) | `mountExpress` for Express 5 |
+| `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
+| `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |
+| `@cratis/arc.testing` | [`Source/Testing`](Source/Testing) | `ArcScenario` and `shouldHaveRuleFailure` for testing real pipelines |
+| `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `renderClientManifest`, `generateClient`, and the `arc-proxygenerator` CLI, which turn an exported JSON client manifest into `.proxy.ts` files for the published `@cratis/arc` client. Bounded to the shapes in [Generate command and query clients](Documentation/guides/generate-clients.md). |
+| `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
+| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
 
 Every package manifest is at version 0.3.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
@@ -66,7 +66,7 @@ cd Arc.TypeScript
 corepack enable
 yarn install
 yarn build
-yarn workspace @cratis/arc.server.sample.tasks start
+yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
 The sample listens on port 3000 on every network interface. [Get started](Documentation/getting-started.md) walks through calling it and explains every line.
@@ -81,7 +81,7 @@ Also supported, each one explicit or opt-in:
 - **Identity.** `identityDetails` registers `GET /.cratis/me` and sets a client-readable display cookie. The cookie is for display only; it is not a credential.
 - **Host principals.** `nativePrincipal: true` accepts a principal your host framework has already verified, passed through an explicit adapter callback. It cannot be combined with Arc authentication handlers.
 - **Tenancy.** Besides the tenant header and `resolveTenant`, the `tenancy` option selects ordered header, query, claim, fixed, or subdomain sources, with optional `required` and membership-claim checks.
-- **Testing.** `@cratis/arc.server/testing` runs specs through the real command, query, and HTTP pipelines.
+- **Testing.** `@cratis/arc.testing` runs specs through the real command, query, and HTTP pipelines.
 - **Generated clients, bounded.** Declare an explicit `clientOutput` shape on each command and query, export a version 1 JSON manifest with `exportClientManifest`, and generate `.proxy.ts` files from it. The CLI reads only that JSON, never your application, and takes an absolute manifest path and an existing absolute output directory. The proxies are tested against `@cratis/arc` 22.19.1, `@cratis/fundamentals` 7.19.3, and `rxjs` 7.8.2 in a strict `Bundler` frontend with `skipLibCheck: false`; consumers that compile with `NodeNext` are not supported, because the published declarations use extensionless imports. The client's default origin is empty, so call `setOrigin` with your server's origin on each instance. Zod defaults, transforms and refinements, nullable command fields, scalar query results, nested DTOs, observable queries, and React hooks are not generated. See [Generate command and query clients](Documentation/guides/generate-clients.md).
 
 A paired suite checks 33 bounded HTTP cases against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
@@ -118,7 +118,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 
 [`@cratis/arc`](https://github.com/Cratis/Arc/tree/main/Source/JavaScript/Arc) is Arc's existing TypeScript **client** runtime, used by generated proxies and `@cratis/arc.react` to call an Arc backend. It is built and released from the [Arc](https://github.com/Cratis/Arc) repository.
 
-This repository builds the **server** side under its own `@cratis/arc.server` package names. It does not replace, rename, or republish `@cratis/arc` or any other Arc package. The existing client is the compatibility target for this server's wire behavior. The server core does not depend on `@cratis/arc` or on browser code; only the proxies that `@cratis/arc.server.codegen` writes import it, in your frontend.
+This repository builds the **server** side under its own `@cratis/arc.core` package names. It does not replace, rename, or republish `@cratis/arc` or any other Arc package. The existing client is the compatibility target for this server's wire behavior. The server core does not depend on `@cratis/arc` or on browser code; only the proxies that `@cratis/arc.proxygenerator` writes import it, in your frontend.
 
 ## Arc does not require event sourcing
 

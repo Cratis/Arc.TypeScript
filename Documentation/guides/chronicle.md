@@ -3,7 +3,7 @@ title: Append Chronicle events from commands (experimental)
 description: What the experimental Chronicle integration does, why it cannot run against a real Chronicle today, and exactly how it appends events and reports failures.
 ---
 
-In Arc on .NET, a command can return events and Arc appends them to [Chronicle](/chronicle/) when the command succeeds. The experimental `@cratis/arc.server.chronicle` package explores the same boundary for Node.js: a command produces events, and the package appends them to the tenant's event store before it reports success.
+In Arc on .NET, a command can return events and Arc appends them to [Chronicle](/chronicle/) when the command succeeds. The experimental `@cratis/arc.chronicle` package explores the same boundary for Node.js: a command produces events, and the package appends them to the tenant's event store before it reports success.
 
 :::danger[Experimental, private, and not usable against a real Chronicle yet]
 
@@ -24,9 +24,9 @@ The rest of this page describes the current source, so you can review the design
 ## Define a command that produces events
 
 ```typescript title="tasks.ts"
-import { ArcServer, validation } from '@cratis/arc.server';
-import type { AuthenticationHandler } from '@cratis/arc.server';
-import { defineChronicleCommand } from '@cratis/arc.server.chronicle';
+import { ArcServer, validation } from '@cratis/arc.core';
+import type { AuthenticationHandler } from '@cratis/arc.core';
+import { defineChronicleCommand } from '@cratis/arc.chronicle';
 import type { IChronicleClient } from '@cratis/chronicle';
 import { z } from 'zod';
 

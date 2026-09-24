@@ -20,7 +20,7 @@ slices, sample domains, read models, or UI code to framework source.
   behavior; a core-only check does not establish adapter compatibility.
 - Chronicle and MongoDB are optional integrations. The core must never require event sourcing
   or a database. Document each integration's actual consistency and lifecycle guarantees.
-- `@cratis/arc.server.chronicle` is experimental and `private`. Keep it unpublished and do not
+- `@cratis/arc.chronicle` is experimental and `private`. Keep it unpublished and do not
   describe it as a supported or live integration until the published Chronicle SDK imports in
   Node.js and the integration passes against a live Chronicle kernel. Specs with typed
   substitutes are not integration evidence.
