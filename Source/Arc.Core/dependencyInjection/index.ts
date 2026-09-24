@@ -5,6 +5,7 @@ export { ServiceScope, currentServices } from './ServiceScope.js';
 export { ServiceDependencyError } from './ServiceDependencyError.js';
 export { serviceToken } from './ServiceToken.js';
 export type { ServiceToken } from './ServiceToken.js';
+export type { ServiceIdentifier, ServiceClass } from './ServiceIdentifier.js';
 export type { ServiceRegistration } from './ServiceRegistration.js';
 export type { SingletonServiceContext } from './SingletonServiceContext.js';
 export type { ServiceLifetime } from './ServiceLifetime.js';
