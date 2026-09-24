@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.proxygenerator",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Deterministic manifest-based TypeScript clients for Arc Server",
   "repository": {
     "type": "git",
