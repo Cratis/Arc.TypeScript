@@ -53,7 +53,15 @@ A result is 200 when successful, then 403 for authorization failures, 400 for va
 | Query health | Anonymous, cross-caller | Opt-in, caller-scoped |
 | `waitForFirstResultTimeout` | Larger values accepted; unknown booleans ignored | At most 120 seconds; unknown booleans rejected |
 
-The paired `yarn test:conformance` suite pins these differences against a .NET host on `Cratis.Arc` 22.22.0; see [How parity is checked](capabilities.md#how-parity-is-checked).
+The suite also pins three differences observed in the .NET reference host that are not choices of Arc for TypeScript:
+
+| Request | Arc on .NET 22.23.0 | Arc for TypeScript |
+| --- | --- | --- |
+| A numeric concept query argument on GET | Redacted 500 ([Cratis/Arc#2757](https://github.com/Cratis/Arc/issues/2757)) | Binds the value, 200 |
+| GET with `sortBy` and `sortDirection` | Ignores the sort ([Cratis/Arc#2758](https://github.com/Cratis/Arc/issues/2758)); the equivalent `QUERY` request sorts identically on both | Applies the sort |
+| An unknown path under Express | Empty 404 with a correlation header | Express's own HTML 404, without an Arc correlation header |
+
+The paired `yarn test:conformance` suite pins these differences against a .NET host on `Cratis.Arc` 22.23.0; see [How parity is checked](capabilities.md#how-parity-is-checked).
 
 ## Related
 

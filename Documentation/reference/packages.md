@@ -16,7 +16,7 @@ Every package in this repository is at version 0.14.0, the version of the source
 | `@cratis/arc.testing` | `Source/Testing` | `CommandScenario`, `QueryScenario`, `ObservableQueryScenario`, `ArcScenario`, `given`, `shouldHaveRuleFailure` | |
 | `@cratis/arc.mongodb` | `Source/MongoDB` | `addMongoDB`, `mongoCollection`, `MongoCollection`, naming policies, `MongoReadModels` | `@cratis/arc.core`, `@cratis/fundamentals`, `mongodb` `^6.21.0` |
 | `@cratis/arc.drizzle` | `Source/Drizzle` | `addDrizzle`, `drizzleReadModel`, `drizzleDatabase`, `DrizzleReadModels`, column codecs | `@cratis/arc.core`, `@cratis/fundamentals`, `drizzle-orm` `^0.45.0` |
-| `@cratis/arc.chronicle` | `Source/Chronicle` | Experimental: `addChronicle`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.5.1`, `@cratis/fundamentals`, `zod` |
+| `@cratis/arc.chronicle` | `Source/Chronicle` | Experimental, not private since v0.12.0: `addChronicle`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.5.1`, `@cratis/fundamentals`, `zod` |
 
 ## Tooling packages
 

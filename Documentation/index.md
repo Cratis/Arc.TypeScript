@@ -51,7 +51,7 @@ These excerpts are from the [Tasks sample](https://github.com/Cratis/Arc.TypeScr
 
 ## CQRS first, event sourcing optional
 
-Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The core has no dependency on event sourcing or on a database. The Chronicle integration is a separate, experimental package; see [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how that boundary works in Arc generally.
+Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The core has no dependency on event sourcing or on a database. The Chronicle integration is a separate package: experimental, and not private since v0.12.0; see [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how that boundary works in Arc generally.
 
 ## A server for the clients you already have
 
@@ -59,7 +59,7 @@ Arc's TypeScript **client** packages, `@cratis/arc`, `@cratis/arc.react`, and `@
 
 ## One wire contract
 
-Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification. Arc for TypeScript matches that observable behavior in idiomatic TypeScript; it does not port .NET mechanics such as attribute reflection or dependency injection containers. A paired suite checks 48 cases against a .NET host on `Cratis.Arc` 22.22.0 and pins the known differences. The largest deliberate one: an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass. See the [HTTP contract reference](reference/http-contract.md).
+Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification. Arc for TypeScript matches that observable behavior in idiomatic TypeScript; it does not port .NET mechanics such as attribute reflection or dependency injection containers. A paired suite checks 58 cases against a .NET host on `Cratis.Arc` 22.23.0 and pins the known differences. The largest deliberate one: an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass. See the [HTTP contract reference](reference/http-contract.md).
 
 ## On the shared Arc pages
 

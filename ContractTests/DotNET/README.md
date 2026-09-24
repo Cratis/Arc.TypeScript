@@ -3,7 +3,7 @@
 
 # .NET HTTP reference fixture
 
-A standalone ASP.NET Core host using the **public** NuGet `Cratis.Arc` **22.22.0** package, not the sibling Arc checkout. Its package graph is pinned by `packages.lock.json` and its framework runtimes are pinned to .NET / ASP.NET Core **10.0.11**. Install .NET SDK 10.x and both 10.0.11 runtimes. It has no database, Chronicle dependency, or hand-written Arc response envelopes.
+A standalone ASP.NET Core host using the **public** NuGet `Cratis.Arc` **22.23.0** package, not the sibling Arc checkout. Its package graph is pinned by `packages.lock.json` and its framework runtimes are pinned to .NET / ASP.NET Core **10.0.11**. Install .NET SDK 10.x and both 10.0.11 runtimes. It has no database, Chronicle dependency, or hand-written Arc response envelopes.
 
 From the `Arc.TypeScript` repository root:
 

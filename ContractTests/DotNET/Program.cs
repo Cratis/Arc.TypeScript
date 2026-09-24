@@ -26,6 +26,7 @@ builder.Configuration.Sources.Clear();
 builder.Logging.ClearProviders();
 builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
 builder.Services.AddSingleton<HttpFixture.EchoExecutions>();
+builder.Services.AddArcAuthorizationPolicy<HttpFixture.FixtureAdminPolicy>("FixtureAdmin");
 builder.Services.AddAuthentication("Fixture")
     .AddScheme<AuthenticationSchemeOptions, HttpFixture.FixtureAuthentication>("Fixture", _ => { });
 builder.AddCratisArc(configureOptions: options =>
@@ -49,7 +50,7 @@ Console.WriteLine(JsonSerializer.Serialize(new
 {
     kind = "typescript-dotnet-reference-ready",
     baseUrl = addresses.Addresses.Single(),
-    package = "Cratis.Arc 22.22.0",
+    package = "Cratis.Arc 22.23.0",
     runtime = Environment.Version.ToString(),
     coreRuntimeDirectory = RuntimeEnvironment.GetRuntimeDirectory(),
     aspNetCoreAssembly = typeof(WebApplication).Assembly.Location

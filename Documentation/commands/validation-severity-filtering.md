@@ -23,7 +23,7 @@ Results at or below the **allowed severity** are removed and do not block. Resul
 A client that sends `X-Allowed-Severity: 1` makes warnings block, and sees them in the result. Results passed to `rejected(...)` in `provide()` or `handle()` are filtered the same way; when nothing above the allowed severity remains, the command continues.
 
 :::caution[A deliberate difference from Arc on .NET]
-Arc on .NET 22.22.0 accepts `X-Allowed-Severity: 3` and runs a command whose only problems are errors. Arc for TypeScript caps HTTP requests at Warning, so a remote caller can never bypass business-rule errors. Only trusted code calling `executeCommand` can pass `Severity.Error`.
+Arc on .NET 22.23.0 accepts `X-Allowed-Severity: 3` and runs a command whose only problems are errors. Arc for TypeScript caps HTTP requests at Warning, so a remote caller can never bypass business-rule errors. Only trusted code calling `executeCommand` can pass `Severity.Error`.
 :::
 
 ## Consequences

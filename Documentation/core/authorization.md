@@ -52,7 +52,7 @@ Do not confuse a named policy with an authentication scheme: a policy decides, a
 
 ## Compared with Arc on .NET
 
-Arc on .NET 22.23.0 evaluates named policies through scoped `IAuthorizationPolicy` implementations; an unknown name throws `InvalidAuthorizationConfiguration`. Its policy context holds a principal, a reflected command type or query method (`Target`), and a command or query context (`Resource`). The TypeScript class form receives an operation definition and `{ input, execution }` instead, and a function form is also available. Node schemes select Arc handlers rather than ASP.NET Core authentication and challenge or forbid composition. The paired HTTP conformance fixture is pinned to .NET 22.22.0 and does not verify policy parity with 22.23.0.
+Arc on .NET 22.23.0 evaluates named policies through scoped `IAuthorizationPolicy` implementations; an unknown name throws `InvalidAuthorizationConfiguration`. Its policy context holds a principal, a reflected command type or query method (`Target`), and a command or query context (`Resource`). The TypeScript class form receives an operation definition and `{ input, execution }` instead, and a function form is also available. Node schemes select Arc handlers rather than ASP.NET Core authentication and challenge or forbid composition. The paired HTTP conformance fixture checks named-policy allow and deny for commands and queries against .NET 22.23.0; it does not compare policy context objects or scheme selection.
 
 ## Related
 

@@ -6,7 +6,7 @@ description: Return Chronicle events from Arc commands and read projected state,
 Arc does not require event sourcing: a command can do its work through any service. When you want commands to record facts in [Chronicle](/chronicle/), the event-sourcing database, `@cratis/arc.chronicle` lets a command **return** events instead of appending them inside `handle()`. Arc runs authorization and validation first, then appends the returned events in the trusted tenant's namespace.
 
 :::caution[Experimental]
-`@cratis/arc.chronicle` is experimental and, like every package here, not published to npm. It is not a substitute for Arc on .NET's transactional Chronicle integration: it provides a single-event-log batch of returned events, with no aggregate or reactor-command parity. Its APIs can change.
+`@cratis/arc.chronicle` is experimental. It has not been private since v0.12.0, but like every package here it is not published to npm. It is not a substitute for Arc on .NET's transactional Chronicle integration: it provides a single-event-log batch of returned events, with no aggregate or reactor-command parity. Its APIs can change.
 :::
 
 ## What is verified
