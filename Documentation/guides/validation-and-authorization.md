@@ -6,7 +6,7 @@ description: Authenticate callers, restrict commands and queries by role or per 
 A command that renames a task has to answer several questions before it touches anything: who is calling, may they call this at all, may they change this particular task, is the input well formed, and does it follow the rules? Arc for TypeScript gives each question its own place in a definition and always asks them in the same order, so a caller who may not run an operation never sees its rule messages.
 
 :::note[Unpublished source]
-Named policies and schemes are available in the source preview. Model-bound server validators and concept rules are available, but generated client rules are bounded. See [Authorization](../identity/authorization.md) for policy registration and scheme selection. See [Validate model-bound commands and queries](validation.md) and the [capability reference](../reference/capabilities.md).
+Named policies and schemes are available in the source preview. Model-bound server validators and concept rules are available, but generated client rules are not. See [Authorization](../identity/authorization.md) for policy registration and scheme selection. See [Validate model-bound commands and queries](validation.md) and the [capability reference](../reference/capabilities.md).
 :::
 
 ## A command with every check
