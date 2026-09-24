@@ -25,14 +25,14 @@
   ],
   "peerDependencies": {
     "@cratis/arc.core": "^0.7.0",
-    "@cratis/chronicle": "^6.2.0",
-    "@cratis/fundamentals": "^7.19.3",
+    "@cratis/chronicle": "^6.5.0",
+    "@cratis/fundamentals": "^7.19.6",
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
-    "@cratis/chronicle": "6.2.0",
-    "@cratis/fundamentals": "7.19.3",
+    "@cratis/chronicle": "6.5.0",
+    "@cratis/fundamentals": "7.19.6",
     "zod": "^4.1.0"
   }
 }

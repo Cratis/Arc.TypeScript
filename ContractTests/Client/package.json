@@ -11,7 +11,7 @@
     "@cratis/arc.hono": "workspace:*",
     "@cratis/arc.proxygenerator": "workspace:*",
     "@cratis/arc.react": "22.19.1",
-    "@cratis/fundamentals": "7.19.3",
+    "@cratis/fundamentals": "7.19.6",
     "@hono/node-server": "1.19.17",
     "express": "^5.1.0",
     "fastify": "^5.6.0",

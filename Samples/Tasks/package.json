@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@cratis/arc.core": "workspace:^",
-    "@cratis/fundamentals": "7.19.3"
+    "@cratis/fundamentals": "7.19.6"
   }
 }
