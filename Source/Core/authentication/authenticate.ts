@@ -23,7 +23,9 @@ export async function authenticate(request: Request, handlers: readonly Authenti
         if (result.status === AuthenticationStatus.Anonymous) continue;
         if (result.status === AuthenticationStatus.Failed) return { failed: true };
         if (result.status !== AuthenticationStatus.Authenticated) throw new Error('Authentication handler returned an unknown outcome');
-        return { failed: false, principal: verifiedPrincipal({ ...result.principal,
+        const principal = { ...result.principal };
+        delete principal.scheme;
+        return { failed: false, principal: verifiedPrincipal({ ...principal,
             ...(schemes ? { scheme: schemes[index] } : {}) }) };
     }
     return { failed: false };

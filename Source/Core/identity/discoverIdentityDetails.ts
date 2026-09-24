@@ -4,7 +4,7 @@ import type { ClassType } from '../reflection/ClassType.js';
 
 const providers = new WeakSet<ClassType>();
 
-/** Mark a details provider for artifact discovery; its schema and provide() are verified at build. */
+/* Mark a details provider for artifact discovery; configure its schema and provide() before serving requests. */
 export function identityDetailsProvider(): ClassDecorator {
     return target => { providers.add(target as unknown as ClassType); };
 }

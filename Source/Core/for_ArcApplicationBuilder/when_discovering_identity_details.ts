@@ -40,6 +40,18 @@ describe('when discovering an identity details provider', given(an_application_b
     });
 }));
 
+describe('when an explicit identity details provider conflicts with discovery', given(an_application_builder, context => {
+    let error: unknown;
+    beforeEach(async () => {
+        try { await context.create({ identityDetails: { detailsType: PersonalDetails,
+            provide: () => Object.assign(new PersonalDetails(), { label: 'Explicit' }) } }).add(DetailsProvider).build(); }
+        catch (failure) { error = failure; }
+    });
+    it('should fail rather than silently ignoring the discovered provider', () => {
+        String(error).should.contain('Explicit and discovered identity details providers cannot be combined');
+    });
+}));
+
 describe('when multiple identity details providers are discovered', given(an_application_builder, context => {
     let error: unknown;
     beforeEach(async () => {

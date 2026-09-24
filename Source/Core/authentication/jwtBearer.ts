@@ -12,24 +12,33 @@ export interface JwtBearerOptions {
     readonly algorithms: readonly string[];
     /** Maximum permitted clock drift in seconds; defaults to zero. */
     readonly clockSkewSeconds?: number;
+    /** Remote JWKS request timeout in milliseconds (jose default: 5000). */
+    readonly jwksTimeoutMs?: number;
+    /** Minimum interval between JWKS refetches in milliseconds (jose default: 30000). */
+    readonly jwksCooldownMs?: number;
 }
 
 /** Verify bearer signatures and registered claims against a pinned issuer, audience and remote JWKS. */
 export function jwtBearer(options: JwtBearerOptions): AuthenticationHandler {
-    if (options.jwksUrl.protocol !== 'https:' || !options.issuer || !options.audience ||
-        !options.algorithms.length || options.algorithms.some(algorithm => !/^(RS|PS|ES|EdDSA)/.test(algorithm)) ||
-        options.clockSkewSeconds !== undefined && (!Number.isSafeInteger(options.clockSkewSeconds) || options.clockSkewSeconds < 0))
+    if (options.jwksUrl.protocol !== 'https:' || !options.issuer ||
+        (typeof options.audience === 'string' ? !options.audience : !options.audience?.length || options.audience.some(value => !value)) ||
+        !options.algorithms.length || options.algorithms.some(algorithm => !/^(?:RS(?:256|384|512)|PS(?:256|384|512)|ES(?:256|384|512)|EdDSA|Ed25519)$/.test(algorithm)) ||
+        [options.clockSkewSeconds, options.jwksTimeoutMs, options.jwksCooldownMs].some(value =>
+            value !== undefined && (!Number.isSafeInteger(value) || value < 0)) || options.jwksTimeoutMs === 0)
         throw new Error('Invalid JWT bearer configuration');
-    const jwks = createRemoteJWKSet(options.jwksUrl);
+    const jwks = createRemoteJWKSet(options.jwksUrl, {
+        ...(options.jwksTimeoutMs === undefined ? {} : { timeoutDuration: options.jwksTimeoutMs }),
+        ...(options.jwksCooldownMs === undefined ? {} : { cooldownDuration: options.jwksCooldownMs })
+    });
     return async request => {
         const header = request.headers.get('authorization');
-        if (header === null) return { status: AuthenticationStatus.Anonymous };
+        if (header === null || !/^Bearer(?:\s|$)/i.test(header)) return { status: AuthenticationStatus.Anonymous };
         const match = /^Bearer ([^\s]+)$/i.exec(header);
         if (!match) return { status: AuthenticationStatus.Failed };
         try {
             const { payload } = await jwtVerify(match[1]!, jwks, {
                 issuer: options.issuer, audience: typeof options.audience === 'string' ? options.audience : [...options.audience], algorithms: [...options.algorithms],
-                clockTolerance: options.clockSkewSeconds ?? 0, requiredClaims: ['sub', 'exp', 'iat']
+                clockTolerance: options.clockSkewSeconds ?? 0, requiredClaims: ['sub', 'exp']
             });
             if (typeof payload.sub !== 'string' || !payload.sub) return { status: AuthenticationStatus.Failed };
             const roles = [payload.roles, payload.role].flatMap(value => typeof value === 'string' ? [value] :

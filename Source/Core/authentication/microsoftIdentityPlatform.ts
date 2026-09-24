@@ -31,7 +31,7 @@ export function microsoftIdentityPlatform(): AuthenticationHandler {
         const encoded = request.headers.get('x-ms-client-principal');
         if (id === null || name === null || encoded === null) return { status: AuthenticationStatus.Anonymous };
         try {
-            if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded) || encoded.length > 64 * 1024) throw new Error('Invalid principal');
+            if (!id || !encoded || encoded.length > 64 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new Error('Invalid principal');
             const bytes = Buffer.from(encoded, 'base64');
             if (bytes.toString('base64') !== encoded) throw new Error('Invalid principal');
             const payload: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
@@ -46,7 +46,7 @@ export function microsoftIdentityPlatform(): AuthenticationHandler {
             claims[microsoftIdentityClaims.nameIdentifier] = id;
             claims.sub = id;
             if (client.identityProvider.trim()) claims[microsoftIdentityClaims.provider] = client.identityProvider;
-            // .NET appends userRoles as claims, rather than trusting role claims in the serialized claim list.
+            // .NET accepts both userRoles and role claims in the serialized claim list.
             return { status: AuthenticationStatus.Authenticated, principal: {
                 id, name: client.userDetails, roles, isAuthenticated: true, claims
             } };
