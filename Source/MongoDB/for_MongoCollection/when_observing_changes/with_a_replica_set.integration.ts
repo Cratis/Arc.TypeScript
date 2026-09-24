@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { ArcApplication } from '@cratis/arc.core';
 import { Guid } from '@cratis/fundamentals';
+import { firstValueFrom } from 'rxjs';
 import type { Document, Filter } from 'mongodb';
 import { given } from '../../given.js';
 import { mongoCollection } from '../../index.js';
@@ -70,6 +71,15 @@ describe('when observing changes with a replica set', given(a_replica_set, conte
             should().equal((await iterator.next()).value, null);
             await scope.dispose();
             ((await iterator.next()).done ?? false).should.equal(true);
+        } finally { await scope.dispose(); }
+    }, 30000);
+    it('should provide a current value and an RxJS subscription for one document', async () => {
+        const scope = application.server.services.createScope(context.context('a'));
+        try {
+            const collection = await scope.resolve(mongoCollection(TaskRecord));
+            const source = collection.observeById(id);
+            should().equal((await source.current()).value, null);
+            should().equal(await firstValueFrom(source), null);
         } finally { await scope.dispose(); }
     }, 30000);
     it('should honor application default sorting when Arc has not requested a sort', async () => {

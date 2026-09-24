@@ -47,4 +47,16 @@ describe('when handling an observable snapshot with RxJS sources', () => {
     it('should leave an Observable without a current value pending', async () => {
         (await snapshot(new Observable<number>(() => {}))).status.should.equal(202);
     });
+
+    it('should fail a waiting GET when a Subject completes without a value', async () => {
+        const source = new Subject<number>();
+        source.complete();
+        (await snapshot(source, true)).status.should.equal(500);
+    });
+
+    it('should fail a waiting GET when a Subject errors', async () => {
+        const source = new Subject<number>();
+        source.error(new Error('producer failed'));
+        (await snapshot(source, true)).status.should.equal(500);
+    });
 });
