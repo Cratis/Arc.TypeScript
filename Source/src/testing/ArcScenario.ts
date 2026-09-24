@@ -5,6 +5,7 @@ import { ArcServer } from '../ArcServer.js';
 import type { ArcServerOptions } from '../ArcServerOptions.js';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from '../contracts.js';
 import { Severity } from '../Severity.js';
+import type { ObservableQuerySession } from '../queries/observable/ObservableQuerySession.js';
 
 /** Executes real Arc pipelines. Owns its server unless a caller supplied a registry. */
 export class ArcScenario {
@@ -21,6 +22,10 @@ export class ArcScenario {
     }
     performQuery(name: string, input: unknown, context: Partial<ExecutionContext> = {}, options?: QueryOptions): Promise<QueryResult> {
         return this.server.performQuery(name, input, this.execution(context), options);
+    }
+    /** Opens a live query through the real pipeline; close the session after collecting emissions. */
+    observeQuery(name: string, input: unknown, context: Partial<ExecutionContext> = {}, options?: QueryOptions): Promise<ObservableQuerySession> {
+        return this.server.openObservableQuery(name, input, this.execution(context), options);
     }
     handle(request: Request): Promise<Response | null> { return this.server.handle(request); }
     dispose(): Promise<void> { return this.server.dispose(); }

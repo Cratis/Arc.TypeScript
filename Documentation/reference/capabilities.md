@@ -111,7 +111,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Command and query pipeline testing | Supported | `ArcScenario` from `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. An observable subscription can be exercised through `ArcServer.openObservableQuery`; no dedicated scenario helper exists yet. |
+| Command and query pipeline testing | Supported | `ArcScenario` from `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. `ArcScenario.observeQuery` opens the real observable query pipeline and returns a session whose `results()` stream can be collected and canceled by a spec. |
 
 ## Hosting
 

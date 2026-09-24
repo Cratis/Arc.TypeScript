@@ -7,6 +7,7 @@ import {
 } from '../src/index.js';
 import type { ExecutionContext, ObservableObserver } from '../src/index.js';
 import { shouldRejectWithError } from './shouldRejectWithError.js';
+import { ArcScenario } from '../src/testing/index.js';
 
 should();
 const execution = (overrides: Partial<ExecutionContext> = {}): ExecutionContext => ({
@@ -147,6 +148,20 @@ describe('observable query pipeline', () => {
         })] });
         should().throw(() => exportClientManifest(server), /observable query proxy generation is not supported/);
         await server.dispose();
+    });
+
+    it('should collect emissions through an observable scenario and release its scope', async () => {
+        const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
+        const scenario = new ArcScenario({ observableQueries: [defineObservableQuery({
+            name: 'Numbers', schema: z.object({}), observe: () => subject
+        })] });
+        const session = await scenario.observeQuery('Numbers', {});
+        const stream = session.results();
+        (await stream.next()).value?.data.should.equal(1);
+        subject.next(2);
+        (await stream.next()).value?.data.should.equal(2);
+        await stream.return(undefined);
+        await scenario.dispose();
     });
 
     it('should iterate async sources and release them on cancellation', async () => {
