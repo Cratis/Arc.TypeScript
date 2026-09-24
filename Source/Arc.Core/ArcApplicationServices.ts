@@ -2,18 +2,22 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
 import type { ServiceIdentifier, ServiceClass } from './dependencyInjection/ServiceIdentifier.js';
-import { reflectedParameters } from './modelBound/dependencies.js';
-import { ownMetadata } from './modelBound/metadata.js';
+import { reflectedParameters } from './reflection/reflectedParameters.js';
+import { ownMetadata } from './reflection/ownMetadata.js';
 import type { ServiceScope } from './dependencyInjection/ServiceScope.js';
 
+/** Collect class and factory registrations for a built application. */
 export class ArcApplicationServices {
     readonly registrations: ServiceRegistration<unknown>[] = [];
+    /** Register a service once for the lifetime of the application. */
     addSingleton<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
         return this.add(token, 'singleton', implementation);
     }
+    /** Register a service once in each execution scope. */
     addScoped<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
         return this.add(token, 'scoped', implementation);
     }
+    /** Register a service once per resolution. */
     addTransient<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
         return this.add(token, 'transient', implementation);
     }
@@ -22,7 +26,7 @@ export class ArcApplicationServices {
         const concrete = implementation ?? (typeof token === 'function' ? token : undefined);
         if (!concrete) throw new Error(`Service ${token.name} requires an implementation`);
         const isClass = typeof token === 'function' && implementation === undefined ||
-            typeof concrete === 'function' && /^class\s/.test(Function.prototype.toString.call(concrete));
+            typeof concrete === 'function' && /^class[\s{]/.test(Function.prototype.toString.call(concrete));
         if (!isClass) {
             this.registrations.push({ token, lifetime, factory: (scope: ServiceScope) => (concrete as (scope: ServiceScope) => T | Promise<T>)(scope) });
             return this;

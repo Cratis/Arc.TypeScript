@@ -25,7 +25,7 @@ export async function runArc(
         if (!(await stat(root)).isDirectory()) throw Error('Static file root must be a directory');
     }
     const listener = options.https ? createHttpsServer(options.https, handler) : createServer(handler);
-    const closeWebSockets = attachNodeWebSockets(listener, server, undefined, options.pathBase);
+    const closeWebSockets = attachNodeWebSockets(listener, server, request => ({ ...options.native?.(request), secure: undefined }), options.pathBase);
     listener.on('connect', (_request, socket) => {
         socket.end('HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\nContent-Length: 0\r\nX-Content-Type-Options: nosniff\r\n\r\n');
     });
@@ -47,18 +47,26 @@ export async function runArc(
         if (!Number.isFinite(timeoutMs) || timeoutMs < 0) return Promise.reject(Error('Invalid shutdown timeout'));
         closing = true;
         pendingClose = (async () => {
-            let failure: unknown;
-            try { await closeWebSockets(); } catch (error) { failure = error; }
-            await new Promise<void>((resolveClose, reject) => {
-                const timer = setTimeout(() => listener.closeAllConnections(), timeoutMs);
-                listener.close(error => {
-                    clearTimeout(timer);
-                    if (error) reject(error);
-                    else resolveClose();
-                });
-                for (const stream of streams) stream.destroy();
+            const httpClosed = new Promise<void>((resolveClose, reject) => {
+                listener.close(error => error ? reject(error) : resolveClose());
             });
-            if (failure) throw failure;
+            for (const stream of streams) stream.destroy();
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                const webSockets = closeWebSockets();
+                const deadline = new Promise<never>((_, reject) => {
+                    timer = setTimeout(() => {
+                        listener.closeAllConnections();
+                        reject(new Error('Arc host shutdown timed out'));
+                    }, timeoutMs);
+                });
+                const socketOutcome = await Promise.race([webSockets.then(() => undefined, error => error),
+                    deadline.then(() => undefined, error => error)]);
+                if (socketOutcome) throw socketOutcome;
+                await Promise.race([httpClosed, deadline.catch(() => new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error('Arc host shutdown timed out')), 100);
+                }))]);
+            } finally { if (timer) clearTimeout(timer); }
         })();
         return pendingClose;
     } };

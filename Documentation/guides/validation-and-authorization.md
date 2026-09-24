@@ -6,7 +6,7 @@ description: Authenticate callers, restrict commands and queries by role or per 
 A command that renames a task has to answer several questions before it touches anything: who is calling, may they call this at all, may they change this particular task, is the input well formed, and does it follow the rules? Arc for TypeScript gives each question its own place in a definition and always asks them in the same order, so a caller who may not run an operation never sees its rule messages.
 
 :::note[Unpublished source]
-Named authorization policies, authentication schemes, concept validators, and validation rules shared with the client are not implemented. See the [capability reference](../reference/capabilities.md).
+Named authorization policies and authentication schemes are not implemented. Model-bound server validators and concept rules are available, but generated client rules are not. See [Validate model-bound commands and queries](validation.md) and the [capability reference](../reference/capabilities.md).
 :::
 
 ## A command with every check
@@ -138,11 +138,13 @@ Handlers run in the order you list them, and they can be `async`. An authenticat
 | `{ roles: ['editor', 'admin'] }` | An authenticated caller with at least one of the roles |
 | `{ anonymous: true }` | Everyone; `authorize` still runs |
 
-Combining `anonymous: true` with `authenticated` or `roles` is a contradiction, and the `ArcServer` constructor throws.
+Combining `anonymous: true` with `authenticated` or `roles` is a contradiction, and the `ArcServer` constructor throws. Model-bound `@roles('editor', 'admin')` allows either role within that declaration; stacked decorators on one class or query method are separate requirements and **all** must pass. A `@query()` method's authorization replaces the read-model class declaration. Authorization on a command's `handle()` or a static method without `@query()` fails at build time rather than silently leaving the endpoint open.
 
 When the answer depends on the input, the tenant, or stored data, add `authorize(input, context)`. It runs after the schema, receives the typed input, and returns `true` or `false`, or a promise of either. `false` answers 403 without a reason. Put every security and tenant check here, not in a validator: nothing a caller sends, and no allowed severity, changes the outcome of `authorize`.
 
 ## Put shape in the schema and rules in validators
+
+This section describes the low-level `defineCommand`/`defineQuery` path. For `@command()` and `@readModel()` classes, use [model-bound server validators](validation.md) instead; the same authorization and severity order applies.
 
 | Put it in the Zod schema | Put it in `validate` or `filters` |
 | --- | --- |

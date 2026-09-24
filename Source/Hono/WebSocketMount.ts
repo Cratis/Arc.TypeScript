@@ -6,7 +6,7 @@ import { createNodeWebSocket } from '@hono/node-ws';
 import type { NodeWebSocket } from '@hono/node-ws';
 import type { Context, Env, Hono } from 'hono';
 import { ObservableHandshakeTimeoutError, prepareObservableUpgrade, serveUpgradedSocket,
-    withObservableHandshakeTimeout } from '@cratis/arc.core/hosting';
+    withObservableHandshakeTimeout, observableLimits } from '@cratis/arc.core/hosting';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 /** Register Hono WebSocket routes before serve(), then inject into the Node listener. */
@@ -17,7 +17,7 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
         dispose(): Promise<void>;
     } {
     const helper = existingWebSockets ?? createNodeWebSocket({ app: app as unknown as Hono });
-    if (!existingWebSockets) helper.wss.options.maxPayload = server.observableLimits.inboundFrameBytes;
+    if (!existingWebSockets) helper.wss.options.maxPayload = observableLimits(server).inboundFrameBytes;
     const sockets = new Set<{ close(): void; completion: Promise<void> }>();
     const listeners = new Map<HttpServer, readonly ((...arguments_: unknown[]) => void)[]>();
     const routes = [...server.routes].filter(([, operation]) => 'observable' in operation && operation.observable === true)
@@ -42,7 +42,7 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
                     const request = new Request(url, { headers: context.req.raw.headers });
                     const prepared = await prepareObservableUpgrade(server, request, trusted);
                     return { trusted, request, prepared };
-                }, server.observableLimits.handshakeTimeoutMs);
+                }, observableLimits(server).handshakeTimeoutMs);
             } catch (error) {
                 if (error instanceof ObservableHandshakeTimeoutError) return new Response(null, { status: 408 });
                 await server.options.logger?.(error, context.req.header(server.options.correlationHeader ?? 'X-Correlation-ID') ?? '');

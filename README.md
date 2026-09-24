@@ -43,7 +43,7 @@ export class TaskItem {
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
+| `@cratis/arc.core` | [`Source/Arc.Core`](Source/Arc.Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
 | `@cratis/arc.express` | [`Source/Express`](Source/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |
@@ -52,7 +52,7 @@ export class TaskItem {
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
 
-Every package manifest is at version 0.4.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.5.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -67,7 +67,7 @@ yarn build
 yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
-The sample listens on port 3000 on loopback by default. [Get started](Documentation/getting-started.md) walks through calling it and explains every line.
+The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started.md) walks through calling it and explains every line.
 
 ## What works and what does not
 
@@ -82,7 +82,7 @@ Also supported, each one explicit or opt-in:
 - **Testing.** `@cratis/arc.testing` runs specs through the real command, query, and HTTP pipelines.
 - **Generated clients, bounded.** Run `arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <existing-folder>` against decorated commands and read models. It reads the TypeScript program, not application startup, and generates command/query/observable classes, nested models and hooks. These compile with the published `@cratis/arc` and `@cratis/arc.react` 22.19.1 in strict Bundler mode with `skipLibCheck: false`; the model-bound command, query, paging, sorting and observable hub run against all three adapters. `NodeNext` consumer compilation is not supported by those published declarations. For low-level `define*` definitions, keep using `exportClientManifest` and the positional JSON CLI, whose narrower contract excludes nested DTOs, React hooks and shared validation rules. See [Generate command and query clients](Documentation/guides/generate-clients.md).
 
-A paired suite checks 35 bounded HTTP cases, including model-bound command and query behavior, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
+A paired suite checks 42 bounded HTTP cases, including model-bound command and query validation, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
 
 Not implemented:
 
@@ -100,6 +100,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 - [Host Arc in Express, Fastify, or Hono](Documentation/guides/host-integration.md)
 - [Host Arc directly in Node.js](Documentation/guides/standalone-host.md)
 - [Call Arc from code](Documentation/guides/direct-calls.md)
+- [Validate model-bound commands and queries](Documentation/guides/validation.md)
 - [Validate and authorize commands and queries](Documentation/guides/validation-and-authorization.md)
 - [Decide command outcomes](Documentation/guides/command-outcomes.md)
 - [Bind query arguments, page, and sort](Documentation/guides/queries.md)
