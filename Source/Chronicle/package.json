@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.chronicle",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "publishConfig": {
     "access": "public"
   },
@@ -30,7 +30,7 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.15.0",
+    "@cratis/arc.core": "^0.16.0",
     "@cratis/arc.testing": "^0.11.0",
     "@cratis/chronicle": "^6.6.0",
     "@cratis/fundamentals": "^7.19.6",
