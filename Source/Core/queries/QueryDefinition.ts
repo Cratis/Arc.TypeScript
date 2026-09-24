@@ -8,6 +8,8 @@ import type { QueryOptions } from './QueryOptions.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 export interface QueryDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;
+    /** @internal Model-bound results need class-to-wire conversion after interception. */
+    wireOutput?: boolean;
     handlerDependencies?: readonly ServiceIdentifier<unknown>[];
     validatorDependencies?: readonly ServiceIdentifier<unknown>[];
     authorize?: (input: z.output<S>, context: ExecutionContext) => boolean | Promise<boolean>;

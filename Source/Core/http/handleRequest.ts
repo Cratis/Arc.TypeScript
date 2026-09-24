@@ -1,6 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
+import { SpanKind } from '@opentelemetry/api';
+import { observe } from '../observability.js';
+import { stringifyWire } from '../reflection/stringifyWire.js';
 import type { ArcServer } from '../ArcServer.js';
 import type { NativeRequestContext } from './NativeRequestContext.js';
 import type { Operation } from './Operation.js';
@@ -51,7 +54,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
         const header = server.options.correlationHeader ?? 'X-Correlation-ID';
         const correlationId = correlation(request.headers.get(header));
         const headers = new Headers({ [header]: correlationId });
-        const send = (value: unknown, code: number, extra?: HeadersInit): Response => new Response(JSON.stringify(value), { status: code, headers: new Headers({ ...Object.fromEntries(headers), 'content-type': 'application/json; charset=utf-8', ...Object.fromEntries(new Headers(extra)) }) });
+        const send = (value: unknown, code: number, extra?: HeadersInit): Response => new Response(stringifyWire(value), { status: code, headers: new Headers({ ...Object.fromEntries(headers), 'content-type': 'application/json; charset=utf-8', ...Object.fromEntries(new Headers(extra)) }) });
         let loggingFailed = false;
         const logFailure = async (error: unknown): Promise<boolean> => {
             if (loggingFailed) return false;
@@ -63,6 +66,8 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                 return false;
             }
         };
+        return observe('cratis.arc.http.handle', correlationId, { 'http.request.method': request.method,
+            'http.route': operation?.route ?? path }, async () => {
         if (introspection && request.method !== 'GET') return new Response(null, { status: 405, headers: new Headers({ ...Object.fromEntries(headers), allow: 'GET' }) });
         if (introspection && path !== '/.cratis/me' && path !== '/.cratis/users' && path !== '/.cratis/tenants') {
             if (path === '/.cratis/identity-details/schema') return send(bindings.identitySchema ?? server.options.identityDetailsSchema ?? {}, 200);
@@ -206,4 +211,5 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             await logFailure(error);
             return serverFailure();
         }
+        }, SpanKind.SERVER);
     }

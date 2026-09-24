@@ -33,6 +33,11 @@
   "devDependencies": {
     "@cratis/fundamentals": "7.19.3",
     "@eslint/js": "^10.0.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "^2.0.0",
+    "@opentelemetry/sdk-metrics": "^2.0.0",
+    "@opentelemetry/sdk-node": "^0.212.0",
+    "@opentelemetry/sdk-trace-base": "^2.0.0",
     "@types/chai": "^5.2.0",
     "@types/chai-as-promised": "^8.0.0",
     "@types/express": "^5.0.0",

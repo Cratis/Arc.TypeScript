@@ -27,6 +27,7 @@ import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
 import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
+import { observe } from './observability.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 export class ArcServer {
     readonly commands: readonly Operation[];
@@ -45,6 +46,8 @@ export class ArcServer {
 
     constructor(options: ArcServerOptions) {
         this.options = options;
+        if (options.correlationHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationHeader))
+            throw new Error('Invalid correlation header');
         if (options.commandCompensationTimeoutMs !== undefined &&
             (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
                 options.commandCompensationTimeoutMs > 4_294_967_294))
@@ -143,7 +146,11 @@ export class ArcServer {
             recordFailure(result, error, previous);
             return result;
         });
-        return operation.kind === 'command' ? CommandOperationBoundary.command(this, run) : run();
+        const name = operation.kind === 'command' ? validateOnly ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute' : 'cratis.arc.query.perform';
+        const qualified = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const attributes = operation.kind === 'command' ? { commandType: qualified } : { queryName: qualified };
+        const traced = () => observe(name, context.correlationId, attributes, run);
+        return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
     }
 
     async dispose(): Promise<void> {

@@ -6,7 +6,8 @@ import type { QueryOptions } from '../QueryOptions.js';
 import type { QueryResult } from '../QueryResult.js';
 import type { Operation } from '../../http/Operation.js';
 import { queryOperation } from '../queryOperation.js';
-import { renderQueryData } from '../queryRendering.js';
+import { renderQuery } from '../renderQuery.js';
+import type { ArcServerOptions } from '../../ArcServerOptions.js';
 import { queryResult } from '../../results/index.js';
 import { recordFailure } from '../../results/failureTracking.js';
 import type { ObservableQueryDefinition } from './ObservableQueryDefinition.js';
@@ -19,9 +20,9 @@ export interface ObservableOperation extends Operation {
 }
 
 export function observableOperation<S extends z.ZodType, T>(
-    definition: ObservableQueryDefinition<S, T>, route: string
+    definition: ObservableQueryDefinition<S, T>, route: string, settings: ArcServerOptions = {}
 ): ObservableOperation {
-    const startup = queryOperation({ ...definition, clientOutput: undefined, perform: definition.observe }, route, true);
+    const startup = queryOperation({ ...definition, clientOutput: undefined, perform: definition.observe }, route, true, settings);
     return {
         ...startup, clientOutput: definition.clientOutput, observable: true,
         async run(input, context, options): Promise<QueryResult> {
@@ -32,7 +33,7 @@ export function observableOperation<S extends z.ZodType, T>(
             return result;
         },
         async render(_input, context, options, data): Promise<QueryResult> {
-            try { return renderQueryData(definition, data as T, context, options); }
+            try { return await renderQuery(definition, data, context, options, settings); }
             catch (error) {
                 const result = queryResult(context, { exceptionMessages: [String(error)] });
                 recordFailure(result, error);

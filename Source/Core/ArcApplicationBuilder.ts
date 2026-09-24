@@ -26,6 +26,8 @@ import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
+import type { QueryRenderer } from './queries/QueryRenderer.js';
+import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
 export class ArcApplicationBuilder {
@@ -34,6 +36,8 @@ export class ArcApplicationBuilder {
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
+    readonly #queryRenderers: ServiceIdentifier<QueryRenderer>[] = [];
+    readonly #readModelInterceptors: ServiceIdentifier<ReadModelInterceptor>[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
@@ -52,11 +56,15 @@ export class ArcApplicationBuilder {
         this.#keyResolvers.push(token);
         return this;
     }
+    /** Add an ordered scoped query renderer registered in services. */
+    addQueryRenderer(token: ServiceIdentifier<QueryRenderer>): this { this.#queryRenderers.push(token); return this; }
+    /** Add an ordered scoped read-model interceptor registered in services. */
+    addReadModelInterceptor(token: ServiceIdentifier<ReadModelInterceptor>): this { this.#readModelInterceptors.push(token); return this; }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
     add(...types: ClassType[]): this {
         for (const type of types) {
             const metadata = ownMetadata(type);
-            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) {
+            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor) {
                 throw new Error(`Not an Arc artifact: ${type.name}`);
             }
             this.register(type, metadata.namespace ?? '');
@@ -65,7 +73,7 @@ export class ArcApplicationBuilder {
     }
     private register(type: ClassType, namespace: string): void {
         const metadata = ownMetadata(type);
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return;
+        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor) return;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
@@ -104,7 +112,8 @@ export class ArcApplicationBuilder {
         this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
         dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers,
             ...this.options.commandResponseValueHandlers ?? [], ...this.options.commandContextValuesProviders ?? [],
-            ...this.options.commandKeyResolvers ?? []);
+            ...this.options.commandKeyResolvers ?? [], ...this.#queryRenderers, ...this.#readModelInterceptors,
+            ...this.options.queryRenderers ?? [], ...this.options.readModelInterceptors ?? []);
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
             throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
@@ -112,6 +121,8 @@ export class ArcApplicationBuilder {
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
             commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
             commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
+            queryRenderers: [...this.options.queryRenderers ?? [], ...this.#queryRenderers],
+            readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }
@@ -121,7 +132,8 @@ export class ArcApplicationBuilder {
         if (this.options.services && !Array.isArray(this.options.services) &&
             (this.services.registrations.length || this.#artifacts.some(({ type }) => {
                 const metadata = ownMetadata(type);
-                return metadata.lifetime || metadata.validatorTarget || metadata.responseValueHandler;
+                return metadata.lifetime || metadata.validatorTarget || metadata.responseValueHandler ||
+                    metadata.queryRenderer || metadata.readModelInterceptor;
             }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
     }
     private registerValidators(dependencies: ServiceIdentifier<unknown>[]): Map<ClassType, ClassType<BaseValidator<unknown>>> {
@@ -147,6 +159,21 @@ export class ArcApplicationBuilder {
         observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[]): void {
         for (const { type, namespace } of this.#artifacts) {
             const metadata = ownMetadata(type);
+            if (metadata.queryRenderer || metadata.readModelInterceptor) {
+                if (metadata.command || metadata.readModel || metadata.validatorTarget || metadata.responseValueHandler ||
+                    metadata.queryRenderer && metadata.readModelInterceptor || metadata.lifetime === 'singleton')
+                    throw new Error(`Conflicting Arc query extension artifact: ${type.name}`);
+                if (metadata.queryRenderer) {
+                    if (typeof type.prototype.canRender !== 'function' || typeof type.prototype.render !== 'function')
+                        throw new Error(`Query renderer ${type.name} requires canRender() and render()`);
+                    this.#queryRenderers.push(type as ServiceIdentifier<QueryRenderer>);
+                } else {
+                    if (typeof type.prototype.intercept !== 'function')
+                        throw new Error(`Read-model interceptor ${type.name} requires intercept()`);
+                    this.#readModelInterceptors.push(type as ServiceIdentifier<ReadModelInterceptor>);
+                }
+                if (!metadata.lifetime) this.services.addScoped(type);
+            }
             if (metadata.responseValueHandler) {
                 if (metadata.command || metadata.readModel || metadata.validatorTarget)
                     throw new Error(`Conflicting Arc response handler artifact: ${type.name}`);

@@ -5,7 +5,9 @@ import type { QueryDefinition, QueryResult, ValidationResult } from '../index.js
 import { authorized } from '../authorization/authorized.js';
 import { queryResult } from '../results/queryResult.js';
 import { malformed } from '../results/malformed.js';
-import { renderQueryData } from './queryRendering.js';
+import { renderQuery } from './renderQuery.js';
+import type { ArcServerOptions } from '../ArcServerOptions.js';
+import { observe } from '../observability.js';
 import type { Operation } from '../http/Operation.js';
 import { recordFailure } from '../results/failureTracking.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
@@ -20,7 +22,7 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
     return json;
 }
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
-    observable = false): Operation {
+    observable = false, settings: ArcServerOptions = {}): Operation {
     return {
         ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
@@ -33,7 +35,9 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 let issues: ValidationResult[];
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
-                    issues = await validate([definition.validate, ...(definition.filters ?? [])], value, context);
+                    issues = await observe('cratis.arc.query.filter', context.correlationId,
+                        { queryName: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
+                            validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;
                     const failure = queryResult(context, { validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure() });
@@ -43,7 +47,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 if (issues.length) return queryResult(context, { validationResults: issues });
                 await prepareDependencies(definition.handlerDependencies);
                 const data = await definition.perform(value, context, options);
-                return observable ? queryResult(context, { data }) : renderQueryData(definition, data, context, options);
+                return observable ? queryResult(context, { data }) : await renderQuery(definition, data, context, options, settings);
             } catch (error) {
                 if (error instanceof InvalidQuerySort) return queryResult(context, {
                     validationResults: [validation(error.message, ['sorting.field'])]

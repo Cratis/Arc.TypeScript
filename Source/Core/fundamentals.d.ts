@@ -5,6 +5,7 @@
 declare module '@cratis/fundamentals' {
     export { ConceptAs } from '@cratis/fundamentals/dist/esm/ConceptAs.js';
     export { DateOnly } from '@cratis/fundamentals/dist/esm/DateOnly.js';
+    export { DerivedType } from '@cratis/fundamentals/dist/esm/DerivedType.js';
     export { Fields } from '@cratis/fundamentals/dist/esm/Fields.js';
     export { Guid } from '@cratis/fundamentals/dist/esm/Guid.js';
     export { TimeOnly } from '@cratis/fundamentals/dist/esm/TimeOnly.js';
