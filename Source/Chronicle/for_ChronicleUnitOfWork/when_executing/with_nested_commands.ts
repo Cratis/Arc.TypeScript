@@ -7,12 +7,21 @@ import { Created, CreateMany, CreateRejected, context, a_registered_command } fr
 import { accepted } from '../../for_ChronicleCommand/given/a_command_with_typed_ports.js';
 
 let application: ArcApplication;
+let otherApplication: ArcApplication;
 @command() class CreateNested {
     @field(String) @key() id = '';
     @inject(commandContext())
     async handle(execution: CommandContext) {
         const inner = await application.server.executeCommand('CreateMany', { id: this.id }, execution);
         if (!inner.isSuccess) return rejected(validation('Inner command failed'));
+        return new Created();
+    }
+}
+@command() class CrossStoreNested {
+    @field(String) @key() id = '';
+    @inject(commandContext())
+    async handle(execution: CommandContext) {
+        await otherApplication.server.executeCommand('CreateMany', { id: this.id }, execution);
         return new Created();
     }
 }
@@ -63,10 +72,14 @@ describe('when returned events from nested commands join one Chronicle append', 
         const builder = ArcApplication.createBuilder();
         const { getEventStore } = setup;
         builder.addChronicle({ client: { getEventStore } as never, eventStore: 'Tasks' });
-        builder.add(CreateNested, DetachedNested, CrossTenantNested, RejectAfterNested, IgnoreNestedFailure, CreateMany, CreateRejected, Created);
+        builder.add(CreateNested, DetachedNested, CrossTenantNested, CrossStoreNested, RejectAfterNested, IgnoreNestedFailure, CreateMany, CreateRejected, Created);
         application = await builder.build();
+        const other = ArcApplication.createBuilder();
+        other.addChronicle({ client: { getEventStore: async () => ({ ...store }) } as never, eventStore: 'Other' });
+        other.add(CreateMany, Created);
+        otherApplication = await other.build();
     });
-    afterEach(async () => { await application.dispose(); });
+    afterEach(async () => { await application.dispose(); await otherApplication.dispose(); });
     it('should commit three events in one batch after the outer command succeeds', async () => {
         const result = await application.server.executeCommand('CreateNested', { id: 'source-1' }, context());
         result.isSuccess.should.equal(true, JSON.stringify(result));
@@ -91,6 +104,11 @@ describe('when returned events from nested commands join one Chronicle append', 
     });
     it('should refuse a cross-tenant nested command and discard outer events', async () => {
         const result = await application.server.executeCommand('CrossTenantNested', { id: 'source-1' }, context());
+        result.isSuccess.should.equal(false);
+        setup.appendMany.called.should.equal(false);
+    });
+    it('should refuse a cross-store nested command and discard outer events', async () => {
+        const result = await application.server.executeCommand('CrossStoreNested', { id: 'source-1' }, context());
         result.isSuccess.should.equal(false);
         setup.appendMany.called.should.equal(false);
     });
