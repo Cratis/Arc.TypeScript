@@ -9,9 +9,12 @@ type Value<T> = T extends StringConstructor ? string : T extends NumberConstruct
 type Injected<T extends readonly ServiceIdentifier<unknown>[]> = { -readonly [Index in keyof T]: T[Index] extends ServiceClass<infer Instance> ? Instance : T[Index] extends ServiceToken<infer Instance> ? Instance : never };
 type ParameterValue<T extends Parameter> = T extends ParameterArgument ? T['optional'] extends true ? Value<T['type']> | undefined : Value<T['type']> : T extends ParameterService ? T['token'] extends ServiceClass<infer Instance> ? Instance : T['token'] extends ServiceToken<infer Instance> ? Instance : never : never;
 type ParameterValues<T extends readonly Parameter[]> = { -readonly [Index in keyof T]: T[Index] extends Parameter ? ParameterValue<T[Index]> : never };
-type MethodDecorator<T extends readonly unknown[]> = {
+type MethodDecorator<T extends readonly unknown[], AllowsPreparation extends boolean = false> = {
     <This, Arguments extends unknown[], Result>(method: (this: This, ...arguments_: Arguments) => Result,
-        context: ClassMethodDecoratorContext<This, (this: This, ...arguments_: Arguments) => Result> & (T extends Arguments ? unknown : never)): void;
+        context: ClassMethodDecoratorContext<This, (this: This, ...arguments_: Arguments) => Result> &
+            (T extends Arguments ? unknown : AllowsPreparation extends true ?
+                This extends { provide: (...arguments_: never[]) => infer Prepared } ?
+                    [Awaited<Prepared>, ...T] extends Arguments ? unknown : never : never : never)): void;
     (target: object, name: string | symbol, descriptor: PropertyDescriptor): void;
 };
 type SimpleMemberDecorator = {
@@ -35,7 +38,7 @@ export function argument(name: string, type: WireType, options: { optional?: boo
 export function service<T extends ServiceClass<unknown>>(token: T): ParameterService & { readonly token: T };
 export function service<T>(token: ServiceToken<T>): ParameterService & { readonly token: ServiceToken<T> };
 export function service<T>(token: ServiceIdentifier<T>): ParameterService { return { kind: 'service', token }; }
-export function inject<const Tokens extends readonly ServiceIdentifier<unknown>[]>(...tokens: Tokens): MethodDecorator<Injected<Tokens>> {
+export function inject<const Tokens extends readonly ServiceIdentifier<unknown>[]>(...tokens: Tokens): MethodDecorator<Injected<Tokens>, true> {
     return ((target: object, nameOrContext: string | symbol | ClassMethodDecoratorContext) => {
         const standard = typeof nameOrContext === 'object';
         const name = standard ? nameOrContext.name : nameOrContext;
@@ -44,7 +47,7 @@ export function inject<const Tokens extends readonly ServiceIdentifier<unknown>[
         const data = memberMetadata(target, name, standard ? nameOrContext : undefined);
         data.injected = tokens;
         data.injectionDeclared = true;
-    }) as MethodDecorator<Injected<Tokens>>;
+    }) as MethodDecorator<Injected<Tokens>, true>;
 }
 export function query<const Parameters extends readonly Parameter[]>(...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;
 export function query<const Parameters extends readonly Parameter[]>(options: { observable?: boolean }, ...parameters: Parameters): MethodDecorator<ParameterValues<Parameters>>;

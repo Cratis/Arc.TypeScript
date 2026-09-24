@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { field } from '@cratis/fundamentals';
+import { field, Guid } from '@cratis/fundamentals';
 import { query, readModel, service, argument } from '../../index.js';
 import { ItemName } from './ItemName.js';
 import { Items } from './Items.js';
@@ -13,4 +13,6 @@ export class Item {
     static byName(name: ItemName, items: Items): Item | undefined {
         return items.values.some(value => value.value === name.value) ? Object.assign(new Item(), { name }) : undefined;
     }
+    @query(argument('id', Guid))
+    static byGuid(id: Guid): Item | undefined { void id; return undefined; }
 }

@@ -26,4 +26,13 @@ class Samples {
     @query(service(Provider))
     static unbound(provider: Provider, extra: number): void { void provider; void extra; }
 }
+class PreparedSample {
+    provide(): string { return 'prepared'; }
+    @inject(Provider)
+    handle(value: string, provider: Provider): string { return value + provider.fetch(); }
+    // @ts-expect-error preparation has type string, not number
+    @inject(Provider)
+    incompatible(value: number, provider: Provider): void { void value; void provider; }
+}
 void Samples;
+void PreparedSample;
