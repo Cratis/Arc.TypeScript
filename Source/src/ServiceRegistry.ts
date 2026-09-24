@@ -4,12 +4,14 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from './ExecutionContext.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
 import type { ServiceToken } from './ServiceToken.js';
-import { ServiceScope, withServiceResolutionBoundary } from './ServiceScope.js';
+import { ServiceScope, closeServiceScope, createSingletonServiceScope, disposeCreatedServices, hasLivingServiceDisposal, hasLivingServiceResolution, serviceScopeRegistry, withServiceResolutionBoundary } from './ServiceScope.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
 import type { ServiceExecutionFrame } from './ServiceExecutionFrame.js';
 import { ServiceDependencyError } from './ServiceDependencyError.js';
 import { ServiceResolutionState } from './ServiceResolutionState.js';
 import { ServiceExecutionState } from './ServiceExecutionState.js';
+import { ServiceRegistryState } from './ServiceRegistryState.js';
+import type { SingletonServiceContext } from './SingletonServiceContext.js';
 
 /** Owns registrations and singleton instances. Dispose when the host shuts down. */
 export class ServiceRegistry {
@@ -20,7 +22,9 @@ export class ServiceRegistry {
     readonly #waits = new Map<ServiceResolutionNode, Map<ServiceResolutionNode, number>>();
     readonly #owners = new WeakMap<object, ServiceScope | null>();
     readonly #singletons: ServiceScope;
-    #disposed = false;
+    readonly #lifetime = new AbortController();
+    readonly #singletonContext: SingletonServiceContext = Object.freeze({ signal: this.#lifetime.signal });
+    #state = ServiceRegistryState.Running;
     #singletonFailed = false;
     #closing: Promise<void> | undefined;
 
@@ -39,15 +43,30 @@ export class ServiceRegistry {
                 this.#owners.set(registration.instance as object, null);
             this.#registrations.set(registration.token.key, registration);
         }
-        this.#singletons = new ServiceScope(this, undefined, true);
+        this.#singletons = createSingletonServiceScope(this);
     }
-    get disposed(): boolean { return this.#disposed; }
+    get disposed(): boolean { return this.#state !== ServiceRegistryState.Running; }
     get singletonFailed(): boolean { return this.#singletonFailed; }
-    markSingletonFailure(): void { this.#singletonFailed = true; }
+    get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
+    markSingletonFailure(): void {
+        if (this.#singletonFailed) return;
+        this.#singletonFailed = true;
+        // The stored shutdown remains rejecting for external joiners, even when nobody awaits the factory.
+        void this.beginShutdown().catch(() => {});
+    }
+    /** A live factory may outlast the execution that originally requested it. */
+    hasLivingExecution(): boolean {
+        let ancestor = this.#activeExecution.getStore();
+        while (ancestor) {
+            if (ancestor.state === ServiceExecutionState.Running) return true;
+            ancestor = ancestor.parent;
+        }
+        return false;
+    }
     /** Track waits across scopes: an in-flight singleton can be awaited by a different execution. */
     waitFor<T>(node: ServiceResolutionNode, name: string, chain: readonly ServiceResolutionNode[], task: Promise<T>): Promise<T> {
         const source = chain.filter(ancestor => ancestor.state === ServiceResolutionState.Pending).at(-1);
-        if (node.state !== ServiceResolutionState.Pending || !source || source.scope.registry !== this) return task;
+        if (node.state !== ServiceResolutionState.Pending || !source || serviceScopeRegistry(source.scope) !== this) return task;
         const reaches = (from: ServiceResolutionNode, target: ServiceResolutionNode, visited = new Set<ServiceResolutionNode>()): boolean => {
             if (from.state !== ServiceResolutionState.Pending) return false;
             if (from === target) return true;
@@ -74,7 +93,7 @@ export class ServiceRegistry {
         const object = value as object;
         if (this.#owners.has(object)) {
             const owner = this.#owners.get(object);
-            if (owner && owner !== scope && !owner.singleton)
+            if (owner && owner !== scope && owner !== this.#singletons)
                 throw new ServiceDependencyError(`Conflicting service ownership: ${token.name}`);
             return false;
         }
@@ -91,12 +110,7 @@ export class ServiceRegistry {
         let result: T;
         try { result = await this.#activeExecution.run(frame, () => withServiceResolutionBoundary(callback)); }
         finally { frame.state = ServiceExecutionState.Drained; this.#executions.delete(completion); finish(); }
-        let ancestor = frame.parent;
-        while (ancestor) {
-            if (ancestor.state === ServiceExecutionState.Running) return completed ? completed(result, true) : result;
-            ancestor = ancestor.parent;
-        }
-        return completed ? completed(result, false) : result;
+        return completed ? completed(result, this.hasLivingExecution() || hasLivingServiceResolution(this)) : result;
     }
     registration(token: ServiceToken<unknown>): ServiceRegistration<unknown> {
         if (!token || typeof token.key !== 'symbol' || typeof token.name !== 'string')
@@ -115,31 +129,42 @@ export class ServiceRegistry {
                 throw new ServiceDependencyError(`Invalid service dependencies: ${token.name}`);
             for (const dependency of registration.dependencies ?? []) visit(dependency, [...chain, token.key], singleton || registration.lifetime === 'singleton');
         };
-        this.assertLive();
         for (const token of tokens) visit(token, [], false);
     }
     createScope(identity: ExecutionContext): ServiceScope {
         this.assertLive();
-        const scope = new ServiceScope(this, identity);
-        this.#scopes.add(scope);
-        return scope;
+        return new ServiceScope(this, identity);
     }
     singletonScope(): ServiceScope { return this.#singletons; }
+    /** Directly constructed scopes participate in admission and shutdown too. */
+    admitScope(scope: ServiceScope): void { this.assertLive(); this.#scopes.add(scope); }
     release(scope: ServiceScope): void { this.#scopes.delete(scope); }
-    assertLive(): void { if (this.#disposed || this.#singletonFailed) throw new ServiceDependencyError('Service registry is disposed'); }
+    assertLive(): void { if (this.#state !== ServiceRegistryState.Running || this.#singletonFailed) throw new ServiceDependencyError('Service registry is disposed'); }
     dispose(): Promise<void> {
+        if (this.hasLivingExecution() || hasLivingServiceResolution(this) || hasLivingServiceDisposal(this))
+            return Promise.reject(new ServiceDependencyError('Cannot await service registry disposal from owned work'));
+        return this.beginShutdown();
+    }
+    private beginShutdown(): Promise<void> {
         if (this.#closing) return this.#closing;
-        this.#disposed = true;
+        this.#state = ServiceRegistryState.Draining;
         const executions = [...this.#executions];
         const scopes = [...this.#scopes];
         const completion = Promise.resolve().then(async () => {
             const errors: unknown[] = [];
-            await Promise.allSettled(executions);
-            for (const scope of scopes) {
-                try { await scope.dispose(); } catch (error) { errors.push(error); }
+            try {
+                await Promise.allSettled(executions);
+                for (const scope of scopes) {
+                    try { await closeServiceScope(scope); } catch (error) { errors.push(error); }
+                }
+                try { await closeServiceScope(this.#singletons); } catch (error) { errors.push(error); }
+                // Factories have settled; background work returned by a singleton may now stop.
+                this.#lifetime.abort();
+                try { await disposeCreatedServices(this.#singletons); } catch (error) { errors.push(error); }
+            } finally {
+                this.#state = ServiceRegistryState.Closed;
+                this.#waits.clear();
             }
-            try { await this.#singletons.dispose(); } catch (error) { errors.push(error); }
-            this.#waits.clear();
             if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
         });
         this.#closing = completion;

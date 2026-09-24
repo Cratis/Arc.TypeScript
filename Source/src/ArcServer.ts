@@ -1,6 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './contracts.js';
 import type { ArcServerOptions } from './ArcServerOptions.js';
@@ -15,8 +14,7 @@ import { hasFailure, originalFailure, recordFailure } from './failures.js';
 import { Severity } from './Severity.js';
 import { ServiceRegistry } from './ServiceRegistry.js';
 import { withServices } from './ServiceScope.js';
-
-const requestContext = new AsyncLocalStorage<ExecutionContext>();
+import { requestContext } from './RequestContextStore.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -106,13 +104,13 @@ export class ArcServer {
             catch (error) { result = fail(error); }
             try { await scope.dispose(); }
             catch (error) { result = fail(error, result); }
-            if (isSuccess(result) && (this.services.singletonFailed || this.services.disposed))
+            if (isSuccess(result) && this.services.singletonFailed)
                 result = fail(new Error('Service registry is disposed'), result);
             return result;
         })), async (initial, hasLivingAncestor) => {
             let result = initial;
             const checkAvailability = (): void => {
-                if (isSuccess(result) && (this.services.singletonFailed || this.services.disposed))
+                if (isSuccess(result) && this.services.singletonFailed)
                     result = fail(new Error('Service registry is disposed'), result);
             };
             checkAvailability();
