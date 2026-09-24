@@ -1,11 +1,21 @@
 ---
-title: Define model-bound commands
-description: Declare a command class with typed fields and a handle() method, prepare data in provide(), and control its route and access.
+title: Model-bound commands
+description: Declare a command class with typed fields and a handle() method, prepare data in provide(), bind services and built-in values, and control its route.
 ---
 
-Use a command to express a change. Arc binds its decorated fields before calling `handle()`, so the handler works with typed values rather than raw JSON. The [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) is a complete, compiled example:
+A command expresses a change. You declare it as a class: decorated fields are the input, and `handle()` is the work. Arc binds the fields before calling `handle()`, so your code works with typed values rather than raw JSON.
+
+## Declare fields and a handler
+
+The [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) is a complete, compiled example:
 
 ```typescript
+import { field } from '@cratis/fundamentals';
+import { command, inject } from '@cratis/arc.core';
+import { TaskId } from '../TaskId.js';
+import { TaskTitle } from '../TaskTitle.js';
+import { Tasks } from '../Tasks.js';
+
 @command()
 export class RegisterTask {
     @field(TaskId) id!: TaskId;
@@ -19,12 +29,60 @@ export class RegisterTask {
 }
 ```
 
-This excerpt assumes `TaskId`, `TaskTitle`, and `Tasks` from the linked sample. Import `field` from `@cratis/fundamentals` and `command`, `inject` from `@cratis/arc.core`. Each concept declares `static valueType` for runtime decoding. `handle()` can return a plain value or a promise; concepts become primitive response values. `response(value)`, `rejected(...results)`, and `denied(reason)` remain explicit control outcomes. `tuple(first, second)` groups server-handled values with **at most one** client response. Two values without response handlers fail the command; ordinary arrays stay ordinary response values. A tuple does **not** dispatch Chronicle events. See [Return command values](command-outcomes.md) and [Declare command operations](command-operations.md).
+- `@command()` from `@cratis/arc.core` marks the class. It must have a public instance `handle()`, which may be inherited.
+- `@field(Type)` from `@cratis/fundamentals` declares each input field and its wire type. Every field is required unless you add `@optional()`, `@nullable()`, or `@defaultValue(value)`. [Concepts](../../concepts.md) lists the supported types.
+- `@inject(Tasks)` lists one service token per `handle()` parameter, in order. See [Dependency injection](../../dependency-injection.md).
 
-`provide()` is optional. It runs after validation and before `handle()` on the same command instance; its one preparation value becomes the **first** `handle` argument, before injected services. `@inject(abortSignal(), commandContext())` binds an `AbortSignal` and the current `CommandContext` to `handle()` or `provide()`; in standard decorator mode these explicit markers are required. Returning `rejected(...)` or `denied(...)` stops execution. For multiple preparation values or interspersed parameters, return `tuple(...)` from `provide()` and mark each target with `@inject(provided(ValueType), commandContext(), provided(OtherType))`; Arc matches those marked values by runtime type in declared parameter order. Standard decorators need these explicit descriptors because TypeScript erases parameter types. Unmarked preparation still uses the first parameter; it is not silently matched to services.
+`handle()` can return a plain value or a promise. The value becomes the result's `response`; concepts are encoded as their primitive value. To reject, deny, or return several values, see [Command outcomes](../command-outcomes.md).
 
-Use `@key()` on one `@field` property to give the command an explicit key, or implement `getKey()` on the command. Arc captures that key on the `CommandContext` once per execution. You can also register `CommandKeyResolver` rules ahead of the default resolver (the .NET equivalent is `ICanResolveKeyForCommand`). No key is inferred from an unmarked `id` field.
+## Prepare data in provide()
 
-The command route combines the discovery namespace and class name: `Tasks.Registration.RegisterTask` uses `/api/tasks/registration/register-task`. `POST <route>/validate` runs authorization and input validation without calling `provide()` or `handle()`. Use `@path('/api/custom-path')` when a folder move must not change the public URL. `@roles('Admin')`, `@authorize()`, and `@allowAnonymous()` declare access on the class. Each stacked requirement must pass, while roles within one `@roles()` declaration are alternatives. Putting authorization or `@inject` on `provide()` or authorization on `handle()` fails at build time: these declarations have no endpoint effect.
+`provide()` is optional. It runs after validation and before `handle()`, on the same command instance, and its value becomes the **first** `handle()` argument, before injected services:
 
-Model-bound commands support `CommandValidator<T>` and `ConceptValidator<T>` for server-side rules (see [Validation](validation.md)). For an immediate business rule without a validator, explicitly return `rejected(...)` from `provide()` or `handle()` (after binding). See [Concepts](concepts.md) for wire types and [Dependency injection](dependency-injection.md) for service registration.
+```typescript
+@command()
+export class RenameTask {
+    @field(TaskId) id!: TaskId;
+    @field(TaskTitle) title!: TaskTitle;
+
+    @inject(Tasks)
+    provide(tasks: Tasks) {
+        const task = tasks.byId(this.id);
+        return task ?? rejected(validation('The task does not exist', ['id'], 'notFound'));
+    }
+
+    handle(task: TaskItem): void {
+        task.title = this.title;
+    }
+}
+```
+
+This excerpt assumes the Tasks sample's `TaskId`, `TaskTitle`, `TaskItem`, and `Tasks`, and imports `rejected` and `validation` from `@cratis/arc.core`. Returning `rejected(...)` or `denied(...)` from `provide()` stops execution; `handle()` never runs.
+
+For several prepared values, or values mixed with services, return `tuple(...)` from `provide()` and mark each `handle()` parameter with `@inject(provided(ValueType), commandContext(), provided(OtherType))`. Arc matches the marked values by runtime type, in declared parameter order. Unmarked preparation still uses the first parameter; Arc never silently matches a prepared value to a service.
+
+## Bind built-in values
+
+| Marker | Binds |
+| --- | --- |
+| `abortSignal()` | The request's `AbortSignal` |
+| `commandContext()` | The current [`CommandContext`](../command-context.md) |
+| `provided(Type)` | A value returned from `provide()`, matched by runtime type |
+| `commandReadModel(Type)` | A read model loaded by the command's key; see [Command context](../command-context.md#load-a-read-model-by-key) |
+
+Use them in `@inject(...)` on `handle()` or `provide()`, for example `@inject(abortSignal(), commandContext())`. Standard decorators need these explicit markers because TypeScript erases parameter types.
+
+## Route and namespace
+
+The route combines the discovery namespace and the class name: `Tasks.Registration.RegisterTask` is served at `POST /api/tasks/registration/register-task`, and `POST <route>/validate` runs authorization and validation without calling `provide()` or `handle()`. Use `@command({ namespace: 'Tasks.Registration' })` to fix the namespace, and `@path('/api/custom-path')` when a folder move must not change the public URL. See [Endpoint mapping](../../core/endpoint-mapping.md).
+
+## Build-time checks
+
+Arc rejects declarations that would silently do nothing: `@inject` or authorization decorators on `provide()`, authorization on `handle()`, and a class added with `add()` that has no Arc decorator. The [ESLint rules](../../code-analysis/index.md) catch many of the same mistakes in the editor.
+
+## Related
+
+- [Command authorization](authorization.md)
+- [Command validation](../command-validation.md)
+- [Command context](../command-context.md)
+- [Testing commands](../../testing/commands.md)

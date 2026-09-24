@@ -50,6 +50,6 @@ The workflow is **manual only**, not triggered by pushes or pull requests. The p
 
 ## Before enabling publication
 
-Agree on the package inventory and versioning scheme, including which packages stay private (the experimental Chronicle integration is `private`), verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
+Agree on the package inventory and versioning scheme, including whether any package stays unpublished (the Chronicle integration is experimental), verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
 
 **Major releases are never automatic.** They require a human merge and may proceed only after Arc parity has been verified. A minor/patch preview is not a shortcut around those requirements. Merge pull requests with a true merge commit, not squash or rebase; merging and publishing are outside this workflow.

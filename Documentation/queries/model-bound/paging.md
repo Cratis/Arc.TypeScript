@@ -1,87 +1,68 @@
 ---
-title: Bind query arguments, page, and sort
-description: Send query arguments with GET or QUERY, page and sort results in memory, and return a page that your data source has already cut.
+title: Paging and sorting
+description: Page and sort array results in memory, receive paging options in a query, and return a page your data source has already cut with queryPage.
 ---
 
-A query receives its arguments from a URL or a JSON body, and a client often asks for one page of the result in a particular order. Arc for TypeScript binds the arguments to your Zod schema, and either pages and sorts the returned array itself or accepts a page your data source has already produced.
+A client rarely wants every row. It asks for one page, in an order. Arc handles that for array results without any code from you, and lets a query that talks to a database cut the page itself.
 
-```typescript title="tasks.ts"
-import { ArcServer, defineQuery, queryPage } from '@cratis/arc.core';
-import { z } from 'zod';
+## Page and sort arrays automatically
 
-interface Task { id: string; title: string; tags: string[] }
-const stored: Task[] = [];
+When a query returns an array, Arc sorts it, then pages it:
 
-const byTags = defineQuery({
-    name: 'ByTags',
-    namespace: 'Tasks',
-    schema: z.object({ tags: z.array(z.string()).default([]), limit: z.number().optional() }),
-    perform: ({ tags, limit }) => stored
-        .filter(task => tags.every(tag => task.tags.includes(tag)))
-        .slice(0, limit ?? stored.length)
-});
+```typescript
+import { field } from '@cratis/fundamentals';
+import { query, queryOptions, queryPage, readModel, service, type QueryOptions } from '@cratis/arc.core';
 
-const recent = defineQuery({
-    name: 'Recent',
-    namespace: 'Tasks',
-    schema: z.object({}),
-    perform: (_input, _context, options) => {
+export class Catalog {
+    readonly items = [{ name: 'Apple' }, { name: 'Pear' }, { name: 'Fig' }];
+}
+
+@readModel()
+export class Product {
+    @field(String) name!: string;
+
+    @query(service(Catalog))
+    static all(catalog: Catalog): Product[] { return catalog.items; }
+
+    @query(service(Catalog), queryOptions())
+    static recent(catalog: Catalog, options: QueryOptions) {
         const page = options.paging?.page ?? 0;
         const size = options.paging?.pageSize ?? 0;
-        const items = size ? stored.slice(page * size, (page + 1) * size) : stored;
-        return queryPage(items, stored.length);
+        const items = size ? catalog.items.slice(page * size, (page + 1) * size) : catalog.items;
+        return queryPage(items, catalog.items.length);
     }
-});
-
-export const arc = new ArcServer({ queries: [byTags, recent] });
+}
 ```
 
-`GET /api/tasks/by-tags?tags=urgent&tags=home&limit=5&pageSize=2` binds `{ tags: ['urgent', 'home'], limit: 5 }`, and Arc returns the first two items. `recent` pages itself and hands Arc the page and the total.
+With `Catalog` registered as a singleton, `GET /api/all?pageSize=2&sortBy=name&sortDirection=desc` returns `Pear` and `Fig`, with `paging` reporting `{"page":0,"size":2,"totalItems":3,"totalPages":2}`.
 
-## Send arguments with GET
-
-- Argument names match schema properties case-insensitively. An argument the schema does not declare answers 400 `malformedRequest`.
-- A value for a `z.number()` or `z.boolean()` property is converted from text, also through any combination of `.optional()`, `.default(...)`, and `.nullable()`. Other values stay strings, so send structured arguments with `QUERY`.
-- A key may repeat only for a property declared as `z.array(...)`, again through those wrappers. Each value is converted by the element type, and a single value becomes a one-element array. Repeating any other key, or repeating a key with different casing such as `tags` and `TAGS`, answers 400.
-- `page`, `pageSize`, `sortBy`, and `sortDirection` are reserved for paging and sorting and never reach the schema.
-
-## Send arguments with QUERY
-
-The HTTP `QUERY` method takes a JSON body with at most three properties, and any other property answers 400:
-
-```json
-{ "arguments": { "tags": ["urgent"] }, "paging": { "page": 0, "pageSize": 10 }, "sorting": { "field": "title", "direction": "desc" } }
-```
-
-`arguments` is parsed by the schema as JSON, so numbers, booleans, arrays, and objects keep their types. Argument names match case-insensitively, as with GET. `paging` accepts only `page` and `pageSize`, and `sorting` only `field` and `direction`.
-
-## Page and sort
+## Request parameters
 
 | Request | Meaning |
 | --- | --- |
-| GET with `pageSize` of 1 or more | Page `page` (zero-based, default 0) of that size |
-| GET with `pageSize` of 0, negative, or not an integer | 400 `malformedRequest` |
-| `QUERY` with `pageSize` of 1 or more | Page `page` of that size |
+| GET `pageSize` of 1 or more | Page `page` (zero-based, default 0) of that size |
+| GET `pageSize` of 0, negative, or not an integer | 400 `malformedRequest` |
+| `QUERY` `paging.pageSize` of 1 or more | Page `paging.page` of that size |
 | `QUERY` with `pageSize: 0`, or without `pageSize` | Unpaged |
 | `sortBy` or `sorting.field` | Sort by that field. The name must start with a letter and contain only letters, digits, and `_`. |
 | `sortDirection` or `sorting.direction` | `asc`, `ascending`, `desc`, or `descending`, in any case; `asc` by default. A direction without a field answers 400. |
 
-When `perform` returns an array, Arc sorts it first and then pages it, and `paging` in the result reports `page`, `size`, `totalItems`, and `totalPages`. The sort field must be a property of every item, or the request answers 400. Dates compare by time, numbers and bigints numerically, `false` before `true`, and `null` or `undefined` before any value in ascending order. Other values compare as strings.
+In-memory sorting requires the field on every item, or the request answers 400. Dates compare by time, numbers and bigints numerically, `false` before `true`, and `null` or `undefined` before any value in ascending order. Other values compare as strings with `localeCompare`, which is not .NET invariant-culture collation; sort in the data source when a stable cross-platform order matters.
 
-When `perform` returns something other than an array, a request that asks for paging or sorting answers 400.
+A query that returns something other than an array answers 400 when the request asks for paging or sorting.
 
 ## Return a page your data source cut
 
-Loading every row to page it in memory does not scale. When a database pages for you, return `queryPage(items, totalItems)` from `perform`, as `recent` does. Arc uses the items as they are, without slicing them again, and reports your total:
+Loading every row to page it in memory does not scale. Add `queryOptions()` to receive the request's paging and sorting, cut the page in your data source, and return `queryPage(items, totalItems)`, as `recent` does. `GET /api/recent?pageSize=2&page=1` returns `Fig` with `totalItems: 3`.
 
 - `items` must be exactly the requested page: the page size, or fewer on the last page. For an unpaged request, `items` must hold all `totalItems`. Anything else answers 400.
-- A request that asks for sorting answers 400, because Arc cannot sort a page it did not cut. Sort in the data source instead.
-- `queryPage` itself throws when `totalItems` is negative, not a safe integer, or smaller than the number of items. The query then fails with a 500.
+- A request that asks for sorting answers 400 unless you pass the applied sort as the third argument, `queryPage(items, totalItems, sorting)`, confirming your data source sorted it. Arc never re-sorts a page it did not cut.
+- `queryPage` throws when `totalItems` is negative, not a safe integer, or smaller than the number of items; the query then fails with a 500.
 
-The optional [MongoDB integration](mongodb.md) returns such a page from `MongoReadModels.queryPage`.
+The [MongoDB](../../mongodb/paging.md) and [Drizzle](../../sql/paging.md) integrations return such pages for you, with sorting pushed into the database.
 
 ## Related
 
-- [Validate and authorize commands and queries](validation-and-authorization.md)
-- [Call Arc from code](direct-calls.md), where `performQuery` takes the same paging and sorting options
-- [Arc HTTP contract](/arc/http-contract/)
+- [Query arguments](query-arguments.md)
+- [Query renderers](../renderers.md) for provider-owned results
+- [Calling commands from code](../../commands/calling-commands-from-code.md), where `performQuery` takes the same options

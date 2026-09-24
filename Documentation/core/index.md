@@ -1,21 +1,63 @@
 ---
-title: Host Arc directly in Node.js
-description: Serve Arc routes, public assets, and SPA navigation without Express, Fastify, or Hono.
+title: Arc.Core and the standalone Node host
+description: Run an Arc application on Node's own HTTP server, own the listener yourself, and shut it down without losing in-flight work.
 ---
 
-Use the standalone Node host when you want Arc routes and a built frontend on the same port without a web framework. This source-preview package is not published to npm.
+`@cratis/arc.core` is the whole Arc application model: the command and query pipelines, validation, authorization, services, and the result envelope. It also carries a small Node host, so an application can serve its routes, and a built frontend, without Express, Fastify, or Hono.
 
-## Prerequisites
+:::note[Source preview]
+`@cratis/arc.core` is not published to npm. Use it from a clone of this repository with the `workspace:^` protocol, as `Samples/Tasks/package.json` does.
+:::
 
-Use Node.js 22 or later and an ES module package in this repository's workspace. Run `yarn install && yarn build` first. Install Zod 4; use the `workspace:^` dependency for `@cratis/arc.core` until publication. Place a public `index.html` in a `public` directory. Do not place credentials or private uploads there.
+## Run a built application
 
-## Start the host
+`ArcApplication` wraps the `ArcServer` that the [application builder](getting-started.md) creates, and owns a standalone listener when you ask it to:
 
-Save this as `server.ts` and run it in the workspace with `node server.ts` on Node.js 26 (which strips types by default), or compile it with TypeScript and run the emitted JavaScript with Node.js 22 or later.
+```typescript title="main.ts"
+import { ArcApplication } from '@cratis/arc.core';
+import { Tasks } from './Features/Tasks/Tasks.js';
+
+const builder = ArcApplication.createBuilder({ development: true });
+builder.services.addSingleton(Tasks);
+await builder.discover(new URL('./Features/', import.meta.url));
+export const app = await builder.build();
+await app.run({ port: Number(process.env.PORT ?? 3000) });
+```
+
+This is the [Tasks sample entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts). `app.run()` starts the listener and waits until SIGINT, SIGTERM, or `app.stop()`, then closes the listener and disposes the application. Its signal handlers are removed when it returns.
+
+| Method | Behavior |
+| --- | --- |
+| `app.run(options?)` | Start, then wait for a signal or `stop()`; closes gracefully |
+| `app.start(options?)` | Start listening and return; the caller decides when to stop |
+| `app.stop()` | Close the listener, then dispose the server and its singleton services |
+| `app.dispose()` | Same as `stop()`, whether or not a listener was started |
+| `app.server` | The `ArcServer`, for direct calls, adapters, and introspection |
+
+A stopped or disposed application cannot start again.
+
+## Listener options
+
+`run()` and `start()` accept the same options:
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `port` | `3000` | TCP port; `0` picks an ephemeral port |
+| `host` | `'127.0.0.1'` | Interface to bind. The default is loopback, not every interface |
+| `https` | None | Node `https` server options, such as `{ key, cert }` |
+| `pathBase` | None | A path prefix removed before Arc dispatch and static-file lookup |
+| `staticFiles` | None | Serve a public directory; see [Static files](static-files.md) |
+| `fallback` | None | SPA navigation fallback file inside `staticFiles.root` |
+| `native` | None | A trusted callback returning a host-verified principal or authority for each request |
+
+`pathBase` is matched case-insensitively and must be a segment-delimited path with no trailing slash. Unlike .NET's `UsePathBase`, this host also moves static files under the base; introspection route values and the OpenAPI document are not rewritten to include it.
+
+## Host a low-level server
+
+If you build an `ArcServer` directly from low-level definitions, `runArc(server, options)` takes the same options and returns `{ server, close }`:
 
 ```typescript title="server.ts"
-import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { runArc } from '@cratis/arc.core';
+import { ArcServer, defineCommand, runArc } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const echo = defineCommand({
@@ -24,46 +66,51 @@ const echo = defineCommand({
     handle: ({ value }) => value
 });
 const arc = new ArcServer({ commands: [echo] });
-const host = await runArc(arc, {
-    port: 3000,
-    host: '127.0.0.1',
-    pathBase: '/app',
-    staticFiles: { root: 'public', defaultDocument: 'index.html' },
-    fallback: 'index.html'
-});
+const host = await runArc(arc, { port: 3000, host: '127.0.0.1' });
 
 process.once('SIGINT', () => {
     void host.close().then(() => arc.dispose());
 });
 ```
 
-Try `curl -X POST http://127.0.0.1:3000/app/api/echo -d '{"value":"hello"}'`. The response has `"response":"hello"`. `GET /app/` serves `public/index.html`; `GET /app/dashboard` with `Accept: text/html` serves the same file. Requests outside `/app` return 404. The `pathBase` is removed before Arc dispatch and asset lookup, is matched case-insensitively, and must be a segment-delimited path with no trailing slash. Unlike .NET's `UsePathBase`, this host also moves static assets under the base; Arc's introspection route values and OpenAPI document are not rewritten to include it.
+`curl -X POST http://127.0.0.1:3000/api/echo -d '{"value":"hello"}'` answers with `"response":"hello"`. `runArc` never disposes the server; close the host first, then dispose Arc, as above.
 
-`runArc` listens on loopback port 3000 by default, accepts `port: 0` for ephemeral ports and `https: { key, cert }` for a Node HTTPS server, and returns `{ server, close }`. It now owns direct and multiplexed WebSocket upgrades on `host.server`, including under `pathBase`: do not also attach your own Arc upgrade bridge to that listener. `close({ timeoutMs?: number })` stops accepting HTTP connections first, closes Arc WebSockets, destroys live SSE streams (including ones that finish opening during shutdown), and waits up to 30 seconds by default for ordinary requests and WebSockets to drain. At the deadline it closes remaining HTTP connections and rejects if shutdown is incomplete. Direct WebSocket cleanup has its own `observableShutdownTimeoutMs` bound; an earlier host deadline can reject before that cleanup finishes. It never calls `arc.dispose()`; close Arc yourself afterward, as above.
+## Shut down without dropping work
 
-If you already own a Node HTTP server, the request handler cannot attach upgrade listeners by itself. Mount them explicitly on the same listener and dispose the bridge before closing it:
+`close({ timeoutMs })` stops accepting HTTP connections first, closes Arc WebSockets, ends live server-sent-event streams (including ones that finish opening during shutdown), and waits up to 30 seconds by default for ordinary requests and WebSockets to drain. At the deadline it closes the remaining connections and rejects if shutdown is incomplete. WebSocket cleanup has its own `observableShutdownTimeoutMs` bound in [configuration](../configuration/index.md); an earlier host deadline can reject before that cleanup finishes.
 
-```typescript
+## Bring your own Node server
+
+When you already own a `node:http` server, use `createArcNodeHandler` as its request handler. A request handler cannot see WebSocket upgrades, so attach those explicitly on the same listener:
+
+```typescript title="server.ts"
 import { createServer } from 'node:http';
 import { createArcNodeHandler } from '@cratis/arc.core';
 import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
+import { app } from './app.js';
 
-const listener = createServer(createArcNodeHandler(arc));
-const closeSockets = attachNodeWebSockets(listener, arc);
+const listener = createServer(createArcNodeHandler(app.server));
+const closeSockets = attachNodeWebSockets(listener, app.server);
 listener.listen(3000, '127.0.0.1');
-// At shutdown: await closeSockets(); await new Promise<void>(resolve => listener.close(() => resolve())); await arc.dispose();
+
+process.once('SIGTERM', async () => {
+    await closeSockets();
+    await new Promise<void>(resolve => listener.close(() => resolve()));
+    await app.dispose();
+});
 ```
 
-With a path base, pass the same `pathBase` as the fourth `attachNodeWebSockets` argument. Supply a trusted native resolver as its third argument for host-authenticated upgrades. Arc authentication handlers also run on raw upgrades; HTTP middleware and the `native` option of a separate `createArcNodeHandler` do not run there. `createArcNodeHandler` does not manage listener errors, SSE shutdown, or connection draining: the caller owns those on the Node server.
+Here `app` is a built `ArcApplication` from your own module. With a path base, pass it as the fourth `attachNodeWebSockets` argument; a trusted native resolver goes third. `createArcNodeHandler` does not manage listener errors, server-sent-event shutdown, or connection draining; you own those on your server. `runArc` and `app.run()` already own upgrades on their listener, so do not attach a second bridge there.
 
-## Routing and security
+## Security defaults
 
-Arc endpoints win over assets, even on the wrong HTTP method (Arc returns 405). Requests using a non-canonical spelling (percent escapes or repeated slashes) return 404. Endpoint paths with different case return 404; API-prefix and `/.cratis` paths are reserved case-insensitively before static lookup and fallback. Assets come next, then the optional HTML fallback, then plain-text 404 `Not Found`. Public assets are served only for GET/HEAD; directory requests use `index.html` by default, redirecting directory URLs without a trailing slash with 301. The default document and SPA fallback send `Cache-Control: no-cache`; static responses and 404s send `X-Content-Type-Options: nosniff`.
+- Arc enforces `maxBodyBytes` (1 MiB by default) on raw command and `QUERY` bodies, including chunked input, and aborts `context.signal` when the client disconnects.
+- For a host-authenticated caller, set `nativePrincipal: true` and pass a `native(request)` callback that returns `{ principal }` after your host has verified the request. The callback applies to HTTP and WebSocket requests. Never derive the principal or `authority` from request or forwarded headers. See [Native principal](../hosts/native-principal.md).
+- Cookie security is taken from the actual TLS socket, not from headers.
 
-The host streams opened files up to their measured length, sets content types for common web formats (extend or override with `staticFiles.contentTypes` keyed by extension), and handles `If-None-Match` lists, weak ETags and `*` with 304. `If-None-Match` takes precedence over `If-Modified-Since`. Range requests receive the full 200 response with `Accept-Ranges: none`; media seeking is not supported. XML and SVG remain active same-origin content: only place trusted assets in the public root. The host rejects traversal, dotfiles, NUL bytes, backslashes, Windows alternate data streams and device names, and symlinks escaping the resolved root or pointing at a dotfile. Symlinks to ordinary files inside the root are allowed. To expose a specific `/.well-known/` file, list its relative name (for example, `.well-known/security.txt`) in `staticFiles.wellKnown`; other dotpaths remain blocked. Set `staticFiles.root` to your built frontend directory, resolved relative to the working directory; `runArc` fails to start if it is missing or the platform lacks `O_NOFOLLOW`. No directory is served unless configured.
+## Related
 
-Fallback requires `staticFiles`; its file path is relative to that root. It only answers GET/HEAD requests whose `Accept` includes `text/html`, for extensionless paths outside Arc's configured API prefix and `/.cratis`. An unknown API route never returns your SPA shell. Without a prefix, disable fallback if you need to reserve unknown root-level API paths. Neither static assets nor fallback run Arc authentication or tenancy; protect private files through authorized operations, not the public directory.
-
-For a host-authenticated caller, set `nativePrincipal: true` on `ArcServer` and pass a `native(request)` callback that returns `{ principal }` after your host authenticates the request or socket. `runArc` applies this callback to both HTTP and WebSocket requests; it takes WebSocket TLS security from the socket rather than the callback. Never derive that principal or `authority` from request or forwarded headers. TLS cookie security is determined from the actual Node TLS socket. Arc enforces `maxBodyBytes` (1 MiB by default) on raw command and `QUERY` bodies, including chunked input, and cancels `context.signal` on client disconnect. Direct observable-query SSE responses stream through the host; [Stream an observable query](observable-queries.md) shows how to define a source and subscribe. Direct WebSockets and multiplexed WebSocket hubs use the same Node listener; `context.signal` aborts when a direct socket disconnects, including during asynchronous query opening. The SSE hub requires an authenticated principal and a real session cookie for browser EventSource.
-
-See [Host Arc in Express, Fastify, or Hono](host-integration.md) if your application already uses a web framework, and the [capability reference](../reference/capabilities.md) for the current limits.
+- [Build an application](getting-started.md)
+- [Endpoint mapping](endpoint-mapping.md)
+- [Static files and SPA fallback](static-files.md)
+- [Host adapters](../hosts/index.md) if your application already uses a web framework

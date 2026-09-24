@@ -1,6 +1,24 @@
-- name: Read-model interception
-  href: read-model-interception.md
+- name: Overview
+  href: index.md
+- name: Model-bound queries
+  href: model-bound/toc.yml
+- name: Query validation
+  href: validation.md
+- name: Query pipeline
+  href: query-pipeline.md
+- name: Using the HTTP QUERY method
+  href: using-the-http-query-method.md
+- name: Observable queries
+  href: observable-queries.md
+- name: Multiplexed observable queries
+  href: observable-query-demultiplexer.md
+- name: Observable emission guards
+  href: observable-query-emission-guards.md
+- name: Query health
+  href: query-health.md
+- name: Using observable queries with curl
+  href: using-observable-queries-with-curl.md
 - name: Query renderers
   href: renderers.md
-- name: Model-bound JSON wire format
-  href: wire-format.md
+- name: Read-model interception
+  href: read-model-interception.md

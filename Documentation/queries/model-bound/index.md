@@ -1,11 +1,21 @@
 ---
-title: Define read models and queries
-description: Put static query methods on a read-model class, bind their arguments and services in order, and expose an observable query.
+title: Model-bound queries
+description: Put static query methods on a read-model class, list their arguments and services in order, and declare observable queries.
 ---
 
-Put related read operations on a `@readModel()` class as static methods. The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) exposes a list, a named lookup, and an observable list:
+Put related read operations on a `@readModel()` class as static methods. Each `@query(...)` method becomes a route, and its parameters are bound from the request or resolved as services.
+
+## Declare a read model and its queries
+
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) exposes a list, a lookup, and a live list:
 
 ```typescript
+import { field } from '@cratis/fundamentals';
+import { argument, query, readModel, service, type ObservableSource } from '@cratis/arc.core';
+import { TaskId } from '../TaskId.js';
+import { TaskTitle } from '../TaskTitle.js';
+import { Tasks } from '../Tasks.js';
+
 @readModel()
 export class TaskItem {
     @field(TaskId) id!: TaskId;
@@ -22,8 +32,38 @@ export class TaskItem {
 }
 ```
 
-The snippet is an excerpt: the linked file has its imports and domain types. Import `field` from `@cratis/fundamentals`, and `readModel`, `query`, `argument`, `service`, and `ObservableSource` from `@cratis/arc.core`. Every parameter gets a descriptor in the **same order as the method signature**. Arguments bind by name (case-insensitively) from GET query strings or a structured HTTP `QUERY` body; services come from the execution scope. An optional argument before a required service uses `TaskId | undefined` and `argument('id', TaskId, { optional: true })`, not TypeScript's `id?: TaskId` syntax. For repeated GET keys, declare an array argument with `argument('ids', Array, { elementType: TaskId })`; each value is decoded to a `TaskId`.
+The `@field` declarations describe the shape the query returns, and the [proxy generator](../../proxy-generation/index.md) uses them for the frontend model.
 
-Observable queries must declare `{ observable: true }` at registration so snapshots, SSE, WebSocket admission, introspection, and clients know the query's contract before invocation. The producer may be an async iterable or a structural subscribable. A current value answers GET immediately; without one, a snapshot answers 202 until an emission arrives. `CurrentValueSubject.of(value)` replays that first value to new SSE and WebSocket subscribers, too. Add `Accept: text/event-stream` to GET the same route for SSE. The [observable guide](observable-queries.md) covers readiness, cancellation, and transport details.
+## Describe every parameter, in order
 
-By default the route is `/api/<discovery-namespace>/<method-name>`; `TaskItem.allTasks` lives at `/api/tasks/listing/all-tasks`. Its query identity is `Tasks.Listing.TaskItem.allTasks`, including the read-model class. `@path('/api/custom-path')` on a query method overrides the class path. Authorization on a query method overrides authorization on its read-model class. Authorization or a path on a static method without `@query()` is rejected at build time instead of being silently ignored. This is not a persisted read model: `Tasks` is only an in-memory example; use your own read service or the optional [MongoDB helper](mongodb.md) for storage.
+Each parameter gets one descriptor, in the **same order as the method signature**:
+
+| Descriptor | Binds |
+| --- | --- |
+| `argument(name, Type, options?)` | A named argument from the query string or `QUERY` body; see [Query arguments](query-arguments.md) |
+| `service(Token)` | A service from the execution scope; see [Dependency injection](../../dependency-injection.md) |
+| `queryOptions()` | The request's paging and sorting; see [Paging and sorting](paging.md) |
+
+Standard decorators cannot see parameter types, so the descriptors are required. With legacy `experimentalDecorators` and `emitDecoratorMetadata`, a bare `@query()` can infer class-valued services; explicit descriptors always win. TypeScript error TS1241 on a `@query(...)` usually means the descriptors do not match the parameters; see [Troubleshooting](../../troubleshooting.md#ts1241-unable-to-resolve-signature-of-method-decorator).
+
+## Return a value
+
+A query method can return a value or a promise of one: an array, a single model, `undefined`, a [`queryPage`](paging.md#return-a-page-your-data-source-cut), or a value a [renderer](../renderers.md) understands. Arc encodes decorated models and concepts to their wire shape.
+
+## Declare observable queries
+
+A query that returns a live source must say so at registration with `{ observable: true }`, so snapshots, server-sent events, WebSocket admission, introspection, and generated clients know its contract before it runs. The source may be an `AsyncIterable`, a structural subscribable, or a `CurrentValueSubject`. See [Observable queries](../observable-queries.md).
+
+## Routes and identity
+
+By default the route is `/api/<discovery-namespace>/<method-name>`: `TaskItem.allTasks` lives at `/api/tasks/listing/all-tasks`. Its identity is `Tasks.Listing.TaskItem.allTasks`, including the read-model class. `@path('/api/custom-path')` on a query method overrides the class path. See [Endpoint mapping](../../core/endpoint-mapping.md).
+
+## Authorization
+
+`@roles`, `@authorize`, and `@allowAnonymous` work on the read-model class and on query methods. A method's declaration replaces the class declaration. Authorization or a path on a static method without `@query()` is rejected at build instead of being silently ignored. See [Authorizing commands and queries](../../authorizing-commands-and-queries.md).
+
+## Related
+
+- [Query arguments](query-arguments.md)
+- [Paging and sorting](paging.md)
+- [Testing queries](../../testing/queries.md)

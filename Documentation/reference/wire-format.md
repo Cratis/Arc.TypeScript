@@ -1,5 +1,5 @@
 ---
-title: Model-bound JSON wire format
+title: Wire format
 description: Understand derived-type discriminators, acronym naming, enum values and named floating-point literals.
 ---
 <!-- Copyright (c) Cratis. All rights reserved.
@@ -35,9 +35,9 @@ remain strings. Nonfinite `Number` values use JSON strings `"NaN"`, `"Infinity"`
 and `"-Infinity"`; ordinary finite values remain JSON numbers. Null properties
 are omitted from ordinary model output, but a derived model serialized through
 a polymorphic field retains null fields; an explicit nullable input is accepted.
-Inputs for numeric fields are finite-only by default. Use
-`@fieldOption({ namedFloats: true })` on a field to accept the three named
-literals there. Plain objects, dictionary keys, and introspection/OpenAPI schema
+Inputs for numeric fields are finite-only. The field option that accepts the
+three named literals on input is internal: `@cratis/arc.core` does not export
+it yet. Plain objects, dictionary keys, and introspection/OpenAPI schema
 property names are never renamed. The low-level Zod path is not a CLR JSON
 converter and retains its declared schema and input binding rules.
 

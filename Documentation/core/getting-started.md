@@ -1,11 +1,15 @@
 ---
-title: Build and host an Arc application
+title: Build an Arc application
 description: Collect model-bound artifacts with the application builder, discover them from a folder or add them explicitly, and run or mount the built application.
 ---
 
-An application builder collects model-bound artifacts before it creates an `ArcServer`. The [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) uses a dedicated discovery root so importing the bootstrap cannot re-enter a suspended top-level `await`:
+An application builder collects your commands, read models, validators, and services, checks that they fit together, and creates the `ArcServer` that every host uses. You describe the application once; the host is a separate choice.
 
-```typescript
+## Create, fill, and build
+
+The [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) uses a dedicated discovery folder:
+
+```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
 
@@ -16,10 +20,59 @@ export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-`app.server` is the `ArcServer` for direct calls, introspection, and the existing HTTP adapters. The standalone `run()` host binds loopback port 3000 by default and waits until SIGINT, SIGTERM, or `app.stop()` gracefully closes the listener and disposes the app. For a non-blocking listener use `await app.start({ port: 3000 })`, then `await app.stop()` or `await app.dispose()` when the host shuts down. Do not start a disposed application again.
+`createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`; the older `ArcServerOptions` name is still exported). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`.
 
-`discover(folderUrl, { rootNamespace? })` loads exported decorated classes below that folder in deterministic path order. It accepts emitted `.js` or loader-backed `.ts`, not a mix. It excludes `dist`, `node_modules`, `given`, `for_*`, `index.*`, and declaration files; it skips symbolic links. It refuses a folder containing the entry point or an imported bootstrap currently calling discovery, and reports a class discovered with conflicting namespaces. A folder rename changes derived routes. For bundled production applications, call `builder.add(RegisterTask, TaskItem)` instead and give artifacts stable `@command({ namespace: 'Tasks.Registration' })` / `@readModel({ namespace: 'Tasks.Listing' })` names as needed. If you rely on class names in routes, configure your bundler to preserve them (`keepNames` in esbuild), or set explicit names and paths.
+Before a listener opens, `build()` checks the declared graph: missing service registrations, dependency cycles, singletons that capture shorter-lived services, and decorators placed where they have no effect. It never runs a service factory to do this.
 
-`createBuilder` accepts `ArcOptions` (the existing `ArcServerOptions` name remains exported). Set `generatedApis: { routePrefix: 'api', segmentsToSkipForRoute: 0, includeCommandNameInRoute: true, includeQueryNameInRoute: true }` to configure routes as in .NET. The flat `prefix`, `segmentsToSkip`, `includeCommandNameInRoute`, and `includeQueryNameInRoute` remain deprecated aliases; nested options take precedence. Both include-name options default to `true` and still include a name when omitting it would collide in a namespace. The `/.cratis/commands`, `/.cratis/queries`, and `/openapi.json` endpoints describe the built application.
+## Discover artifacts from a folder
 
-If another framework owns the listener, pass the built app to `mountExpress(expressApp, app)`, `mountFastify(fastifyApp, app)`, or `mountHono(honoApp, app)` instead of calling `app.run()`. The old overloads accepting `ArcServer` remain. Read [Host integration](host-integration.md) for WebSocket upgrades and trusted native context; passing an application to an adapter does not make the adapter own its shutdown.
+`discover(folderUrl, { rootNamespace? })` imports every exported decorated class below the folder, in deterministic path order.
+
+- It accepts emitted `.js` files or loader-backed `.ts` files, not a mix of both.
+- It skips `dist`, `node_modules`, `given`, `for_*`, `index.*`, declaration files, and symbolic links.
+- It refuses a folder that contains the entry point, or an imported bootstrap that is itself calling discovery. Keep artifacts in a dedicated folder.
+- It derives each artifact's namespace from its path below the folder, and reports a class discovered under two different namespaces.
+
+A folder rename changes the derived routes. [Endpoint mapping](endpoint-mapping.md) shows how to pin a route.
+
+## Add artifacts explicitly
+
+Bundled production builds often cannot import a folder at runtime. Pass the classes instead:
+
+```typescript
+builder.add(RegisterTask, RegisterTaskValidator, TaskItem);
+```
+
+`add()` rejects a class without an Arc decorator. Give explicitly added artifacts stable namespaces with `@command({ namespace: 'Tasks.Registration' })` and `@readModel({ namespace: 'Tasks.Listing' })`. If you rely on class names in routes, configure the bundler to keep them (`keepNames` in esbuild), or set explicit namespaces and paths.
+
+Besides commands, read models, and validators, `add()` and `discover()` recognize classes marked `@queryRenderer()`, `@readModelInterceptor()`, `@commandResponseValueHandler()`, `@identityDetailsProvider()`, and the lifetime decorators `@singleton()`, `@scoped()`, and `@transient()`.
+
+## Register extension points
+
+The builder also registers services that change pipeline behavior:
+
+| Builder method | Registers |
+| --- | --- |
+| `services.addSingleton / addScoped / addTransient` | An application service; see [Dependency injection](../dependency-injection.md) |
+| `addAuthorizationPolicy(name, policy)` | A named policy; see [Authorization policies](authorization.md) |
+| `addCommandResponseValueHandler(token)` | A handler for server-side return values; see [Response value handlers](../commands/response-value-handlers.md) |
+| `addCommandKeyResolver(token)` | A rule that computes a command key; see [Command context](../commands/command-context.md) |
+| `addCommandContextValuesProvider(token)` | Values attached to every command context |
+| `addReadModelForCommandResolver(token)` | A source for `commandReadModel(...)` parameters |
+| `addQueryRenderer(token)` | A renderer for provider-owned query results; see [Query renderers](../queries/renderers.md) |
+| `addReadModelInterceptor(token)` | A read-model transform; see [Read-model interception](../queries/read-model-interception.md) |
+
+Integrations add their own methods when imported: `addMongoDB`, `addDrizzle`, and `addChronicle`.
+
+## Run it, or mount it
+
+- `await app.run(...)` or `await app.start(...)` use the [standalone Node host](index.md).
+- `mountExpress(expressApp, app)`, `mountFastify(fastifyApp, app)`, and `mountHono(honoApp, app)` hand the application to a web framework. The host keeps listener ownership; call `await app.dispose()` at shutdown. See [Host adapters](../hosts/index.md).
+
+A caller-owned `ServiceRegistry` passed in the options cannot be combined with builder service registrations.
+
+## Related
+
+- [Hosting overview](../overview.md)
+- [Endpoint mapping](endpoint-mapping.md)
+- [Decorator reference](../decorators.md)

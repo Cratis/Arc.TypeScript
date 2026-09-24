@@ -1,14 +1,18 @@
 ---
 title: Reference
-description: Look up which Arc capabilities Arc for TypeScript provides and the wire contract it implements.
+description: Look up the status and evidence of every Arc for TypeScript capability, the routes and headers it serves, its packages, and its wire format.
 ---
 
-## Reference pages
+These pages are for looking things up. Narrative guides link here instead of restating status or lists.
 
 | Page | Use it to |
 | --- | --- |
-| [Capability reference](capabilities.md) | Check which Arc capabilities Arc for TypeScript supports, which are experimental or not implemented, and where it deliberately differs from Arc on .NET. |
-| [Arc HTTP contract](/arc/http-contract/) | Look up routes, headers, result envelopes, status codes, and observable-query transports. This is the canonical contract, maintained in the Arc repository. |
-| [Arc capability matrix](/arc/capabilities/) | Compare what Arc on .NET and Arc for Kotlin and Java provide. |
-
-Arc for TypeScript has no API reference yet. Package names and APIs are not final, and no package is published.
+| [Capability reference](capabilities.md) | Check whether a capability exists, where its boundary lies, which spec proves it, and where Arc for TypeScript deliberately differs from Arc on .NET |
+| [HTTP contract reference](http-contract.md) | Look up every route, method, header, and status code the server uses |
+| [Packages](packages.md) | See what each package exports and what it needs |
+| [Wire format](wire-format.md) | Check derived-type discriminators, naming, enums, and number encoding |
+| [Configuration](../configuration/index.md) | Look up every `ArcOptions` setting |
+| [Decorator reference](../decorators.md) | Look up every decorator and parameter descriptor |
+| [Arc HTTP contract](/arc/http-contract/) | Read the language-neutral contract, maintained in the Arc repository |
+| [Arc capability matrix](/arc/capabilities/) | Compare Arc on .NET and Arc for Kotlin and Java |
+| [Glossary](/arc/glossary/) | Look up shared Arc terms |

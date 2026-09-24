@@ -1,13 +1,9 @@
 ---
-title: Validate model-bound commands and queries
-description: Keep shape checks at the wire boundary and give callers field-specific rules with model and concept validators.
+title: Command validation
+description: Keep shape checks at the wire boundary and give callers field-specific messages with CommandValidator rules, services, and asynchronous checks.
 ---
 
-A task title arrives as a string, but it should not be blank. Put the wire type on the command field, then give the business rule its own validator. Arc runs that validator before `handle()` and also on the command's `/validate` route.
-
-:::caution[Unpublished source]
-Arc for TypeScript is not published to npm. The validator API is implemented in this repository, but FluentValidation's full .NET rule set and generated client rules are not available. See the [capability reference](../reference/capabilities.md).
-:::
+A task title arrives as a string, but it must not be blank. The wire type goes on the command field; the business rule gets its own validator. Arc runs the validator before `handle()`, and on the command's `/validate` route, so a frontend can check input before submitting it.
 
 ## Add a command rule
 
@@ -27,29 +23,55 @@ export class RegisterTaskValidator extends CommandValidator<RegisterTask> {
 }
 ```
 
-`@validator(RegisterTask)` supplies the runtime target that TypeScript's erased generic cannot. It does not register anything globally. The sample calls `builder.discover(...)` on its Features folder; for an explicit catalog, call `builder.add(RegisterTask, RegisterTaskValidator)`. One validator may target each exact model class. Duplicate targets fail at build time.
+`@validator(RegisterTask)` supplies the runtime target that TypeScript's erased generic cannot. It does not register anything globally: `builder.discover(...)` picks it up from the folder, or you pass it to `builder.add(RegisterTask, RegisterTaskValidator)`. One validator may target each exact model class; a duplicate target fails at build.
 
-Send `{ "id": "<valid task UUID>", "title": "" }` to `POST /api/tasks/registration/register-task/validate` in a running Tasks sample. The response is 400 with `members: ["title"]`, `reason: "rule"` and the authored message; `handle()` does not run. A type mismatch, missing required field, or malformed JSON fails earlier with `malformedRequest`, not a rule message. The route depends on discovery namespace; inspect `/.cratis/commands` if you configure a different namespace or route.
+Send `{ "id": "<valid task UUID>", "title": "" }` to `POST /api/tasks/registration/register-task/validate` on the running sample. The answer is 400 with:
 
-## Apply a concept rule everywhere
-
-When a value has rules wherever it appears, declare a `ConceptValidator`. The [sample title validator](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/TaskTitleValidator.ts) uses `ruleFor(title => title.value)`; Arc traverses declared `@field` members and runs the concept validator on any encountered `TaskTitle`, including nested models and arrays. A failure inside `entries[]` reports `entries.title`, not an array index. The owning model's rule still runs independently. To omit only the *direct* member's concept validator, call `.ignoreConceptRules()` on its owner's `ruleFor(...)` chain; this does not stop descendant traversal.
-
-## Check a query's arguments together
-
-Give the query an `argumentsModel` with matching `@field` declarations, and target that class with `QueryValidator<SearchArguments>`. Declare it alongside the ordered argument descriptors:
-
-```typescript
-@query({ argumentsModel: SearchArguments }, argument('term', SearchTerm))
-static byTerm(term: SearchTerm): string { return term.value; }
+```json
+{"severity":3,"message":"A title is required","members":["title"],"reason":"rule"}
 ```
 
-The [executable example](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Core/validation/for_ModelGraphValidator/given/Search.ts) shows the surrounding read model. The query model validator runs once, then Arc visits its fields for concept validators. Without an arguments model, the query validates each supplied non-null argument's concept graph under that argument name. Queries ignore `X-Allowed-Severity`.
+`handle()` does not run. A type mismatch, missing required field, or malformed JSON fails earlier with `malformedRequest`, not a rule message.
 
-## Use services or asynchronous rules
+## Shape or rule?
 
-A validator may declare constructor dependencies through `@injectable(Service)` or `static inject = [Service] as const`. Register the service with `builder.services`; Arc preflights dependencies and constructs each validator once during build, catching invalid selectors before requests. It then resolves fresh validators and services in each execution scope. `must` and `mustAsync` receive `(value, model, signal)`. Pass the signal to cancelable I/O rather than starting an operation that outlives the request. `when(predicate)` and `unless(predicate)` condition **every rule on the chain** by default. Pass `ApplyConditionTo.CurrentValidator` as the second argument to condition only the latest rule. These predicates and async rules run only on the server.
+| Put it on the field | Put it in a validator |
+| --- | --- |
+| Types, required and optional fields, defaults | Business rules a user can fix, with a message and the member it concerns |
+| Anything where failure means the client sent the wrong shape | Rules that need services or asynchronous checks |
 
-Available client-vocabulary rules are `notNull`, `notEmpty`, `minLength`, `maxLength`, `length`, `emailAddress`, `phone`, `url`, `matches`, `greaterThan`, `greaterThanOrEqual`, `lessThan` and `lessThanOrEqual`. Server-only rules include `empty`, `null`, `equal`, `notEqual`, `inclusiveBetween`, `exclusiveBetween`, `must` and `mustAsync`. `withMessage`, `withSeverity` and `withState` decorate the last rule; state is included in the HTTP result when it is non-null. Rules have internal immutable descriptors, but **no model-bound rule is emitted into a client proxy yet**. Rules on concept members receive the unwrapped primitive (for example, `TaskTitle` rules accept a `string`); string rules are only available for strings and comparison rules only for numbers or temporal values. `notEmpty()` rejects `Guid.empty`, while `equal()` and `notEqual()` compare GUID and temporal values by value. Email, phone, URL, regex, default messages and Unicode length semantics are not guaranteed to match FluentValidation or the JavaScript client exactly. For rules that matter across runtimes, provide an explicit message and test the inputs you accept.
+A shape failure produces one result with reason `malformedRequest`, no message a user can act on, and no members. A rule that applies to a value wherever it appears, such as a title format, belongs in a [concept validator](../concepts.md#validate-a-concept-everywhere).
 
-Commands retain results only when `severity > allowedSeverity`: by default errors block and warnings are removed. `X-Allowed-Severity: 1` makes warnings block. TypeScript caps HTTP threshold `3` at Warning, unlike Arc on .NET, so errors cannot be bypassed over HTTP. [Authentication and authorization](validation-and-authorization.md) run before the rules; never put access control in a validator. Existing `defineCommand` and `defineQuery` `validate`/`filters` continue to work as the low-level path.
+## Rule vocabulary
+
+| Rules | Where they run |
+| --- | --- |
+| `notNull`, `notEmpty`, `minLength`, `maxLength`, `length`, `emailAddress`, `phone`, `url`, `matches`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual` | Server; literal, unconditional uses are also emitted into [generated proxies](../proxy-generation/validation.md) |
+| `empty`, `null`, `equal`, `notEqual`, `inclusiveBetween`, `exclusiveBetween`, `must`, `mustAsync` | Server only |
+
+`withMessage`, `withSeverity`, and `withState` decorate the most recent rule; state is included in the HTTP result when it is not null.
+
+- Rules on concept members receive the unwrapped primitive: `TaskTitle` rules accept a `string`.
+- String rules are only available for strings, and comparison rules only for numbers and temporal values.
+- `notEmpty()` rejects `Guid.empty`; `equal()` and `notEqual()` compare GUID and temporal values by value.
+- Email, phone, URL, regular-expression, default-message, and Unicode-length behavior is not guaranteed to match FluentValidation or the JavaScript client exactly. For rules that matter across runtimes, write an explicit message and test the inputs you accept.
+
+## Conditions, services, and asynchronous rules
+
+`when(predicate)` and `unless(predicate)` condition **every rule on the chain** by default. Pass `ApplyConditionTo.CurrentValidator` as the second argument to condition only the latest rule. `must` and `mustAsync` receive `(value, model, signal)`; pass the signal to cancelable I/O instead of starting work that outlives the request. Conditions and asynchronous rules run only on the server.
+
+A validator may declare constructor dependencies with `@injectable(Service)` or `static inject = [Service] as const`. Register the service with `builder.services`. Arc preflights the dependencies and constructs each validator once during build, which catches invalid selectors before any request. It then resolves fresh validators and services in each execution scope.
+
+Read models loaded by command key are not injected into validators. Make an explicit, tenant-scoped lookup in a rule when validation needs stored state.
+
+## What validation is not
+
+Authentication and authorization run before any rule, and a trusted direct caller can lower the blocking severity. Never put access control in a validator; see [Authorizing commands and queries](../authorizing-commands-and-queries.md). Which severities block is covered in [Validation severity filtering](validation-severity-filtering.md).
+
+Low-level `defineCommand` and `defineQuery` definitions keep their `validate` and `filters` callbacks; see [Command filters](command-filters.md).
+
+## Related
+
+- [Query validation](../queries/validation.md)
+- [Concepts](../concepts.md)
+- [Testing commands](../testing/commands.md)

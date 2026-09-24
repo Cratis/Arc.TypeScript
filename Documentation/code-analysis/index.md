@@ -30,7 +30,7 @@ The .NET IDs are retained only when the same mistake can happen in the TypeScrip
 | [ARC0003](ARC0003.md) | Analog | External `handle(command: DecoratedCommand)` methods do not run as command handlers. |
 | [ARC0004](ARC0004.md) | Analog | A command needs an instance `handle()` (including inherited handlers); TypeScript private is runtime-callable. |
 | [ARC0005](ARC0005.md) | Analog | A direct `provide()` value with no handler parameters is discarded; this rule does not infer control outcomes or nested returns. |
-| ARC0006 | N/A | Command-scoped read-model injection is not implemented. |
+| ARC0006 | N/A | `commandReadModel(Type)` rejects a missing model unless you pass `{ optional: true }`, so the choice is already explicit in the declaration. |
 | ARC0007–ARC0009 | N/A | TypeScript has classes, not C# records; Concepts are classes extending `ConceptAs`. |
 | [ARC0010](ARC0010.md) | Analog | Async `handle()` without await, for-await, or a returned value wraps a synchronous result. |
 | ARC0011 | N/A | TypeScript does not have `nameof`; roles are strings. |

@@ -1,89 +1,40 @@
 ---
-title: Read models from MongoDB
-description: Bind tenant-scoped MongoDB collections to model-bound Arc queries and observe changes on a replica set.
+title: MongoDB
+description: Serve model-bound queries from tenant-scoped MongoDB collections with BSON mapping, database-side paging, change-stream observation, and command read models.
 ---
 
-If your read models live in MongoDB, `@cratis/arc.mongodb` supplies a collection for each Arc execution's tenant. Your model declares its fields once; the collection maps them to BSON, and its queries return instances of your model. This optional package is a source preview, not yet published to npm.
+Your read models live in MongoDB, and every tenant has its own database. Wiring a client, choosing the database per request, mapping concepts and GUIDs to BSON, and turning a change stream into a live query is the same code in every service. `@cratis/arc.mongodb` supplies it: your model declares its fields once, and the collection maps them to BSON and returns instances of your model.
 
-:::caution[Storage does not authorize a caller]
-Arc selects a tenant from the execution context; the collection selects that tenant's database. Your authentication and authorization still have to verify that the caller may use that tenant and read those documents. Never pass untrusted request JSON directly to a MongoDB filter.
+:::note[Source preview]
+`@cratis/arc.mongodb` is optional and not published to npm. It uses the MongoDB 6 driver.
 :::
 
-## Bind a model and a query
+## What it provides
 
-Install the MongoDB 6 driver and reference `@cratis/arc.mongodb` from this workspace. The following excerpt uses the [replica-set integration fixture](../../Source/MongoDB/for_MongoCollection/given/TaskQueries.ts); it assumes the `TaskRecord` class shown next and a trusted tenant resolver on your Arc host:
+| Capability | Page |
+| --- | --- |
+| Register collections with `builder.addMongoDB(...)` and inject them into queries | [Get started](getting-started.md) |
+| Choose a database, or a server, per tenant | [Tenancy](tenancy.md) |
+| Map decorated fields, concepts, GUIDs, and dates to BSON | [Serializers](serializers.md) |
+| Match Arc on .NET's property and collection naming | [Naming policies](naming-policies.md) |
+| Count, sort, and page in the database | [Paging](paging.md) |
+| Turn a change stream into an observable query | [Observing collections](observing-collections.md) |
+| Load a read model by command key | [Command context](../commands/command-context.md#load-a-read-model-by-key) |
 
-```typescript
-import { ArcApplication } from '@cratis/arc.core';
-import { MongoClient } from 'mongodb';
-import { mongoCollection } from '@cratis/arc.mongodb';
-import { TaskRecord } from './TaskRecord.js';
-import { TaskQueries } from './TaskQueries.js';
+`addMongoDB` registers a read-model resolver for the models you list in `readModels`, so a command can declare `@inject(commandReadModel(TaskRecord))` and receive the document whose identity equals the command key. Do not also register another integration, such as Chronicle, as the owner of the same type.
 
-const client = new MongoClient(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017');
-const builder = ArcApplication.createBuilder();
-builder.add(TaskQueries).addMongoDB({
-    client, databaseNameResolver: tenant => `tasks_${tenant}`, readModels: [TaskRecord]
-});
-const app = await builder.build();
-// Mount app in your host; call await app.dispose() and await client.close() on shutdown.
-```
+:::caution[Storage does not authorize a caller]
+Arc selects a tenant from the execution context, and the collection selects that tenant's database. Your authentication and authorization still have to verify that the caller may use that tenant and read those documents. Never pass untrusted request JSON directly to a MongoDB filter.
+:::
 
-`addMongoDB` becomes available when the MongoDB package is imported. Alternatively, call the exported `addMongoDB(builder, options)` function without extending the builder. It leaves a supplied client open. If you supply `server` instead, Arc owns the URI-created client and closes it with the application. Specify exactly one of `client`, `server`, or `serverResolver`; specify `database` or `databaseNameResolver`. A missing tenant or empty database name fails rather than reading an implicit default database. For a single-tenant app, configure Arc tenancy with a fixed tenant of `default`; this uses the bare `database` name. Tenant names are normalized to lowercase before choosing a database, including names returned by `resolveTenant`. With `database: 'tasks'`, tenant `default` gets `tasks`, and `acme` gets `tasks+acme`. A `serverResolver(tenantId, context)` can route tenants to different MongoDB servers; it must return a URI.
+## Low-level helper
 
-The [test model](../../Source/MongoDB/for_MongoCollection/given/TaskRecord.ts) uses `@field` metadata and `@key()` for `_id`:
+The original `MongoReadModels<T, I>` remains for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`, and caps pages at 100 by default. It has no change streams or field codecs; use the model-bound collection for those.
 
-```typescript
-import { field, Guid } from '@cratis/fundamentals';
-import { key } from '@cratis/arc.core';
+## Verify against a real replica set
 
-export class TaskRecord {
-    @field(Guid) @key() id!: Guid;
-    @field(String) title!: string;
-}
-```
-
-A query injects the scoped collection through `service(mongoCollection(TaskRecord))`. This excerpt is from the [test query](../../Source/MongoDB/for_MongoCollection/given/TaskQueries.ts):
-
-```typescript
-const tasks = mongoCollection(TaskRecord);
-@readModel()
-export class TaskQueries {
-    @query(service(tasks))
-    static async all(items: MongoCollection<TaskRecord>): Promise<TaskRecord[]> {
-        return items.find();
-    }
-
-    @query(service(tasks), queryOptions())
-    static async page(items: MongoCollection<TaskRecord>, options: QueryOptions) {
-        return items.queryPage({}, options);
-    }
-
-    @query({ observable: true }, service(tasks))
-    static async changes(items: MongoCollection<TaskRecord>) {
-        return items.observe();
-    }
-}
-```
-
-Import `readModel`, `query`, `queryOptions`, `service`, and the `QueryOptions` type from `@cratis/arc.core`; import `MongoCollection` from `@cratis/arc.mongodb`. The complete fixture contains those imports. For an owner-restricted query, build a specific filter from the verified principal, for example `items.find({ owner: principal.id })`, rather than forwarding a caller-provided object. The query method owns that policy.
-
-## Storage format and driver access
-
-`MongoCollection<T>.codec` maps decorated fields to BSON; `native` is the underlying `mongodb` driver collection. For a write performed elsewhere in your application, encode the model first: `await items.native.insertOne(items.codec.serialize(task))`. Reads through `items.find(filter)` and `items.findById(id)` materialize model instances. `findById` rejects operator objects as identities. Using `native` for reads instead returns driver documents, not model instances.
-
-The default codec maps `@key()` (or an `id` field) to `_id`, preserves declared field names, pluralizes collection names, and stores Guid values as standard UUID binary (subtype 4), concepts as their underlying primitives, DateOnly as UTC noon BSON dates, TimeOnly as milliseconds after the Unix epoch, TimeSpan as a string, and Date as a BSON date. Nested decorated models and arrays use the same mapping. The default `defaultMongoNamingPolicy` matches Arc .NET's unconfigured MongoDB builder (`new DefaultNamingPolicy()`): declared property names and pluralized, case-preserving read-model names. Set `namingPolicy: camelCaseMongoNamingPolicy` to match `.WithCamelCaseNamingPolicy()` (camel-cased properties and pluralized, camel-cased collections). Both presets preserve leading acronyms; the TypeScript property spelling must match the .NET declaration for the default policy (for example, `Title`, not `title`). For irregular plurals handled by .NET Humanizer or customized .NET policies, supply your own `propertyName` and `collectionName` functions. `collectionName` overrides just the collection name. A class annotated with Fundamentals `@derivedType('identifier')` writes `_derivedTypeId`; an unknown discriminator fails rather than creating a base model. `ignoreConventions: true` bypasses the codec for existing driver-native documents; in that mode you own field names and conversion yourself. No global BSON conventions are installed.
-
-## Page and observe
-
-Use `@query(service(tasks), queryOptions())` to receive Arc's paging and sorting options, then call `items.queryPage(filter, options)`. The helper requires paging, caps each page at 100 by default (`maxPageSize` can raise it to at most 10,000), counts the filter in MongoDB, and applies the requested sort before `skip` and `limit`. Only fields declared on the model may be sorted: Arc wire names such as `title` resolve to declared properties such as `Title`, then to their BSON names under the selected naming policy. An unknown field, including `$where`, produces a 400 validation response. An `_id` tie-breaker makes page ordering stable, and an application-provided default sort is used when Arc does not request one. `queryPage` returns Arc's provider-owned `queryPage`, including the total. Count and find are separate reads, so concurrent writes can change the count between them; this is not a snapshot transaction. You can also use `items.find()` for an unpaged query.
-
-`items.observe(filter?)` and `items.observeById(id)` open a MongoDB change stream before taking the first snapshot. They return Arc observable sources with a current value for plain GET and full snapshots on changes for SSE/WebSocket; deletion appears as an empty list or `null`. The stream watches the tenant's collection from a server operation time captured before the snapshot and recomputes the query after queued changes (even changes that do not affect the filter); bursts may be coalesced. `observeById` filters the change stream by document key, corresponding to Arc .NET's `ObserveById`/`ObserveSingle` for one document. Each subscriber owns its stream. A full snapshot is capped at 1,000 documents by default (`maxObservableItems` can raise it to at most 10,000); exceeding the cap fails the subscription rather than returning a partial list. Arc scope disposal, cancellation, or closing the iterator closes the cursor. A standalone MongoDB server is rejected with a replica-set requirement; replica sets and sharded clusters support change streams. The MongoDB driver handles resumable stream errors in iterator mode; non-resumable failures end the subscription. Joined observation is not available.
-
-The original `MongoReadModels<T, I>` remains available for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`; other fields fail closed. Its page size cap defaults to 100. This helper has no change-stream or metadata codec behavior; use the model-bound collection for those.
-
-To check the live behavior, run `bash Source/MongoDB/run-integration.sh` from this repository. The script starts a task-owned MongoDB 7 replica set and removes it afterward. The [integration spec](../../Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, DI and provider paging. A second [HTTP integration spec](../../Source/MongoDB/for_MongoCollection/when_serving_a_paged_query/with_each_http_adapter.integration.ts) exercises sorted pages through Express, Fastify and Hono. Docker is required.
+Run `bash Source/MongoDB/run-integration.sh` from the repository root. The script starts a task-owned MongoDB 7 replica set in Docker and removes it afterward. The [integration spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, dependency injection, and provider paging, and a [second spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/MongoDB/for_MongoCollection/when_serving_a_paged_query/with_each_http_adapter.integration.ts) serves sorted pages through Express, Fastify, and Hono. The script exits with 2 when Docker is not available, which means the check did not run.
 
 ## Current boundaries
 
-There is no command-side read-model resolver hook in Arc Core yet, so `addMongoDB` cannot inject a read model directly into a command by its key. Inject `mongoCollection(Model)` and call `findById` explicitly instead. This integration does not supply transactions, shared watcher/reconnect policy, joined observations, geometric serializers, resilience middleware, or Mongo driver metrics. None of those guarantees should be inferred from Arc on .NET. See the [capability reference](../reference/capabilities.md) for the broader parity picture.
+This integration does not supply transactions, a shared watcher or reconnect policy, joined observations, geospatial serializers, resilience middleware, or driver metrics. Do not infer any of those from Arc on .NET. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the parity details.

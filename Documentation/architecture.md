@@ -6,7 +6,7 @@ description: How Arc for TypeScript separates a framework-independent CQRS core 
 Arc for TypeScript is built so the same command and query code can run behind Express, Fastify, or Hono, with or without a database or an event store. This page explains the boundaries that make that possible and the places where TypeScript forces a different design from Arc on .NET.
 
 :::note[Unpublished source]
-Package names are working names, and APIs are not final. For what is supported today, see the [capability reference](../reference/capabilities.md).
+Package names are working names, and APIs are not final. For what is supported today, see the [capability reference](reference/capabilities.md).
 :::
 
 ## Three layers
@@ -17,15 +17,15 @@ flowchart LR
     subgraph Server["Node.js process"]
         Adapter["Host adapter<br/>Express, Fastify, or Hono"] --> Core["Arc core<br/>@cratis/arc.core"]
         Core --> App["Your commands<br/>and queries"]
-        App -.optional.-> Mongo[("MongoDB<br/>read helper")]
+        App -.optional.-> Mongo[("MongoDB or SQL<br/>read models")]
         App -.experimental.-> Chronicle[("Chronicle<br/>event store")]
     end
 ```
 
 - **The core** owns everything that defines Arc behavior: the command and query pipelines, route conventions, result envelopes, validation, authorization, authentication handlers, correlation, and tenancy. It does not import an HTTP framework or a storage driver.
 - **A host adapter** translates between one HTTP framework and the core. It routes matching requests to the core, hands over the raw body and a cancellation signal, and writes the response. It adds no Arc behavior of its own.
-- **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.mongodb` reads query results from MongoDB. `@cratis/arc.chronicle` is an experimental, private package that appends events returned from a command.
-- **Client generation** is build-time tooling beside the runtime. The core exports a JSON manifest with `exportClientManifest`, and `@cratis/arc.proxygenerator` renders proxies from that JSON. The core does not depend on `@cratis/arc` or on browser code.
+- **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.mongodb` serves tenant-scoped MongoDB collections, `@cratis/arc.drizzle` serves tenant-scoped SQL reads, and the experimental `@cratis/arc.chronicle` appends events returned from a command.
+- **Build-time tooling** sits beside the runtime. `@cratis/arc.proxygenerator` reads your TypeScript source and writes proxies for the published `@cratis/arc` client, and `@cratis/eslint-plugin-arc-core` checks decorated artifacts in the editor. The core does not depend on `@cratis/arc` or on browser code.
 
 Keeping the core framework-independent means a behavior is implemented and tested once, and every adapter inherits it. A difference between adapters is either a limit of the host framework, documented per adapter, or a bug.
 
@@ -41,7 +41,7 @@ Keeping the core framework-independent means a behavior is implemented and teste
 | Authentication and authorization | Runs the configured authentication handlers, then evaluates authorization against the principal | Nothing by default. With `nativePrincipal: true`, passes on a principal the host already verified, through an explicit callback |
 | Cancellation | Passes the signal to every callback as `context.signal` | Express and Fastify abort it when the client disconnects; Hono passes the request's own signal |
 
-Observable queries use the same split. The core owns the subscription pipeline, snapshots, server-sent events, and the WebSocket protocol. Each adapter owns how a WebSocket upgrade reaches the core, because Express, Fastify, and Hono accept upgrades differently; [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#mount-observable-websockets-on-nodejs) shows each one.
+Observable queries use the same split. The core owns the subscription pipeline, snapshots, server-sent events, and the WebSocket protocol. Each adapter owns how a WebSocket upgrade reaches the core, because Express, Fastify, and Hono accept upgrades differently; [WebSockets](hosts/websockets.md) shows each one.
 
 ## The request path
 
@@ -69,7 +69,7 @@ Parity means the same observable behavior on the wire, not the same implementati
 | `IObservable<T>` and `ISubject<T>` | An async iterable or a structural subscribable. `CurrentValueSubject` holds a current value, so an HTTP snapshot answers 200 instead of 202 |
 | `IQueryable<T>` paging and sorting | In-memory paging and sorting of arrays, or a page the data source already cut, returned with `queryPage` |
 | FluentValidation and DataAnnotations | Field types for shape, and `CommandValidator`, `QueryValidator`, and `ConceptValidator` classes with `ruleFor` rules. The low-level path uses Zod schemas and validator functions |
-| Roslyn analyzers and a proxy generator that reads compiled assemblies | No build-time analyzers. A bounded generator renders proxies from a manifest built from the output shapes you declare in `clientOutput`; it does not read TypeScript types, discover definitions, or cover the full type graph. See [Generate command and query clients](../guides/generate-clients.md) |
+| Roslyn analyzers and a proxy generator that reads compiled assemblies | ESLint rules for decorated artifacts, and a generator that reads your TypeScript source through the compiler API without running it. See [Code analysis](code-analysis/index.md) and [Proxy generation](proxy-generation/index.md) |
 
 Some differences are in the language itself and affect the wire:
 
@@ -87,26 +87,26 @@ Where following Arc on .NET exactly would let a remote caller weaken a check, Ar
 - A configured tenant resolver is final; there is no silent fallback to a header.
 - Unsafe names, paths, body limits, and contradictory authorization declarations stop the server at startup.
 
-The full list is in the [capability reference](../reference/capabilities.md#deliberate-differences).
+The full list is in the [capability reference](reference/capabilities.md#deliberate-differences).
 
 ## Integrations stay outside the core
 
-Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built against the public interfaces of the Chronicle TypeScript client, `@cratis/chronicle`. Namespace, correlation, and event routing are passed explicitly per request. The adapter adds no transaction, command-audit bridge, or observer-completion guarantee; the SDK retains its own auditing behavior. The pinned SDK 6.2.0 does not load in native Node.js, and this adapter remains unverified against a live kernel, so the package stays private and experimental. See [Append Chronicle events from commands](../guides/chronicle.md).
+Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.5.1, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request. Returned events from nested commands join one event-log batch, which is not a .NET transaction. A bounded suite passes against a live kernel; the integration stays experimental. See [Chronicle](chronicle/index.md).
 
-The MongoDB integration follows the same rule: the application owns the client, the tenant-to-database mapping, and the filter, and the package only reads. See [Read models from MongoDB](../guides/mongodb.md).
+The MongoDB and Drizzle integrations follow the same rule: the application owns the client or database, the tenant mapping, and the filter or predicate. See [MongoDB](mongodb/index.md) and [SQL with Drizzle](sql/index.md).
 
 ## Still open
 
 These questions do not have an answer yet. Each one affects behavior a client can observe:
 
 - Whether compiler-generated metadata replaces the ordered query descriptors and explicit injection tokens.
-- Whether client generation grows beyond explicit manifests, including model-bound commands and queries, toward the coverage of Arc's .NET proxy generator.
-- Whether and how command keys resolve read models into handlers and validators.
-- Broader identity-provider integrations, and which SQL tooling a SQL integration builds on.
+- How far the source-based proxy generator grows toward the coverage of Arc's .NET proxy generator.
+- Whether command read models are injected into validators, and whether the SQL integration resolves them by key.
+- Broader identity-provider integrations, and live observation for SQL read models.
 
 ## Related
 
 - [Arc HTTP contract](/arc/http-contract/)
-- [Capability reference](../reference/capabilities.md)
+- [Capability reference](reference/capabilities.md)
 - [Understanding the proxy boundary](/arc/understanding-the-proxy-boundary/)
 - [CQRS without event sourcing](/arc/arc-without-event-sourcing/)
