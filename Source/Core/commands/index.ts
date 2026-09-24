@@ -23,4 +23,5 @@ export type { CommandRecoverySummary } from './CommandRecoverySummary.js';
 export { abortSignal, commandContext } from './modelBound/commandArgument.js';
 export { provided } from './modelBound/provided.js';
 export { commandReadModel } from './modelBound/readModel.js';
+export { commandArgument } from './modelBound/contextArgument.js';
 export type { ReadModelForCommandResolver } from './ReadModelForCommandResolver.js';

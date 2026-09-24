@@ -8,6 +8,7 @@ import { flattenCommandResponse } from '../processCommandResponse.js';
 import { providedType } from './provided.js';
 import { readModelArgument } from './readModel.js';
 import { ReadModelForCommandError } from '../ReadModelForCommandError.js';
+import { contextArgumentResolver } from './contextArgument.js';
 const signalToken = serviceToken<AbortSignal>('Arc command signal');
 const contextToken = serviceToken<CommandContext>('Arc command context');
 const readModels = new WeakMap<CommandContext, Map<object, unknown>>();
@@ -23,6 +24,8 @@ export async function resolveCommandArguments(tokens: readonly ServiceIdentifier
     for (const token of tokens) {
         if (token === signalToken) { values.push(command.signal); continue; }
         if (token === contextToken) { values.push(command); continue; }
+        const contextResolver = contextArgumentResolver(token);
+        if (contextResolver) { values.push(await contextResolver(command)); continue; }
         const model = readModelArgument(token);
         if (model) {
             const resolvers = await Promise.all((command.readModelResolvers ?? []).map(item => currentServices().resolve(item)));
@@ -50,5 +53,5 @@ export async function resolveCommandArguments(tokens: readonly ServiceIdentifier
 }
 /** Service tokens alone participate in DI preflight. */
 export function commandServiceTokens(tokens: readonly ServiceIdentifier<unknown>[]): ServiceIdentifier<unknown>[] {
-    return tokens.filter(token => token !== signalToken && token !== contextToken && !providedType(token) && !readModelArgument(token));
+    return tokens.filter(token => token !== signalToken && token !== contextToken && !providedType(token) && !readModelArgument(token) && !contextArgumentResolver(token));
 }

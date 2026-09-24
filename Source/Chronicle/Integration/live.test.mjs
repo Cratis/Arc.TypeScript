@@ -21,7 +21,9 @@ import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
 import { ChronicleArtifacts } from '../dist/ChronicleArtifacts.js';
 import '../dist/index.js';
-import { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView } from '../dist/Integration/LiveArtifacts.js';
+import * as live from '../dist/Integration/LiveArtifacts.js';
+const { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
+    ReadLiveInCommand, LiveCreated, LiveView } = live;
 
 const connectionString = process.env.ARC_CHRONICLE_TEST_URL;
 if (!connectionString) throw new Error('ARC_CHRONICLE_TEST_URL is required; do not silently skip the kernel suite');
@@ -30,7 +32,8 @@ const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProces
 trace.setGlobalTracerProvider(provider);
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 const artifacts = new ChronicleArtifacts();
-for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView]) artifacts.register(type);
+for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
+    ReadLiveInCommand, LiveCreated, LiveView]) artifacts.register(type);
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
     clientArtifactsProvider: artifacts, discoveryPatterns: []
 }));
@@ -42,7 +45,8 @@ const builder = ArcApplication.createBuilder({ development: true,
 builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view =>
     Object.assign(new LiveView(), view, { name: `public-${view.name}` }) }));
 builder.addChronicle({ client, eventStore: storeName });
-builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView);
+builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
+    ReadLiveInCommand, LiveCreated, LiveView);
 const application = await builder.build();
 
 async function host(kind) {
@@ -115,6 +119,16 @@ try {
                 const batch = await call(listener.url, 'create-live-batch', batchId, tenant, adapter);
                 assert.equal(batch.body.isSuccess, true, JSON.stringify(batch));
                 assert.equal((await store.eventLog.getForEventSourceIdAndEventTypes(batchId, [LiveCreated])).length, 2);
+                const advance = await call(listener.url, 'advance-live', id, tenant, `advanced-${adapter}`);
+                assert.equal(advance.body.isSuccess, true, JSON.stringify(advance));
+                assert.equal((await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated])).length, 2,
+                    'aggregate replays existing state and commits one new event');
+                const deniedOperation = await call(listener.url, 'create-live-with-operation', id, tenant, adapter);
+                assert.equal(deniedOperation.body.isSuccess, false, JSON.stringify(deniedOperation));
+                assert.equal(live.liveOperationExecuted, true);
+                assert.equal(live.liveOperationCompensated, true, 'rejected append compensates the operation');
+                assert.equal((await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated])).length, 2,
+                    'rejected operation batch adds no events');
             } finally { await listener.close(); }
         });
     }
