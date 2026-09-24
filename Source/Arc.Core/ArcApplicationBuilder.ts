@@ -11,13 +11,14 @@ import { ArcServer } from './ArcServer.js';
 import type { CommandDefinition } from './commands/CommandDefinition.js';
 import type { QueryDefinition } from './queries/QueryDefinition.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
-import { compileCommand } from './modelBound/commands/compileCommand.js';
-import { compileQueries } from './modelBound/queries/compileQueries.js';
-import { ownMetadata, type ClassType } from './modelBound/reflection/metadata.js';
-import type { Artifact } from './modelBound/reflection/Artifact.js';
-import { validateMetadata } from './modelBound/reflection/validateMetadata.js';
-import { ensureDiscoveryRootSafe } from './modelBound/reflection/ensureDiscoveryRootSafe.js';
+import { compileCommand } from './commands/modelBound/compileCommand.js';
+import { compileQueries } from './queries/modelBound/compileQueries.js';
+import { ownMetadata, type ClassType } from './reflection/metadata.js';
+import type { Artifact } from './reflection/Artifact.js';
+import { validateMetadata } from './reflection/validateMetadata.js';
+import { ensureDiscoveryRootSafe } from './reflection/ensureDiscoveryRootSafe.js';
 import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
+import { Severity } from './validation/Severity.js';
 import { BaseValidator } from './validation/BaseValidator.js';
 import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 
@@ -44,7 +45,9 @@ export class ArcApplicationBuilder {
         if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget) return;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
-        if (previous !== undefined && previous !== effective) throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
+        if (previous !== undefined && previous !== effective) {
+            throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
+        }
         if (previous !== undefined) return;
         this.#namespaces.set(type, effective);
         this.#artifacts.push({ type, namespace: effective });
@@ -72,7 +75,8 @@ export class ArcApplicationBuilder {
             throw new Error('Arc discovery cannot mix emitted JS and TS files');
         for (const file of files) {
             const module: Record<string, unknown> = await import(pathToFileURL(file).href);
-            const namespace = [options.rootNamespace, ...relative(folder, dirname(file)).split(sep).filter(value => value && value !== '.')].filter(Boolean).join('.');
+            const namespace = [options.rootNamespace, ...relative(folder, dirname(file)).split(sep)
+                .filter(value => value && value !== '.')].filter(Boolean).join('.');
             for (const exported of Object.values(module)) {
                 if (typeof exported === 'function') this.register(exported as ClassType, namespace);
             }
@@ -83,15 +87,31 @@ export class ArcApplicationBuilder {
     async build(): Promise<ArcApplication> {
         if (this.#built) throw new Error('Arc application builder can be built only once');
         this.#built = true;
+        this.checkServiceOwnership();
+        const dependencies: ServiceIdentifier<unknown>[] = [];
+        const validatorTypes = this.registerValidators(dependencies);
+        const graph = new ModelGraphValidator(validatorTypes, this.options.logger);
+        const commands: CommandDefinition<z.ZodType, unknown>[] = [...this.options.commands ?? []];
+        const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
+        const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
+        this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
+        if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
+            throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
+        const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
+        const server = new ArcServer({ ...this.options, commands, queries, observableQueries,
+            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
+        try { await this.preflight(server, dependencies, validatorTypes); }
+        catch (error) { await server.dispose(); throw error; }
+        return new ArcApplication(server);
+    }
+    private checkServiceOwnership(): void {
         if (this.options.services && !Array.isArray(this.options.services) &&
             (this.services.registrations.length || this.#artifacts.some(({ type }) => {
                 const metadata = ownMetadata(type);
                 return metadata.lifetime || metadata.validatorTarget;
             }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
-        const commands: CommandDefinition<z.ZodType, unknown>[] = [...this.options.commands ?? []];
-        const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
-        const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
-        const dependencies: ServiceIdentifier<unknown>[] = [];
+    }
+    private registerValidators(dependencies: ServiceIdentifier<unknown>[]): Map<ClassType, ClassType<BaseValidator<unknown>>> {
         const validatorTypes = new Map<ClassType, ClassType<BaseValidator<unknown>>>();
         for (const { type } of this.#artifacts) {
             validateMetadata(type);
@@ -107,10 +127,18 @@ export class ArcApplicationBuilder {
             if (!existing) this.services[lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
             dependencies.push(type);
         }
-        const graph = new ModelGraphValidator(validatorTypes, this.options.logger);
+        return validatorTypes;
+    }
+    private compileArtifacts(graph: ModelGraphValidator, dependencies: ServiceIdentifier<unknown>[],
+        commands: CommandDefinition<z.ZodType, unknown>[], queries: QueryDefinition<z.ZodType, unknown>[],
+        observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[]): void {
         for (const { type, namespace } of this.#artifacts) {
             const metadata = ownMetadata(type);
-            if (metadata.lifetime && !metadata.validatorTarget) this.services[metadata.lifetime === 'singleton' ? 'addSingleton' : metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
+            if (metadata.lifetime && !metadata.validatorTarget) {
+                const registration = metadata.lifetime === 'singleton' ? 'addSingleton' :
+                    metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient';
+                this.services[registration](type);
+            }
             if (metadata.command) {
                 const compiled = compileCommand(type, namespace, graph);
                 commands.push(compiled.definition);
@@ -122,13 +150,17 @@ export class ArcApplicationBuilder {
                 dependencies.push(...compiled.dependencies);
             }
         }
-        if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
-            throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
-        const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
-        const server = new ArcServer({ ...this.options, commands, queries, observableQueries,
-            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
-        try { server.services.preflight(dependencies); }
-        catch (error) { await server.dispose(); throw error; }
-        return new ArcApplication(server);
+    }
+    private async preflight(server: ArcServer, dependencies: ServiceIdentifier<unknown>[],
+        validators: ReadonlyMap<ClassType, ClassType<BaseValidator<unknown>>>): Promise<void> {
+        server.services.preflight(dependencies);
+        const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
+            signal: new AbortController().signal, allowedSeverity: Severity.Error });
+        try {
+            for (const type of validators.values()) {
+                const validator = await scope.resolve(type);
+                if (!(validator instanceof BaseValidator)) throw new Error(`Invalid validator: ${type.name}`);
+            }
+        } finally { await scope.dispose(); }
     }
 }

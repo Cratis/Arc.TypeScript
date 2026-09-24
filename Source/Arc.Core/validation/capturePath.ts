@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+/** Capture a direct member selector without evaluating a real model. */
 export function capturePath<T>(selector: (model: T) => unknown): readonly string[] {
     if (/\?\.|\[/.test(selector.toString())) throw new Error('Validation selectors require direct property access');
     const accessed: string[][] = [];

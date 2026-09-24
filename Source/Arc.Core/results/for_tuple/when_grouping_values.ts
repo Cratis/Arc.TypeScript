@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { tuple } from '../tuple.js';
 import { isArcTuple, type ArcTuple } from '../ArcTuple.js';
-import { encode } from '../../modelBound/reflection/wireSchema.js';
+import { encode } from '../../reflection/wireSchema.js';
 
 describe('when grouping several return values', () => {
     let result: ArcTuple<readonly [string, number]>;

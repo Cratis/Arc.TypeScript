@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
 import type { ServiceIdentifier, ServiceClass } from './dependencyInjection/ServiceIdentifier.js';
-import { reflectedParameters } from './modelBound/reflection/dependencies.js';
-import { ownMetadata } from './modelBound/reflection/metadata.js';
+import { reflectedParameters } from './reflection/dependencies.js';
+import { ownMetadata } from './reflection/metadata.js';
 import type { ServiceScope } from './dependencyInjection/ServiceScope.js';
 
 /** Collect class and factory registrations for a built application. */

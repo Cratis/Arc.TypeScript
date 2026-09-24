@@ -6,12 +6,12 @@ import type { ServiceToken } from '../dependencyInjection/ServiceToken.js';
 import {
     memberMetadata, metadataFor, setClassAuthorization, setMemberAuthorization,
     type ClassType, type FieldOptions, type Parameter, type ParameterArgument, type ParameterService, type WireType
-} from './reflection/metadata.js';
-import type { Injected } from './commands/Injected.js';
-import type { ParameterValues } from './queries/ParameterValues.js';
-import type { MethodDecorator } from './reflection/MethodDecorator.js';
-import type { SimpleMemberDecorator } from './reflection/SimpleMemberDecorator.js';
-import type { DualClassDecorator } from './reflection/DualClassDecorator.js';
+} from '../reflection/metadata.js';
+import type { Injected } from '../commands/modelBound/Injected.js';
+import type { ParameterValues } from '../queries/modelBound/ParameterValues.js';
+import type { MethodDecorator } from '../reflection/MethodDecorator.js';
+import type { SimpleMemberDecorator } from '../reflection/SimpleMemberDecorator.js';
+import type { DualClassDecorator } from '../reflection/DualClassDecorator.js';
 
 /** Mark a class as a command with an optional stable namespace. */
 export function command(options: { namespace?: string } = {}): DualClassDecorator {
@@ -131,8 +131,6 @@ export function path(path: string): DualClassDecorator & SimpleMemberDecorator {
         data.methodRoutes.set(name, path);
     }) as DualClassDecorator & SimpleMemberDecorator;
 }
-/** Backward-compatible alias for path(). */
-export const route = path;
 function fieldOption(option: FieldOptions): (
     target: object | undefined, nameOrContext: string | symbol | ClassFieldDecoratorContext) => void {
     return (target, nameOrContext) => {

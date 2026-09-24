@@ -2,12 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs } from '@cratis/fundamentals';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
-import { fieldsFor } from '../modelBound/reflection/wireSchema.js';
-import type { ClassType, WireType } from '../modelBound/reflection/metadata.js';
+import { fieldsFor } from '../reflection/wireSchema.js';
+import type { ClassType, WireType } from '../reflection/metadata.js';
 import type { ValidationResult } from './ValidationResult.js';
 import { BaseValidator } from './BaseValidator.js';
 import { evaluateRule } from './evaluateRule.js';
 
+/** Traverse decoded models, evaluating registered validators at each distinct object. */
 export class ModelGraphValidator {
     constructor(private readonly validators: ReadonlyMap<ClassType, ClassType<BaseValidator<unknown>>>,
         private readonly logger?: (error: unknown, correlationId: string) => void) {}

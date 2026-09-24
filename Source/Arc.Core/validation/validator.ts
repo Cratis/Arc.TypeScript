@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ClassType } from '../modelBound/reflection/metadata.js';
-import { metadataFor, ownMetadata } from '../modelBound/reflection/metadata.js';
+import type { ClassType } from '../reflection/metadata.js';
+import { metadataFor, ownMetadata } from '../reflection/metadata.js';
 import { BaseValidator } from './BaseValidator.js';
 
 /** Associate a model-bound validator class with its exact model type. */

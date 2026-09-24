@@ -33,10 +33,13 @@
     "build": "tsc -b"
   },
   "devDependencies": {
-    "@cratis/arc.testing": "workspace:^"
+    "@cratis/arc.testing": "workspace:^",
+    "@cratis/fundamentals": "7.19.3"
+  },
+  "peerDependencies": {
+    "@cratis/fundamentals": "^7.19.3"
   },
   "dependencies": {
-    "@cratis/fundamentals": "7.19.3",
     "ws": "^8.21.3",
     "zod": "^4.1.0"
   }

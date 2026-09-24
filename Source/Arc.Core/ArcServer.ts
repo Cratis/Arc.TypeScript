@@ -3,8 +3,8 @@
 import { z } from 'zod';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './index.js';
 import type { ArcServerOptions } from './ArcServerOptions.js';
-import { ownMetadata } from './modelBound/reflection/metadata.js';
-import { encode } from './modelBound/reflection/wireSchema.js';
+import { ownMetadata } from './reflection/metadata.js';
+import { encode } from './reflection/wireSchema.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import { validateTenancy } from './tenancy/validateTenancy.js';
 import { handleRequest } from './http/handleRequest.js';

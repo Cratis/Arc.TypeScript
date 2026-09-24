@@ -10,6 +10,7 @@ import type { ArcNodeRunOptions } from './http/ArcNodeRunOptions.js';
 
 /** A built Arc server with optional ownership of a standalone Node listener. */
 export class ArcApplication {
+    /** Begin registering artifacts and services for an Arc application. */
     static createBuilder(options: ArcServerOptions = {}): ArcApplicationBuilder { return new ArcApplicationBuilder(options); }
     #listener?: { server: HttpServer | HttpsServer; close(): Promise<void> };
     #disposed = false;

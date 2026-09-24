@@ -2,5 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export {
     command, readModel, query, argument, service, inject, injectable, singleton, scoped, transient,
-    roles, authorize, allowAnonymous, path, route, key, optional, nullable, defaultValue, enumeration
+    roles, authorize, allowAnonymous, path, key, optional, nullable, defaultValue, enumeration
 } from './decorators.js';

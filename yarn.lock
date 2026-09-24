@@ -45,7 +45,7 @@ __metadata:
   peerDependencies:
     "@cratis/arc.core": ^0.4.1
     "@cratis/chronicle": ^6.2.0
-    "@cratis/fundamentals": ^7.19.2
+    "@cratis/fundamentals": ^7.19.3
     zod: ^4.1.0
   languageName: unknown
   linkType: soft
@@ -99,6 +99,8 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.3"
     ws: "npm:^8.21.3"
     zod: "npm:^4.1.0"
+  peerDependencies:
+    "@cratis/fundamentals": ^7.19.3
   languageName: unknown
   linkType: soft
 

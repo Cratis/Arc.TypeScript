@@ -84,6 +84,12 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('model-bound warning blocks above information threshold', 'POST', '/api/model-bound-command/validate', { title: 'ok' }, {
             status: 400, body: command(400, { validationResults: [{ severity: 2, message: 'Consider a longer title', members: ['title'], reason: 'rule' }] })
         }, { 'X-Allowed-Severity': '1' });
+        await parity('Guid.Empty fails NotEmpty in both model-bound validators', 'POST', '/api/guid-command/validate',
+            { id: '00000000-0000-0000-0000-000000000000' }, {
+                status: 400, body: command(400, { validationResults: [
+                    { severity: 3, message: 'Id required', members: ['id'], reason: 'rule' }
+                ] })
+            });
         await parity('direct concept validator reports owning member', 'POST', '/api/validation-graph-command/validate', { rate: 0, candidates: [] }, {
             status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Rate must be positive', members: ['rate'], reason: 'rule' }] })
         });
