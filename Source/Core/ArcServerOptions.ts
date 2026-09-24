@@ -89,6 +89,8 @@ export interface ArcServerOptions {
     /** @deprecated Use generatedApis.includeQueryNameInRoute. */
     includeQueryNameInRoute?: boolean;
     enableQueryMethod?: boolean;
+    /** Version advertised in the OpenAPI info object (defaults to 0.1.0). */
+    openApiVersion?: string;
     maxBodyBytes?: number;
     correlationHeader?: string;
     tenantHeader?: string;

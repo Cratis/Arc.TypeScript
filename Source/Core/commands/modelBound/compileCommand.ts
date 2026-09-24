@@ -46,6 +46,7 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
+        summary: metadata.summary, generatedReturn: metadata.handleResult,
         commandFactory: input => decode(type as WireType, input),
         authorization: metadata.authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
         handlerDependencies: commandServiceTokens([...tokens, ...provideTokens]),

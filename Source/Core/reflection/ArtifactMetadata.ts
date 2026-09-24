@@ -15,6 +15,8 @@ export interface ArtifactMetadata {
     readModelInterceptor?: boolean;
     readModel?: boolean;
     namespace?: string;
+    summary?: string;
+    methodSummaries?: Map<string, string>;
     authorization?: Authorization;
     path?: string;
     injected?: Map<string, readonly ServiceIdentifier<unknown>[]>;
