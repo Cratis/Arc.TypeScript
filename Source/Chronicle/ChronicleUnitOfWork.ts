@@ -6,17 +6,22 @@ import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cr
 import { recordFailure, type CommandContext, type CommandResult } from '@cratis/arc.core';
 import type { CommandCommitDisposition } from '@cratis/arc.core';
 import { checkResults } from './ChronicleCommand.js';
+import type { AggregateRoot } from './AggregateRoot.js';
 
 const current = new AsyncLocalStorage<ChronicleUnitOfWork>();
 
 /** One returned-event batch for the entire nested Arc command chain. Not a cross-store transaction. */
 export class ChronicleUnitOfWork {
     readonly #entries: EventForEventSourceId[] = [];
+    readonly #aggregates = new Set<AggregateRoot>();
     readonly #scopes: Record<string, ConcurrencyScope> = {};
     #store?: IEventStore;
     #nestedFailure = false;
     #completed = false;
-    disposition: CommandCommitDisposition = 'NotCommitted';
+    disposition: CommandCommitDisposition = 'NoCommit';
+    get hasStagedEvents(): boolean { return this.#entries.length > 0 || [...this.#aggregates].some(aggregate => aggregate.hasUnstagedEvents); }
+    track(aggregate: AggregateRoot): void { this.#aggregates.add(aggregate); }
+    aggregates(): AggregateRoot[] { return [...this.#aggregates]; }
     constructor(readonly context: CommandContext) {}
     static active(): ChronicleUnitOfWork | undefined {
         const unit = current.getStore();
@@ -51,12 +56,12 @@ export class ChronicleUnitOfWork {
             exceptionMessages: [...result.exceptionMessages, 'Nested Chronicle command failed; staged events were discarded'],
             hasExceptions: true, isSuccess: false };
         if (!this.#entries.length) return result;
-        this.disposition = 'Unknown';
         const entries = [...this.#entries];
         const options: AppendOptions = { correlationId: this.context.correlationId,
             ...(Object.keys(this.#scopes).length ? { concurrencyScopes: { ...this.#scopes } } : {}) };
         try {
             this.context.signal.throwIfAborted();
+            this.disposition = 'Unknown';
             const outcome = checkResults(await this.#store!.eventLog.appendMany(entries, options), entries.length);
             if (!outcome) { this.disposition = 'Committed'; return result; }
             if (outcome.kind !== 'validation') throw new Error('Unexpected Chronicle append outcome');
@@ -64,6 +69,7 @@ export class ChronicleUnitOfWork {
             return { ...result, response: undefined, validationResults: outcome.results,
                 isValid: false, isSuccess: false };
         } catch (error) {
+            if (!this.#store || this.disposition !== 'Unknown') this.disposition = 'NotCommitted';
             const failed = { ...result, response: undefined, exceptionMessages: [...result.exceptionMessages, String(error)],
                 exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', hasExceptions: true, isSuccess: false };
             recordFailure(failed, error, result);

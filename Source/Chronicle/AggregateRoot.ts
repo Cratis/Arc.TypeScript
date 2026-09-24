@@ -2,47 +2,67 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 import type { ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
+import type { EventContext } from '@cratis/chronicle/events';
+
+type EventClass<T extends object = object> = new (...args: never[]) => T;
+export const rehydrateAggregate = Symbol('rehydrate aggregate');
 
 /** The aggregate's pending events, committed by the command's Chronicle scope. */
 export class AggregateRootCommitResult {
-    constructor(readonly events: readonly EventForEventSourceId[], readonly scopes: Readonly<Record<string, ConcurrencyScope>>) {}
+    constructor(readonly aggregate: AggregateRoot, readonly events: readonly EventForEventSourceId[],
+        readonly scopes: Readonly<Record<string, ConcurrencyScope>>, readonly start: number) {}
 }
 
 /** Rehydrated state and pending events for one Chronicle event source. */
 export class AggregateRoot {
     #sourceId?: string;
     #pending: EventForEventSourceId[] = [];
-    #committed = false;
-    #sequenceNumber = EventSequenceNumber.beforeFirst.value;
+    #staged = 0;
+    #tail = EventSequenceNumber.beforeFirst.value;
+    #route: Omit<ConcurrencyScope, 'eventSourceId' | 'sequenceNumber'> = {};
+    #handlers = new Map<EventClass, (event: object, context?: EventContext) => void>();
     /** True when no recorded events were found for the selected event source. */
     protected isNew = true;
-    /** Called by the command argument resolver after loading the event log. */
-    rehydrate(sourceId: string, events: readonly { name: string; content: object; sequenceNumber: bigint }[]): void {
+    /** Register a handler by event type, independent of the class or method name. */
+    protected on<T extends object>(type: EventClass<T>, handler: (event: T, context?: EventContext) => void): void {
+        if (this.#handlers.has(type)) throw new Error('An aggregate event type can only have one handler');
+        this.#handlers.set(type, handler as (event: object, context?: EventContext) => void);
+    }
+    /** @internal */
+    get eventTypes(): EventClass[] { return [...this.#handlers.keys()]; }
+    /** @internal */
+    [rehydrateAggregate](sourceId: string, tail: bigint, route: Omit<ConcurrencyScope, 'eventSourceId' | 'sequenceNumber'>,
+        events: readonly { type: EventClass; content: object; context: EventContext }[]): void {
         if (this.#sourceId) throw new Error('An aggregate can only be rehydrated once');
         this.#sourceId = sourceId;
-        this.isNew = !events.length;
-        for (const entry of events) {
-            this.dispatch(entry.name, entry.content);
-            this.#sequenceNumber = entry.sequenceNumber;
-        }
+        this.#tail = tail;
+        this.#route = route;
+        this.isNew = tail === EventSequenceNumber.beforeFirst.value || tail === EventSequenceNumber.unset.value;
+        for (const entry of events) this.#dispatch(entry.type, Object.assign(Object.create(entry.type.prototype) as object, entry.content), entry.context);
     }
     /** Apply a registered event to in-memory state and stage it for commit. */
     apply(event: object): void {
-        if (!this.#sourceId || this.#committed) throw new Error('The aggregate is not active');
-        this.dispatch(event.constructor.name, event);
+        if (!this.#sourceId) throw new Error('The aggregate is not active');
+        this.#dispatch(event.constructor as EventClass, event);
         this.#pending.push({ eventSourceId: this.#sourceId, event });
     }
-    /** Return the pending batch; returning it from handle() enrolls it in the command transaction. */
+    /** Return pending events; events not returned are also enrolled in the command unit of work. */
     commit(): AggregateRootCommitResult {
-        if (!this.#sourceId || this.#committed) throw new Error('The aggregate is not active');
-        this.#committed = true;
-        return new AggregateRootCommitResult([...this.#pending], {
-            [this.#sourceId]: { eventSourceId: true, sequenceNumber: this.#sequenceNumber }
-        });
+        if (!this.#sourceId) throw new Error('The aggregate is not active');
+        return new AggregateRootCommitResult(this, this.#pending.slice(this.#staged), {
+            [this.#sourceId]: { eventSourceId: true, sequenceNumber: this.#tail, ...this.#route }
+        }, this.#staged);
     }
-    private dispatch(name: string, event: object): void {
-        const handler = Reflect.get(this, `on${name}`);
-        if (typeof handler !== 'function') throw new Error(`No aggregate handler for ${name}`);
-        handler.call(this, event);
+    /** @internal */
+    assertUnstaged(result: AggregateRootCommitResult): void {
+        if (result.start !== this.#staged || result.events.length > this.#pending.length - this.#staged)
+            throw new Error('Aggregate events were already staged or changed after commit()');
+    }
+    /** @internal */
+    stage(count: number): void { this.#staged += count; }
+    /** @internal */
+    get hasUnstagedEvents(): boolean { return this.#staged < this.#pending.length; }
+    #dispatch(type: EventClass, event: object, context?: EventContext): void {
+        this.#handlers.get(type)?.(event, context);
     }
 }

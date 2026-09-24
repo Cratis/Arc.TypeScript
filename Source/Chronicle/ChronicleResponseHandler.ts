@@ -31,6 +31,7 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         return eventLike(value);
     }
     async handle(context: CommandContext, value: unknown) {
+        if (value instanceof AggregateRootCommitResult) value.aggregate.assertUnstaged(value);
         const exact = value instanceof EventsWithConcurrencyScopes ? value : undefined;
         const values = value instanceof AggregateRootCommitResult ? value.events.map(eventForEventSourceId) :
             exact ? [...exact.events] : Array.isArray(value) ? [...value] : [value];
@@ -77,8 +78,14 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         const options: AppendOptions = { correlationId: context.correlationId,
             ...(Object.keys(scopes).length ? { concurrencyScopes: scopes } : {}) };
         const unit = ChronicleUnitOfWork.active();
-        if (unit) { unit.stage(store, context, entries, options); return; }
+        if (unit) {
+            unit.stage(store, context, entries, options);
+            if (value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
+            return;
+        }
         const results = await store.eventLog.appendMany(entries, options);
-        return checkResults(results, entries.length);
+        const outcome = checkResults(results, entries.length);
+        if (!outcome && value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
+        return outcome;
     }
 }
