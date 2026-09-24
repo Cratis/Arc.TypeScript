@@ -28,7 +28,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
         catch { socket.destroy(); return; }
         const operation = arc.routes.get(path);
         if (url.origin !== 'http://arc.invalid' || url.pathname !== path ||
-            !operation || !isObservableOperation(operation)) return;
+            path !== '/.cratis/queries/ws' && (!operation || !isObservableOperation(operation))) return;
         const origin = request.headers.origin;
         const secure = request.socket instanceof TLSSocket && request.socket.encrypted === true;
         if (origin && origin !== `${secure ? 'https' : 'http'}://${request.headers.host}`) {
@@ -44,7 +44,9 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
                     const incoming = new Request(url, {
                         headers: new Headers(request.headers as Record<string, string>), signal: transport.signal
                     });
-                    const work = directWebSocket(arc, incoming, transport, trusted);
+                    const work = path === '/.cratis/queries/ws'
+                        ? arc.handleObservableHubSocket(incoming, transport, trusted)
+                        : directWebSocket(arc, incoming, transport, trusted);
                     const active = { transport, work };
                     connections.add(active);
                     const release = (): void => { connections.delete(active); transport.close(); };

@@ -1,9 +1,9 @@
 ---
 title: Stream an observable query
-description: Define a current-value observable query, read its HTTP snapshot, and subscribe to direct SSE or WebSocket updates.
+description: Define a current-value observable query, read its HTTP snapshot, and subscribe over direct or multiplexed transports.
 ---
 
-Use an observable query when callers need a current snapshot and updates from the same query route. This source preview supports HTTP snapshots and **direct SSE or WebSocket** in Express, Fastify, and Hono. Multiplexed hubs, revisions, transfer modes, and the query-health endpoint are **not implemented**. No package is published to npm yet.
+Use an observable query when callers need a current snapshot and updates from the same query route. This source preview supports HTTP snapshots, direct SSE/WebSocket, and multiplexed SSE/WebSocket hubs in Express, Fastify, and Hono. No package is published to npm yet.
 
 ## Define the source and mount the server
 
@@ -51,7 +51,7 @@ stream.onmessage = event => console.log(JSON.parse(event.data).data);
 // Call stream.close() when your component no longer needs updates.
 ```
 
-A replaying source such as `CurrentValueSubject` first sends the current `[n]`, then a new full snapshot arrives once per second. A direct SSE frame is `data: <query result JSON>\n\n`, not a hub envelope. Set `Globals.queryDirectMode = true` and `Globals.queryTransportMethod = QueryTransportMethod.ServerSentEvents` before subscribing with the installed `@cratis/arc` client; its default is the WebSocket hub, which this server does not yet provide. To generate an `ObservableQueryFor` proxy, declare an explicit `clientOutput` contract on the definition before calling `exportClientManifest(server)`. The generated proxy supplies the exact fully qualified query name; its `subscribe()` uses the installed client runtime. The verified generated-client test uses an array of flat DTOs over direct SSE, not a hub. Browser EventSource cannot supply arbitrary authentication headers: use your host's trusted cookie/session authentication instead of treating the `.cratis-identity` display cookie as a credential.
+A replaying source such as `CurrentValueSubject` first sends the current `[n]`, then a new full snapshot arrives once per second. A direct SSE frame is `data: <query result JSON>\n\n`, not a hub envelope. Set `Globals.queryDirectMode = true` and `Globals.queryTransportMethod = QueryTransportMethod.ServerSentEvents` before subscribing with the installed `@cratis/arc` client; its default is the WebSocket hub. To generate an `ObservableQueryFor` proxy, declare an explicit `clientOutput` contract on the definition before calling `exportClientManifest(server)`. The generated proxy supplies the exact fully qualified query name; its `subscribe()` uses the installed client runtime. Generated proxies are compiled and exercised over direct SSE; the installed client is also exercised over both hubs with the exact query name. Browser EventSource cannot supply arbitrary authentication headers: use your host's trusted cookie/session authentication instead of treating the `.cratis-identity` display cookie as a credential.
 
 ## Subscribe to direct WebSocket
 
@@ -69,6 +69,32 @@ socket.onopen = () => socket.send(JSON.stringify({ type: 'Ping', timestamp: Date
 ```
 
 Direct WebSocket frames contain `{"type":"Data","data":<query result>}`. Ping receives Pong with the same millisecond timestamp. For the installed client, set `Globals.queryDirectMode = true` and `Globals.queryTransportMethod = QueryTransportMethod.WebSocket` before subscribing.
+
+## Share a multiplexed connection
+
+One WebSocket carries many subscriptions at `/.cratis/queries/ws`. This works with the loopback example above, even without authentication:
+
+```javascript
+const hub = new WebSocket(`ws://${location.host}/.cratis/queries/ws`);
+hub.onmessage = event => {
+    const frame = JSON.parse(event.data);
+    if (frame.type === 'Connected') {
+        hub.send(JSON.stringify({ type: 'Subscribe', queryId: 'numbers', revision: 1,
+            payload: { queryName: 'Numbers', transferMode: 'full' } }));
+    }
+    if (frame.type === 'QueryResult') console.log(frame.payload.data);
+};
+// To stop only this subscription:
+// hub.send(JSON.stringify({ type: 'Unsubscribe', queryId: 'numbers', revision: 1 }));
+```
+
+The SSE hub uses `GET /.cratis/queries/sse` for its `Connected` stream and authenticated `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. It requires a **trusted authenticated principal** on both the stream and every control request; the anonymous example above cannot use it. Configure [authentication](validation-and-authorization.md) before selecting this transport. A control request from a different principal or tenant returns the same 404 as an unknown connection ID. The `.cratis-identity` display cookie is not an authentication credential.
+
+The installed client's default is the multiplexed WebSocket hub. Set `Globals.queryDirectMode = false` and choose `Globals.queryTransportMethod` (`WebSocket` or `ServerSentEvents`). Its default transfer preference is `delta`: the first enumerable result carries full `data`, and later results carry `{ added, replaced, removed }` of full items **without** `data`. The installed `ObservableQueryFor.subscribe` callback does not reconstruct later arrays: its enumerable callback receives `data: []` alongside the raw change set. Choose `Globals.observableQueryTransferMode = 'full'` when the callback needs a full array on every update. An absent or unrecognized mode sends legacy full data plus a change set; scalar results always carry full data. Collection items with unique `id` keys compare case-insensitively; missing or duplicate IDs fall back to JSON multiset comparison. Order-only changes are not representable in a change set.
+
+Hub `Connected` advertises a 30-second keep-alive by default and subscription revisions. Configure `observableKeepAliveIntervalMs: 0` to disable keep-alive; pings are otherwise sent only after silence. Revisions ignore stale or duplicate subscribes; unsubscribe tombstones live for two minutes (at most 1024 per connection). The server limits a physical hub connection to 32 subscriptions, and bounds outbound queues to 64 frames. An authorized caller can opt into `enableObservableHealth: true` to read its **own hub connections** at `/.cratis/queries/health`; this differs deliberately from .NET's anonymous, cross-caller health view and does not include direct connections.
+
+## Wait for a snapshot
 
 For a pending source, `GET /api/numbers?waitForFirstResult=true` waits for its first emission. The default wait is 30 seconds; `waitForFirstResultTimeout` accepts a positive number of seconds up to 120. A timeout answers 408; completion before the first value answers 500. Without waiting, a pending source answers 202, not a failure. Invalid wait options answer 400. Booleans are case-insensitive (`True` works); unlike .NET, an unrecognized boolean is rejected rather than ignored. Arc on .NET currently accepts larger timeout values; this server bounds them to avoid retaining unlimited subscriptions. A 408 timeout and a 500 completed-without-value response retain their protocol-specific messages in production.
 

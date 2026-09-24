@@ -22,6 +22,8 @@ import { snapshot, snapshotOptions } from './queries/observable/snapshot.js';
 import { directSse } from './queries/observable/directSse.js';
 import { closeNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
 import { ObservableSubscriptionLimitError } from './queries/observable/ObservableSubscriptionLimitError.js';
+import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
+import type { WebSocketTransport } from './queries/observable/WebSocketTransport.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -50,6 +52,7 @@ export class ArcServer {
     readonly #observableSessions = new Set<ObservableQuerySession>();
     readonly #snapshotSessions = new Set<ObservableQuerySession>();
     readonly #observableOwners = new Map<ObservableQuerySession, string>();
+    readonly #hub: ObservableQueryHub;
     readonly #openingOwners = new Map<string, number>();
     #openingObservableSessions = 0;
     #openingSnapshots = 0;
@@ -74,6 +77,11 @@ export class ArcServer {
             (!Number.isSafeInteger(options.maxObservableSubscriptionsPerCaller) ||
                 options.maxObservableSubscriptionsPerCaller < 1 || options.maxObservableSubscriptionsPerCaller > 128))
             throw new Error('Invalid per-caller observable subscription limit');
+        if (options.observableKeepAliveIntervalMs !== undefined &&
+            (!Number.isSafeInteger(options.observableKeepAliveIntervalMs) || options.observableKeepAliveIntervalMs < 0 ||
+                options.observableKeepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
+        if (options.enableObservableHealth !== undefined && typeof options.enableObservableHealth !== 'boolean')
+            throw new Error('Invalid observable health option');
         const prefix = options.prefix ?? 'api';
         if (prefix && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(prefix)) throw new Error('Unsafe Arc prefix');
         const skip = options.segmentsToSkip ?? 0;
@@ -95,14 +103,21 @@ export class ArcServer {
         this.commands = (options.commands ?? []).map(item => commandOperation(item, routeFor(item, prefix, skip)));
         this.queries = [
             ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip))),
-            ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip)))
+            ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip))),
+            ...(options.enableObservableHealth ? [observableOperation({
+                name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
+                schema: z.object({}), authorization: { authenticated: true },
+                observe: (_input, context) => this.#hub.observeHealth(context)
+            }, '/.cratis/queries/health')] : [])
         ];
         const routes = new Map<string, Operation>();
         const names = new Set<string>();
         const endpoints = new Map<string, string>([
             ['/.cratis/commands', 'GET'], ['/.cratis/queries', 'GET'],
             ['/.cratis/identity-details/schema', 'GET'], ['/.cratis/users', 'GET'],
-            ['/.cratis/tenants', 'GET'], ['/openapi.json', 'GET']
+            ['/.cratis/tenants', 'GET'], ['/openapi.json', 'GET'],
+            ['/.cratis/queries/ws', 'GET'], ['/.cratis/queries/sse', 'GET'],
+            ['/.cratis/queries/sse/subscribe', 'POST'], ['/.cratis/queries/sse/unsubscribe', 'POST']
         ]);
         if (options.identityDetails) endpoints.set('/.cratis/me', 'GET');
         const reserved = new Set([...endpoints.keys(), '/.cratis/me']);
@@ -122,6 +137,7 @@ export class ArcServer {
         }
         this.routes = routes;
         this.endpoints = endpoints;
+        this.#hub = new ObservableQueryHub(this);
     }
 
     /** Complete both provider and operation executions through the same scope and registry shutdown boundary. */
@@ -185,13 +201,19 @@ export class ArcServer {
 
     async dispose(): Promise<void> {
         this.#disposed = true;
+        const activeHubConnections = this.#hub.connections.length;
+        const hubClosing = this.#hub.dispose();
         const closing = closeNodeWebSockets(this);
         const sessions = [...this.#observableSessions, ...this.#snapshotSessions];
-        if (!sessions.length && !closing) {
+        if (!sessions.length && !closing && !activeHubConnections) {
             if (this.#ownsServices) await this.services.dispose();
             return;
         }
         const failures: unknown[] = [];
+        if (activeHubConnections) {
+            try { await hubClosing; }
+            catch (error) { failures.push(error); }
+        }
         if (closing) {
             try { await closing; }
             catch (error) { failures.push(error); }
@@ -285,6 +307,11 @@ export class ArcServer {
         }
     }
 
+    /** Multiplexed socket entry point shared by all Node host bridges. */
+    handleObservableHubSocket(request: Request, transport: WebSocketTransport, native?: NativeRequestContext): Promise<void> {
+        return this.#hub.webSocket(request, transport, native);
+    }
+
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
         const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
@@ -302,6 +329,10 @@ export class ArcServer {
 
     async handle(request: Request, native?: NativeRequestContext | (() => NativeRequestContext)): Promise<Response | null> {
         const path = new URL(request.url).pathname;
+        if (path === '/.cratis/queries/ws') return new Response(null, { status: 426, headers: { upgrade: 'websocket' } });
+        if (path === '/.cratis/queries/sse' || path === '/.cratis/queries/sse/subscribe' ||
+            path === '/.cratis/queries/sse/unsubscribe')
+            return this.#hub.http(request, typeof native === 'function' ? native() : native);
         const operation = this.routes.get(path);
         if (!this.endpoints.has(path)) return null;
         const introspection = !operation;

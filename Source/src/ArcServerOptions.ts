@@ -22,6 +22,10 @@ export interface ArcServerOptions {
     maxObservableSubscriptions?: number;
     /** Maximum retained subscriptions for one authenticated principal and tenant (anonymous callers share eight slots). */
     maxObservableSubscriptionsPerCaller?: number;
+    /** Advertised hub keep-alive cadence in milliseconds (0 disables); defaults to 30 seconds. */
+    observableKeepAliveIntervalMs?: number;
+    /** Opt in to caller-scoped query health; disabled by default because connection metadata is sensitive. */
+    enableObservableHealth?: boolean;
     /** Resolve emission policies in each subscription's service scope. */
     observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
     prefix?: string;

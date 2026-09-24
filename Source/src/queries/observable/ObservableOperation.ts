@@ -18,7 +18,9 @@ export interface ObservableOperation extends Operation {
     render(input: unknown, context: ExecutionContext, options: QueryOptions | undefined, data: unknown): Promise<QueryResult>;
 }
 
-export function observableOperation<S extends z.ZodType, T>(definition: ObservableQueryDefinition<S, T>, route: string): ObservableOperation {
+export function observableOperation<S extends z.ZodType, T>(
+    definition: ObservableQueryDefinition<S, T>, route: string
+): ObservableOperation {
     const startup = queryOperation({ ...definition, clientOutput: undefined, perform: definition.observe }, route, true);
     return {
         ...startup, clientOutput: definition.clientOutput, observable: true,
