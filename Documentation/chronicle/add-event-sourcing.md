@@ -50,7 +50,7 @@ app.UseCratis();
 app.Run();
 ```
 
-Both paths require a separately running Chronicle server. The TS package is a local preview, not published or verified against a live kernel by this example.
+Both paths require a separately running Chronicle server. The TS package is a local preview, not published. The integration has an opt-in live kernel suite; this setup example is not a live-kernel verification.
 
 :::caution[Development credentials]
 The connection string above uses the SDK's development credentials and accepts the kernel's self-signed certificate. In production, provide real credentials and `skipTlsValidation=false`.
@@ -88,7 +88,7 @@ export class LiveCommandReactor {
 
 `LiveCreated` is an SDK `@eventType()` class; `FollowUpLive` is an Arc `@command()` with `@field(String) @key() id` and a `@field(String) name`. The exact integration example is exercised in the [live suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts).
 
-With an Arc-owned client (`{ connectionString, eventStore }`), `addChronicle` installs the result handler before observations begin. For a caller-owned client, pass the handler to the SDK when creating the client **before connecting it**:
+With an Arc-owned client (`{ connectionString, eventStore }`), `withChronicle` installs the result handler before observations begin. For a caller-owned client, pass the handler to the SDK when creating the client **before connecting it**:
 
 ```typescript
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
@@ -100,7 +100,7 @@ const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connect
     clientArtifactsProvider: artifacts,
     reactorResultHandler: reactorCommandResultHandler(() => application.server, 'Tasks')
 }));
-builder.addChronicle({ eventStore: 'Tasks', client });
+builder.withChronicle({ eventStore: 'Tasks', client });
 application = await builder.build();
 ```
 
