@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { describe, it, should } from 'vitest';
 import { z } from 'zod';
-import { ArcServer, AuthenticationStatus, CurrentValueSubject, defineObservableQuery } from '../src/index.js';
+import { ArcServer, AuthenticationStatus, CurrentValueSubject, defineObservableQuery, exportClientManifest } from '../src/index.js';
 
 should();
 
@@ -23,6 +23,16 @@ describe('caller-scoped observable query health', () => {
         const arc = new ArcServer({});
         should().equal(arc.endpoints.has('/.cratis/queries/health'), false);
         should().equal(await arc.handle(new Request('http://localhost/.cratis/queries/health')), null);
+        await arc.dispose();
+    });
+
+    it('should omit the built-in health query from an application client manifest', async () => {
+        const arc = new ArcServer({ enableObservableHealth: true, observableQueries: [defineObservableQuery({
+            name: 'Numbers', schema: z.object({}), clientOutput: { output: {
+                kind: 'array', element: { kind: 'number' }
+            } }, observe: () => new CurrentValueSubject([1])
+        })] });
+        exportClientManifest(arc).operations.map(operation => operation.id).should.deep.equal(['Numbers']);
         await arc.dispose();
     });
 

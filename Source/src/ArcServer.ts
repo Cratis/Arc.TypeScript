@@ -104,11 +104,11 @@ export class ArcServer {
         this.queries = [
             ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip))),
             ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip))),
-            ...(options.enableObservableHealth ? [observableOperation({
+            ...(options.enableObservableHealth ? [{ ...observableOperation({
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },
                 observe: (_input, context) => this.#hub.observeHealth(context)
-            }, '/.cratis/queries/health')] : [])
+            }, '/.cratis/queries/health'), internal: true }] : [])
         ];
         const routes = new Map<string, Operation>();
         const names = new Set<string>();
