@@ -75,6 +75,24 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });
+        await parity('model-bound validator returns custom state and client-cased member', 'POST', '/api/model-bound-command/validate', { title: '' }, {
+            status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Title required', members: ['title'], state: 'title-owned', reason: 'rule' }] })
+        });
+        await parity('model-bound warning is filtered by default', 'POST', '/api/model-bound-command/validate', { title: 'ok' }, {
+            status: 200, body: command(200)
+        });
+        await parity('model-bound warning blocks above information threshold', 'POST', '/api/model-bound-command/validate', { title: 'ok' }, {
+            status: 400, body: command(400, { validationResults: [{ severity: 2, message: 'Consider a longer title', members: ['title'], reason: 'rule' }] })
+        }, { 'X-Allowed-Severity': '1' });
+        await parity('direct concept validator reports owning member', 'POST', '/api/validation-graph-command/validate', { rate: 0, candidates: [] }, {
+            status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Rate must be positive', members: ['rate'], reason: 'rule' }] })
+        });
+        await parity('distinct nested concepts retain collection path', 'POST', '/api/validation-graph-command/validate', {
+            rate: 1, candidates: [{ rate: 0 }, { rate: 0 }]
+        }, { status: 400, body: command(400, { validationResults: [
+            { severity: 3, message: 'Rate must be positive', members: ['candidates.rate'], reason: 'rule' },
+            { severity: 3, message: 'Rate must be positive', members: ['candidates.rate'], reason: 'rule' }
+        ] }) });
         await parity('model-bound query binds a named GET argument', 'GET', '/api/model-bound-title?TITLE=readable', undefined, {
             status: 200, body: query(200, { data: { title: 'readable' } })
         });
