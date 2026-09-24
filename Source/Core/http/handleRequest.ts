@@ -23,6 +23,7 @@ import { hasFailure, originalFailure } from '../results/failureTracking.js';
 import { Severity } from '../validation/Severity.js';
 import { requestContext } from '../execution/RequestContextStore.js';
 import { isObservableOperation } from '../queries/observable/ObservableOperation.js';
+import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
 
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -93,11 +94,16 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             : queryResult(context, { exceptionMessages: ['An unexpected error occurred'] }), 500);
         try {
             const trustedNative = typeof native === 'function' ? await native() : native;
+            const declarations = authorizationRequirements(operation?.authorization);
+            const schemes = [...new Set(declarations.flatMap(item => item.schemes ?? []))];
             const authentication = server.options.nativePrincipal
                 ? { failed: false, principal: trustedNative?.principal === undefined ? undefined : verifiedPrincipal(trustedNative.principal) }
-                : await authenticate(request, server.options.authentication ?? []);
-            if (authentication.failed || ((server.options.nativePrincipal || server.options.authentication?.length) && !operation?.authorization?.anonymous &&
-                (operation?.authorization?.authenticated || operation?.authorization?.roles?.length) && !authentication.principal?.isAuthenticated)) {
+                : await authenticate(request, schemes.length
+                    ? schemes.map(name => server.options.authenticationSchemes![name]!) : server.options.authentication ?? [],
+                    schemes.length ? schemes : undefined);
+            if (authentication.failed || ((server.options.nativePrincipal || server.options.authentication?.length || schemes.length) && !operation?.authorization?.anonymous &&
+                declarations.some(item => item.authenticated || item.roles?.length || item.policy || item.schemes?.length) &&
+                !authentication.principal?.isAuthenticated)) {
                 if (!operation) return send({ error: 'Unauthorized' }, 401);
                 const result = operation.kind === 'command' ? commandResult(context, { isAuthorized: false }) : queryResult(context, { isAuthorized: false });
                 return send(result, 401);
@@ -117,7 +123,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         const json = await bindings.runProvider(context, async () => {
                             const details = await server.options.identityDetails!.provide(authentication.principal!, context);
                             if (details === undefined) return undefined;
-                            const parsed = server.options.identityDetails!.schema.parse(details);
+                            const parsed = server.options.identityDetails!.schema!.parse(details);
                             const identity = { id: authentication.principal!.id, name: authentication.principal!.name ?? '', isAuthenticated: true, isAuthorized: true, roles: authentication.principal!.roles, details: parsed };
                             const serialized = JSON.stringify(identity);
                             // atob() in the existing client decodes bytes as Latin-1, not UTF-8.
@@ -133,7 +139,8 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         const provider = path === '/.cratis/users' ? server.options.developmentUsers : server.options.developmentTenants;
                         if (!provider) return send([], 200);
                         const json = await bindings.runProvider(context, async () => {
-                            const values: unknown = await provider(context);
+                            const providers = Array.isArray(provider) ? provider : [provider];
+                            const values: unknown = (await Promise.all(providers.map(provide => provide(context)))).flat();
                             const schema = path === '/.cratis/users'
                                 ? z.array(z.object({ microsoftIdentity: z.object({ identityProvider: z.string().max(256), userId: z.string().max(256), userDetails: z.string().max(256), userRoles: z.array(z.string().max(256)).max(64), claims: z.array(z.object({ typ: z.string().max(256), val: z.string().max(256) })).max(64) }), details: z.unknown().optional() })).max(100)
                                 : z.array(z.object({ id: z.string().max(256), name: z.string().max(256) })).max(100);

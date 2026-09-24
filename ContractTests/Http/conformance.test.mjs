@@ -139,6 +139,9 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('authenticated Reader denied before validation leaks', 'POST', '/api/admin-echo', { value: '' }, {
             status: 403, body: command(403)
         }, { 'X-Fixture-Role': 'Reader' });
+        await parity('authenticated Reader denied validation-only command', 'POST', '/api/admin-echo/validate', { value: '' }, {
+            status: 403, body: command(403)
+        }, { 'X-Fixture-Role': 'Reader' });
         await divergence('anonymous authorization ingress: ASP.NET 403, TypeScript 401', 'POST', '/api/admin-echo', { value: '' },
             { status: 403, body: command(403) }, { status: 401, body: command(401) });
         await parity('authorized administrator still fails the business rule', 'POST', '/api/admin-echo', { value: '' }, {

@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 /** The first source producing a tenant wins. A header requests a tenant; it does not prove membership. */
 export interface TenancyOptions {
-    readonly sources: readonly ('header' | 'query' | 'claim' | 'fixed' | 'subdomain')[];
+    readonly sources: readonly ('header' | 'query' | 'claim' | 'fixed' | 'development' | 'subdomain')[];
     readonly queryParameter?: string;
     readonly claimType?: string;
     readonly fixed?: string;

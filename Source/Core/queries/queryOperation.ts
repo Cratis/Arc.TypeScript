@@ -1,12 +1,12 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
+import type { ArcServerOptions } from '../ArcServerOptions.js';
 import type { QueryDefinition, QueryResult, ValidationResult } from '../index.js';
 import { authorized } from '../authorization/authorized.js';
 import { queryResult } from '../results/queryResult.js';
 import { malformed } from '../results/malformed.js';
 import { renderQuery } from './renderQuery.js';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
 import { observe } from '../observability.js';
 import type { Operation } from '../http/Operation.js';
 import { recordFailure } from '../results/failureTracking.js';
@@ -22,11 +22,11 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
     return json;
 }
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
-    observable = false, settings: ArcServerOptions = {}): Operation {
+    observable = false, serverOptions: ArcServerOptions = {}): Operation {
     return {
         ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
-            if (!authorized(definition.authorization, context)) return queryResult(context, { isAuthorized: false });
+            if (!await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
             if (!parsed.success) return queryResult(context, { validationResults: malformed(context) });
             try {
@@ -47,7 +47,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 if (issues.length) return queryResult(context, { validationResults: issues });
                 await prepareDependencies(definition.handlerDependencies);
                 const data = await definition.perform(value, context, options);
-                return observable ? queryResult(context, { data }) : await renderQuery(definition, data, context, options, settings);
+                return observable ? queryResult(context, { data }) : await renderQuery(definition, data, context, options, serverOptions);
             } catch (error) {
                 if (error instanceof InvalidQuerySort) return queryResult(context, {
                     validationResults: [validation(error.message, ['sorting.field'])]
