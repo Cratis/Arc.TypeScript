@@ -39,10 +39,10 @@ const artifacts = new ChronicleArtifacts();
 for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
     AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView]) artifacts.register(type);
 let application;
+const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
     clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(() => application.server, storeName)
 }));
-const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
 const interceptor = serviceToken('live read model interceptor');
 const builder = ArcApplication.createBuilder({ development: true,
     readModelInterceptors: [interceptor],
