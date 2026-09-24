@@ -72,6 +72,12 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             status: 200, body: query(200, { data: { count: value } })
         });
 
+        await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
+            status: 200, body: command(200, { response: 'readable' })
+        });
+        await parity('model-bound query binds a named GET argument', 'GET', '/api/model-bound-title?TITLE=readable', undefined, {
+            status: 200, body: query(200, { data: { title: 'readable' } })
+        });
         await count('initial handler count is zero', 0);
         await parity('valid /validate does not produce a response', 'POST', '/api/echo-value/validate', { value: 'ok' }, {
             status: 200, body: command(200)
