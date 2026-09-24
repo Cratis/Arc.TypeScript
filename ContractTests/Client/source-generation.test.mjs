@@ -388,7 +388,7 @@ import { Service } from '../Service.js';
             child.stdout.on('data', check); check();
         }), `Watch did not detect the external edit: ${errors}`);
         await writeFile(service, 'export class Service { readonly marker = 1; }\n');
-        await changed;
+        try { await changed; } catch (error) { throw new Error(`${error} output=${outputText} errors=${errors}`); }
         await nextGeneration(2);
         assert.match(outputText, /Generated 0 changed file\(s\)/);
         assert.equal(errors, '');

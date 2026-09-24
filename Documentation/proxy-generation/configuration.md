@@ -39,7 +39,7 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 | `--metadata <file>` | Off | Generate server artifact metadata at the given absolute path and infer undecorated bindings |
 | `--use-generated-metadata` | Off | Infer the same bindings for client-only generation without publishing a metadata module |
 | `--check-metadata` | Off | Read-only check that a module passed with `--metadata` matches current source |
-| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; stdout reports `Watch ready` after the initial generation and watcher registration, then `Watch change detected` when an edit schedules regeneration |
+| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; stdout reports `Watch ready` after the initial generation and watcher registration, then `Watch change detected` when an edit schedules regeneration; referenced external files are also polled to recover missed directory notifications |
 
 ## Programmatic use
 
