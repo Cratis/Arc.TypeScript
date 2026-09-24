@@ -47,13 +47,13 @@ export class TaskItem {
 | `@cratis/arc.express` | [`Source/Express`](Source/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `mountHono` for Hono 4 |
-| `@cratis/arc.testing` | [`Source/Testing`](Source/Testing) | `ArcScenario` and `shouldHaveRuleFailure` for testing real pipelines |
+| `@cratis/arc.testing` | [`Source/Testing`](Source/Testing) | `CommandScenario`, `QueryScenario`, and `ObservableQueryScenario` for decorated artifacts; `ArcScenario` for low-level definitions and HTTP |
 | `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `analyzeSource`, `renderSource`, `generateFromSource`, and the `arc-proxygenerator` CLI generate published-client proxies from decorated source. The original `renderClientManifest`/`generateClient` JSON path remains available for low-level definitions. See [Generate command and query clients](Documentation/guides/generate-clients.md). |
 | `@cratis/eslint-plugin-arc-core` | [`Source/CodeAnalysis`](Source/CodeAnalysis) | ESLint 10 flat-config diagnostics for model-bound server artifacts, with a type-checked recommended config. See [Code analysis](Documentation/code-analysis/index.md). |
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.addMongoDB`, tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
 
-Every package manifest is at version 0.8.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.9.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -80,7 +80,7 @@ Also supported, each one explicit or opt-in:
 - **Identity.** `identityDetails` registers `GET /.cratis/me` and sets a client-readable display cookie. The cookie is for display only; it is not a credential.
 - **Host principals.** `nativePrincipal: true` accepts a principal your host framework has already verified, passed through an explicit adapter callback. It cannot be combined with Arc authentication handlers.
 - **Tenancy.** Besides the tenant header and `resolveTenant`, the `tenancy` option selects ordered header, query, claim, fixed, or subdomain sources, with optional `required` and membership-claim checks.
-- **Testing.** `@cratis/arc.testing` runs specs through the real command, query, and HTTP pipelines.
+- **Testing.** `@cratis/arc.testing` runs decorated commands, queries, and observable queries through real pipelines with scoped services and JSON wire round trips; `ArcScenario` still covers low-level definitions and HTTP. See [test real pipelines](Documentation/guides/services-and-testing.md#test-a-decorated-command).
 - **Generated clients, bounded.** Run `arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <existing-folder>` against decorated commands and read models. It reads the TypeScript program, not application startup, and generates command/query/observable classes, nested models and hooks. These compile with the published `@cratis/arc` and `@cratis/arc.react` 22.19.1 in strict Bundler mode with `skipLibCheck: false`; the model-bound command, query, paging, sorting and observable hub run against all three adapters. Extensionless imports are the default for Vite/Bundler; use `--js-import-specifiers` for compiled native Node ESM. The Tasks sample's cross-platform `generate-proxies` script generates and compiles this output in CI. `NodeNext` consumer compilation is not supported by those published declarations. For low-level `define*` definitions, keep using `exportClientManifest` and the positional JSON CLI, whose narrower contract excludes nested DTOs, React hooks and shared validation rules. See [Generate command and query clients](Documentation/guides/generate-clients.md).
 
 A paired suite checks 42 bounded HTTP cases, including model-bound command and query validation, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
@@ -88,7 +88,7 @@ A paired suite checks 42 bounded HTTP cases, including model-bound command and q
 Not implemented:
 
 - Generated server artifact metadata and complete .NET proxy parity. The source analyzer emits a bounded client model, but standard-mode injection still needs explicit tokens; identity-only models and some .NET template options are not yet emitted. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
-- Named authorization policies, SQL integrations, command operations and effects, and observable query test scenarios.
+- Named authorization policies, SQL integrations, and command operations and effects.
 
 The Chronicle integration stays experimental and private: this adapter has not yet been verified against a Chronicle kernel.
 
