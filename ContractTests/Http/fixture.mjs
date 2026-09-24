@@ -12,6 +12,7 @@ import { ValidationGraphCommand } from './modelBound/dist/ValidationGraphCommand
 import { FixtureRateValidator } from './modelBound/dist/FixtureRateValidator.js';
 import { GuidCommand } from './modelBound/dist/GuidCommand.js';
 import { GuidCommandValidator } from './modelBound/dist/GuidCommandValidator.js';
+import { HttpMetric } from './modelBound/dist/HttpMetric.js';
 import { mountExpress } from '@cratis/arc.express';
 
 let executions = 0;
@@ -32,6 +33,12 @@ const adminEcho = defineCommand({
 const tupleEcho = defineCommand({
     name: 'TupleEcho', path: '/api/tuple-echo', schema: valueSchema, authorization: anonymous,
     handle: ({ value }) => tuple({ value }, rejected(validation('Cannot echo', ['value'])))
+});
+const echoMetric = defineCommand({
+    name: 'EchoMetric', path: '/api/echo-metric', schema: z.object({
+        value: z.union([z.number(), z.literal('NaN'), z.literal('Infinity'), z.literal('-Infinity')])
+    }), authorization: anonymous,
+    handle: ({ value }) => ({ value: Number(value) })
 });
 const throwFailure = defineCommand({
     name: 'ThrowFailure', path: '/api/throw-failure', schema: z.object({}), authorization: anonymous,
@@ -62,11 +69,11 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, throwFailure, tupleEcho], queries: [echoCount, byId, all, privateItems],
+    commands: [echo, adminEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems],
     authentication: [authentication], development: false, segmentsToSkip: 1
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
-    ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator);
+    ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric);
 const arc = await builder.build();
 const app = express();
 mountExpress(app, arc);

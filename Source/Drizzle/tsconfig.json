@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist" },
+  "include": ["**/*.ts"],
+  "exclude": ["dist", "node_modules", "**/for_*/**", "**/given/**", "vite.config.mts", "vitest.integration.config.ts", "*.integration.ts"],
+  "references": [{ "path": "../Core" }]
+}

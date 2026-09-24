@@ -4,5 +4,5 @@
     "skipLibCheck": true, "rootDir": ".", "outDir": "dist", "lib": ["ES2022", "DOM", "ESNext.Decorators"],
     "types": ["node"]
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "polymorphic/*.ts"]
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { QueryResult } from '../QueryResult.js';
 import type { ObservableQuerySession } from './ObservableQuerySession.js';
+import { stringifyWire } from '../../reflection/stringifyWire.js';
 
 const encoder = new TextEncoder();
 
@@ -33,7 +34,7 @@ export function directSse(session: ObservableQuerySession, headers: Headers): Re
                 }
                 pending = undefined;
                 if (outcome.value.done) { closed = true; controller.close(); return; }
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(outcome.value.value)}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${stringifyWire(outcome.value.value)}\n\n`));
                 if (!outcome.value.value.isAuthorized || outcome.value.value.hasExceptions || !outcome.value.value.isValid) {
                     closed = true;
                     await session.close();

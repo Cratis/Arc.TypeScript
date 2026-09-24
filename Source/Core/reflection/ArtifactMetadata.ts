@@ -11,6 +11,8 @@ export interface ArtifactMetadata {
     command?: boolean;
     handleResult?: GeneratedReturn;
     responseValueHandler?: boolean;
+    queryRenderer?: boolean;
+    readModelInterceptor?: boolean;
     readModel?: boolean;
     namespace?: string;
     authorization?: Authorization;

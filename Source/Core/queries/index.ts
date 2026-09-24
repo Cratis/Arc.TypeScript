@@ -3,6 +3,10 @@
 export { readModel, query, queryOptions, argument, path } from './modelBound/index.js';
 export type { QueryDefinition } from './QueryDefinition.js';
 export type { QueryFilter } from './QueryFilter.js';
+export type { QueryRenderer } from './QueryRenderer.js';
+export type { ReadModelInterceptor } from './ReadModelInterceptor.js';
+export { queryRenderer } from './queryRendererDecorator.js';
+export { readModelInterceptor } from './readModelInterceptorDecorator.js';
 export type { PageRequest } from './PageRequest.js';
 export type { Paging } from './Paging.js';
 export type { QueryOptions } from './QueryOptions.js';

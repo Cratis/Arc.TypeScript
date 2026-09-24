@@ -14,7 +14,10 @@ import { serve } from '@hono/node-server';
 import { mountExpress } from '@cratis/arc.express';
 import { mountFastify } from '@cratis/arc.fastify';
 import { mountHono } from '@cratis/arc.hono';
-import { ArcApplication } from '@cratis/arc.core';
+import { ArcApplication, serviceToken } from '@cratis/arc.core';
+import { context, trace } from '@opentelemetry/api';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
 import { ChronicleArtifacts } from '../dist/ChronicleArtifacts.js';
 import '../dist/index.js';
@@ -22,14 +25,22 @@ import { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, 
 
 const connectionString = process.env.ARC_CHRONICLE_TEST_URL;
 if (!connectionString) throw new Error('ARC_CHRONICLE_TEST_URL is required; do not silently skip the kernel suite');
+const exporter = new InMemorySpanExporter();
+const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
+trace.setGlobalTracerProvider(provider);
+context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 const artifacts = new ChronicleArtifacts();
 for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView]) artifacts.register(type);
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
     clientArtifactsProvider: artifacts, discoveryPatterns: []
 }));
 const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
+const interceptor = serviceToken('live read model interceptor');
 const builder = ArcApplication.createBuilder({ development: true,
+    readModelInterceptors: [interceptor],
     resolveTenant: request => request.headers.get('x-test-tenant') ?? undefined });
+builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view =>
+    Object.assign(new LiveView(), view, { name: `public-${view.name}` }) }));
 builder.addChronicle({ client, eventStore: storeName });
 builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, ReadLiveInCommand, LiveCreated, LiveView);
 const application = await builder.build();
@@ -70,6 +81,10 @@ try {
                 const store = await client.getEventStore(storeName, tenant);
                 const events = await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated]);
                 assert.equal(events.length, 1, 'append is visible in tenant namespace');
+                const commandSpan = exporter.getFinishedSpans().find(span =>
+                    span.name === 'cratis.arc.command.execute' &&
+                    span.attributes['cratis.correlation_id'] === first.body.correlationId);
+                assert.ok(commandSpan, 'the committed Chronicle append completes inside the Arc command span');
                 const other = await client.getEventStore(storeName, `${tenant}Other`);
                 assert.equal((await other.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated])).length, 0);
                 const conflict = await call(listener.url, 'create-live-exactly-once', id, tenant, adapter);
@@ -87,7 +102,9 @@ try {
                 assert.equal(model.name, adapter);
                 const query = await globalThis.fetch(`${listener.url}/api/by-id?id=${id}`, { headers: { 'x-test-tenant': tenant } });
                 const result = await query.json();
-                assert.equal(result.data.name, adapter, JSON.stringify(result));
+                assert.equal(result.data.name, `public-${adapter}`, 'Chronicle model is intercepted before wire encoding');
+                assert.equal((await store.readModels.findInstanceById(LiveView, id)).name, adapter,
+                    'interception does not change the persisted read model');
                 const resolved = await call(listener.url, 'read-live-in-command', id, tenant, adapter);
                 assert.equal(resolved.body.isSuccess, true, JSON.stringify(resolved));
                 assert.equal(resolved.body.response, adapter);
@@ -104,4 +121,7 @@ try {
 } finally {
     await application.dispose();
     client.dispose();
+    await provider.shutdown();
+    trace.disable();
+    context.disable();
 }
