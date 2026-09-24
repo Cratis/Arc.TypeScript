@@ -54,7 +54,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Capability | Status | Notes |
 | --- | --- | --- |
 | Observable definitions and HTTP snapshots | Supported, bounded | `defineObservableQuery` accepts async iterables, structural subscribables and `CurrentValueSubject`. Each subscription uses the query authorization and validation pipeline and owns a service scope. Current value answers 200; pending answers 202; a bounded wait answers 408 on timeout or 500 on completion without data. [Stream a query](../guides/observable-queries.md). |
-| Direct SSE | Supported, bounded | The query route streams direct result frames through real Express, Fastify and Hono adapters; the installed 22.19.1 client receives updates from all three. Each client subscription holds one connection. No direct WebSocket transport yet. |
+| Direct SSE | Supported, bounded | The query route streams direct result frames through real Express, Fastify and Hono adapters and the standalone Node host; the installed 22.19.1 client receives updates from Express, Fastify and Hono. Each client subscription holds one connection. No direct WebSocket transport yet. |
 | Direct WebSocket and multiplexed hubs | Not implemented | No WebSocket upgrades, SSE hub controls, subscription revisions or transfer modes. |
 | Emission guards | Supported for snapshots and direct SSE | Register service tokens with `observableEmissionGuards`. Guards run within the subscription scope after rendering. `Allow` delivers, `Suppress` withholds without advancing the stream, and `DenyAndTerminate` sends a terminal unauthorized result. Guard failures deny. No hub or delta baseline yet. |
 | Query health endpoint | Not implemented | The .NET health route includes caller and connection metadata; its security policy needs separate review. |
@@ -118,10 +118,10 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Capability | Status | Notes |
 | --- | --- | --- |
 | Express 5, Fastify 5, and Hono 4 adapters | Supported | Their differences and TLS/native principal trust boundary are listed in [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#adapter-differences-and-limitations). |
-| Cancellation on client disconnect | Supported for Express and Fastify | Hono passes the signal of the request it received. |
-| Unsupported methods | Supported | 405 with an `Allow` header for methods that reach Arc. Fastify routes only a fixed list of methods to Arc. |
+| Cancellation on client disconnect | Supported for Express, Fastify, and Node | Hono passes the signal of the request it received. |
+| Unsupported methods | Supported | 405 with an `Allow` header for methods that reach Arc. Fastify routes only a fixed list of methods to Arc. The standalone Node host rejects TRACE and CONNECT with 405. |
 | Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Subscribable emission queues cap at 64 pending snapshots; simultaneous observable subscriptions (including opening ones) cap at 128 by default, configurable up to 1024. No per-caller rate limit or hub connection limit. |
-| [Standalone host, static files, and SPA fallback](../guides/standalone-host.md) | Supported, bounded | `@cratis/arc.server.node` runs an HTTP or HTTPS listener or supplies a request handler. Arc routes precede streamed GET/HEAD public files; opt-in HTML navigation fallback excludes the API prefix, `/.cratis` and file extensions. Path base, cache validators, disconnect cancellation and direct SSE are supported. No WebSocket, private file authorization, directory listing, or multiple static roots. |
+| [Standalone host, static files, and SPA fallback](../guides/standalone-host.md) | Supported, bounded | `@cratis/arc.server.node` runs an HTTP or HTTPS listener or supplies a request handler. Arc routes precede streamed GET/HEAD public files; opt-in HTML navigation fallback excludes the API prefix, `/.cratis` and file extensions. Path base, cache validators, disconnect cancellation and direct SSE are supported. Custom content-type mappings and a bounded shutdown grace period are available. No WebSocket, private file authorization, directory listing, multiple static roots, static RequestPath independent of path base, list of default documents, or byte-range responses. |
 | Tracing and metrics | Not implemented | |
 
 ## Deliberate differences

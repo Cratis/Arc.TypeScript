@@ -14,7 +14,7 @@ import { ArcServer, AuthenticationStatus, defineQuery } from '@cratis/arc.server
 import { mountExpress } from '../src/index.js';
 import { mountFastify } from '../../Fastify/src/index.js';
 import { mountHono } from '../../Hono/src/index.js';
-import { cert, key } from './tls-fixture.js';
+import { cert, key } from '../../specs/tls-fixture.js';
 
 should();
 const principal = { id: 'test', name: 'Élise 🌍', roles: ['Reader'], isAuthenticated: true };
