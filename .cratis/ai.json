@@ -10,9 +10,26 @@
   ],
   "profiles": [
     "cratis/engineering/typescript",
-    "cratis/documentation"
+    "cratis/engineering/react",
+    "cratis/documentation",
+    "cratis/arc/core",
+    "cratis/arc/identity",
+    "cratis/arc/react",
+    "cratis/chronicle/client-typescript",
+    "cratis/chronicle/core",
+    "cratis/fundamentals",
+    "cratis/fundamentals/type-discovery",
+    "cratis/specifications/typescript",
+    "cratis/review",
+    "cratis/language/typescript",
+    "cratis/cli"
   ],
   "languages": [
-    "typescript"
+    "typescript",
+    "csharp",
+    "react",
+    "language-agnostic",
+    "shell",
+    "markdown"
   ]
 }

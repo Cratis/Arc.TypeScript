@@ -3,7 +3,7 @@
 
 # Paired HTTP contract checks
 
-These black-box checks start the **published** Cratis.Arc 22.22.0 .NET fixture and a separate Node process using the **built** `@cratis/arc.server` package mounted in real Express 5 via `@cratis/arc.server.express`. Both bind ephemeral loopback ports and are terminated on completion or interruption. The fixture code defines the same commands, queries, role headers and in-memory data; it does not synthesize Arc response envelopes. The runner sends identical requests with a fixed correlation ID (except the invalid-correlation case), asserts independent expected statuses and complete JSON envelopes for each host, then compares the selected protocol response headers and envelope fields without stripping flags, data, paging or keys.
+These black-box checks start the **published** Cratis.Arc 22.22.0 .NET fixture and a separate Node process using the **built** `@cratis/arc.core` package mounted in real Express 5 via `@cratis/arc.express`. Both bind ephemeral loopback ports and are terminated on completion or interruption. The fixture code defines the same commands, queries, role headers and in-memory data; it does not synthesize Arc response envelopes. The runner sends identical requests with a fixed correlation ID (except the invalid-correlation case), asserts independent expected statuses and complete JSON envelopes for each host, then compares the selected protocol response headers and envelope fields without stripping flags, data, paging or keys.
 
 From the repository root, with Node >=22, .NET SDK 10.x, .NET/ASP.NET Core runtimes 10.0.11 and workspace dependencies already installed:
 

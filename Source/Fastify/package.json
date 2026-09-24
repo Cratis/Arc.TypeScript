@@ -1,0 +1,39 @@
+{
+  "name": "@cratis/arc.fastify",
+  "version": "0.4.0",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Fastify hosting for Cratis Arc TypeScript",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "Source/Fastify"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@cratis/arc.core": "workspace:^",
+    "@fastify/websocket": "^11.3.1"
+  },
+  "peerDependencies": {
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "fastify": "^5.6.0",
+    "zod": "^4.1.0"
+  }
+}

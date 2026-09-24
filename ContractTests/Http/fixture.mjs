@@ -3,8 +3,8 @@
 
 import express from 'express';
 import { z } from 'zod';
-import { ArcServer, AuthenticationStatus, defineCommand, defineQuery, validation } from '@cratis/arc.server';
-import { mountExpress } from '@cratis/arc.server.express';
+import { ArcServer, AuthenticationStatus, defineCommand, defineQuery, validation } from '@cratis/arc.core';
+import { mountExpress } from '@cratis/arc.express';
 
 let executions = 0;
 const items = Object.freeze([{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }, { id: 3, name: 'Linus' }]);

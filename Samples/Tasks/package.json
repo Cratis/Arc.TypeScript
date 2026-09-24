@@ -1,13 +1,13 @@
 {
-  "name": "@cratis/arc.server.sample.tasks",
+  "name": "@cratis/arc.core.sample.tasks",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@cratis/arc.server": "workspace:^",
-    "@cratis/arc.server.hono": "workspace:^",
+    "@cratis/arc.core": "workspace:^",
+    "@cratis/arc.hono": "workspace:^",
     "@hono/node-server": "^1.19.0",
     "hono": "^4.10.0",
     "zod": "^4.1.0"

@@ -1,0 +1,22 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import type { z } from 'zod';
+import type { ExecutionContext } from '../execution/ExecutionContext.js';
+import type { Outcome } from '../results/Outcome.js';
+import type { CommandExecutionScope } from './CommandExecutionScope.js';
+import type { CommandFilter } from './CommandFilter.js';
+import type { DescriptorBase } from '../DescriptorBase.js';
+import type { ServiceToken } from '../dependencyInjection/ServiceToken.js';
+export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBase {
+    schema: S;
+    /** Preflight without constructing handler services during validation-only requests. */
+    handlerDependencies?: readonly ServiceToken<unknown>[];
+    /** Constructed before validation; validators can access them through currentServices(). */
+    validatorDependencies?: readonly ServiceToken<unknown>[];
+    authorize?: (input: z.output<S>, context: ExecutionContext) => boolean | Promise<boolean>;
+    validate?: CommandFilter<z.output<S>>;
+    provide?: (input: z.output<S>, context: ExecutionContext) => Outcome<unknown> | unknown | Promise<Outcome<unknown> | unknown>;
+    handle: (input: z.output<S>, context: ExecutionContext, provided: unknown) => T | Outcome<T> | Promise<T | Outcome<T>>;
+    scopes?: readonly (() => CommandExecutionScope)[];
+    filters?: readonly CommandFilter<z.output<S>>[];
+}

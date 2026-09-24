@@ -3,7 +3,7 @@ title: Read models from MongoDB
 description: Serve Arc queries from MongoDB with an explicit tenant database, a filter your code controls, and count-then-page results.
 ---
 
-A query that reads from MongoDB has to get three things right on every request: which tenant's database it reads, which documents the caller may see, and how many rows it returns. The optional `@cratis/arc.server.mongodb` package gives you one small class, `MongoReadModels`, that makes each of those an explicit decision in your code and hands paged results to Arc without slicing them twice.
+A query that reads from MongoDB has to get three things right on every request: which tenant's database it reads, which documents the caller may see, and how many rows it returns. The optional `@cratis/arc.mongodb` package gives you one small class, `MongoReadModels`, that makes each of those an explicit decision in your code and hands paged results to Arc without slicing them twice.
 
 :::note[What this package does and does not do]
 `MongoReadModels` only reads. It has no writes, transactions, change streams, observable queries, projections, or concept serialization, and it is not parity with Arc's .NET MongoDB support. The package is not published to npm.
@@ -11,16 +11,16 @@ A query that reads from MongoDB has to get three things right on every request: 
 
 ## Before you start
 
-- A workspace inside a clone of this repository, as described in [Get started](../getting-started.md). Reference `@cratis/arc.server.mongodb` with the `workspace:^` protocol.
+- A workspace inside a clone of this repository, as described in [Get started](../getting-started.md). Reference `@cratis/arc.mongodb` with the `workspace:^` protocol.
 - The `mongodb` driver, version 6.21 or later within major version 6. It is a peer dependency, so your application installs it.
 - A `MongoClient` your application creates and closes.
 
 ## Define queries over a collection
 
 ```typescript title="tasks.ts"
-import { ArcServer, AuthenticationStatus, defineQuery } from '@cratis/arc.server';
-import type { AuthenticationHandler } from '@cratis/arc.server';
-import { MongoReadModels } from '@cratis/arc.server.mongodb';
+import { ArcServer, AuthenticationStatus, defineQuery } from '@cratis/arc.core';
+import type { AuthenticationHandler } from '@cratis/arc.core';
+import { MongoReadModels } from '@cratis/arc.mongodb';
 import { MongoClient, ObjectId } from 'mongodb';
 import { z } from 'zod';
 
@@ -109,7 +109,7 @@ Every method passes `context.signal` to the driver, so a cancelled request stops
 The package specs run against a substitute collection in `yarn specs`. A live spec starts a MongoDB 7 single-node replica set in Docker and checks tenant and owner isolation, rejected identifiers, collation-aware counts, stable paging with duplicate sort values, the Arc query pipeline, and cancellation:
 
 ```bash
-bash Integrations/MongoDB/run-integration.sh
+bash Source/MongoDB/run-integration.sh
 ```
 
 It exits with 2 without running anything when Docker is not available.

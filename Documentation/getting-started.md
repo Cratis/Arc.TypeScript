@@ -29,12 +29,12 @@ yarn install
 yarn build
 ```
 
-`yarn install` links the workspaces together, so the sample imports `@cratis/arc.server` and `@cratis/arc.server.hono` from the `Source` and `Integrations/Hono` folders instead of from npm. `yarn build` runs the TypeScript compiler over the core, the host adapters, the optional integrations, and the sample.
+`yarn install` links the workspaces together, so the sample imports `@cratis/arc.core` and `@cratis/arc.hono` from the `Source/Arc.Core` and `Source/Hono` folders instead of from npm. `yarn build` runs the TypeScript compiler over the core, the host adapters, the optional integrations, and the sample.
 
 ## Start the Tasks sample
 
 ```bash
-yarn workspace @cratis/arc.server.sample.tasks start
+yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
 The sample serves HTTP on port 3000. Set the `PORT` environment variable to use another port. Leave it running and open a second terminal for the next steps.
@@ -156,9 +156,9 @@ export class TaskRepository {
 ```typescript
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcServer, currentServices, defineCommand, defineQuery, serviceToken, validation } from '@cratis/arc.server';
+import { ArcServer, currentServices, defineCommand, defineQuery, serviceToken, validation } from '@cratis/arc.core';
 import { TaskRepository } from './TaskRepository.js';
-import { mountHono } from '@cratis/arc.server.hono';
+import { mountHono } from '@cratis/arc.hono';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
