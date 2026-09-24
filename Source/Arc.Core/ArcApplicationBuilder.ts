@@ -26,6 +26,8 @@ import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
+import type { CommandContext } from './commands/CommandContext.js';
+import type { CommandResult } from './commands/CommandResult.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
 export class ArcApplicationBuilder {
@@ -34,6 +36,8 @@ export class ArcApplicationBuilder {
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
+    readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
+    #commandRunner?: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>;
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
@@ -52,28 +56,39 @@ export class ArcApplicationBuilder {
         this.#keyResolvers.push(token);
         return this;
     }
+    /** Admit and observe integration-owned artifacts alongside Arc's own artifacts. */
+    addArtifactObserver(observer: (type: ClassType) => boolean): this {
+        this.#artifactObservers.push(observer);
+        return this;
+    }
+    /** Wrap validated command execution in an integration-owned asynchronous context. */
+    addCommandExecutionRunner(runner: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>): this {
+        if (this.#commandRunner || this.options.commandExecutionRunner) throw new Error('Only one command execution runner can be registered');
+        this.#commandRunner = runner;
+        return this;
+    }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
     add(...types: ClassType[]): this {
         for (const type of types) {
             const metadata = ownMetadata(type);
-            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) {
-                throw new Error(`Not an Arc artifact: ${type.name}`);
-            }
-            this.register(type, metadata.namespace ?? '');
+            if (!this.register(type, metadata.namespace ?? '')) throw new Error(`Not an Arc artifact: ${type.name}`);
         }
         return this;
     }
-    private register(type: ClassType, namespace: string): void {
+    private register(type: ClassType, namespace: string): boolean {
+        let external = false;
+        for (const observer of this.#artifactObservers) if (observer(type)) external = true;
         const metadata = ownMetadata(type);
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return;
+        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler) return external;
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
             throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
         }
-        if (previous !== undefined) return;
+        if (previous !== undefined) return true;
         this.#namespaces.set(type, effective);
         this.#artifacts.push({ type, namespace: effective });
+        return true;
     }
     /** Import decorated artifacts beneath a dedicated discovery root. */
     async discover(root: URL, options: { rootNamespace?: string } = {}): Promise<this> {
@@ -108,7 +123,8 @@ export class ArcApplicationBuilder {
         if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
             throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
-        const server = new ArcServer({ ...this.options, commands, queries, observableQueries,
+        const server = new ArcServer({ ...this.options, commandExecutionRunner: this.#commandRunner ?? this.options.commandExecutionRunner,
+            commands, queries, observableQueries,
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
             commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
             commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],

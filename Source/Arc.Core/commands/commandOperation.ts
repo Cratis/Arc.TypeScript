@@ -55,7 +55,8 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
             let context: CommandContext;
             try { context = await createCommandContext(definition.commandFactory?.(value) ?? value, execution, options); }
             catch (error) { return failure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error); }
-            try {
+            const execute = async (): Promise<CommandResult> => {
+                try {
                 let issues: ValidationResult[];
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
@@ -94,6 +95,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                     if (result.isSuccess) {
                         ({ result, journal } = await prepareCommandResponse(
                             await definition.handle(value, context, provided), context, scopes, options));
+                        if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
                         if (definition.clientOutput && result.isSuccess) {
                             result.response = assertClientOutput(definition.clientOutput.output, result.response);
                         }
@@ -142,7 +144,9 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 }
                 if (!result.isSuccess) result.response = undefined;
                 return result;
-            } catch (error) { return failure(context, error); }
+                } catch (error) { return failure(context, error); }
+            };
+            return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
         }
     };
 }
