@@ -11,7 +11,8 @@ The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Ta
 
 ```typescript
 import { field } from '@cratis/fundamentals';
-import { query, readModel, service, type ObservableSource } from '@cratis/arc.core';
+import { query, readModel, service } from '@cratis/arc.core';
+import type { BehaviorSubject } from 'rxjs';
 import { TaskId } from '../TaskId.js';
 import { TaskTitle } from '../TaskTitle.js';
 import { Tasks } from '../Tasks.js';
@@ -28,7 +29,7 @@ export class TaskItem {
     static taskById(id: TaskId, tasks: Tasks): TaskItem | undefined { return tasks.byId(id); }
 
     @query()
-    static observeAllTasks(tasks: Tasks): ObservableSource<TaskItem[]> { return tasks.observeAll(); }
+    static observeAllTasks(tasks: Tasks): BehaviorSubject<TaskItem[]> { return tasks.observeAll(); }
 }
 ```
 
@@ -52,7 +53,7 @@ A query method can return a value or a promise of one: an array, a single model,
 
 ## Declare observable queries
 
-A query that returns a live source must declare `{ observable: true }` without generated metadata; generated metadata infers it from the return type before registration, so snapshots, server-sent events, WebSocket admission, introspection, and generated clients know its contract before it runs. The source may be an `AsyncIterable`, a structural subscribable, or a `CurrentValueSubject`. See [Observable queries](../observable-queries.md).
+A query that returns a live source must declare `{ observable: true }` without generated metadata; generated metadata infers it from the return type before registration, so snapshots, server-sent events, WebSocket admission, introspection, and generated clients know its contract before it runs. Use an RxJS `BehaviorSubject` for an immediate snapshot, or `Subject`/`Observable` when no current value exists. Async iterables and structural subscribables remain supported; `CurrentValueSubject` is deprecated. See [Observable queries](../observable-queries.md).
 
 ## Routes and identity
 

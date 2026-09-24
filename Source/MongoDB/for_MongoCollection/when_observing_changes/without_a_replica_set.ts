@@ -16,7 +16,7 @@ describe('when observing changes without a replica set', given(a_replica_set, co
         const database = { command: sinon.stub().resolves({ ok: 1 }) } as unknown as Db;
         const collection = new MongoCollection({ watch } as unknown as Collection<Document>, database,
             TaskRecord, context.context('a'));
-        try { await collection.observe(); } catch (failure) { error = failure; }
+        try { await collection.observeIterable(); } catch (failure) { error = failure; }
     });
     it('should reject without starting a change stream', () => {
         String(error).should.contain('requires a replica set');
