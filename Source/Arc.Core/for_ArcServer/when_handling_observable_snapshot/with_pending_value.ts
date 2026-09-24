@@ -23,6 +23,6 @@ describe('when handling an observable snapshot with a pending value', () => {
     });
 
     it('should report pending', () => { status?.should.equal(202); });
-    it('should report the value is not ready', () => { result.isReady.should.be.false; });
-    it('should not report an exception', () => { result.hasExceptions.should.be.false; });
+    it('should report the value is not ready', () => { result.isReady.should.equal(false); });
+    it('should not report an exception', () => { result.hasExceptions.should.equal(false); });
 });

@@ -14,6 +14,6 @@ describe('when validating subscription revisions', () => {
         valid = SubscriptionRevisions.valid(1);
     });
 
-    it('should reject values that are not positive safe integers', () => { invalid.every(value => !value).should.be.true; });
-    it('should accept positive safe integers', () => { valid.should.be.true; });
+    it('should reject values that are not positive safe integers', () => { invalid.every(value => !value).should.equal(true); });
+    it('should accept positive safe integers', () => { valid.should.equal(true); });
 });

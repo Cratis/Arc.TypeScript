@@ -23,12 +23,12 @@ describe('when replacing a legacy subscription', () => {
         count = states.activeCount;
     });
 
-    it('should accept the initial subscription', () => { results[0]?.should.be.true; });
-    it('should reject another legacy subscription', () => { results[1]?.should.be.false; });
-    it('should accept a newer numbered revision', () => { results[2]?.should.be.true; });
-    it('should reject a legacy revision after a numbered one', () => { results[3]?.should.be.false; });
-    it('should reject a duplicate revision', () => { results[4]?.should.be.false; });
-    it('should reject an invalid revision', () => { results[5]?.should.be.false; });
-    it('should accept a subsequent newer revision', () => { results[6]?.should.be.true; });
+    it('should accept the initial subscription', () => { results[0]?.should.equal(true); });
+    it('should reject another legacy subscription', () => { results[1]?.should.equal(false); });
+    it('should accept a newer numbered revision', () => { results[2]?.should.equal(true); });
+    it('should reject a legacy revision after a numbered one', () => { results[3]?.should.equal(false); });
+    it('should reject a duplicate revision', () => { results[4]?.should.equal(false); });
+    it('should reject an invalid revision', () => { results[5]?.should.equal(false); });
+    it('should accept a subsequent newer revision', () => { results[6]?.should.equal(true); });
     it('should keep only one active subscription', () => { count.should.equal(1); });
 });

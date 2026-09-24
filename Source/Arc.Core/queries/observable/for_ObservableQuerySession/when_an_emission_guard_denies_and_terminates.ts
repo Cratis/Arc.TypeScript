@@ -38,7 +38,7 @@ describe('when an emission guard denies and terminates SSE', () => {
         await server.dispose();
     });
 
-    it('should deny the terminal emission', () => { authorized.should.be.false; });
-    it('should complete the stream', () => { finished?.should.be.true; });
+    it('should deny the terminal emission', () => { authorized.should.equal(false); });
+    it('should complete the stream', () => { finished?.should.equal(true); });
     it('should unsubscribe the source', () => { active.should.equal(0); });
 });

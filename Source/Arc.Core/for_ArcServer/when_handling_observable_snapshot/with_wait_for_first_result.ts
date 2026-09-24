@@ -34,7 +34,7 @@ describe('when handling an observable snapshot with wait for first result', () =
     });
 
     it('should time out when no value arrives', () => { timeoutStatus?.should.equal(408); });
-    it('should mark a timed-out wait as a failure', () => { timeoutFailure.should.be.true; });
+    it('should mark a timed-out wait as a failure', () => { timeoutFailure.should.equal(true); });
     it('should succeed after a value arrives', () => { resultStatus?.should.equal(200); });
     it('should return the first value', () => { data.should.equal(42); });
 });

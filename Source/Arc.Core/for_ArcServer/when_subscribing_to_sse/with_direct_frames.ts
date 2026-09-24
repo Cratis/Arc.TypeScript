@@ -27,7 +27,7 @@ describe('when subscribing to SSE with direct frames', () => {
     });
 
     it('should return the SSE content type', () => { contentType?.should.equal('text/event-stream; charset=utf-8'); });
-    it('should start with a direct JSON frame', () => { text.startsWith('data: {').should.be.true; });
-    it('should terminate the frame with a blank line', () => { text.endsWith('}\n\n').should.be.true; });
+    it('should start with a direct JSON frame', () => { text.startsWith('data: {').should.equal(true); });
+    it('should terminate the frame with a blank line', () => { text.endsWith('}\n\n').should.equal(true); });
     it('should include the current value without a hub envelope', () => { JSON.parse(text.slice(6)).data.should.deep.equal([5]); });
 });

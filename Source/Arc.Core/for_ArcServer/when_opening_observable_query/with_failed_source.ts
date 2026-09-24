@@ -32,7 +32,7 @@ describe('when opening an observable query with a failed source', () => {
 
     it('should deliver the value before failure', () => { first?.should.equal(1); });
     it('should redact the terminal exception', () => { failed.exceptionMessages.should.deep.equal(['An unexpected error occurred']); });
-    it('should mark the terminal result as failed', () => { failed.isSuccess.should.be.false; });
-    it('should complete after the terminal result', () => { done?.should.be.true; });
+    it('should mark the terminal result as failed', () => { failed.isSuccess.should.equal(false); });
+    it('should complete after the terminal result', () => { done?.should.equal(true); });
     it('should log the original failure', () => { (logged[0] as Error).message.should.equal('private source failure'); });
 });

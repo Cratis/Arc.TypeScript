@@ -19,8 +19,8 @@ describe('when enforcing a configured tombstone cap', () => {
         retained = states.subscribe('recent', 1, 'retained');
     });
 
-    it('should accept the first unsubscribe', () => { first.should.be.true; });
-    it('should accept the second unsubscribe', () => { second.should.be.true; });
-    it('should evict the oldest tombstone', () => { evicted.should.be.true; });
-    it('should retain the most recent tombstone', () => { retained.should.be.false; });
+    it('should accept the first unsubscribe', () => { first.should.equal(true); });
+    it('should accept the second unsubscribe', () => { second.should.equal(true); });
+    it('should evict the oldest tombstone', () => { evicted.should.equal(true); });
+    it('should retain the most recent tombstone', () => { retained.should.equal(false); });
 });

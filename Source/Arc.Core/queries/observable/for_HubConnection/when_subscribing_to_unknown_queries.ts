@@ -29,7 +29,7 @@ describe('when subscribing to unknown queries before a valid query', () => {
 
     afterEach(async () => { await context.close(); });
 
-    it('should reject every unknown query', () => { missing.every(value => value === HubSubscriptionOutcome.Invalid).should.be.true; });
+    it('should reject every unknown query', () => { missing.every(value => value === HubSubscriptionOutcome.Invalid).should.equal(true); });
     it('should release unknown query identifiers', () => { afterMissing.should.equal(0); });
     it('should admit the valid query', () => { admitted.should.equal(HubSubscriptionOutcome.Accepted); });
     it('should track the valid subscription', () => { context.connection.subscriptionCount.should.equal(1); });

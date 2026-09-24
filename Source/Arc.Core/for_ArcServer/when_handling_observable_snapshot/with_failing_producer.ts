@@ -27,5 +27,5 @@ describe('when handling an observable snapshot with a failing producer', () => {
     it('should report failure', () => { status?.should.equal(500); });
     it('should redact the exception message', () => { body.exceptionMessages.should.deep.equal(['An unexpected error occurred']); });
     it('should redact the stack trace', () => { body.exceptionStackTrace.should.equal(''); });
-    it('should not disclose the private failure', () => { JSON.stringify(body).includes('private database password').should.be.false; });
+    it('should not disclose the private failure', () => { JSON.stringify(body).includes('private database password').should.equal(false); });
 });

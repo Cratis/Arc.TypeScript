@@ -18,7 +18,7 @@ describe('when expiring tombstones', () => {
         expired = states.subscribe('q1', 1, 'expired', 100 + 120_000);
     });
 
-    it('should evict the oldest past the default cap', () => { evicted.should.be.true; });
-    it('should retain more recent tombstones', () => { retained.should.be.false; });
-    it('should expire tombstones after two minutes', () => { expired.should.be.true; });
+    it('should evict the oldest past the default cap', () => { evicted.should.equal(true); });
+    it('should retain more recent tombstones', () => { retained.should.equal(false); });
+    it('should expire tombstones after two minutes', () => { expired.should.equal(true); });
 });

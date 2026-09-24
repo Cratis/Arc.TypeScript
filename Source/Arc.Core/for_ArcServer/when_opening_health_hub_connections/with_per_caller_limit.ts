@@ -27,7 +27,7 @@ describe('when opening health hub connections with a per-caller limit', () => {
         await server.dispose();
     });
 
-    it('should admit the first eight connections', () => { statuses.every(status => status === 200).should.be.true; });
+    it('should admit the first eight connections', () => { statuses.every(status => status === 200).should.equal(true); });
     it('should reject the next connection', () => { limited?.status.should.equal(503); });
     it('should send a retry-after header', () => { limited?.headers.get('retry-after')?.should.equal('1'); });
 });

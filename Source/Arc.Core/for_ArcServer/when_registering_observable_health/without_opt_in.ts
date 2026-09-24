@@ -16,6 +16,6 @@ describe('when registering observable health without opt-in', () => {
         await server.dispose();
     });
 
-    it('should leave the endpoint unregistered', () => { registered.should.be.false; });
+    it('should leave the endpoint unregistered', () => { registered.should.equal(false); });
     it('should not handle health requests', () => { should().equal(response, null); });
 });

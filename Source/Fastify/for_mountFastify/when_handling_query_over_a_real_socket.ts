@@ -54,5 +54,5 @@ describe('when handling QUERY over a real Fastify socket', () => {
 
     it('should route the QUERY request', () => { query.should.contain('200 OK'); });
     it('should return the query result', () => { query.should.contain('"data":3'); });
-    it('should abort the query after peer disconnect', () => { disconnected.should.be.true; });
+    it('should abort the query after peer disconnect', () => { disconnected.should.equal(true); });
 });

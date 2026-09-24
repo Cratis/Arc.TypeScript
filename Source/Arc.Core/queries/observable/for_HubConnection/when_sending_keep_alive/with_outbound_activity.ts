@@ -33,5 +33,5 @@ describe('when sending keep-alive with outbound activity', () => {
 
     it('should not ping before an entire idle interval', () => { beforeIdle.should.equal(0); });
     it('should ping after the idle interval', () => { afterIdle.should.equal(1); });
-    it('should measure the interval from the last outbound frame', () => { (elapsed <= 1000).should.be.true; });
+    it('should measure the interval from the last outbound frame', () => { (elapsed <= 1000).should.equal(true); });
 });

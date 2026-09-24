@@ -34,7 +34,7 @@ describe('when closing a connection with a pending producer', () => {
     afterEach(async () => { await context.server.dispose(); });
 
     it('should report the shutdown timeout', () => {
-        (error instanceof Error).should.be.true;
+        (error instanceof Error).should.equal(true);
         (error as Error).message.should.match(/Observable hub shutdown timed out/);
     });
     it('should mark the late admission stale', () => { outcome.should.equal(HubSubscriptionOutcome.Stale); });

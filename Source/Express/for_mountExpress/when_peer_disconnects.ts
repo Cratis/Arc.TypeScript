@@ -44,5 +44,5 @@ describe('when an Express peer disconnects', () => {
         await arc.dispose();
     });
 
-    it('should abort the query context', () => { canceled.should.be.true; });
+    it('should abort the query context', () => { canceled.should.equal(true); });
 });

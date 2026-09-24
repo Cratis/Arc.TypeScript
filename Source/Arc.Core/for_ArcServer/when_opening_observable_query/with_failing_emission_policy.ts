@@ -36,9 +36,9 @@ describe('when opening an observable query with a failing emission policy', () =
         await server.dispose();
     });
 
-    it('should deny the terminal result', () => { authorized?.should.be.false; });
+    it('should deny the terminal result', () => { authorized?.should.equal(false); });
     it('should not publish data', () => { should().equal(data, undefined); });
-    it('should terminate after denial', () => { done?.should.be.true; });
+    it('should terminate after denial', () => { done?.should.equal(true); });
     it('should log the policy failure once', () => { logged.should.have.lengthOf(1); });
-    it('should log an error', () => { (logged[0] instanceof Error).should.be.true; });
+    it('should log an error', () => { (logged[0] instanceof Error).should.equal(true); });
 });

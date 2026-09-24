@@ -27,7 +27,7 @@ describe('when opening an observable query with an unauthorized caller', () => {
         await server.dispose();
     });
 
-    it('should reject authorization', () => { authorized?.should.be.false; });
-    it('should not validate', () => { validated.should.be.false; });
-    it('should not create a source', () => { observed.should.be.false; });
+    it('should reject authorization', () => { authorized?.should.equal(false); });
+    it('should not validate', () => { validated.should.equal(false); });
+    it('should not create a source', () => { observed.should.equal(false); });
 });

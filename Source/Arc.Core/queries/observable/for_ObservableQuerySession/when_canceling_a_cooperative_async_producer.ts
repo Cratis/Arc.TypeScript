@@ -30,5 +30,5 @@ describe('when canceling a cooperative async producer', () => {
         await server.dispose();
     });
 
-    it('should release the blocked producer', () => { released.should.be.true; });
+    it('should release the blocked producer', () => { released.should.equal(true); });
 });

@@ -30,6 +30,6 @@ describe('when exceeding the socket outbound frame limit', () => {
         outcomes = await Promise.allSettled([...waiting, output.send({ type: HubFrameType.QueryResult })]);
     });
 
-    it('should reject all pending socket writes', () => { outcomes.every(outcome => outcome.status === 'rejected').should.be.true; });
-    it('should abort the connection', () => { output.signal.aborted.should.be.true; });
+    it('should reject all pending socket writes', () => { outcomes.every(outcome => outcome.status === 'rejected').should.equal(true); });
+    it('should abort the connection', () => { output.signal.aborted.should.equal(true); });
 });

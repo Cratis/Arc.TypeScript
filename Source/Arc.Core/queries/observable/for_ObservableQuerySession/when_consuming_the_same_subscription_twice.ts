@@ -24,7 +24,7 @@ describe('when consuming the same subscription twice', () => {
     });
 
     it('should reject the second consumer', () => {
-        (error instanceof Error).should.be.true;
+        (error instanceof Error).should.equal(true);
         (error as Error).message.should.match(/already consumed/);
     });
 });

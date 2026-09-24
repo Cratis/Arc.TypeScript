@@ -19,5 +19,5 @@ describe('when exceeding the SSE outbound frame limit', () => {
     });
 
     it('should reject the 65th pending frame', () => { outcomes[64]?.status.should.equal('rejected'); });
-    it('should abort the connection', () => { output.signal.aborted.should.be.true; });
+    it('should abort the connection', () => { output.signal.aborted.should.equal(true); });
 });

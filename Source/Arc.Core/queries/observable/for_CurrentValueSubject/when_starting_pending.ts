@@ -10,5 +10,5 @@ describe('when starting pending', () => {
 
     beforeEach(() => { subject = CurrentValueSubject.pending<number>(); });
 
-    it('should not invent a current value', () => { subject.current().hasValue.should.be.false; });
+    it('should not invent a current value', () => { subject.current().hasValue.should.equal(false); });
 });

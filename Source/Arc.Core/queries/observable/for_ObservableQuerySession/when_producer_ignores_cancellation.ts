@@ -28,7 +28,7 @@ describe('when a producer ignores cancellation', () => {
     });
 
     it('should report failed cleanup', () => {
-        (error instanceof Error).should.be.true;
+        (error instanceof Error).should.equal(true);
         (error as Error).message.should.match(/cleanup failed/);
     });
 });

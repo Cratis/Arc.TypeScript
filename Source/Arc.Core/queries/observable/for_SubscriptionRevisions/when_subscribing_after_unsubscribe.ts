@@ -15,10 +15,10 @@ describe('when subscribing after an unsubscribe', () => {
             states.unsubscribe('q', 4, 102), states.isActive('q', 5)];
     });
 
-    it('should accept the unsubscribe', () => { outcomes[0]?.should.be.true; });
-    it('should reject an older delayed subscribe', () => { outcomes[1]?.should.be.false; });
-    it('should reject an equal delayed subscribe', () => { outcomes[2]?.should.be.false; });
-    it('should accept a newer subscribe', () => { outcomes[3]?.should.be.true; });
-    it('should reject an older unsubscribe', () => { outcomes[4]?.should.be.false; });
-    it('should preserve the newer subscription', () => { outcomes[5]?.should.be.true; });
+    it('should accept the unsubscribe', () => { outcomes[0]?.should.equal(true); });
+    it('should reject an older delayed subscribe', () => { outcomes[1]?.should.equal(false); });
+    it('should reject an equal delayed subscribe', () => { outcomes[2]?.should.equal(false); });
+    it('should accept a newer subscribe', () => { outcomes[3]?.should.equal(true); });
+    it('should reject an older unsubscribe', () => { outcomes[4]?.should.equal(false); });
+    it('should preserve the newer subscription', () => { outcomes[5]?.should.equal(true); });
 });

@@ -77,5 +77,5 @@ for (const host of hosts) for (const secure of [false, true]) describe(`when ${h
     it('should bound the cookie size', () => { Buffer.byteLength(cookie).should.be.at.most(4096); });
     it('should not authenticate from a returned cookie', () => { replay.status.should.equal(401); });
     it('should preserve foreign routes', () => { foreign.status.should.equal(200); });
-    it('should reject normalized bypass paths', () => { bypasses.every(status => status !== 200).should.be.true; });
+    it('should reject normalized bypass paths', () => { bypasses.every(status => status !== 200).should.equal(true); });
 });

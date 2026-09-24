@@ -35,20 +35,20 @@ for (const host of hosts) describe(`when ${host} native callback throws and logg
         } finally { await listener.close(); }
     });
 
-    it('should return an error on both paths', () => { responses.every(result => result.status === 500).should.be.true; });
+    it('should return an error on both paths', () => { responses.every(result => result.status === 500).should.equal(true); });
     it('should preserve the correlation header', () => {
-        responses.every(result => result.headers['x-correlation-id'] === correlation).should.be.true;
+        responses.every(result => result.headers['x-correlation-id'] === correlation).should.equal(true);
     });
     it('should not expose the native callback failure', () => {
-        responses.every(result => !result.body.includes('private native callback')).should.be.true;
+        responses.every(result => !result.body.includes('private native callback')).should.equal(true);
     });
     it('should return a redacted error', () => {
-        responses.every(result => result.body.includes('An unexpected error occurred')).should.be.true;
+        responses.every(result => result.body.includes('An unexpected error occurred')).should.equal(true);
     });
     it('should not invoke the identity provider', () => { provided.should.equal(0); });
     it('should not execute the query', () => { executed.should.equal(0); });
     it('should log both errors', () => { logged.should.have.length(2); });
     it('should use the supplied correlation for logging', () => {
-        logged.every(entry => (entry as { id: string }).id === correlation).should.be.true;
+        logged.every(entry => (entry as { id: string }).id === correlation).should.equal(true);
     });
 });

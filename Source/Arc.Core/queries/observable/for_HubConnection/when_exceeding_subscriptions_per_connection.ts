@@ -33,11 +33,11 @@ describe('when exceeding subscriptions per physical connection', () => {
     afterEach(async () => { await context.close(); });
 
     it('should admit the first 32 subscriptions', () => {
-        admitted.every(value => value === HubSubscriptionOutcome.Accepted).should.be.true;
+        admitted.every(value => value === HubSubscriptionOutcome.Accepted).should.equal(true);
     });
     it('should count the first 32 subscriptions', () => { count.should.equal(32); });
     it('should limit the 33rd subscription', () => { denied.should.equal(HubSubscriptionOutcome.Limited); });
     it('should send an error for the denied query', () => {
-        context.frames.some(frame => frame.type === HubFrameType.Error && frame.queryId === 'q32').should.be.true;
+        context.frames.some(frame => frame.type === HubFrameType.Error && frame.queryId === 'q32').should.equal(true);
     });
 });

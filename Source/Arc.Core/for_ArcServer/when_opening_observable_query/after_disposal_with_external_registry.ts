@@ -25,7 +25,7 @@ describe('when opening an observable query after disposal with an external regis
     });
 
     it('should reject the new subscription', () => {
-        (error instanceof Error).should.be.true;
+        (error instanceof Error).should.equal(true);
         (error as Error).message.should.contain('Arc server is disposed');
     });
 });

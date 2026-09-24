@@ -27,8 +27,8 @@ describe('when opening an observable query with a global subscription limit', ()
     });
 
     it('should reject an overlapping subscription', () => {
-        (error instanceof Error).should.be.true;
+        (error instanceof Error).should.equal(true);
         (error as Error).message.should.match(/subscription limit reached/);
     });
-    it('should admit a new subscription after the first closes', () => { reopened.should.be.true; });
+    it('should admit a new subscription after the first closes', () => { reopened.should.equal(true); });
 });

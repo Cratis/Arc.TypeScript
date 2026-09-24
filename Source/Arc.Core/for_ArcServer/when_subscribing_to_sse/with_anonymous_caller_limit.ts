@@ -36,9 +36,9 @@ describe('when subscribing to SSE with an anonymous caller limit', () => {
         await server.dispose();
     });
 
-    it('should admit the first eight streams', () => { admitted.every(status => status === 200).should.be.true; });
+    it('should admit the first eight streams', () => { admitted.every(status => status === 200).should.equal(true); });
     it('should reject a ninth stream', () => { limited?.status.should.equal(503); });
     it('should advise retrying', () => { limited?.headers.get('retry-after')?.should.equal('1'); });
-    it('should report an exception for the limit', () => { hasExceptions.should.be.true; });
+    it('should report an exception for the limit', () => { hasExceptions.should.equal(true); });
     it('should still allow current snapshots', () => { snapshotStatus?.should.equal(200); });
 });

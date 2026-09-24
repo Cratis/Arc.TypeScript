@@ -16,10 +16,10 @@ describe('when cloning nested claims', () => {
         claims = copy.claims as { nested: { value: string } };
     });
 
-    it('should create a separate principal', () => { (copy === original).should.be.false; });
-    it('should freeze the principal', () => { Object.isFrozen(copy).should.be.true; });
-    it('should freeze the roles', () => { Object.isFrozen(copy.roles).should.be.true; });
-    it('should freeze nested claims', () => { Object.isFrozen(claims.nested).should.be.true; });
+    it('should create a separate principal', () => { (copy === original).should.equal(false); });
+    it('should freeze the principal', () => { Object.isFrozen(copy).should.equal(true); });
+    it('should freeze the roles', () => { Object.isFrozen(copy.roles).should.equal(true); });
+    it('should freeze nested claims', () => { Object.isFrozen(claims.nested).should.equal(true); });
     it('should reject mutations of nested claims', () => {
         (() => { claims.nested.value = 'untrusted'; }).should.throw(TypeError);
     });

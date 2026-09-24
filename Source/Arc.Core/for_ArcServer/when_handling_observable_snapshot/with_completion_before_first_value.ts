@@ -29,5 +29,5 @@ describe('when handling an observable snapshot with completion before first valu
     });
 
     it('should report a server error', () => { status?.should.equal(500); });
-    it('should report an exception', () => { failure.should.be.true; });
+    it('should report an exception', () => { failure.should.equal(true); });
 });

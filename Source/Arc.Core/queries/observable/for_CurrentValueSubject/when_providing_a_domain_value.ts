@@ -14,7 +14,7 @@ describe('when providing a domain value shaped like a presence marker', () => {
         current = CurrentValueSubject.of(value).current();
     });
 
-    it('should report that it has a value', () => { current.hasValue.should.be.true; });
+    it('should report that it has a value', () => { current.hasValue.should.equal(true); });
     it('should retain the domain value', () => {
         if (!current.hasValue) throw new Error('Expected a current value');
         current.value.should.deep.equal(value);

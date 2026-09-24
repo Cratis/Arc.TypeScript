@@ -28,5 +28,5 @@ describe('when canceling an async observable source', () => {
     });
 
     it('should iterate the first emission', () => { first?.should.equal(1); });
-    it('should release the source', () => { released.should.be.true; });
+    it('should release the source', () => { released.should.equal(true); });
 });

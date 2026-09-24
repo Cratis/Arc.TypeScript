@@ -13,5 +13,5 @@ describe('when publishing to a pending subject', () => {
         subject.next(4);
     });
 
-    it('should expose a current value', () => { subject.current().hasValue.should.be.true; });
+    it('should expose a current value', () => { subject.current().hasValue.should.equal(true); });
 });
