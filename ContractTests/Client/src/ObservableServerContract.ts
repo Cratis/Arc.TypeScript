@@ -19,4 +19,13 @@ export async function check(server: ArcServer, socket: NodeWebSocketLike, reques
     await bridge.completion;
 }
 
-export type PublicObservableSocket = Parameters<ArcServer['handleObservableHubSocket']>[1];
+export type PublicObservableSocket = NodeWebSocketLike;
+
+export function checkServerSurface(server: ArcServer): void {
+    // @ts-expect-error Hosting budgets must not appear on the public server declaration.
+    void server.observableLimits;
+    // @ts-expect-error Hub admission is internal to the core pipeline.
+    void server.canAdmitObservableHubConnection;
+    // @ts-expect-error Hub transport entry points are internal to the core pipeline.
+    void server.handleObservableHubSocket;
+}

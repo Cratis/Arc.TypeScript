@@ -17,20 +17,14 @@ describe('when recording repeated cleanup failures', () => {
         server = new ArcServer({});
         sessions = new ObservableSessions({}, server.services, new ObservableLimits({}), () => []);
         const session = {};
-        firstRecorded = sessions.recordCleanupFailure(session, Error('first'));
-        secondRecorded = sessions.recordCleanupFailure(session, Error('again'));
-        for (let index = 0; index < 100; index++) sessions.recordCleanupFailure({}, Error(`failure ${index}`));
+        firstRecorded = sessions.recordCleanupFailure(session);
+        secondRecorded = sessions.recordCleanupFailure(session);
     });
 
     afterEach(async () => { await server.dispose(); });
 
-    it('should count one failure per session', () => {
+    it('should record a failure only once per session', () => {
         should().equal(firstRecorded, true);
         should().equal(secondRecorded, false);
-        should().equal(sessions.cleanupFailureCount, 101);
-    });
-
-    it('should keep only a bounded sample of errors', () => {
-        should().equal(sessions.cleanupFailures.length, 16);
     });
 });
