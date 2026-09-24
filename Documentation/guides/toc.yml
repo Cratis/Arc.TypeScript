@@ -13,6 +13,8 @@
       href: queries.md
     - name: Configure the server
       href: configuration.md
+    - name: Compose services and test pipelines
+      href: services-and-testing.md
     - name: Read models from MongoDB
       href: mongodb.md
     - name: Append Chronicle events (experimental)

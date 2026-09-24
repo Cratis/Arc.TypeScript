@@ -130,6 +130,7 @@ Leave `development` off in any environment a real user can reach. To keep the or
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `commands` | `CommandDefinition[]` | `[]` | Commands to serve, usually from `defineCommand` |
+| `services` | `ServiceRegistration[] \| ServiceRegistry` | Empty registry | Owned service registrations or an externally owned registry; see [Compose services and test pipelines](services-and-testing.md) |
 | `queries` | `QueryDefinition[]` | `[]` | Queries to serve, usually from `defineQuery` |
 | `prefix` | `string` | `'api'` | First route segments; empty for none |
 | `segmentsToSkip` | `number` | `0` | Leading namespace segments left out of routes |
@@ -143,7 +144,7 @@ Leave `development` off in any environment a real user can reach. To keep the or
 | `logger` | `(error, correlationId) => void`, or a promise of `void` | None | Receives the original error for failed HTTP requests |
 | `identityDetailsSchema` | `Record<string, unknown>` | `{}` | Body of `/.cratis/identity-details/schema` |
 
-Commands and queries share the fields `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, and `filters`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required).
+Commands and queries share the fields `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, and `validatorDependencies`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required).
 
 ## Related
 

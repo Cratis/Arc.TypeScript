@@ -9,8 +9,10 @@ import { commandOperation, queryOperation } from './pipelines.js';
 import type { Operation } from './operation.js';
 import { commandResult, malformed, queryResult, status } from './results.js';
 import { allowedSeverity, authenticate, correlation } from './security.js';
-import { hasFailure, originalFailure } from './failures.js';
+import { hasFailure, originalFailure, recordFailure } from './failures.js';
 import { Severity } from './Severity.js';
+import { ServiceRegistry } from './ServiceRegistry.js';
+import { withServices } from './ServiceScope.js';
 
 const requestContext = new AsyncLocalStorage<ExecutionContext>();
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
@@ -33,9 +35,13 @@ export class ArcServer {
     readonly queries: readonly Operation[];
     readonly routes: ReadonlyMap<string, Operation>;
     readonly options: ArcServerOptions;
+    readonly services: ServiceRegistry;
+    readonly #ownsServices: boolean;
 
     constructor(options: ArcServerOptions) {
         this.options = options;
+        this.#ownsServices = !(options.services instanceof ServiceRegistry);
+        this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
         if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
         const prefix = options.prefix ?? 'api';
@@ -68,15 +74,59 @@ export class ArcServer {
         this.routes = routes;
     }
 
+    private async runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly = false): Promise<CommandResult | QueryResult> {
+        const scope = this.services.createScope(context);
+        return this.services.runExecution(() => requestContext.run(context, () => withServices(scope, async () => {
+            let result: CommandResult | QueryResult;
+            try { result = await operation.run(input, context, options, validateOnly); }
+            catch (error) {
+                result = operation.kind === 'command'
+                    ? commandResult(context, { exceptionMessages: [String(error)] })
+                    : queryResult(context, { exceptionMessages: [String(error)] });
+                recordFailure(result, error);
+            }
+            const disposalErrors: unknown[] = [];
+            try { await scope.dispose(); } catch (error) { disposalErrors.push(error); }
+            if (result.isSuccess && (this.services.singletonFailed || this.services.disposed)) disposalErrors.push(new Error('Service registry is disposed'));
+            if (disposalErrors.length) {
+                const error = disposalErrors.length === 1 ? disposalErrors[0] : new AggregateError(disposalErrors, 'Service cleanup failed');
+                const previous = result;
+                result = operation.kind === 'command'
+                    ? commandResult(context, { ...previous, response: undefined, exceptionMessages: [...previous.exceptionMessages, String(error)] })
+                    : queryResult(context, { ...previous, data: undefined, exceptionMessages: [...previous.exceptionMessages, String(error)] });
+                recordFailure(result, error, previous);
+            }
+            return result;
+        })), async (initial, hasLivingAncestor) => {
+            let result = initial;
+            const fail = (error: unknown): void => {
+                const previous = result;
+                result = operation.kind === 'command'
+                    ? commandResult(context, { ...previous, response: undefined, exceptionMessages: [...previous.exceptionMessages, String(error)] })
+                    : queryResult(context, { ...previous, data: undefined, exceptionMessages: [...previous.exceptionMessages, String(error)] });
+                recordFailure(result, error, previous);
+            };
+            if (result.isSuccess && (this.services.singletonFailed || this.services.disposed)) fail(new Error('Service registry is disposed'));
+            if (this.services.singletonFailed && !hasLivingAncestor) {
+                try { await this.services.dispose(); }
+                catch (error) { fail(error); }
+            }
+            if (result.isSuccess && (this.services.singletonFailed || this.services.disposed)) fail(new Error('Service registry is disposed'));
+            return result;
+        });
+    }
+
+    async dispose(): Promise<void> { if (this.#ownsServices) await this.services.dispose(); }
+
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
         const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
-        return requestContext.run(Object.freeze({ ...context }), () => operation.run(input, currentContext()!, undefined, validateOnly) as Promise<CommandResult>);
+        return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, validateOnly) as Promise<CommandResult>;
     }
     async performQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<QueryResult> {
         const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown query: ${name}`);
-        return requestContext.run(Object.freeze({ ...context, allowedSeverity: Severity.Warning }), () => operation.run(input, currentContext()!, options) as Promise<QueryResult>);
+        return this.runScoped(operation, input, Object.freeze({ ...context, allowedSeverity: Severity.Warning }), options) as Promise<QueryResult>;
     }
 
     async handle(request: Request): Promise<Response | null> {
@@ -143,7 +193,7 @@ export class ArcServer {
                         const failure = operation.kind === 'command' ? commandResult(context, { validationResults: malformed(context) }) : queryResult(context, { validationResults: malformed(context) });
                         return send(failure, 400);
                     }
-                    const result = await operation.run(input, context, options, isValidation);
+                    const result = await this.runScoped(operation, input, context, options, isValidation);
                     if (hasFailure(result) && !await logFailure(originalFailure(result))) return serverFailure();
                     if (result.exceptionMessages.length) {
                         if (!this.options.development) {

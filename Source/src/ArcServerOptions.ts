@@ -2,8 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
 import type { AuthenticationHandler, CommandDefinition, Principal, QueryDefinition } from './contracts.js';
+import type { ServiceRegistry } from './ServiceRegistry.js';
+import type { ServiceRegistration } from './ServiceRegistration.js';
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
+    services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
     prefix?: string;
     segmentsToSkip?: number;

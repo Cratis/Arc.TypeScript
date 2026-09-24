@@ -46,7 +46,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Argument binding | Supported | Case-insensitive names, number and boolean conversion for GET, and repeated GET keys for declared array arguments. |
 | Paging and sorting | Supported | Arrays are sorted and paged in memory. A data source that pages itself returns `queryPage(items, totalItems)`. GET requires `pageSize` of at least 1; `QUERY` treats `pageSize: 0` as unpaged. |
 | Query filters | Supported | Authorization runs before validation, as for commands. |
-| Services and dependency injection | Not implemented | There is no container. Definitions reach services through ordinary module scope. |
+| Scoped services and explicit dependencies | Supported | `ServiceRegistry` offers singleton, per-execution scoped, and transient factory registrations. Definitions declare `handlerDependencies` and `validatorDependencies`. Each direct/HTTP pipeline owns a scope; singleton cycles across nested executions are rejected, and a detached nested failure joins registry shutdown after its last living ancestor completes. A settled factory does not pass its identity or captive guard into detached manual scopes. Scope closure is joinable, and shutdown joins captured closing scopes before singletons. Failure or shutdown before result publication clears successful data. Failures dispose owned services. No auto-discovery or application container integration. See [Compose services and test pipelines](../guides/services-and-testing.md). |
 | Renderers and read-model interceptors | Not implemented | |
 
 ## Observable queries
@@ -110,7 +110,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Command, query, and observable query scenarios | Not implemented | Use `executeCommand`, `performQuery`, or `handle` in your own specs. |
+| Command and query pipeline testing | Supported | `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. Observable query scenarios are not implemented. |
 
 ## Hosting
 

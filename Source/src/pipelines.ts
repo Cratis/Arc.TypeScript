@@ -8,6 +8,20 @@ import { authorized } from './security.js';
 import { commandResult, emptyPaging, malformed, queryResult } from './results.js';
 import type { Operation } from './operation.js';
 import { recordFailure } from './failures.js';
+import { currentServices } from './ServiceScope.js';
+import { ServiceDependencyError } from './ServiceDependencyError.js';
+import type { ServiceToken } from './ServiceToken.js';
+
+async function prepareDependencies(handler: readonly ServiceToken<unknown>[] = [], validators: readonly ServiceToken<unknown>[] = [], execute = true): Promise<void> {
+    const scope = currentServices();
+    if (!Array.isArray(handler) || !Array.isArray(validators)) throw new ServiceDependencyError('Invalid operation dependencies');
+    scope.registry.preflight([...handler, ...validators]);
+    await Promise.all(validators.map(token => scope.resolve(token)));
+    if (execute) await Promise.all(handler.map(token => scope.resolve(token)));
+}
+function dependencyFailure(error: unknown): ValidationResult[] {
+    return [{ severity: 3, message: 'Service dependency unavailable', members: [], reason: error instanceof ServiceDependencyError ? 'dependencyUnavailable' : 'validatorFailed' }];
+}
 
 async function validate<T>(filters: readonly (((input: T, context: ExecutionContext) => ValidationResult[] | void | Promise<ValidationResult[] | void>) | undefined)[], input: T, context: ExecutionContext): Promise<ValidationResult[]> {
     const issues: ValidationResult[] = [];
@@ -39,10 +53,12 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
             try {
                 if (definition.authorize && !await definition.authorize(value, context)) return commandResult(context, { isAuthorized: false });
                 let issues: ValidationResult[];
-                try { issues = await validate([definition.validate, ...(definition.filters ?? [])], value, context); }
-                catch (error) {
+                try {
+                    await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
+                    issues = await validate([definition.validate, ...(definition.filters ?? [])], value, context);
+                } catch (error) {
                     if (context.signal.aborted) throw error;
-                    const failure = commandResult(context, { validationResults: validatorFailure() });
+                    const failure = commandResult(context, { validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure() });
                     recordFailure(failure, error);
                     return failure;
                 }
@@ -51,6 +67,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 const scopes = [];
                 let result: CommandResult = commandResult(context);
                 try {
+                    await prepareDependencies(definition.handlerDependencies);
                     for (const create of definition.scopes ?? []) {
                         const scope = create();
                         scopes.push(scope);
@@ -77,7 +94,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                         } else result = commandResult(context, { response: handled });
                     }
                 } catch (error) {
-                    result = commandResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '' });
+                    result = commandResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', ...(error instanceof ServiceDependencyError ? { validationResults: dependencyFailure(error) } : {}) });
                     recordFailure(result, error);
                 } finally {
                     for (const scope of scopes.reverse()) {
@@ -115,14 +132,17 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 const value = parsed.data;
                 if (definition.authorize && !await definition.authorize(value, context)) return queryResult(context, { isAuthorized: false });
                 let issues: ValidationResult[];
-                try { issues = await validate([definition.validate, ...(definition.filters ?? [])], value, context); }
-                catch (error) {
+                try {
+                    await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
+                    issues = await validate([definition.validate, ...(definition.filters ?? [])], value, context);
+                } catch (error) {
                     if (context.signal.aborted) throw error;
-                    const failure = queryResult(context, { validationResults: validatorFailure() });
+                    const failure = queryResult(context, { validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure() });
                     recordFailure(failure, error);
                     return failure;
                 }
                 if (issues.length) return queryResult(context, { validationResults: issues });
+                await prepareDependencies(definition.handlerDependencies);
                 const data = await definition.perform(value, context, options);
                 if (isQueryPage(data)) {
                     const page = options.paging?.page ?? 0;
@@ -156,7 +176,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 if (options.paging || options.sorting) return queryResult(context, { validationResults: malformed(context) });
                 return queryResult(context, { data });
             } catch (error) {
-                const failure = queryResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '' });
+                const failure = queryResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', ...(error instanceof ServiceDependencyError ? { validationResults: dependencyFailure(error) } : {}) });
                 recordFailure(failure, error);
                 return failure;
             }
