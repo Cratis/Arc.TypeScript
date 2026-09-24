@@ -27,6 +27,7 @@ import type { CommandResponseValueHandler } from './commands/CommandResponseValu
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
+import { readModelArgument } from './commands/modelBound/readModel.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
@@ -242,6 +243,17 @@ export class ArcApplicationBuilder {
         const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
             signal: new AbortController().signal, allowedSeverity: Severity.Error });
         try {
+            const resolvers = await Promise.all([...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers]
+                .map(token => scope.resolve(token)));
+            for (const { type } of this.#artifacts) {
+                const bindings = ownMetadata(type).injected;
+                for (const token of [...bindings?.get('provide') ?? [], ...bindings?.get('handle') ?? []]) {
+                    const model = readModelArgument(token);
+                    if (!model) continue;
+                    const matching = resolvers.filter(resolver => resolver.supports(model.type));
+                    if (matching.length !== 1) throw new Error(`Expected one read-model resolver for ${model.type.name}, found ${matching.length}`);
+                }
+            }
             for (const type of validators.values()) {
                 const validator = await scope.resolve(type);
                 if (!(validator instanceof BaseValidator)) throw new Error(`Invalid validator: ${type.name}`);

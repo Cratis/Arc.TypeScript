@@ -26,6 +26,8 @@ export async function prepareCommandResponse(value: unknown, context: CommandCon
     if (tokens.some((token, index) => index > 0 && token.name === tokens[index - 1]!.name))
         throw new Error('Command response handler names must be unique for deterministic ordering');
     const handlers = await Promise.all(tokens.map(token => currentServices().resolve(token)));
+    if (journal && leaves.some(value => handlers.some(handler => handler.incompatibleWithOperations && handler.canHandle(context, value))))
+        throw new Error('Chronicle returned events cannot be combined with command operations');
     const result = await processCommandResponse(context, leaves, handlers, journal !== undefined);
     return { result, journal };
 }
