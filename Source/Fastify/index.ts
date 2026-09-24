@@ -4,14 +4,26 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
-import { fastifyWebSocketMount } from './WebSocketMount.js';
+import { fastifyWebSocketMount, mountFastifyWebSockets } from './WebSocketMount.js';
 export { mountFastifyWebSockets } from './WebSocketMount.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
-/** The callback must use host-verified identity/authority, never request headers. */
+/** One encapsulated Fastify registration for Arc HTTP and observable upgrades. */
+export async function cratisArc(app: FastifyInstance, options: {
+    arc: ArcServer | ArcApplication;
+    prefix?: string;
+    webSockets?: boolean;
+    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>;
+}): Promise<void> {
+    const server = 'server' in options.arc ? options.arc.server : options.arc;
+    if (options.webSockets !== false) mountFastifyWebSockets(app, server, options.native, options.prefix);
+    mountFastify(app, options.arc, options.native, options.prefix);
+}
+
+/** @deprecated Use app.register(cratisArc, { arc, webSockets: true }). */
 export function mountFastify(app: FastifyInstance, application: ArcServer | ArcApplication,
-    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
+    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>, prefix = ''): void {
     const server = 'server' in application ? application.server : application;
     // Encapsulated parsers never replace the parent application's content-type behavior.
     const webSockets = fastifyWebSocketMount(app);
@@ -20,7 +32,8 @@ export function mountFastify(app: FastifyInstance, application: ArcServer | ArcA
         scoped.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, payload, done) => done(null, payload));
         async function dispatch(request: FastifyRequest, reply: FastifyReply, path: string) {
             const rawPath = request.raw.url?.split('?')[0];
-            if (rawPath !== path) return reply.code(404).send();
+            const expected = `${prefix.replace(/\/$/, '')}${path}`;
+            if (rawPath !== expected) return reply.code(404).send();
             const controller = new AbortController();
             let streaming = false;
             const abort = () => controller.abort();
@@ -30,7 +43,10 @@ export function mountFastify(app: FastifyInstance, application: ArcServer | ArcA
             try {
                 const payload = request.body;
                 const body = Buffer.isBuffer(payload) ? new Uint8Array(payload) : undefined;
-                const incoming = new Request(new URL(request.raw.url ?? path, origin), {
+                const raw = request.raw.url ?? expected;
+                const url = new URL(raw, origin);
+                if (url.origin !== origin || url.pathname !== expected) return reply.code(400).send();
+                const incoming = new Request(new URL(`${path}${url.search}`, origin), {
                     method: request.method, headers: new Headers(request.headers as Record<string, string>),
                     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : body,
                     signal: controller.signal

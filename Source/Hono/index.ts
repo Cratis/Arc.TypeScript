@@ -1,10 +1,20 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { Context, Env, Hono } from 'hono';
+import { Hono } from 'hono';
+import type { Context, Env } from 'hono';
 export { mountHonoWebSockets } from './WebSocketMount.js';
+export { serveCratisArc } from './serveCratisArc.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
-/** No TLS or principal is inferred from Fetch URLs/headers. Explicit callback must attest both. */
+/** Create an HTTP/SSE sub-application; Node WebSockets require a listener bridge. */
+export function cratisArc<E extends Env>(application: ArcServer | ArcApplication,
+    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): Hono<E> {
+    const routes = new Hono<E>();
+    mountHono(routes, application, native);
+    return routes;
+}
+
+/** @deprecated Use app.route('/', cratisArc(application)). */
 export function mountHono<E extends Env>(app: Hono<E>, application: ArcServer | ArcApplication,
     native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): void {
     const server = 'server' in application ? application.server : application;
