@@ -20,6 +20,7 @@ import { observableOperation, isObservableOperation } from './queries/observable
 import { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { snapshot, snapshotOptions } from './queries/observable/snapshot.js';
 import { directSse } from './queries/observable/directSse.js';
+import { ObservableSubscriptionLimitError } from './queries/observable/ObservableSubscriptionLimitError.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -46,7 +47,12 @@ export class ArcServer {
     readonly #ownsServices: boolean;
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #observableSessions = new Set<ObservableQuerySession>();
+    readonly #snapshotSessions = new Set<ObservableQuerySession>();
+    readonly #observableOwners = new Map<ObservableQuerySession, string>();
+    readonly #openingOwners = new Map<string, number>();
     #openingObservableSessions = 0;
+    #openingSnapshots = 0;
+    #disposed = false;
 
     constructor(options: ArcServerOptions) {
         this.options = options;
@@ -63,6 +69,10 @@ export class ArcServer {
         if (options.maxObservableSubscriptions !== undefined &&
             (!Number.isSafeInteger(options.maxObservableSubscriptions) || options.maxObservableSubscriptions < 1 || options.maxObservableSubscriptions > 1024))
             throw new Error('Invalid maximum observable subscriptions');
+        if (options.maxObservableSubscriptionsPerCaller !== undefined &&
+            (!Number.isSafeInteger(options.maxObservableSubscriptionsPerCaller) ||
+                options.maxObservableSubscriptionsPerCaller < 1 || options.maxObservableSubscriptionsPerCaller > 128))
+            throw new Error('Invalid per-caller observable subscription limit');
         const prefix = options.prefix ?? 'api';
         if (prefix && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(prefix)) throw new Error('Unsafe Arc prefix');
         const skip = options.segmentsToSkip ?? 0;
@@ -173,13 +183,15 @@ export class ArcServer {
     }
 
     async dispose(): Promise<void> {
-        const sessions = [...this.#observableSessions];
+        this.#disposed = true;
+        const sessions = [...this.#observableSessions, ...this.#snapshotSessions];
         if (!sessions.length) {
             if (this.#ownsServices) await this.services.dispose();
             return;
         }
+        const failures: unknown[] = [];
         const outcomes = await Promise.allSettled(sessions.map(session => session.close()));
-        const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown);
+        failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown));
         if (this.#ownsServices) {
             try { await this.services.dispose(); }
             catch (error) { failures.push(error); }
@@ -188,27 +200,83 @@ export class ArcServer {
         if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     }
 
+    private callerKey(context: ExecutionContext): string {
+        const caller = context.principal?.isAuthenticated ? context.principal.id : 'anonymous';
+        return `${context.tenantId ?? ''}\0${caller}`;
+    }
+
+    private reserveSession(session: ObservableQuerySession, context: ExecutionContext): void {
+        const key = this.callerKey(context);
+        const maximum = context.principal?.isAuthenticated ? this.options.maxObservableSubscriptionsPerCaller ?? 16 : 8;
+        const owned = [...this.#observableOwners.values()].filter(owner => owner === key).length;
+        if (this.#disposed || this.#observableSessions.size + this.#openingObservableSessions >=
+            (this.options.maxObservableSubscriptions ?? 128) || owned + (this.#openingOwners.get(key) ?? 0) >= maximum)
+            throw new ObservableSubscriptionLimitError();
+        this.#snapshotSessions.delete(session);
+        this.#observableSessions.add(session);
+        this.#observableOwners.set(session, key);
+    }
+
     /** Open one query pipeline and service scope until its subscription ends. Caller must close it. */
-    async openObservableQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<ObservableQuerySession> {
+    openObservableQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<ObservableQuerySession> {
+        return this.openSession(name, input, context, options, 'subscription');
+    }
+
+    private async openSession(name: string, input: unknown, context: ExecutionContext, options: QueryOptions | undefined,
+        admission: 'subscription' | 'snapshot'): Promise<ObservableQuerySession> {
+        if (this.#disposed) throw new Error('Arc server is disposed');
         const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation || !isObservableOperation(operation)) throw new Error(`Unknown observable query: ${name}`);
-        if (this.#observableSessions.size + this.#openingObservableSessions >= (this.options.maxObservableSubscriptions ?? 128))
-            throw new Error('Observable query subscription limit reached');
-        this.#openingObservableSessions++;
+        const key = this.callerKey(context);
+        if (admission === 'subscription') {
+            const maximum = context.principal?.isAuthenticated ? this.options.maxObservableSubscriptionsPerCaller ?? 16 : 8;
+            const owned = [...this.#observableOwners.values()].filter(owner => owner === key).length;
+            if (this.#observableSessions.size + this.#openingObservableSessions >=
+                (this.options.maxObservableSubscriptions ?? 128) || owned + (this.#openingOwners.get(key) ?? 0) >= maximum)
+                throw new ObservableSubscriptionLimitError();
+            this.#openingOwners.set(key, (this.#openingOwners.get(key) ?? 0) + 1);
+            this.#openingObservableSessions++;
+        } else {
+            if (++this.#openingSnapshots + this.#snapshotSessions.size > (this.options.maxObservableSubscriptions ?? 128)) {
+                this.#openingSnapshots--;
+                throw new ObservableSubscriptionLimitError();
+            }
+        }
         try {
             const held: { session?: ObservableQuerySession } = {};
-            const session = await ObservableQuerySession.open(operation, input, context, options, this.services,
-                this.options.observableEmissionGuards ?? [], this.options.development === true, () => {
-                if (held.session) this.#observableSessions.delete(held.session);
+            const session = await ObservableQuerySession.open({
+                operation, input, context, options, services: this.services,
+                guards: this.options.observableEmissionGuards ?? [], development: this.options.development === true,
+                reportFailure: error => Promise.resolve(this.options.logger?.(error, context.correlationId)),
+                onClose: () => {
+                    if (!held.session) return;
+                    this.#observableSessions.delete(held.session);
+                    this.#snapshotSessions.delete(held.session);
+                    this.#observableOwners.delete(held.session);
+                }
             });
             held.session = session;
-            if (this.services.disposed) {
+            if (this.#disposed || this.services.disposed) {
                 await session.close();
-                throw new Error('Service registry is disposed');
+                throw new Error('Arc server is disposed');
             }
-            if (!session.rejection) this.#observableSessions.add(session);
+            if (!session.rejection) {
+                if (admission === 'snapshot') this.#snapshotSessions.add(session);
+                else {
+                    this.#observableSessions.add(session);
+                    this.#observableOwners.set(session, key);
+                }
+            }
             return session;
-        } finally { this.#openingObservableSessions--; }
+        } finally {
+            if (admission === 'snapshot') this.#openingSnapshots--;
+            else {
+                this.#openingObservableSessions--;
+                const remaining = (this.#openingOwners.get(key) ?? 1) - 1;
+                if (remaining) this.#openingOwners.set(key, remaining);
+                else this.#openingOwners.delete(key);
+            }
+        }
     }
 
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
@@ -336,14 +404,29 @@ export class ArcServer {
                     }
                     if (isObservableOperation(operation)) {
                         const name = [operation.namespace, operation.name].filter(Boolean).join('.');
-                        const session = await this.openObservableQuery(name, input, context, options);
-                        if (request.method === 'GET' && request.headers.get('accept')?.toLowerCase().includes('text/event-stream'))
+                        const streaming = request.method === 'GET' &&
+                            request.headers.get('accept')?.toLowerCase().includes('text/event-stream') === true;
+                        const session = await this.openSession(name, input, context, options,
+                            streaming ? 'subscription' : 'snapshot');
+                        if (streaming) {
+                            if (session.rejection) {
+                                const rejected = session.rejection;
+                                if (rejected.hasExceptions && !this.options.development) {
+                                    rejected.exceptionMessages = ['An unexpected error occurred'];
+                                    rejected.exceptionStackTrace = '';
+                                }
+                                return send(rejected, status(rejected));
+                            }
                             return directSse(session, headers);
+                        }
                         try {
-                            const { result, code } = await snapshot(session, context, snapshotRequest.wait, snapshotRequest.timeoutMs);
-                            if (result.exceptionMessages.length && !this.options.development)
-                                result.exceptionMessages = ['An unexpected error occurred'];
-                            return send(result, code);
+                            const outcome = await snapshot(session, context, snapshotRequest.wait, snapshotRequest.timeoutMs,
+                                () => this.reserveSession(session, context));
+                            if (!outcome.protocol && outcome.result.hasExceptions && !this.options.development) {
+                                outcome.result.exceptionMessages = ['An unexpected error occurred'];
+                                outcome.result.exceptionStackTrace = '';
+                            }
+                            return send(outcome.result, outcome.code);
                         } finally { await session.close(); }
                     }
                     const result = await this.runScoped(operation, input, context, options, isValidation);
@@ -356,6 +439,9 @@ export class ArcServer {
                     }
                     return send(result, status(result));
                 } catch (error) {
+                    if (error instanceof ObservableSubscriptionLimitError) return send(queryResult(context, {
+                        exceptionMessages: ['Service temporarily unavailable']
+                    }), 503, { 'retry-after': '1' });
                     await logFailure(error);
                     return serverFailure();
                 }
@@ -379,7 +465,14 @@ export class ArcServer {
                 operationId: [operation.namespace, operation.name].filter(Boolean).join('.'), summary: operation.summary ?? '',
                 ...(operation.kind === 'command' ? { requestBody: { required: true, content: { 'application/json': { schema: operation.inputSchema } } } } : {
                     parameters: Object.entries(operation.inputSchema.properties as Record<string, unknown> ?? {}).map(([name, schema]) => ({ name, in: 'query', required: (operation.inputSchema.required as string[] ?? []).includes(name), schema }))
-                }), responses: { '200': { description: 'Result' }, '400': { description: 'Invalid request' }, '403': { description: 'Not authorized' }, '500': { description: 'Server error' } }
+                }), responses: { '200': { description: isObservableOperation(operation) ? 'Snapshot or direct SSE stream' : 'Result',
+                    ...(isObservableOperation(operation) ? { content: { 'text/event-stream': { schema: { type: 'string' } } } } : {}) },
+                    ...(isObservableOperation(operation) ? {
+                        '202': { description: 'No current value' }, '408': { description: 'First-result wait timed out' },
+                        '503': { description: 'Subscription limit reached' }
+                    } : {}),
+                    '400': { description: 'Invalid request' }, '403': { description: 'Not authorized' },
+                    '500': { description: 'Server error' } }
             } };
         }
         return { openapi: '3.1.0', info: { title: 'Arc', version: '0.1.0' }, paths };

@@ -120,7 +120,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Express 5, Fastify 5, and Hono 4 adapters | Supported | Their differences and TLS/native principal trust boundary are listed in [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#adapter-differences-and-limitations). |
 | Cancellation on client disconnect | Supported for Express and Fastify | Hono passes the signal of the request it received. |
 | Unsupported methods | Supported | 405 with an `Allow` header for methods that reach Arc. Fastify routes only a fixed list of methods to Arc. |
-| Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Subscribable emission queues cap at 64 pending snapshots; simultaneous observable subscriptions (including opening ones) cap at 128 by default, configurable up to 1024. No per-caller rate limit or hub connection limit. |
+| Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Subscribable emission queues cap at 64 pending snapshots. Retained subscriptions cap at 128 globally (configurable to 1024), with a default of 16 per authenticated principal and tenant and eight for the anonymous tenant group. Current HTTP snapshots use a separate bounded opening budget; an exhausted subscription budget answers 503 with `Retry-After: 1`. No request-rate limit or hub connection limit yet. |
 | Standalone host, static files, and SPA fallback | Not implemented | The host frameworks can serve static files themselves. |
 | Tracing and metrics | Not implemented | |
 

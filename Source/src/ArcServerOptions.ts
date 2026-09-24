@@ -20,6 +20,8 @@ export interface ArcServerOptions {
     observableQueries?: readonly ObservableQueryDefinition<z.ZodType, unknown>[];
     /** Maximum simultaneous live and opening subscriptions; defaults to 128. */
     maxObservableSubscriptions?: number;
+    /** Maximum retained subscriptions for one authenticated principal and tenant (anonymous callers share eight slots). */
+    maxObservableSubscriptionsPerCaller?: number;
     /** Resolve emission policies in each subscription's service scope. */
     observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
     prefix?: string;

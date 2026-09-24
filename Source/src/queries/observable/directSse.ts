@@ -37,19 +37,24 @@ export function directSse(session: ObservableQuerySession, headers: Headers): Re
                 if (!outcome.value.value.isAuthorized || outcome.value.value.hasExceptions || !outcome.value.value.isValid) {
                     closed = true;
                     await session.close();
+                    await iterator.return(undefined);
                     controller.close();
                 }
             } catch (error) {
                 closed = true;
-                controller.error(error);
-                await session.close();
+                try { controller.error(error); }
+                finally {
+                    try { await session.reportTransportFailure(error); }
+                    finally { await session.close(); }
+                }
             } finally {
                 if (timer) clearTimeout(timer);
             }
         },
         async cancel() {
             closed = true;
-            await session.close();
+            try { await session.close(); }
+            finally { await iterator.return(undefined); }
         }
     });
     return new Response(body, { status: 200, headers });

@@ -160,9 +160,15 @@ describe('observable query pipeline', () => {
         let suppressed!: () => void;
         const suppressedOnce = new Promise<void>(resolve => { suppressed = resolve; });
         const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
-            check: (_input, data, context) => {
-                context.tenantId?.should.equal('first');
-                if (data === 1) { suppressed(); return ObservableEmissionDecision.Suppress; }
+            check: emission => {
+                emission.context.tenantId?.should.equal('first');
+                emission.queryName.should.equal('Numbers');
+                if (emission.data === 1) {
+                    should().equal(emission.isFirstEmission, true);
+                    suppressed();
+                    return ObservableEmissionDecision.Suppress;
+                }
+                should().equal(emission.isFirstEmission, true);
                 return ObservableEmissionDecision.Allow;
             }
         }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
@@ -180,7 +186,8 @@ describe('observable query pipeline', () => {
 
     it('should redact a failed source before streaming the terminal result', async () => {
         const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
-        const server = new ArcServer({ observableQueries: [defineObservableQuery({
+        const logged: unknown[] = [];
+        const server = new ArcServer({ logger: error => { logged.push(error); }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
         })] });
         const session = await server.openObservableQuery('Numbers', {}, execution());
@@ -191,6 +198,7 @@ describe('observable query pipeline', () => {
         failed.value?.exceptionMessages.should.deep.equal(['An unexpected error occurred']);
         failed.value?.isSuccess.should.equal(false);
         should().equal((await stream.next()).done, true);
+        (logged[0] as Error).message.should.equal('private source failure');
         await server.dispose();
     });
 
@@ -211,7 +219,9 @@ describe('observable query pipeline', () => {
     it('should deny and terminate on a failing emission policy without publishing data', async () => {
         const subject = new CurrentValueSubject<number>({ hasValue: true, value: 1 });
         const token = serviceToken<ObservableEmissionGuard>('failing policy');
-        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+        const logged: unknown[] = [];
+        const server = new ArcServer({ logger: error => { logged.push(error); },
+            services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
             check: () => { throw new Error('secret'); }
         }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
@@ -223,6 +233,8 @@ describe('observable query pipeline', () => {
         should().equal(denial.value?.data, undefined);
         subject.next(2);
         should().equal((await stream.next()).done, true);
+        logged.should.have.lengthOf(1);
+        (logged[0] instanceof Error).should.equal(true);
         await server.dispose();
     });
 

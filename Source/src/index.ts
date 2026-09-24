@@ -1,7 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-// Copyright (c) Cratis. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export { ArcServer, currentContext } from './ArcServer.js';
 export { exportClientManifest, validateClientManifest } from './ClientManifest.js';
 export type { ClientManifest } from './ClientManifest.js';
@@ -27,7 +25,8 @@ export { defineCommand, defineQuery, defineObservableQuery } from './define.js';
 export { CurrentValueSubject } from './queries/observable/CurrentValueSubject.js';
 export { ObservableEmissionDecision } from './queries/observable/ObservableEmissionDecision.js';
 export type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
-export { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
+export type { ObservableEmissionContext } from './queries/observable/ObservableEmissionContext.js';
+export type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 export type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 export type { ObservableObserver } from './queries/observable/ObservableObserver.js';
 export type { Subscribable } from './queries/observable/Subscribable.js';

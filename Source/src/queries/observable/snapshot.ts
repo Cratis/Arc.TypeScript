@@ -15,7 +15,7 @@ export function snapshotOptions(url: URL): { wait: boolean; timeoutMs: number } 
         if (values.has(key)) throw new BadRequest();
         values.set(key, value);
     }
-    const wait = values.get('waitforfirstresult');
+    const wait = values.get('waitforfirstresult')?.toLowerCase();
     if (wait !== undefined && wait !== 'true' && wait !== 'false') throw new BadRequest();
     const seconds = values.get('waitforfirstresulttimeout');
     const timeout = seconds === undefined ? 30 : Number(seconds);
@@ -24,13 +24,15 @@ export function snapshotOptions(url: URL): { wait: boolean; timeoutMs: number } 
     return { wait: wait === 'true', timeoutMs: timeout * 1000 };
 }
 
-/** Resolve one snapshot, disposing subscriptions on completion and timeout. */
-export async function snapshot(session: ObservableQuerySession, context: ExecutionContext, wait: boolean, timeoutMs: number):
-    Promise<{ result: QueryResult; code: number }> {
-    if (session.rejection) return { result: session.rejection, code: status(session.rejection) };
+/** Resolve one snapshot, distinguishing expected protocol outcomes from caught failures. */
+export async function snapshot(session: ObservableQuerySession, context: ExecutionContext, wait: boolean, timeoutMs: number,
+    reserve: () => void = () => {}):
+    Promise<{ result: QueryResult; code: number; protocol: boolean }> {
+    if (session.rejection) return { result: session.rejection, code: status(session.rejection), protocol: false };
     const current = await session.current();
-    if (current) return { result: current, code: status(current) };
-    if (!wait) return { result: queryResult(context, { isReady: false }), code: 202 };
+    if (current) return { result: current, code: status(current), protocol: false };
+    if (!wait) return { result: queryResult(context, { isReady: false }), code: 202, protocol: true };
+    reserve();
     const iterator = session.results();
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -40,14 +42,17 @@ export async function snapshot(session: ObservableQuerySession, context: Executi
         ]);
         if (first.kind === 'timeout') {
             await session.close();
-            return { result: queryResult(context, { exceptionMessages: [`Timed out waiting ${timeoutMs / 1000} seconds for the first observable query result.`] }), code: 408 };
+            return { result: queryResult(context, {
+                exceptionMessages: [`Timed out waiting ${timeoutMs / 1000} seconds for the first observable query result.`]
+            }), code: 408, protocol: true };
         }
         if (first.value.done) return { result: queryResult(context, {
             exceptionMessages: ['Observable query completed before producing its first result.']
-        }), code: 500 };
-        return { result: first.value.value, code: status(first.value.value) };
+        }), code: 500, protocol: true };
+        return { result: first.value.value, code: status(first.value.value), protocol: false };
     } finally {
         if (timer) clearTimeout(timer);
-        await session.close();
+        try { await session.close(); }
+        finally { await iterator.return(undefined); }
     }
 }

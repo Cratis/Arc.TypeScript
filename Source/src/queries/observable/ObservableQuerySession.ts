@@ -1,18 +1,16 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ExecutionContext } from '../../ExecutionContext.js';
-import type { QueryOptions } from '../../QueryOptions.js';
 import type { QueryResult } from '../../QueryResult.js';
+import { hasFailure, originalFailure } from '../../failures.js';
 import { queryResult } from '../../results.js';
 import { requestContext } from '../../RequestContextStore.js';
-import type { ServiceRegistry } from '../../ServiceRegistry.js';
 import { withServices } from '../../ServiceScope.js';
-import type { ObservableOperation } from './ObservableOperation.js';
 import type { ObservableSource } from './ObservableSource.js';
 import { toEmissions } from './toEmissions.js';
 import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
-import type { ObservableEmissionGuard } from './ObservableEmissionGuard.js';
-import type { ServiceToken } from '../../ServiceToken.js';
+import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
+import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
 export class ObservableQuerySession {
@@ -21,30 +19,27 @@ export class ObservableQuerySession {
     readonly #scope;
     #source: ObservableSource<unknown> | undefined;
     #result: QueryResult | undefined;
+    #activeIterator: AsyncGenerator<QueryResult> | undefined;
+    #streamOpened = false;
+    #firstEmissionDelivered = false;
     #closed: Promise<void> | undefined;
+    #scopeClosed: Promise<void> | undefined;
 
-    private constructor(
-        readonly operation: ObservableOperation,
-        readonly input: unknown,
-        readonly options: QueryOptions | undefined,
-        readonly services: ServiceRegistry,
-        readonly guards: readonly ServiceToken<ObservableEmissionGuard>[],
-        readonly development: boolean,
-        context: ExecutionContext,
-        readonly onClose: () => void
-    ) {
-        this.#context = Object.freeze({ ...context, signal: AbortSignal.any([context.signal, this.#controller.signal]) });
-        this.#scope = services.createScope(this.#context);
+    private constructor(private readonly config: ObservableSessionConfig) {
+        this.#context = Object.freeze({ ...config.context,
+            signal: AbortSignal.any([config.context.signal, this.#controller.signal]) });
+        this.#scope = config.services.createScope(this.#context);
     }
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
-    static async open(operation: ObservableOperation, input: unknown, context: ExecutionContext, options: QueryOptions | undefined,
-        services: ServiceRegistry, guards: readonly ServiceToken<ObservableEmissionGuard>[], development: boolean,
-        onClose: () => void): Promise<ObservableQuerySession> {
-        const session = new ObservableQuerySession(operation, input, options, services, guards, development, context, onClose);
+    static async open(config: ObservableSessionConfig): Promise<ObservableQuerySession> {
+        const session = new ObservableQuerySession(config);
         try {
-            const result = await session.run(() => operation.run(input, session.#context) as Promise<QueryResult<ObservableSource<unknown>>>);
+            const start = (): Promise<QueryResult<ObservableSource<unknown>>> =>
+                config.operation.run(config.input, session.#context, config.options) as Promise<QueryResult<ObservableSource<unknown>>>;
+            const result = await session.run(start);
             session.#result = result;
+            await session.reportResult(result);
             if (result.isSuccess) session.#source = result.data;
             else await session.close();
             return session;
@@ -54,64 +49,117 @@ export class ObservableQuerySession {
         }
     }
 
-    /** The initial authorization/validation outcome, if it failed. */
+    /** Initial authorization/validation outcome, if it failed. */
     get rejection(): QueryResult | undefined { return this.#result?.isSuccess ? undefined : this.#result; }
 
-    /** Read a current value without subscribing or waiting for an emission. */
+    /** Read a current value without opening an emission iterator. */
     async current(): Promise<QueryResult | undefined> {
-        if (!this.#source?.current) return undefined;
-        const snapshot = this.#source.current();
-        if (!snapshot.hasValue) return undefined;
-        const result = await this.run(() => this.operation.render(this.input, this.#context, this.options, snapshot.value));
+        const source = this.#source;
+        if (!source) return undefined;
+        let present = false;
+        let value: unknown;
+        if (source.current) {
+            const snapshot = source.current();
+            present = snapshot.hasValue;
+            if (snapshot.hasValue) value = snapshot.value;
+        } else if ('getValue' in source && typeof source.getValue === 'function') {
+            present = true;
+            value = source.getValue();
+        } else if ('value' in source) {
+            present = true;
+            value = source.value;
+        }
+        if (!present) return undefined;
+        const result = await this.run(() => this.config.operation.render(this.config.input,
+            this.#context, this.config.options, value));
+        await this.reportResult(result);
         return this.guarded(result);
     }
 
-    /** Cancel the producer and dispose the subscription scope exactly once. */
+    /** Cancel the producer, release its iterator, and dispose the scope exactly once. */
     close(): Promise<void> {
         if (this.#closed) return this.#closed;
         this.#controller.abort();
-        this.#closed = this.#scope.dispose().finally(this.onClose);
+        this.#closed = (async () => {
+            const failures: unknown[] = [];
+            if (this.#activeIterator) {
+                try { await this.#activeIterator.return(undefined); }
+                catch (error) { failures.push(error); }
+            }
+            try { await this.closeScope(); }
+            catch (error) { failures.push(error); }
+            if (failures.length) throw new AggregateError(failures, 'Observable subscription cleanup failed');
+        })();
         return this.#closed;
     }
 
-    /** Stream results in order, rendering each snapshot through the query pipeline. */
-    async *results(): AsyncGenerator<QueryResult> {
+    /** Report a transport or serialization failure through the configured server logger. */
+    reportTransportFailure(error: unknown): Promise<void> { return this.config.reportFailure(error); }
+
+    /** A subscription has exactly one consumer; subsequent calls cannot open another source. */
+    results(): AsyncGenerator<QueryResult> {
+        if (this.#streamOpened) throw new Error('Observable query results already consumed');
+        this.#streamOpened = true;
+        const iterator = this.streamResults();
+        this.#activeIterator = iterator;
+        return iterator;
+    }
+
+    private async *streamResults(): AsyncGenerator<QueryResult> {
         try {
             if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal)) {
-                const result = await this.run(() => this.operation.render(this.input, this.#context, this.options, value));
+                const result = await this.run(() => this.config.operation.render(this.config.input,
+                    this.#context, this.config.options, value));
+                await this.reportResult(result);
                 const guarded = await this.guarded(result);
                 if (!guarded) continue;
                 yield this.redact(guarded);
+                if (guarded.isSuccess) this.#firstEmissionDelivered = true;
                 if (!guarded.isAuthorized || guarded.hasExceptions || !guarded.isValid) return;
             }
         } catch (error) {
-            if (!this.#context.signal.aborted) yield queryResult(this.#context, {
-                exceptionMessages: [this.development ? String(error) : 'An unexpected error occurred']
-            });
-        } finally {
-            await this.close();
-        }
+            if (!this.#context.signal.aborted) {
+                await this.config.reportFailure(error);
+                yield queryResult(this.#context, { exceptionMessages: [this.config.development
+                    ? String(error) : 'An unexpected error occurred'] });
+            }
+        } finally { await this.closeScope(); }
+    }
+
+    private closeScope(): Promise<void> {
+        if (this.#scopeClosed) return this.#scopeClosed;
+        this.#scopeClosed = this.#scope.dispose().finally(this.config.onClose);
+        return this.#scopeClosed;
+    }
+
+    private async reportResult(result: QueryResult): Promise<void> {
+        if (hasFailure(result)) await this.config.reportFailure(originalFailure(result));
     }
 
     private redact(result: QueryResult): QueryResult {
-        return this.development || !result.hasExceptions ? result : {
+        return this.config.development || !result.hasExceptions ? result : {
             ...result, exceptionMessages: ['An unexpected error occurred'], exceptionStackTrace: ''
         };
     }
 
     private async guarded(result: QueryResult): Promise<QueryResult | undefined> {
-        if (!result.isSuccess || !this.guards.length) return result;
+        if (!result.isSuccess || !this.config.guards.length) return result;
         try {
             const decision = await this.run(async () => {
-                this.#scope.registry.preflight(this.guards);
+                this.#scope.registry.preflight(this.config.guards);
                 let mostRestrictive = ObservableEmissionDecision.Allow;
-                for (const token of this.guards) {
+                const identity = Object.freeze({ ...this.#context,
+                    principal: this.#context.principal ? structuredClone(this.#context.principal) : undefined });
+                const emission: ObservableEmissionContext = Object.freeze({
+                    queryName: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.'),
+                    input: structuredClone(this.config.input), data: structuredClone(result.data),
+                    context: identity, isFirstEmission: !this.#firstEmissionDelivered, signal: this.#context.signal
+                });
+                for (const token of this.config.guards) {
                     const policy = await this.#scope.resolve(token);
-                    const identity = Object.freeze({ ...this.#context,
-                        principal: this.#context.principal ? structuredClone(this.#context.principal) : undefined });
-                    const outcome = await policy.check(structuredClone(this.input), structuredClone(result.data), identity);
+                    const outcome = await policy.check(emission);
                     if (outcome === ObservableEmissionDecision.DenyAndTerminate) return outcome;
                     if (outcome === ObservableEmissionDecision.Suppress) mostRestrictive = outcome;
                     else if (outcome !== ObservableEmissionDecision.Allow) throw new Error('Invalid observable emission decision');
@@ -120,13 +168,13 @@ export class ObservableQuerySession {
             });
             if (decision === ObservableEmissionDecision.Allow) return result;
             if (decision === ObservableEmissionDecision.Suppress) return undefined;
-        } catch {
-            // An unknown guard result, resolution failure or thrown policy must never publish data.
-        }
+            await this.config.reportFailure(new Error('Observable emission denied by policy'));
+        } catch (error) { await this.config.reportFailure(error); }
         return queryResult(this.#context, { isAuthorized: false });
     }
 
     private run<T>(callback: () => Promise<T>): Promise<T> {
-        return this.services.runExecution(() => requestContext.run(this.#context, () => withServices(this.#scope, callback)));
+        return this.config.services.runExecution(() => requestContext.run(this.#context,
+            () => withServices(this.#scope, callback)));
     }
 }

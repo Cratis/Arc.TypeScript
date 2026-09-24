@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.server';
 import { mountExpress } from '@cratis/arc.server.express';
 
-const numbers = new CurrentValueSubject<number[]>({ hasValue: true, value: [1] });
+const numbers = new CurrentValueSubject<number[]>([1]);
 const query = defineObservableQuery({
     name: 'Numbers',
     schema: z.object({}),
@@ -38,7 +38,7 @@ process.once('SIGINT', () => {
 
 Run `node --experimental-strip-types observable.ts` with Node.js 26 in the workspace. Then run `curl http://127.0.0.1:3000/api/numbers`. You receive a 200 query-result envelope with `data: [1]` (or a later number). If you construct `new CurrentValueSubject<number[]>()` instead, the same GET returns 202 with `isReady: false` until the first publication. A current value is explicitly tagged so even `undefined` can be distinguished from no value.
 
-The source can also be an `AsyncIterable<T>` or an object with an RxJS-compatible `subscribe({ next, error, complete })` method returning an unsubscribe handle. Arc does not require RxJS at runtime. The `observe` callback runs after authorization and validation and may resolve services through `currentServices()`. Its `context.signal` is canceled when the subscription ends. Each subscription owns its own service scope; do not reuse scoped service instances across subscriptions. For per-emission authorization, register `ServiceToken<ObservableEmissionGuard>` services and list their tokens in `observableEmissionGuards`. Return `ObservableEmissionDecision.Allow`, `Suppress`, or `DenyAndTerminate`. A thrown guard denies and ends the subscription, including when evaluating a current HTTP snapshot.
+The source can also be an `AsyncIterable<T>` or an object with an RxJS-compatible `subscribe({ next, error, complete })` method returning an unsubscribe handle. A behavior subject exposing `getValue()` or `value` also supplies HTTP snapshots. Arc does not require RxJS at runtime. The `observe` callback runs after authorization and validation and may resolve services through `currentServices()`. Its `context.signal` is canceled when the subscription ends. Each subscription owns its own service scope; do not reuse scoped service instances across subscriptions. For per-emission authorization, register `ServiceToken<ObservableEmissionGuard>` services and list their tokens in `observableEmissionGuards`. Return `ObservableEmissionDecision.Allow`, `Suppress`, or `DenyAndTerminate`. A thrown guard denies and ends the subscription, including when evaluating a current HTTP snapshot.
 
 ## Subscribe to direct SSE
 
@@ -52,6 +52,6 @@ stream.onmessage = event => console.log(JSON.parse(event.data).data);
 
 The first message contains the current `[n]`, then a new full snapshot arrives once per second. A direct SSE frame is `data: <query result JSON>\n\n`, not a hub envelope. The installed `@cratis/arc` client can use this route when its global transport is set to direct Server-Sent Events; no client changes are needed. To generate an `ObservableQueryFor` proxy, declare an explicit `clientOutput` contract on the definition before calling `exportClientManifest(server)`. The generated proxy supplies the exact fully qualified query name; its `subscribe()` uses the installed client runtime. The verified generated-client test uses an array of flat DTOs over direct SSE, not a hub. Browser EventSource cannot supply arbitrary authentication headers: use your host's trusted cookie/session authentication instead of treating the `.cratis-identity` display cookie as a credential.
 
-For a pending source, `GET /api/numbers?waitForFirstResult=true` waits for its first emission. The default wait is 30 seconds; `waitForFirstResultTimeout` accepts a positive number of seconds up to 120. A timeout answers 408; completion before the first value answers 500. Without waiting, a pending source answers 202, not a failure. Invalid wait options answer 400. Arc on .NET currently accepts larger timeout values; this server bounds them to avoid retaining unlimited subscriptions.
+For a pending source, `GET /api/numbers?waitForFirstResult=true` waits for its first emission. The default wait is 30 seconds; `waitForFirstResultTimeout` accepts a positive number of seconds up to 120. A timeout answers 408; completion before the first value answers 500. Without waiting, a pending source answers 202, not a failure. Invalid wait options answer 400. Booleans are case-insensitive (`True` works); unlike .NET, an unrecognized boolean is rejected rather than ignored. Arc on .NET currently accepts larger timeout values; this server bounds them to avoid retaining unlimited subscriptions. A 408 timeout and a 500 completed-without-value response retain their protocol-specific messages in production.
 
 See [Capability reference](../reference/capabilities.md) for the remaining transport gaps, and [Bind query arguments](queries.md) for paging and sorting of emitted arrays.

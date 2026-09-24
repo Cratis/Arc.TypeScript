@@ -9,9 +9,15 @@ export class CurrentValueSubject<T> implements Subscribable<T> {
     readonly #observers = new Set<ObservableObserver<T>>();
     #value: CurrentValue<T> = { hasValue: false };
     #closed = false;
+    #failure: unknown;
+    #hasFailure = false;
 
-    constructor(initial?: CurrentValue<T>) {
-        if (initial) this.#value = initial;
+    constructor(initial?: T | CurrentValue<T>) {
+        if (!arguments.length) return;
+        if (initial !== null && typeof initial === 'object' && 'hasValue' in initial &&
+            typeof initial.hasValue === 'boolean' && (!initial.hasValue || 'value' in initial))
+            this.#value = initial as CurrentValue<T>;
+        else this.#value = { hasValue: true, value: initial as T };
     }
 
     /** An explicit presence marker distinguishes pending from a present undefined. */
@@ -36,6 +42,8 @@ export class CurrentValueSubject<T> implements Subscribable<T> {
     error(error: unknown): void {
         if (this.#closed) return;
         this.#closed = true;
+        this.#failure = error;
+        this.#hasFailure = true;
         for (const observer of this.#observers) observer.error(error);
         this.#observers.clear();
     }
@@ -43,7 +51,8 @@ export class CurrentValueSubject<T> implements Subscribable<T> {
     /** Subscribe with a current-value replay, matching a behavior subject. */
     subscribe(observer: ObservableObserver<T>): { unsubscribe(): void } {
         if (this.#closed) {
-            observer.complete();
+            if (this.#hasFailure) observer.error(this.#failure);
+            else observer.complete();
             return { unsubscribe() {} };
         }
         this.#observers.add(observer);

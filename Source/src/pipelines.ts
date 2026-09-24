@@ -3,9 +3,9 @@
 import { z } from 'zod';
 import type { CommandDefinition, CommandResult, ExecutionContext, QueryDefinition, QueryResult, ValidationResult } from './contracts.js';
 import { isOutcome } from './Outcome.js';
-import { isQueryPage } from './QueryPage.js';
 import { authorized } from './security.js';
-import { commandResult, emptyPaging, malformed, queryResult } from './results.js';
+import { commandResult, malformed, queryResult } from './results.js';
+import { renderQueryData } from './queryRendering.js';
 import type { Operation } from './operation.js';
 import { recordFailure } from './failures.js';
 import { currentServices } from './ServiceScope.js';
@@ -34,14 +34,6 @@ async function validate<T>(filters: readonly (((input: T, context: ExecutionCont
 }
 function validatorFailure(): ValidationResult[] {
     return [{ severity: 3, message: 'Validation failed', members: [], reason: 'validatorFailed' }];
-}
-function compareValues(a: unknown, b: unknown): number {
-    if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
-    if (a == null || b == null) return a == null ? b == null ? 0 : -1 : 1;
-    if (typeof a === 'number' && typeof b === 'number') return a - b;
-    if (typeof a === 'bigint' && typeof b === 'bigint') return a < b ? -1 : a > b ? 1 : 0;
-    if (typeof a === 'boolean' && typeof b === 'boolean') return Number(a) - Number(b);
-    return String(a).localeCompare(String(b));
 }
 export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string): Operation {
     return {
@@ -138,7 +130,8 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
         .filter(([, field]) => !field.safeParse(undefined).success).map(([name]) => name);
     return json;
 }
-export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string): Operation {
+export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
+    observable = false): Operation {
     return {
         ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
@@ -161,40 +154,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 if (issues.length) return queryResult(context, { validationResults: issues });
                 await prepareDependencies(definition.handlerDependencies);
                 const data = await definition.perform(value, context, options);
-                if (isQueryPage(data)) {
-                    const items = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data.items) as typeof data.items : data.items;
-                    const page = options.paging?.page ?? 0;
-                    const size = options.paging?.pageSize ?? 0;
-                    if (options.sorting || (!size && items.length !== data.totalItems) ||
-                        size && items.length !== Math.min(size, Math.max(0, data.totalItems - page * size)))
-                        return queryResult(context, { validationResults: malformed(context) });
-                    return queryResult(context, { data: items, paging: size ? { page, size, totalItems: data.totalItems, totalPages: Math.ceil(data.totalItems / size) } : emptyPaging() });
-                }
-                if (Array.isArray(data)) {
-                    const wire = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data) as typeof data : data;
-                    const sorted = [...wire];
-                    if (options.sorting) {
-                        const { field, direction } = options.sorting;
-                        if (sorted.some((item: unknown) => {
-                            if (!item || typeof item !== 'object') return true;
-                            return !Object.hasOwn(item, field);
-                        }))
-                            return queryResult(context, { validationResults: malformed(context) });
-                        sorted.sort((left: unknown, right: unknown) => {
-                            const a = left && typeof left === 'object' ? Reflect.get(left, field) as unknown : undefined;
-                            const b = right && typeof right === 'object' ? Reflect.get(right, field) as unknown : undefined;
-                            const comparison = compareValues(a, b);
-                            return direction === 'asc' ? comparison : -comparison;
-                        });
-                    }
-                    const page = options.paging?.page ?? 0;
-                    const size = options.paging?.pageSize ?? 0;
-                    const paging = size ? { page, size, totalItems: sorted.length, totalPages: Math.ceil(sorted.length / size) } : emptyPaging();
-                    return queryResult(context, { data: (size ? sorted.slice(page * size, (page + 1) * size) : sorted) as T, paging });
-                }
-                if (options.paging || options.sorting) return queryResult(context, { validationResults: malformed(context) });
-                const wire = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data) : data;
-                return queryResult(context, { data: wire });
+                return observable ? queryResult(context, { data }) : renderQueryData(definition, data, context, options);
             } catch (error) {
                 const failure = queryResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', ...(error instanceof ServiceDependencyError ? { validationResults: dependencyFailure(error) } : {}) });
                 recordFailure(failure, error);

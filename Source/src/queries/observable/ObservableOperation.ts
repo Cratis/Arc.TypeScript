@@ -6,6 +6,9 @@ import type { QueryOptions } from '../../QueryOptions.js';
 import type { QueryResult } from '../../QueryResult.js';
 import type { Operation } from '../../operation.js';
 import { queryOperation } from '../../pipelines.js';
+import { renderQueryData } from '../../queryRendering.js';
+import { queryResult } from '../../results.js';
+import { recordFailure } from '../../failures.js';
 import type { ObservableQueryDefinition } from './ObservableQueryDefinition.js';
 import type { ObservableSource } from './ObservableSource.js';
 
@@ -16,19 +19,23 @@ export interface ObservableOperation extends Operation {
 }
 
 export function observableOperation<S extends z.ZodType, T>(definition: ObservableQueryDefinition<S, T>, route: string): ObservableOperation {
-    const startup = queryOperation({ ...definition, clientOutput: undefined, perform: definition.observe }, route);
+    const startup = queryOperation({ ...definition, clientOutput: undefined, perform: definition.observe }, route, true);
     return {
         ...startup, clientOutput: definition.clientOutput, observable: true,
-        async run(input, context): Promise<QueryResult> {
-            const result = await startup.run(input, context) as QueryResult<ObservableSource<T>>;
+        async run(input, context, options): Promise<QueryResult> {
+            const result = await startup.run(input, context, options) as QueryResult<ObservableSource<T>>;
             if (result.isSuccess && (!result.data || typeof result.data !== 'object' ||
                 !(Symbol.asyncIterator in result.data) && typeof Reflect.get(result.data, 'subscribe') !== 'function'))
                 throw new Error('Observable query producer must return an async iterable or subscribable');
             return result;
         },
-        async render(input, context, options, data): Promise<QueryResult> {
-            const renderer = queryOperation({ ...definition, perform: () => data as T }, route);
-            return renderer.run(input, context, options) as Promise<QueryResult>;
+        async render(_input, context, options, data): Promise<QueryResult> {
+            try { return renderQueryData(definition, data as T, context, options); }
+            catch (error) {
+                const result = queryResult(context, { exceptionMessages: [String(error)] });
+                recordFailure(result, error);
+                return result;
+            }
         }
     };
 }

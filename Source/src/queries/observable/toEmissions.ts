@@ -4,10 +4,26 @@ import type { ObservableSource } from './ObservableSource.js';
 import type { Subscribable } from './Subscribable.js';
 
 const maximumPending = 64;
+const cancellationTimeoutMs = 1000;
 const aborted = (): Error => new Error('Observable query subscription was canceled');
+
+async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
+    if (!iterator.return) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([
+            iterator.return(),
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('Observable source did not respond to cancellation')),
+                    cancellationTimeoutMs);
+            })
+        ]);
+    } finally { if (timer) clearTimeout(timer); }
+}
 
 /** Convert a structural observable or async iterable into a cancellable, bounded stream. */
 export async function* toEmissions<T>(source: ObservableSource<T>, signal: AbortSignal): AsyncGenerator<T> {
+    if (signal.aborted) return;
     if (Symbol.asyncIterator in source) {
         const iterator = (source as AsyncIterable<T>)[Symbol.asyncIterator]();
         try {
@@ -20,15 +36,14 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
                 if (next.done) return;
                 yield next.value;
             }
-        } finally {
-            await iterator.return?.();
-        }
+        } finally { await releaseIterator(iterator); }
         return;
     }
     const pending: T[] = [];
     let wake: (() => void) | undefined;
     let finished = false;
     let failure: unknown;
+    let unsubscribed = false;
     const notify = (): void => { wake?.(); wake = undefined; };
     const subscription = (source as Subscribable<T>).subscribe({
         next(value) {
@@ -42,8 +57,17 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
         error(error) { failure = error; finished = true; notify(); },
         complete() { finished = true; notify(); }
     });
-    const cancel = (): void => { finished = true; notify(); };
+    const unsubscribe = (): void => {
+        if (unsubscribed) return;
+        unsubscribed = true;
+        try {
+            if (typeof subscription === 'function') subscription();
+            else subscription.unsubscribe();
+        } catch (error) { failure = error; }
+    };
+    const cancel = (): void => { finished = true; unsubscribe(); notify(); };
     signal.addEventListener('abort', cancel, { once: true });
+    if (signal.aborted) cancel();
     try {
         while (!signal.aborted) {
             if (failure !== undefined) throw failure;
@@ -53,7 +77,6 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
         }
     } finally {
         signal.removeEventListener('abort', cancel);
-        if (typeof subscription === 'function') subscription();
-        else subscription.unsubscribe();
+        unsubscribe();
     }
 }
