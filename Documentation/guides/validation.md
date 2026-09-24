@@ -11,7 +11,7 @@ Arc for TypeScript is not published to npm. The validator API is implemented in 
 
 ## Add a command rule
 
-The [Tasks sample](../../Samples/Tasks/Features/Tasks/Registration/RegisterTaskValidator.ts) declares a validator beside `RegisterTask`:
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTaskValidator.ts) declares a validator beside `RegisterTask`:
 
 ```typescript
 import { CommandValidator, validator } from '@cratis/arc.core';
@@ -33,7 +33,7 @@ Send `{ "id": "<valid task UUID>", "title": "" }` to `POST /api/tasks/registrati
 
 ## Apply a concept rule everywhere
 
-When a value has rules wherever it appears, declare a `ConceptValidator`. The [sample title validator](../../Samples/Tasks/Features/Tasks/TaskTitleValidator.ts) uses `ruleFor(title => title.value)`; Arc traverses declared `@field` members and runs the concept validator on any encountered `TaskTitle`, including nested models and arrays. A failure inside `entries[]` reports `entries.title`, not an array index. The owning model's rule still runs independently. To omit only the *direct* member's concept validator, call `.ignoreConceptRules()` on its owner's `ruleFor(...)` chain; this does not stop descendant traversal.
+When a value has rules wherever it appears, declare a `ConceptValidator`. The [sample title validator](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/TaskTitleValidator.ts) uses `ruleFor(title => title.value)`; Arc traverses declared `@field` members and runs the concept validator on any encountered `TaskTitle`, including nested models and arrays. A failure inside `entries[]` reports `entries.title`, not an array index. The owning model's rule still runs independently. To omit only the *direct* member's concept validator, call `.ignoreConceptRules()` on its owner's `ruleFor(...)` chain; this does not stop descendant traversal.
 
 ## Check a query's arguments together
 
@@ -44,7 +44,7 @@ Give the query an `argumentsModel` with matching `@field` declarations, and targ
 static byTerm(term: SearchTerm): string { return term.value; }
 ```
 
-The [executable example](../../Source/Arc.Core/validation/for_ModelGraphValidator/given/Search.ts) shows the surrounding read model. The query model validator runs once, then Arc visits its fields for concept validators. Without an arguments model, the query validates each supplied non-null argument's concept graph under that argument name. Queries ignore `X-Allowed-Severity`.
+The [executable example](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Arc.Core/validation/for_ModelGraphValidator/given/Search.ts) shows the surrounding read model. The query model validator runs once, then Arc visits its fields for concept validators. Without an arguments model, the query validates each supplied non-null argument's concept graph under that argument name. Queries ignore `X-Allowed-Severity`.
 
 ## Use services or asynchronous rules
 

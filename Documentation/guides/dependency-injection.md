@@ -1,8 +1,9 @@
 ---
 title: Register model-bound services
+description: Register services with a lifetime, inject them into handlers, queries, and validators, and let the build check the dependency graph.
 ---
 
-The [Tasks sample](../../Samples/Tasks/main.ts) gives its command and queries one shared, in-memory repository:
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) gives its command and queries one shared, in-memory repository:
 
 ```typescript
 const builder = ArcApplication.createBuilder({ development: true });

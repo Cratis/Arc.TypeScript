@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.core-client-contract",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -10,15 +10,18 @@
     "@cratis/arc.fastify": "workspace:*",
     "@cratis/arc.hono": "workspace:*",
     "@cratis/arc.proxygenerator": "workspace:*",
+    "@cratis/arc.react": "22.19.1",
     "@cratis/fundamentals": "7.19.3",
     "@hono/node-server": "1.19.17",
     "express": "^5.1.0",
     "fastify": "^5.6.0",
     "hono": "^4.9.0",
+    "react": "18.3.1",
     "rxjs": "7.8.2",
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@types/react": "18.3.28",
     "typescript": "7.0.2"
   },
   "scripts": {

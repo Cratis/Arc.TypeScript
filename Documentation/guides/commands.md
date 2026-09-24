@@ -1,8 +1,9 @@
 ---
 title: Define model-bound commands
+description: Declare a command class with typed fields and a handle() method, prepare data in provide(), and control its route and access.
 ---
 
-Use a command to express a change. Arc binds its decorated fields before calling `handle()`, so the handler works with typed values rather than raw JSON. The [Tasks sample command](../../Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) is a complete, compiled example:
+Use a command to express a change. Arc binds its decorated fields before calling `handle()`, so the handler works with typed values rather than raw JSON. The [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) is a complete, compiled example:
 
 ```typescript
 @command()
