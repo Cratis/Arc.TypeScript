@@ -151,6 +151,14 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('administrator allowed command', 'POST', '/api/admin-echo', { value: 'ok' }, {
             status: 200, body: command(200, { response: { value: 'ok' } })
         }, { 'X-Fixture-Role': 'Admin' });
+        await parity('acronym names, numeric enums and named float literals', 'GET', '/api/http-metric', undefined, {
+            status: 200, body: query(200, { data: { HTTPCount: 'Infinity', recordedValue: 'NaN', state: 1 } })
+        });
+        for (const literal of ['NaN', 'Infinity', '-Infinity']) {
+            await parity(`named floating point input ${literal}`, 'POST', '/api/echo-metric', { value: literal }, {
+                status: 200, body: command(200, { response: { value: literal } })
+            });
+        }
         await parity('GET binds case-insensitive query argument', 'GET', '/api/items/by-id?ID=2', undefined, {
             status: 200, body: query(200, { data: { id: 2, name: 'Grace' } })
         });

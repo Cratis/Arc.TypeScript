@@ -33,6 +33,12 @@ const tupleEcho = defineCommand({
     name: 'TupleEcho', path: '/api/tuple-echo', schema: valueSchema, authorization: anonymous,
     handle: ({ value }) => tuple({ value }, rejected(validation('Cannot echo', ['value'])))
 });
+const echoMetric = defineCommand({
+    name: 'EchoMetric', path: '/api/echo-metric', schema: z.object({
+        value: z.union([z.number(), z.literal('NaN'), z.literal('Infinity'), z.literal('-Infinity')])
+    }), authorization: anonymous,
+    handle: ({ value }) => ({ value: Number(value) })
+});
 const throwFailure = defineCommand({
     name: 'ThrowFailure', path: '/api/throw-failure', schema: z.object({}), authorization: anonymous,
     handle: () => { throw new Error('Private fixture failure detail'); }
@@ -53,6 +59,10 @@ const privateItems = defineQuery({
     name: 'Private', namespace: 'FixtureItem', path: '/api/items/private', schema: z.object({}), authorization: admin,
     perform: () => [...items]
 });
+const httpMetric = defineQuery({
+    name: 'Current', namespace: 'HttpMetric', path: '/api/http-metric', schema: z.object({}), authorization: anonymous,
+    perform: () => ({ HTTPCount: Infinity, RecordedValue: NaN, State: 1 })
+});
 const authentication = request => {
     const role = request.headers.get('X-Fixture-Role');
     if (role === null) return { status: AuthenticationStatus.Anonymous };
@@ -62,7 +72,7 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, throwFailure, tupleEcho], queries: [echoCount, byId, all, privateItems],
+    commands: [echo, adminEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems, httpMetric],
     authentication: [authentication], development: false, segmentsToSkip: 1
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
