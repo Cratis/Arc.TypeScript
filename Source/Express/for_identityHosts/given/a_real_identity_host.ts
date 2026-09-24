@@ -16,18 +16,20 @@ import { cert, key } from '../../../Core/given/tls-fixture.js';
 type HostName = 'Express' | 'Fastify' | 'Hono';
 export const hosts: readonly HostName[] = ['Express', 'Fastify', 'Hono'];
 
-export async function socket(port: number, secure: boolean, path: string, headers: Record<string, string> = {}): Promise<{
+export async function socket(port: number, secure: boolean, path: string, headers: Record<string, string> = {},
+    method = 'GET', body?: string): Promise<{
     status: number; headers: IncomingMessage['headers']; body: string
 }> {
     return new Promise((resolve, reject) => {
-        const request = (secure ? httpsRequest : httpRequest)({ host: '127.0.0.1', port, path, method: 'GET', rejectUnauthorized: false, headers }, response => {
+        const request = (secure ? httpsRequest : httpRequest)({ host: '127.0.0.1', port, path, method, rejectUnauthorized: false, headers: body === undefined ? headers :
+            { ...headers, 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) } }, response => {
             let body = '';
             response.setEncoding('utf8');
             response.on('data', chunk => { body += chunk; });
             response.on('end', () => resolve({ status: response.statusCode!, headers: response.headers, body }));
         });
         request.on('error', reject);
-        request.end();
+        request.end(body);
     });
 }
 

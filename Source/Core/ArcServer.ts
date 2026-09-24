@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './index.js';
 import type { ArcServerOptions } from './ArcServerOptions.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
-import { encode } from './reflection/wireSchema.js';
+import { encode, objectSchema } from './reflection/wireSchema.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import { validateTenancy } from './tenancy/validateTenancy.js';
 import { handleRequest } from './http/handleRequest.js';
@@ -44,17 +44,21 @@ export class ArcServer {
     readonly #sessions: ObservableSessions;
 
     constructor(options: ArcServerOptions) {
-        this.options = options;
+        const detailsSchema = options.identityDetails?.schema ?? (options.identityDetails?.detailsType
+            ? objectSchema(options.identityDetails.detailsType) : undefined);
+        this.options = detailsSchema && options.identityDetails ? {
+            ...options, identityDetails: { ...options.identityDetails, schema: detailsSchema }
+        } : options;
         if (options.commandCompensationTimeoutMs !== undefined &&
             (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
                 options.commandCompensationTimeoutMs > 4_294_967_294))
             throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
         validateTenancy(options.tenancy);
         if (options.nativePrincipal && options.authentication?.length) throw new Error('Native principal and Arc authentication handlers cannot be combined');
-        if (options.identityDetails && (!(options.identityDetails.schema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function' || options.identityDetailsSchema))
+        if (options.identityDetails && (!(detailsSchema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function' || options.identityDetailsSchema))
             throw new Error('Identity details require a provider schema; legacy schema cannot be combined');
         if ((options.developmentUsers || options.developmentTenants) && !options.development) throw new Error('Discovery providers require development mode');
-        this.#identitySchema = options.identityDetails ? z.toJSONSchema(options.identityDetails.schema) : undefined;
+        this.#identitySchema = detailsSchema ? z.toJSONSchema(detailsSchema) : undefined;
         this.observableLimits = new ObservableLimits(options);
         if (options.allowedOrigins !== undefined && !Array.isArray(options.allowedOrigins) &&
             typeof options.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');

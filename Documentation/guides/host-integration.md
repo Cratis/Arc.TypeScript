@@ -137,7 +137,7 @@ Each bridge checks exact raw paths and the configured `allowedOrigins` before up
 | `/.cratis/queries/ws` | WS upgrade | Multiplexed WS query hub |
 | `/.cratis/queries/sse` and `/sse/subscribe`, `/sse/unsubscribe` | GET and authenticated POST | Multiplexed SSE stream and caller-bound controls |
 | `/.cratis/commands`, `/.cratis/queries` | GET | Command and query metadata, including the JSON Schema of each input |
-| `/.cratis/identity-details/schema` | GET | Provider Zod schema as JSON Schema, legacy `identityDetailsSchema`, or `{}` |
+| `/.cratis/identity-details/schema` | GET | Provider Zod or model-bound details type as JSON Schema, legacy `identityDetailsSchema`, or `{}` |
 | `/.cratis/me` | GET when `identityDetails` is set | 401 anonymous, 403 provider denied, 200 identity JSON with display cookie |
 | `/.cratis/users`, `/.cratis/tenants` | GET | `[]` by default; opt-in development discovery |
 | `/.cratis/queries/health` | GET and `QUERY` when opted in | Caller-scoped observable hub health; requires authentication |

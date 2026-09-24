@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
+import type { ArcServerOptions } from '../ArcServerOptions.js';
 import type { QueryDefinition, QueryResult, ValidationResult } from '../index.js';
 import { authorized } from '../authorization/authorized.js';
 import { queryResult } from '../results/queryResult.js';
@@ -20,11 +21,11 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
     return json;
 }
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
-    observable = false): Operation {
+    observable = false, serverOptions: ArcServerOptions = {}): Operation {
     return {
         ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
-            if (!authorized(definition.authorization, context)) return queryResult(context, { isAuthorized: false });
+            if (!await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
             if (!parsed.success) return queryResult(context, { validationResults: malformed(context) });
             try {

@@ -4,6 +4,10 @@
   href: getting-started.md
 - name: Guides
   href: guides/toc.yml
+- name: Identity and authorization
+  href: identity/toc.yml
+- name: Tenancy
+  href: tenancy/toc.yml
 - name: Architecture
   href: explanation/architecture.md
 - name: Reference
