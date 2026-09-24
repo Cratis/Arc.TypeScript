@@ -7,9 +7,6 @@
   },
   "dependencies": {
     "@cratis/arc.core": "workspace:^",
-    "@cratis/fundamentals": "7.19.3",
-    "@hono/node-server": "^1.19.0",
-    "hono": "^4.10.0",
-    "zod": "^4.1.0"
+    "@cratis/fundamentals": "7.19.3"
   }
 }

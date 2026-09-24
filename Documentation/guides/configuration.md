@@ -46,8 +46,7 @@ const byId = defineQuery({
 export const arc = new ArcServer({
     commands: [create],
     queries: [byId],
-    prefix: 'api',
-    segmentsToSkip: 1,
+    generatedApis: { routePrefix: 'api', segmentsToSkipForRoute: 1 },
     maxBodyBytes: 64 * 1024,
     authentication: [developmentUser],
     resolveTenant: (_request, principal) => principal ? tenantsByUser.get(principal.id) : undefined,
@@ -62,8 +61,8 @@ This server serves `POST /api/tasks/create-task`, `POST /api/tasks/create-task/v
 
 Arc builds a route from the prefix, the namespace, and the name:
 
-1. Start with `prefix`, which defaults to `api`. Set it to an empty string to serve routes without a prefix. A prefix may contain letters, digits, `_`, `-`, and `/` between segments.
-2. Split `namespace` on dots and drop the first `segmentsToSkip` segments. `Acme.Tasks` with `segmentsToSkip: 1` leaves `Tasks`.
+1. Start with `generatedApis.routePrefix`, which defaults to `api`. Set it to an empty string to serve routes without a prefix. A prefix may contain letters, digits, `_`, `-`, and `/` between segments.
+2. Split `namespace` on dots and drop the first `generatedApis.segmentsToSkipForRoute` segments. `Acme.Tasks` with `segmentsToSkipForRoute: 1` leaves `Tasks`.
 3. Convert each remaining namespace segment and the name to kebab case. Acronyms stay together: `CreateTask` becomes `create-task`, `HTTPReader` becomes `http-reader`, and `_` becomes `-`.
 
 Each command also gets a validation route: its registered route followed by `/validate`. A command whose own route ends in `/validate`, such as one named `Validate`, still executes on that route.
@@ -75,7 +74,7 @@ To choose a route yourself, set `path` on the definition. The path must start wi
 The `ArcServer` constructor throws, so the process fails at startup instead of serving a weakened contract, when:
 
 - a name or any namespace segment does not start with a letter or contains anything but letters, digits, and `_`. This applies even when `path` is set;
-- a `path` or `prefix` is unsafe, or `segmentsToSkip` is not a non-negative integer;
+- a `path` or `routePrefix` is unsafe, or `segmentsToSkipForRoute` is not a non-negative integer;
 - `maxBodyBytes` or any observable resource bound is not a positive safe integer, such as `0`, a fraction, `NaN`, or `Infinity` (the keep-alive interval alone also accepts zero);
 - `allowedOrigins` is not a list of exact `http`/`https` origins or a predicate;
 - two operations share a namespace and name, compared case-insensitively;
@@ -173,8 +172,8 @@ With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticat
 | `observableEmissionGuards` | `ServiceToken<ObservableEmissionGuard>[]` | `[]` | Scoped policies checked before each observable emission |
 | `enableObservableHealth` | `boolean` | `false` | Caller-scoped hub health query, authenticated only |
 | `allowedOrigins` | `string[] \| (origin, request, native) => boolean \| Promise<boolean>` | Same-origin | Browser Origin policy for WS upgrades and SSE hub controls; an explicit list replaces the default |
-| `prefix` | `string` | `'api'` | First route segments; empty for none |
-| `segmentsToSkip` | `number` | `0` | Leading namespace segments left out of routes |
+| `generatedApis` | `{routePrefix?: string, segmentsToSkipForRoute?: number, includeCommandNameInRoute?: boolean, includeQueryNameInRoute?: boolean}` | `{ routePrefix: 'api', segmentsToSkipForRoute: 0, includeCommandNameInRoute: true, includeQueryNameInRoute: true }` | Convention-based route configuration |
+| `prefix`, `segmentsToSkip`, `includeCommandNameInRoute`, `includeQueryNameInRoute` | Legacy aliases | As in `generatedApis` | Deprecated flat options; explicit nested options take precedence |
 | `enableQueryMethod` | `boolean` | `true` | Accept the `QUERY` method on query routes |
 | `maxBodyBytes` | `number` | `1048576` | Largest accepted request body; must be a positive safe integer |
 | `maxObservableSubscriptions` / `maxObservableSubscriptionsPerCaller` | `number` | `4096` / `4096` | Live and opening subscriptions globally / per principal or anonymous connection/address; set a lower caller cap for public hosts |

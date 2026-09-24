@@ -15,6 +15,8 @@ This excerpt assumes the `Tasks` class and an import of `ArcApplication` from `@
 
 Put `@inject(Tasks)` on a command's `handle(tasks: Tasks)` and `service(Tasks)` in a query's ordered `@query(...)` parameter descriptors. Arc resolves services within the HTTP or direct-call execution scope. For constructor dependencies on a registered class, use `@injectable(OtherService)` or `static inject = [OtherService] as const`. You can also decorate a discovered service class with `@singleton()`, `@scoped()`, or `@transient()` to register itself; without one of those, add it explicitly to `builder.services`.
 
+Standard decorator signatures also check `@inject(...)` and `@query(...)` parameter types. TypeScript error TS1241 (“Unable to resolve signature of method decorator”) usually means the declared method parameters do not match the decorator: check the service token order and include the `provide()` result as the first `handle()` argument. A wrongly placed decorator can also fail at `builder.build()` rather than silently doing nothing.
+
 There are two tested decorator modes:
 
 - **Standard decorators (recommended in this sample):** list tokens explicitly. A compiler cannot reflect erased TypeScript parameter types.

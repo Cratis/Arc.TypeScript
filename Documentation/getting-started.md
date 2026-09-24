@@ -22,7 +22,7 @@ yarn build
 yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
-Leave the server running. In another terminal, register a task using any valid UUID:
+`app.run()` keeps the server running until Ctrl+C (SIGINT), SIGTERM, or an explicit `app.stop()`, then closes gracefully. Leave the server running. In another terminal, register a task using any valid UUID:
 
 ```bash
 curl -X POST http://127.0.0.1:3000/api/tasks/registration/register-task \
@@ -45,7 +45,7 @@ The first result's `data` contains an array with `{ "id": "1a638f8e-4444-4444-88
 
 [`RegisterTask.ts`](../Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) declares the command fields with Fundamentals `@field` and puts the work in `handle()`. [`TaskItem.ts`](../Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) declares a read model and its static `allTasks`, `taskById`, and observable `observeAllTasks` queries. Both depend on the same [`Tasks` service](../Samples/Tasks/Features/Tasks/Tasks.ts), which stores the items in memory. `TaskId` and `TaskTitle` are `ConceptAs` values, so the handler receives domain values while the wire carries strings.
 
-[`main.ts`](../Samples/Tasks/main.ts) registers the singleton `Tasks` service, discovers decorated artifacts under `Features/`, builds the application, and starts its standalone Node host. Arc derives route namespace segments from folders below that discovery root; moving an artifact changes its route unless you give it an explicit namespace and path.
+[`main.ts`](../Samples/Tasks/main.ts) registers the singleton `Tasks` service, discovers decorated artifacts under `Features/`, builds the application, and starts its standalone Node host. Arc derives route namespace segments from folders below that discovery root; moving an artifact changes its route unless you give it an explicit namespace and `@path()` override.
 
 `POST <command-route>/validate` runs binding and validation without calling `handle()`:
 

@@ -88,9 +88,6 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/fundamentals": "npm:7.19.3"
-    "@hono/node-server": "npm:^1.19.0"
-    hono: "npm:^4.10.0"
-    zod: "npm:^4.1.0"
   languageName: unknown
   linkType: soft
 
@@ -572,7 +569,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hono/node-server@npm:1.19.17, @hono/node-server@npm:^1.19.0, @hono/node-server@npm:^1.19.11":
+"@hono/node-server@npm:1.19.17, @hono/node-server@npm:^1.19.11":
   version: 1.19.17
   resolution: "@hono/node-server@npm:1.19.17"
   peerDependencies:

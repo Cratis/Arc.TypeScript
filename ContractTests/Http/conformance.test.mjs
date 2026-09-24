@@ -96,6 +96,14 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('model-bound query binds a named GET argument', 'GET', '/api/model-bound-title?TITLE=readable', undefined, {
             status: 200, body: query(200, { data: { title: 'readable' } })
         });
+        await parity('conventional model-bound query binds GUID', 'GET',
+            '/api/by-id?id=11111111-1111-4111-8111-111111111111', undefined, {
+                status: 200, body: query(200, { data: { value: correlationId } })
+            });
+        await divergence('invalid conventional GUID: .NET binds Guid.Empty, TypeScript rejects', 'GET',
+            '/api/by-id?id=not-a-guid', undefined,
+            { status: 200, body: query(200, { data: { value: '00000000-0000-0000-0000-000000000000' } }) },
+            { status: 400, body: query(400, { validationResults: [malformedTypeScript] }) });
         await count('initial handler count is zero', 0);
         await parity('valid /validate does not produce a response', 'POST', '/api/echo-value/validate', { value: 'ok' }, {
             status: 200, body: command(200)
