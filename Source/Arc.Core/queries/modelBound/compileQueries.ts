@@ -3,9 +3,13 @@
 import { z } from 'zod';
 import type { CompiledQuery } from './CompiledQuery.js';
 import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentifier.js';
-import { reflectedParameters, resolveAll } from '../../reflection/dependencies.js';
+import { reflectedParameters } from '../../reflection/reflectedParameters.js';
+import { resolveAll } from '../../reflection/resolveAll.js';
 import { encodeObservable } from './encodeObservable.js';
-import { ownMetadata, type ClassType, type Parameter, type WireType } from '../../reflection/metadata.js';
+import { ownMetadata } from '../../reflection/ownMetadata.js';
+import type { ClassType } from '../../reflection/ClassType.js';
+import type { Parameter } from './Parameter.js';
+import type { WireType } from '../../reflection/WireType.js';
 import type { QueryMetadata } from './QueryMetadata.js';
 import { decode, encode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';

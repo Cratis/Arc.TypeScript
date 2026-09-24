@@ -1,7 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { fieldsFor } from './wireSchema.js';
-import { ownMetadata, type ClassType, type WireType } from './metadata.js';
+import { ownMetadata } from './ownMetadata.js';
+import type { ClassType } from './ClassType.js';
+import type { WireType } from './WireType.js';
 
 /** Refuse decorators on declarations that would not affect an endpoint. */
 export function validateMetadata(type: ClassType): void {

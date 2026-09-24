@@ -3,7 +3,9 @@
 import { ConceptAs, DateOnly, Fields, Guid, TimeOnly, TimeSpan, type Field } from '@cratis/fundamentals';
 import { z } from 'zod';
 import { isArcTuple } from '../results/ArcTuple.js';
-import { readFieldOptions, type FieldOptions, type WireType } from './metadata.js';
+import { readFieldOptions } from './readFieldOptions.js';
+import type { FieldOptions } from './FieldOptions.js';
+import type { WireType } from './WireType.js';
 import type { WireField } from './WireField.js';
 const guidSchema = z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)
     .meta({ format: 'uuid' });

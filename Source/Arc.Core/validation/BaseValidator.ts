@@ -1,7 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs } from '@cratis/fundamentals';
-import { ownMetadata, type WireType } from '../reflection/metadata.js';
+import { ownMetadata } from '../reflection/ownMetadata.js';
+import type { WireType } from '../reflection/WireType.js';
 import { fieldsFor } from '../reflection/wireSchema.js';
 import { capturePath } from './capturePath.js';
 import { RuleBuilder } from './RuleBuilder.js';

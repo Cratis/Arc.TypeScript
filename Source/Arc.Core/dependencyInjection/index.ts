@@ -1,5 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+export { service } from './service.js';
+export { inject } from './inject.js';
+export { injectable } from './injectable.js';
+export { singleton } from './singleton.js';
+export { scoped } from './scoped.js';
+export { transient } from './transient.js';
 export { ServiceRegistry } from './ServiceRegistry.js';
 export { ServiceScope, currentServices } from './ServiceScope.js';
 export { ServiceDependencyError } from './ServiceDependencyError.js';

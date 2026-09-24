@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { argument, query, readModel } from '../../../../modelBound/decorators.js';
+import { argument } from '../../argument.js';
+import { query } from '../../query.js';
+import { readModel } from '../../readModel.js';
 import { compileQueries } from '../../compileQueries.js';
 
 @readModel()

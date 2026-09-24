@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { injectable } from '../../../modelBound/decorators.js';
+import { injectable } from '../../../dependencyInjection/injectable.js';
 import { ConceptValidator } from '../../ConceptValidator.js';
 import { validator } from '../../validator.js';
 import { Name } from './Name.js';

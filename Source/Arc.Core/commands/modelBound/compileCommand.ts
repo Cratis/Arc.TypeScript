@@ -3,8 +3,11 @@
 import { z } from 'zod';
 import type { CommandDefinition } from '../CommandDefinition.js';
 import { isOutcome, response } from '../../results/Outcome.js';
-import { reflectedParameters, resolveAll } from '../../reflection/dependencies.js';
-import { ownMetadata, type ClassType, type WireType } from '../../reflection/metadata.js';
+import { reflectedParameters } from '../../reflection/reflectedParameters.js';
+import { resolveAll } from '../../reflection/resolveAll.js';
+import { ownMetadata } from '../../reflection/ownMetadata.js';
+import type { ClassType } from '../../reflection/ClassType.js';
+import type { WireType } from '../../reflection/WireType.js';
 import { decode, encode, objectSchema } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 import type { CompiledCommand } from './CompiledCommand.js';

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './index.js';
 import type { ArcServerOptions } from './ArcServerOptions.js';
-import { ownMetadata } from './reflection/metadata.js';
+import { ownMetadata } from './reflection/ownMetadata.js';
 import { encode } from './reflection/wireSchema.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import { validateTenancy } from './tenancy/validateTenancy.js';

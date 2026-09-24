@@ -1,8 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ClassType } from './metadata.js';
+import type { ClassType } from './ClassType.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
-import { currentServices } from '../dependencyInjection/ServiceScope.js';
 
 interface ReflectMetadata { getMetadata(key: string, target: object, member?: string): unknown }
 /** Infer class-valued legacy decorator dependencies from emitted metadata. */
@@ -18,8 +17,4 @@ export function reflectedParameters(type: ClassType | object, member: string, co
         typeof token !== 'function' || token === Object || token === Function || token === Array))
         throw new Error(`Unresolvable parameter on ${owner}.${member}; use explicit tokens`);
     return tokens as ServiceIdentifier<unknown>[];
-}
-/** Resolve ordered service tokens in the current execution scope. */
-export async function resolveAll(tokens: readonly ServiceIdentifier<unknown>[]): Promise<unknown[]> {
-    return Promise.all(tokens.map(token => currentServices().resolve(token)));
 }

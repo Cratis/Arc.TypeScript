@@ -3,7 +3,8 @@
 import { ConceptAs } from '@cratis/fundamentals';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import { fieldsFor } from '../reflection/wireSchema.js';
-import type { ClassType, WireType } from '../reflection/metadata.js';
+import type { ClassType } from '../reflection/ClassType.js';
+import type { WireType } from '../reflection/WireType.js';
 import type { ValidationResult } from './ValidationResult.js';
 import { BaseValidator } from './BaseValidator.js';
 import { evaluateRule } from './evaluateRule.js';
