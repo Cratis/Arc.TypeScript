@@ -1,0 +1,42 @@
+{
+  "name": "@cratis/arc.drizzle",
+  "version": "0.11.0",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Tenant-scoped Drizzle SQL queries for Arc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "Source/Drizzle"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@cratis/arc.core": "^0.11.0",
+    "@cratis/fundamentals": "^7.19.3",
+    "drizzle-orm": "^0.45.0"
+  },
+  "devDependencies": {
+    "@cratis/arc.core": "workspace:^",
+    "@cratis/fundamentals": "7.19.3",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/pg": "^8.0.0",
+    "better-sqlite3": "^12.0.0",
+    "drizzle-orm": "^0.45.0",
+    "pg": "^8.0.0"
+  }
+}
