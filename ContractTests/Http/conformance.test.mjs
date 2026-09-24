@@ -34,7 +34,7 @@ test('published .NET and built TypeScript HTTP contract', async t => {
     });
     let typescript;
     try {
-        assert.equal(dotnet.readiness.package, 'Cratis.Arc 22.22.0', 'published .NET reference package');
+        assert.equal(dotnet.readiness.package, 'Cratis.Arc 22.23.0', 'published .NET reference package');
         assert.equal(dotnet.readiness.runtime, '10.0.11', 'pinned .NET runtime');
         typescript = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'], {
             cwd: root, kind: 'typescript-http-fixture-ready'
@@ -102,6 +102,16 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('model-bound query binds a named GET argument', 'GET', '/api/model-bound-title?TITLE=readable', undefined, {
             status: 200, body: query(200, { data: { title: 'readable' } })
         });
+        await divergence('numeric concept query argument: .NET fixture returns 500, TypeScript binds it', 'GET',
+            '/api/rate-lookup?RATE=12.5', undefined,
+            { status: 500, body: query(500, { exceptionMessages: ['An internal error occurred while processing the request. See server logs for details.'] }) },
+            { status: 200, body: query(200, { data: { value: 12.5 } }) });
+        await parity('observable current-value snapshot returns 200', 'GET', '/api/fixture-stream/current', undefined, {
+            status: 200, body: query(200, { data: { value: 'ready' } })
+        });
+        await parity('observable pending snapshot returns 202', 'GET', '/api/fixture-stream/pending', undefined, {
+            status: 202, body: query(202, { isReady: false })
+        });
         await parity('conventional model-bound query binds GUID', 'GET',
             '/api/by-id?id=11111111-1111-4111-8111-111111111111', undefined, {
                 status: 200, body: query(200, { data: { value: correlationId } })
@@ -154,6 +164,24 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('administrator allowed command', 'POST', '/api/admin-echo', { value: 'ok' }, {
             status: 200, body: command(200, { response: { value: 'ok' } })
         }, { 'X-Fixture-Role': 'Admin' });
+        await parity('named policy allows administrator command', 'POST', '/api/policy-echo', { value: 'ok' }, {
+            status: 200, body: command(200, { response: { value: 'ok' } })
+        }, { 'X-Fixture-Role': 'Admin' });
+        await parity('named policy denies Reader before command validation', 'POST', '/api/policy-echo', { value: '' }, {
+            status: 403, body: command(403)
+        }, { 'X-Fixture-Role': 'Reader' });
+        await parity('named policy denies Reader on validation-only route', 'POST', '/api/policy-echo/validate', { value: '' }, {
+            status: 403, body: command(403)
+        }, { 'X-Fixture-Role': 'Reader' });
+        await parity('named policy allows administrator query', 'GET', '/api/policy-items', undefined, {
+            status: 200, body: query(200, { data: { value: 'allowed' } })
+        }, { 'X-Fixture-Role': 'Admin' });
+        await parity('named policy denies Reader query', 'GET', '/api/policy-items', undefined, {
+            status: 403, body: query(403)
+        }, { 'X-Fixture-Role': 'Reader' });
+        await parity('error severity still blocks at Warning threshold', 'POST', '/api/admin-echo/validate', { value: '' }, {
+            status: 400, body: command(400, { validationResults: [rule] })
+        }, { 'X-Fixture-Role': 'Admin', 'X-Allowed-Severity': '2' });
         await parity('acronym names, numeric enums and named float literals', 'GET', '/api/http-metric', undefined, {
             status: 200, body: query(200, { data: { HTTPCount: 'Infinity', recordedValue: 'NaN', state: 1 } })
         });

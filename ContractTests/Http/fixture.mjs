@@ -3,7 +3,7 @@
 
 import express from 'express';
 import { z } from 'zod';
-import { ArcApplication, AuthenticationStatus, defineCommand, defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
+import { ArcApplication, AuthenticationStatus, CurrentValueSubject, defineCommand, defineObservableQuery, defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
 import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
 import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
@@ -13,6 +13,7 @@ import { FixtureRateValidator } from './modelBound/dist/FixtureRateValidator.js'
 import { GuidCommand } from './modelBound/dist/GuidCommand.js';
 import { GuidCommandValidator } from './modelBound/dist/GuidCommandValidator.js';
 import { HttpMetric } from './modelBound/dist/HttpMetric.js';
+import { PolicyItems, RateLookup } from './modelBound/dist/PolicyAndObservable.js';
 import { mountExpress } from '@cratis/arc.express';
 
 let executions = 0;
@@ -27,6 +28,12 @@ const echo = defineCommand({
 });
 const adminEcho = defineCommand({
     name: 'AdminEcho', path: '/api/admin-echo', schema: valueSchema, authorization: admin,
+    validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
+    handle: ({ value }) => ({ value })
+});
+const policyEcho = defineCommand({
+    name: 'PolicyEcho', path: '/api/policy-echo', schema: valueSchema,
+    authorization: { policy: 'FixtureAdmin', authenticated: true },
     validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
     handle: ({ value }) => ({ value })
 });
@@ -60,6 +67,14 @@ const privateItems = defineQuery({
     name: 'Private', namespace: 'FixtureItem', path: '/api/items/private', schema: z.object({}), authorization: admin,
     perform: () => [...items]
 });
+const currentStream = defineObservableQuery({
+    name: 'Current', namespace: 'FixtureStream', path: '/api/fixture-stream/current', schema: z.object({}), authorization: anonymous,
+    observe: () => CurrentValueSubject.of({ value: 'ready' })
+});
+const pendingStream = defineObservableQuery({
+    name: 'Pending', namespace: 'FixtureStream', path: '/api/fixture-stream/pending', schema: z.object({}), authorization: anonymous,
+    observe: () => new CurrentValueSubject()
+});
 const authentication = request => {
     const role = request.headers.get('X-Fixture-Role');
     if (role === null) return { status: AuthenticationStatus.Anonymous };
@@ -69,11 +84,13 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems],
-    authentication: [authentication], development: false, segmentsToSkip: 1
+    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems],
+    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, segmentsToSkip: 1
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
-    ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric);
+    ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
+    PolicyItems, RateLookup);
+builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));
 const arc = await builder.build();
 const app = express();
 mountExpress(app, arc);
