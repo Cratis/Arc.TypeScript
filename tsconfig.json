@@ -1,14 +1,27 @@
 {
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "composite": true,
+    "declaration": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true
+  },
   "files": [],
   "references": [
-    { "path": "Source" },
-    { "path": "CodeGeneration" },
-    { "path": "Integrations/Express" },
-    { "path": "Integrations/Fastify" },
-    { "path": "Integrations/Hono" },
-    { "path": "Integrations/Node" },
-    { "path": "Integrations/MongoDB" },
-    { "path": "Integrations/Chronicle" },
+    { "path": "Source/Arc.Core" },
+    { "path": "Source/Express" },
+    { "path": "Source/Fastify" },
+    { "path": "Source/Hono" },
+    { "path": "Source/MongoDB" },
+    { "path": "Source/Chronicle" },
+    { "path": "Source/Testing" },
+    { "path": "Source/Tools/ProxyGenerator" },
     { "path": "Samples/Tasks" }
   ]
 }

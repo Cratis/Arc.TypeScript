@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcServer, currentServices, defineCommand, defineQuery, serviceToken, validation } from '@cratis/arc.server';
+import { ArcServer, currentServices, defineCommand, defineQuery, serviceToken, validation } from '@cratis/arc.core';
 import { TaskRepository } from './TaskRepository.js';
-import { mountHono } from '@cratis/arc.server.hono';
+import { mountHono } from '@cratis/arc.hono';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';

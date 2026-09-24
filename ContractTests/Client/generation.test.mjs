@@ -13,11 +13,11 @@ import fastify from 'fastify';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
-import { ArcServer, AuthenticationStatus, defineCommand, defineQuery, exportClientManifest, queryPage } from '@cratis/arc.server';
-import { mountExpress } from '@cratis/arc.server.express';
-import { mountFastify } from '@cratis/arc.server.fastify';
-import { mountHono } from '@cratis/arc.server.hono';
-import { generateClient, renderClientManifest } from '@cratis/arc.server.codegen';
+import { ArcServer, AuthenticationStatus, defineCommand, defineQuery, exportClientManifest, queryPage } from '@cratis/arc.core';
+import { mountExpress } from '@cratis/arc.express';
+import { mountFastify } from '@cratis/arc.fastify';
+import { mountHono } from '@cratis/arc.hono';
+import { generateClient, renderClientManifest } from '@cratis/arc.proxygenerator';
 import { Paging, QueryHttpMethod, SortDirection, Sorting } from '@cratis/arc/queries';
 
 const root = resolve(import.meta.dirname, '../..');
@@ -110,9 +110,9 @@ test('resolved graph exports without executing callbacks and generates determini
     assert.equal(new Sales_CreateWidget().route, '/api/sales/create-widget');
     assert.equal(new Sales_GetWidgets().queryName, 'Sales.GetWidgets');
     const cliManifest = join(dir, 'manifest.json'); await writeFile(cliManifest, JSON.stringify(manifest));
-    await assert.rejects(access(join(dir, 'node_modules/.bin/arc-server-codegen')), { code: 'ENOENT' });
+    await assert.rejects(access(join(dir, 'node_modules/.bin/arc-proxygenerator')), { code: 'ENOENT' });
     // The fixture has no CLI bin link and its PATH cannot find the workspace bin.
-    const cli = spawnSync(process.execPath, [join(root, 'CodeGeneration/dist/cli.js'), cliManifest, output],
+    const cli = spawnSync(process.execPath, [join(root, 'Source/Tools/ProxyGenerator/dist/cli.js'), cliManifest, output],
         { cwd: dir, env: { ...process.env, PATH: dirname(process.execPath) }, encoding: 'utf8' });
     assert.equal(cli.error, undefined);
     assert.equal(cli.status, 0, cli.stderr);
@@ -319,7 +319,7 @@ test('concurrent edits to owned files abort generation rather than overwriting t
 
 test('enum arrays have array precedence in every generated type position', async () => {
     const enumArray = { kind: 'array', element: { kind: 'enum', values: ['a', 'b'] } };
-    const manifest = { product: '@cratis/arc.server', version: 1, operations: [
+    const manifest = { product: '@cratis/arc.core', version: 1, operations: [
         { id: 'PutStates', kind: 'command', route: '/states', methods: ['POST'], roles: [], authentication: 'default', dynamicAuthorization: false, input: [{ name: 'states', type: enumArray }], output: { kind: 'dto', name: 'States', fields: [{ name: 'states', type: enumArray }] } },
         { id: 'GetStates', kind: 'query', route: '/get-states', methods: ['GET'], queryName: 'GetStates', roles: [], authentication: 'default', dynamicAuthorization: false, input: [{ name: 'states', type: enumArray }], output: enumArray }
     ] };
@@ -433,7 +433,7 @@ test('missing, unsafe, contradictory, unsupported manifests and output hazards f
     await writeFile(startup, `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, 'bad');`);
     const malicious = join(dir, 'malicious.json');
     await writeFile(malicious, JSON.stringify({ ...manifest, startup }));
-    const rejected = spawnSync(process.execPath, [join(root, 'CodeGeneration/dist/cli.js'), malicious, output], { encoding: 'utf8' });
+    const rejected = spawnSync(process.execPath, [join(root, 'Source/Tools/ProxyGenerator/dist/cli.js'), malicious, output], { encoding: 'utf8' });
     assert.equal(rejected.error, undefined);
     assert.notEqual(rejected.status, 0);
     assert.match(rejected.stderr, /Client manifest root: unsupported product, version or structure/);
@@ -441,7 +441,7 @@ test('missing, unsafe, contradictory, unsupported manifests and output hazards f
     assert.deepEqual(await readdir(output), []);
     const oversized = join(dir, 'oversized.json');
     await writeFile(oversized, ' '.repeat(4 * 1024 * 1024 + 1));
-    const capped = spawnSync(process.execPath, [join(root, 'CodeGeneration/dist/cli.js'), oversized, output], { encoding: 'utf8' });
+    const capped = spawnSync(process.execPath, [join(root, 'Source/Tools/ProxyGenerator/dist/cli.js'), oversized, output], { encoding: 'utf8' });
     assert.equal(capped.error, undefined);
     assert.notEqual(capped.status, 0);
     assert.match(capped.stderr, /4 MiB input limit/);

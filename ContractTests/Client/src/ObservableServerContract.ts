@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Server } from 'node:http';
-import { attachNodeWebSockets, prepareObservableUpgrade, serveUpgradedSocket } from '@cratis/arc.server';
-import type { ArcServer, NativeRequestContext, NodeWebSocketLike } from '@cratis/arc.server';
+import { attachNodeWebSockets, prepareObservableUpgrade, serveUpgradedSocket } from '@cratis/arc.core';
+import type { ArcServer, NativeRequestContext, NodeWebSocketLike } from '@cratis/arc.core';
 
 /** Strict consumer compilation must not need a public ws type to reference host transports. */
 export function mount(host: Server, server: ArcServer): () => Promise<void> {

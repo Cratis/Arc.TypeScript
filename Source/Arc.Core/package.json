@@ -1,0 +1,38 @@
+{
+  "name": "@cratis/arc.core",
+  "version": "0.3.0",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Schema-backed CQRS command and query pipelines for Node.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "Source/Arc.Core"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "@cratis/arc.testing": "workspace:^"
+  },
+  "dependencies": {
+    "ws": "^8.21.3",
+    "zod": "^4.1.0"
+  }
+}

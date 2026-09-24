@@ -1,0 +1,37 @@
+{
+  "name": "@cratis/arc.proxygenerator",
+  "version": "0.3.0",
+  "description": "Deterministic manifest-based TypeScript clients for Arc Server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "Source/Tools/ProxyGenerator"
+  },
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "arc-proxygenerator": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@cratis/arc.core": "workspace:^"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

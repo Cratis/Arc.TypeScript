@@ -4,9 +4,9 @@ import express from 'express';
 import fastify from 'fastify';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { mountExpress, mountExpressWebSockets } from '@cratis/arc.server.express';
-import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.server.fastify';
-import { mountHono, mountHonoWebSockets } from '@cratis/arc.server.hono';
+import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
+import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.fastify';
+import { mountHono, mountHonoWebSockets } from '@cratis/arc.hono';
 
 /** Listen on loopback with real native HTTP and WS bridges on each adapter. */
 export async function observableHost(kind, server, native) {

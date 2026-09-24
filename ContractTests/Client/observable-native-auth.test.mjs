@@ -7,10 +7,10 @@ import fastify from 'fastify';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
-import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.server';
-import { mountExpress, mountExpressWebSockets } from '@cratis/arc.server.express';
-import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.server.fastify';
-import { mountHono, mountHonoWebSockets } from '@cratis/arc.server.hono';
+import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.core';
+import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
+import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.fastify';
+import { mountHono, mountHonoWebSockets } from '@cratis/arc.hono';
 
 const principal = { id: 'verified', isAuthenticated: true, roles: ['reader'] };
 function protectedServer() {

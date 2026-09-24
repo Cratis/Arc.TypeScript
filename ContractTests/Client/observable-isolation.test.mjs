@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
-import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.server';
+import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.core';
 import { observableHost } from './observableHost.mjs';
 
 async function within(promise, label) {

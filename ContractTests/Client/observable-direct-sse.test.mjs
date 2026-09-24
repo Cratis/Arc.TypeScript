@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { Globals } from '@cratis/arc';
 import { QueryTransportMethod } from '@cratis/arc/queries';
-import { ArcServer, CurrentValueSubject, defineObservableQuery, exportClientManifest } from '@cratis/arc.server';
-import { generateClient } from '@cratis/arc.server.codegen';
+import { ArcServer, CurrentValueSubject, defineObservableQuery, exportClientManifest } from '@cratis/arc.core';
+import { generateClient } from '@cratis/arc.proxygenerator';
 async function within(promise, label) {
     let timer;
     try {

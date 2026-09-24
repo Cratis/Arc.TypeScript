@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { ArcServer, AuthenticationStatus, CurrentValueSubject, ObservableEmissionDecision,
-    defineObservableQuery, serviceToken } from '@cratis/arc.server';
+    defineObservableQuery, serviceToken } from '@cratis/arc.core';
 import { Globals } from '@cratis/arc';
 import { ObservableQueryFor, QueryTransportMethod, resetSharedMultiplexer } from '@cratis/arc/queries';
 import { observableHost } from './observableHost.mjs';
