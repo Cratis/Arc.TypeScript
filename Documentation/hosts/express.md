@@ -9,24 +9,26 @@ description: Mount an Arc application in Express 5 before body parsers, and know
 
 ```typescript title="server.ts"
 import express from 'express';
-import { mountExpress } from '@cratis/arc.express';
+import { cratisArc } from '@cratis/arc.express';
 import { arc } from './arc.js';
 
 const app = express();
-mountExpress(app, arc);
+const middleware = cratisArc(arc);
+app.use(middleware);
 app.use(express.json());
 app.get('/health', (_request, response) => { response.send('ok'); });
 const listener = app.listen(3000, '127.0.0.1');
+const disposeSockets = middleware.attach(listener);
 
 process.once('SIGTERM', () => {
-    listener.close(() => { void arc.dispose(); });
+    void disposeSockets().then(() => listener.close(() => { void arc.dispose(); }));
 });
 ```
 
 `arc` is the built application from [Host adapters](index.md#before-you-start). With the Tasks sample's artifacts, `POST /api/tasks/registration/register-task` now reaches Arc, and `GET /health` reaches your route.
 
 :::caution[Mount Arc before body parsers]
-Arc reads the raw request body itself. If `express.json()` or another body parser runs first, it consumes the body, and Arc answers every command with 400 `malformedRequest`. Call `mountExpress` before you add body parsers, as in the example.
+Arc reads the raw request body itself. If `express.json()` or another body parser runs first, it consumes the body, and Arc answers every command with 400 `malformedRequest`. Install `cratisArc(arc)` before you add body parsers, as in the example.
 :::
 
 ## How requests are matched
@@ -39,11 +41,11 @@ An unexpected error inside the adapter is passed to Express with `next(error)`. 
 
 ## Pass a verified principal
 
-`mountExpress(app, arc, native)` accepts a third argument: a callback returning trusted native context for each request. Use it with `nativePrincipal: true` to pass a user your Express session or JWT middleware already verified. See [Native principal](native-principal.md).
+`cratisArc(arc, native)` accepts a second argument: a callback returning trusted native context for each request. Use it with `nativePrincipal: true` to pass a user your Express session or JWT middleware already verified. See [Native principal](native-principal.md).
 
 ## Observable queries over WebSockets
 
-Express HTTP middleware does not run on Node `upgrade` requests. Mount WebSockets separately on the listener with `mountExpressWebSockets(listener, arc, native?)`; see [WebSockets](websockets.md#express).
+Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `cratisArc(arc).attach(listener, native?)`; the middleware cannot see upgrades. See [WebSockets](websockets.md#express). `mountExpress` and `mountExpressWebSockets` remain deprecated aliases.
 
 ## Related
 

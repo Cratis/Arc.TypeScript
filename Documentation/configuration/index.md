@@ -3,7 +3,7 @@ title: Configuration
 description: Every ArcOptions setting accepted by the application builder and ArcServer, its default and effect, and what startup rejects.
 ---
 
-Arc for TypeScript reads all of its settings from one options object, `ArcOptions` (also exported under its older name, `ArcServerOptions`). You pass it in code; Arc does not read configuration files or environment variables. The same object configures the model-bound builder and the low-level server:
+On Node.js, `ArcApplication.createBuilder()` reads an optional `appsettings.json` from the working directory, then `Cratis__...` environment variables (case-insensitive), then applies code options. `ArcOptions` (also exported as `ArcServerOptions`) still configures the low-level server directly. The builder reads only serializable keys in the `Cratis:Arc`, `Cratis:Chronicle`, and `Cratis:MongoDB` sections; unknown keys and invalid types fail setup. No secret values appear in configuration errors.
 
 ```typescript
 import { ArcApplication, ArcServer } from '@cratis/arc.core';
@@ -12,7 +12,15 @@ const builder = ArcApplication.createBuilder({ generatedApis: { routePrefix: 'ap
 const server = new ArcServer({ commands: [], maxBodyBytes: 64 * 1024 });
 ```
 
-`build()` merges builder registrations (discovered artifacts, `addAuthorizationPolicy`, `addQueryRenderer`, and so on) with the matching options. Read environment-specific values yourself, for example `development: process.env.NODE_ENV === 'development'`.
+`build()` merges builder registrations (discovered artifacts, `addAuthorizationPolicy`, `addQueryRenderer`, and so on) with the matching options. `new ArcServer(options)` stays explicit and does not load files or environment variables.
+
+```json title="appsettings.json"
+{"Cratis":{"Arc":{"GeneratedApis":{"RoutePrefix":"api"}},"Chronicle":{"ConnectionString":"chronicle://localhost:35000","EventStore":"Tasks"},"MongoDB":{"Database":"tasks"}}}
+```
+
+`CRATIS__ARC__GENERATEDAPIS__ROUTEPREFIX=backend` overrides the file. `Cratis__Chronicle__ConnectionString` and `Cratis__MongoDB__Server` work the same way. Keys are case-insensitive; a code option wins over the same file or environment key. Only `development`, `enableQueryMethod`, `maxBodyBytes`, `correlationHeader`, `tenantHeader`, and the four `generatedApis` fields bind under `Cratis:Arc`. Chronicle binds `connectionString` and `eventStore`; MongoDB binds `server` and `database`. Handler functions, clients, models, and credentials represented as objects belong in code. Chronicle still requires both an event store and a connection string (or a client); MongoDB still needs `readModels` in code.
+
+Use `ArcApplication.createBuilder({ configuration: false })` to opt out, or `{ configuration: { file: '/path/appsettings.json', env: suppliedEnvironment } }` to choose a file and environment. Invalid JSON is an error, not an absent file. Do not commit real connection strings to source control.
 
 ## Artifacts and services
 

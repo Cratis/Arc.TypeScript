@@ -13,14 +13,14 @@ The [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Sampl
 import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
 
-const builder = ArcApplication.createBuilder({ development: true });
+const builder = ArcApplication.createBuilder();
 builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
 export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-`createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`; the older `ArcServerOptions` name is still exported). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`.
+The Tasks sample sets `Development` in `Samples/Tasks/appsettings.json`; run the workspace command from its package directory (Yarn does this). `createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`; the older `ArcServerOptions` name is still exported). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`. This TypeScript setup corresponds to C#'s standalone `ArcApplication.CreateBuilder(args)`, `builder.AddCratisArc()`, `builder.Build()`, `app.UseCratisArc()`, `app.RunAsync()`. On Node, `app.run()` performs the standalone host step. For an Arc + Chronicle comparison, see [Add event sourcing](../chronicle/add-event-sourcing.md).
 
 Before a listener opens, `build()` checks the declared graph: missing service registrations, dependency cycles, singletons that capture shorter-lived services, and decorators placed where they have no effect. It never runs a service factory to do this.
 
@@ -62,12 +62,13 @@ The builder also registers services that change pipeline behavior:
 | `addQueryRenderer(token)` | A renderer for provider-owned query results; see [Query renderers](../queries/renderers.md) |
 | `addReadModelInterceptor(token)` | A read-model transform; see [Read-model interception](../queries/read-model-interception.md) |
 
-Integrations add their own methods when imported: `addMongoDB`, `addDrizzle`, and `addChronicle`.
+After importing their packages, call `withMongoDB`, `withDrizzle`, or `withChronicle`. The old `add*` methods and standalone functions remain as deprecated aliases. The builder uses a `Symbol.for`-keyed extension registry rather than changing its prototype; importing an integration registers its install function even if the core is loaded twice. A missing integration fails at the call site. Configuration from `appsettings.json` is available to Chronicle and MongoDB, but model classes, clients, and authentication must be provided explicitly.
 
 ## Run it, or mount it
 
 - `await app.run(...)` or `await app.start(...)` use the [standalone Node host](index.md).
-- `mountExpress(expressApp, app)`, `mountFastify(fastifyApp, app)`, and `mountHono(honoApp, app)` hand the application to a web framework. The host keeps listener ownership; call `await app.dispose()` at shutdown. See [Host adapters](../hosts/index.md).
+- `expressApp.use(cratisArc(app))`, `await fastifyApp.register(cratisArc, { arc: app, webSockets: true })`, and `honoApp.route('/', cratisArc(app))` hand the application to a web framework. Import `cratisArc` from the matching adapter package. The host keeps listener ownership; call `await app.dispose()` at shutdown. See [Host adapters](../hosts/index.md).
+- `app.fetch(request)` returns an Arc response or 404 for foreign paths; `app.handle(request)` returns `null` for fall-through. These Fetch methods alone do not establish edge-runtime compatibility: the core still imports Node runtime modules.
 
 A caller-owned `ServiceRegistry` passed in the options cannot be combined with builder service registrations.
 

@@ -21,13 +21,36 @@ import { ArcApplication } from '@cratis/arc.core';
 import '@cratis/arc.chronicle';
 
 const builder = ArcApplication.createBuilder();
-builder.addChronicle({ connectionString: 'chronicle://localhost:35000', eventStore: 'Tasks' });
+builder.withChronicle({ connectionString: 'chronicle://localhost:35000', eventStore: 'Tasks' });
 await builder.discover(new URL('./Features/', import.meta.url));
 const app = await builder.build();
 await app.run();
 ```
 
-Importing `@cratis/arc.chronicle` adds `addChronicle` to the builder. Call it **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors.
+Importing `@cratis/arc.chronicle` registers a typed builder extension without modifying the builder prototype. Call `withChronicle` **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors. `addChronicle` remains a deprecated alias. To avoid keeping a connection string in source, put `Cratis:Chronicle:{ConnectionString,EventStore}` in `appsettings.json` or override it with `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`, then call `builder.withChronicle({})`. Code options win over file and environment settings. The Chronicle engine must run separately.
+
+The experimental private `@cratis/cratis` composition has a shorter TypeScript path (under 20 lines):
+
+```typescript
+import 'reflect-metadata';
+import { CratisApplication } from '@cratis/cratis';
+const builder = CratisApplication.createBuilder();
+await builder.discover(new URL('./Features/', import.meta.url));
+const app = await builder.build();
+await app.run();
+```
+
+Its `createBuilder()` mirrors C#'s `builder.AddCratis()` followed by `app.UseCratis()`, but **does not** install Microsoft identity automatically. Supply an Arc authentication handler explicitly in `ArcApplication.createBuilder({ authentication: [...] })` or in `CratisApplication.createBuilder({ authentication: [...] })` before hosting. C#'s setup is:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.AddCratis();
+var app = builder.Build();
+app.UseCratis();
+app.Run();
+```
+
+Both paths require a separately running Chronicle server. The TS package is a local preview, not published or verified against a live kernel by this example.
 
 :::caution[Development credentials]
 The connection string above uses the SDK's development credentials and accepts the kernel's self-signed certificate. In production, provide real credentials and `skipTlsValidation=false`.

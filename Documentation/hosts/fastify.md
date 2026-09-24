@@ -9,11 +9,11 @@ description: Mount an Arc application in Fastify 5 as an encapsulated plugin, an
 
 ```typescript title="server.ts"
 import Fastify from 'fastify';
-import { mountFastify } from '@cratis/arc.fastify';
+import { cratisArc } from '@cratis/arc.fastify';
 import { arc } from './arc.js';
 
 const app = Fastify();
-mountFastify(app, arc);
+await app.register(cratisArc, { arc, webSockets: true });
 app.get('/health', async () => 'ok');
 await app.listen({ port: 3000, host: '127.0.0.1' });
 
@@ -40,11 +40,11 @@ Fastify enforces its own `bodyLimit`, 1 MiB by default, before Arc reads the bod
 
 ## Pass a verified principal
 
-`mountFastify(app, arc, native)` accepts a callback returning trusted native context for each request. See [Native principal](native-principal.md).
+`app.register(cratisArc, { arc, native })` accepts a callback returning trusted native context for each request. See [Native principal](native-principal.md).
 
 ## Observable queries over WebSockets
 
-Call `mountFastifyWebSockets(app, arc.server, native?)` **before** `mountFastify` and before `listen()`. See [WebSockets](websockets.md#fastify).
+`app.register(cratisArc, { arc, webSockets: true })` registers HTTP and observable upgrades together. When using a shared `@fastify/websocket`, register it first. `mountFastify` and `mountFastifyWebSockets` remain deprecated aliases. See [WebSockets](websockets.md#fastify).
 
 ## Related
 
