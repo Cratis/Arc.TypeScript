@@ -34,7 +34,9 @@ function run(command, args) {
 function expectedFile(path) {
     const parent = basename(dirname(path));
     const file = basename(path);
-    if (path.includes(`${sep}src${sep}`)) return /^[A-Za-z][A-Za-z0-9_]*(?:\.proxy)?\.ts$/.test(file) || ['incorrect.ts', 'wrong.ts'].includes(file);
+    if (path.includes(`${sep}src${sep}node_modules${sep}@cratis${sep}arc.core${sep}`))
+        return /^[A-Za-z][A-Za-z0-9_.-]*\.(?:js|ts|map|json)$/.test(file);
+    if (path.includes(`${sep}src${sep}`)) return /^[A-Za-z][A-Za-z0-9_]*(?:\.proxy)?\.ts$/.test(file) || ['incorrect.ts', 'wrong.ts', 'tsconfig.json'].includes(file);
     if (path.includes(`${sep}dist${sep}`)) return /^[A-Za-z][A-Za-z0-9_]*(?:\.proxy)?\.js$/.test(file);
     return ['tsconfig.json', 'manifest.json', 'malicious.json', 'oversized.json', 'startup.mjs'].includes(file);
 }
@@ -62,8 +64,11 @@ export async function cleanupScratch(root) {
             assert.equal(item.isSymbolicLink(), false, `refusing to traverse a symlink: ${path}`);
             assert.equal(item.dev, identity.dev, 'scratch entry changed filesystem');
             if (item.isDirectory()) {
+                const packageRoot = join(root, 'src/node_modules/@cratis/arc.core');
                 assert.ok(dir === root ? ['src', 'dist'].includes(entry) :
-                    (dir.includes(`${sep}src`) || dir.includes(`${sep}dist`)) && /^[A-Za-z][A-Za-z0-9_]*$/.test(entry), `foreign directory: ${path}`);
+                    path === join(root, 'src/node_modules') || path === join(root, 'src/node_modules/@cratis') || path === packageRoot ||
+                    path.startsWith(packageRoot + sep) && /^[A-Za-z][A-Za-z0-9_.-]*$/.test(entry) ||
+                    !path.includes(`${sep}node_modules${sep}`) && (dir.includes(`${sep}src`) || dir.includes(`${sep}dist`)) && /^[A-Za-z][A-Za-z0-9_]*$/.test(entry), `foreign directory: ${path}`);
                 await inspect(path);
                 directories.push(path);
             } else {

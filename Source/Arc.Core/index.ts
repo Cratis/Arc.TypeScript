@@ -4,6 +4,7 @@
 export { ArcServer, currentContext } from './ArcServer.js';
 export { ArcApplication } from './ArcApplication.js';
 export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
+export { discoveryFiles } from './reflection/discoveryFiles.js';
 export { ArcApplicationServices } from './ArcApplicationServices.js';
 export { key } from './reflection/key.js';
 export { optional } from './reflection/optional.js';

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/main.js",
-    "generate-proxies": "mkdir -p dist/proxies && node ../../Source/Tools/ProxyGenerator/dist/cli.js --project \"$(pwd)/tsconfig.json\" --artifacts \"$(pwd)/Features\" --output \"$(pwd)/dist/proxies\" --use-proxy-file-suffix"
+    "generate-proxies": "node generate-proxies.mjs"
   },
   "dependencies": {
     "@cratis/arc.core": "workspace:^",

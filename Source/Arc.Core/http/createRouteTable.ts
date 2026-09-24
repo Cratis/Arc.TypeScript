@@ -11,6 +11,7 @@ import { commandOperation } from '../commands/commandOperation.js';
 import { queryOperation } from '../queries/queryOperation.js';
 import { observableOperation } from '../queries/observable/ObservableOperation.js';
 
+/** Resolve the HTTP path shared by model-bound operations and generated clients; explicit paths take precedence. */
 export function routeFor(operation: { namespace?: string; routeNamespace?: string; name: string; path?: string }, prefix: string, skip: number, includeName: boolean): string {
     const location = operation.routeNamespace ?? operation.namespace;
     const segments = location ? location.split('.') : [];
@@ -22,8 +23,9 @@ export function routeFor(operation: { namespace?: string; routeNamespace?: strin
     const kebab = (value: string): string => value.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2').replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/_/g, '-').toLowerCase();
     return '/' + [prefix, ...segments.slice(skip).map(kebab), ...(includeName ? [kebab(operation.name)] : [])].filter(Boolean).join('/');
 }
-export function includeRouteName(item: { namespace?: string; routeNamespace?: string }, items: readonly { namespace?: string; routeNamespace?: string }[], skip: number, configured?: boolean): boolean {
-    return configured !== false || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
+/** Keep the operation name unless omission was requested and the route namespace is unambiguous. */
+export function includeRouteName(item: { namespace?: string; routeNamespace?: string }, items: readonly { namespace?: string; routeNamespace?: string }[], skip: number, includeName = true): boolean {
+    return includeName || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
         (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
 }
 export function createRouteTable(options: ArcServerOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {

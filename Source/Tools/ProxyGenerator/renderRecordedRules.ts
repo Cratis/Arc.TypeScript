@@ -8,7 +8,7 @@ const arity = new Map<string, number>([
     ['greaterThan', 1], ['greaterThanOrEqual', 1], ['lessThan', 1], ['lessThanOrEqual', 1]
 ]);
 export function renderRecordedRules(name: string, base: 'CommandValidator' | 'QueryValidator', target: string,
-    rules: readonly RecordedRule[], diagnostic: (message: string) => void): string {
+    rules: readonly RecordedRule[], diagnostic: (message: string) => void, fields?: readonly string[]): string {
     const lines: string[] = [];
     for (const rule of rules) {
         if (!rule.clientSafe || rule.path.length !== 1 || !arity.has(rule.kind) || rule.args.length !== arity.get(rule.kind) ||
@@ -24,7 +24,7 @@ export function renderRecordedRules(name: string, base: 'CommandValidator' | 'Qu
         const argument = rule.kind === 'matches' ?
             `/${(rule.args[0] as string || '(?:)').replaceAll('/', '\\/').replaceAll('\n', '\\n').replaceAll('\r', '\\r').replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029')}/` :
             rule.args.map(arg => typeof arg === 'number' ? String(arg) : JSON.stringify(arg)).join(', ');
-        if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(rule.path[0]!)) {
+        if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(rule.path[0]!) || fields && !fields.includes(rule.path[0]!)) {
             diagnostic(`Unsupported validation argument on ${name}.${rule.path.join('.')}: ${rule.kind}`);
             continue;
         }
