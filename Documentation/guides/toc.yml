@@ -19,6 +19,8 @@
       href: standalone-host.md
     - name: Call Arc from code
       href: direct-calls.md
+    - name: Validate model-bound commands and queries
+      href: validation.md
     - name: Validate and authorize
       href: validation-and-authorization.md
     - name: Decide command outcomes

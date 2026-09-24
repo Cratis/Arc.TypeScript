@@ -64,13 +64,13 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Command and query validators | Supported | `validate` and `filters` return validation results. |
+| Command and query validators | Supported, bounded | Model-bound `@validator(Target)` classes extend `CommandValidator<T>` or `QueryValidator<T>` with constructor-authored `ruleFor` rules, discovered or added explicitly. Query validators target an explicit `argumentsModel` matching the query's argument descriptors. Low-level `validate` and `filters` still work. One validator per exact runtime target; scoped constructor dependencies resolve through Arc services. See [Validate model-bound commands and queries](../guides/validation.md). |
 | Validation result shape | Supported | `severity` 0–3, `message`, `members`, `reason`, optional `reasonDetail` and `state`. |
 | Malformed requests | Supported | 400 with reason `malformedRequest` and no parser detail. |
 | Failing validators | Supported | A validator that throws produces 400 with reason `validatorFailed` and no exception text. For HTTP requests, the original error goes to the configured logger. |
 | [Severity filtering](/arc/backend/csharp/commands/validation-severity-filtering/) | Supported, with a deliberate difference | See [Deliberate differences](#deliberate-differences). |
-| Concept validators | Not implemented | |
-| Validation rules shared with the client | Not implemented | Generated proxies carry no validation rules; `validate()` asks the server. |
+| Concept and model validators | Supported, bounded | `ConceptValidator<T>` and `ModelValidator<T>` apply through declared `@field` graph members; arrays keep their collection path, cycles and shared references are visited once. `ignoreConceptRules()` suppresses only the direct member's concept validator. No arbitrary getter reflection or DataAnnotations. |
+| Validation rules shared with the client | Server rules only | The server implements the client rule-name vocabulary plus a bounded set of server-only predicates, conditions, severity and state. Rules are recorded as immutable descriptors with `clientSafe` classification, but generated proxies still carry no model-bound rules; `validate()` asks the server. Complex FluentValidation features and exact default-message/regex/Unicode parity are unverified or unavailable. |
 
 ## Security, identity, tenancy, and correlation
 
@@ -137,4 +137,4 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 ## How parity is checked
 
-A paired suite (`yarn test:conformance`) sends the same 35 checks to a .NET host built on the published `Cratis.Arc` 22.22.0 package and to Arc for TypeScript mounted in Express. It covers command execution, validation-only requests, authorization before validation, business-rule and malformed-input rejection, GET and `QUERY` binding, paging, sorting, exception redaction, unsupported methods, correlation IDs, and a model-bound command and query, and it pins the differences above. It also pins two observed differences that are not choices of Arc for TypeScript: the .NET host does not apply `sortBy` on GET, while the structured `QUERY` request sorts identically on both; and Express answers an unknown path with its own HTML 404 without an Arc correlation header. It is a bounded check of those routes, not a claim of full parity.
+A paired suite (`yarn test:conformance`) sends the same 40 checks to a .NET host built on the published `Cratis.Arc` 22.22.0 package and to Arc for TypeScript mounted in Express. It covers command execution, validation-only requests, authorization before validation, business-rule and malformed-input rejection, GET and `QUERY` binding, paging, sorting, exception redaction, unsupported methods, correlation IDs, and a model-bound command and query with a validator's custom state and warning threshold, and it pins the differences above. It also pins two observed differences that are not choices of Arc for TypeScript: the .NET host does not apply `sortBy` on GET, while the structured `QUERY` request sorts identically on both; and Express answers an unknown path with its own HTML 404 without an Arc correlation header. It is a bounded check of those routes, not a claim of full parity.

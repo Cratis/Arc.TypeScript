@@ -82,7 +82,7 @@ Also supported, each one explicit or opt-in:
 - **Testing.** `@cratis/arc.testing` runs specs through the real command, query, and HTTP pipelines.
 - **Generated clients, bounded.** Declare an explicit `clientOutput` shape on each command and query, export a version 1 JSON manifest with `exportClientManifest`, and generate `.proxy.ts` files from it. The CLI reads only that JSON, never your application, and takes an absolute manifest path and an existing absolute output directory. The proxies are tested against `@cratis/arc` 22.19.1, `@cratis/fundamentals` 7.19.3, and `rxjs` 7.8.2 in a strict `Bundler` frontend with `skipLibCheck: false`; consumers that compile with `NodeNext` are not supported, because the published declarations use extensionless imports. The client's default origin is empty, so call `setOrigin` with your server's origin on each instance. Zod defaults, transforms and refinements, nullable command fields, scalar query results, nested DTOs, observable queries, and React hooks are not generated. See [Generate command and query clients](Documentation/guides/generate-clients.md).
 
-A paired suite checks 35 bounded HTTP cases, including model-bound command and query behavior, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
+A paired suite checks 40 bounded HTTP cases, including model-bound command and query validation, against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
 
 Not implemented:
 
@@ -100,6 +100,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 - [Host Arc in Express, Fastify, or Hono](Documentation/guides/host-integration.md)
 - [Host Arc directly in Node.js](Documentation/guides/standalone-host.md)
 - [Call Arc from code](Documentation/guides/direct-calls.md)
+- [Validate model-bound commands and queries](Documentation/guides/validation.md)
 - [Validate and authorize commands and queries](Documentation/guides/validation-and-authorization.md)
 - [Decide command outcomes](Documentation/guides/command-outcomes.md)
 - [Bind query arguments, page, and sort](Documentation/guides/queries.md)
