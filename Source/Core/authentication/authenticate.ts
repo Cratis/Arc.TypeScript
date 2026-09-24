@@ -16,13 +16,15 @@ export function verifiedPrincipal(principal: Principal): Principal {
         ? Object.freeze(Object.fromEntries(Object.entries(claims))) : claims;
     return Object.freeze({ ...principal, roles: Object.freeze([...principal.roles]), ...(claims !== undefined ? { claims: copiedClaims } : {}) });
 }
-export async function authenticate(request: Request, handlers: readonly AuthenticationHandler[]): Promise<{ principal?: Principal; failed: boolean }> {
-    for (const handler of handlers) {
+export async function authenticate(request: Request, handlers: readonly AuthenticationHandler[],
+    schemes?: readonly string[]): Promise<{ principal?: Principal; failed: boolean }> {
+    for (const [index, handler] of handlers.entries()) {
         const result = await handler(request);
         if (result.status === AuthenticationStatus.Anonymous) continue;
         if (result.status === AuthenticationStatus.Failed) return { failed: true };
         if (result.status !== AuthenticationStatus.Authenticated) throw new Error('Authentication handler returned an unknown outcome');
-        return { failed: false, principal: verifiedPrincipal(result.principal) };
+        return { failed: false, principal: verifiedPrincipal({ ...result.principal,
+            ...(schemes ? { scheme: schemes[index] } : {}) }) };
     }
     return { failed: false };
 }

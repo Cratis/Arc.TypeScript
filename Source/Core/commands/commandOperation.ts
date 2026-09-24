@@ -45,7 +45,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
     return {
         ...definition, kind: 'command', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
         async run(input, execution, _options, validateOnly): Promise<CommandResult> {
-            if (!authorized(definition.authorization, execution)) return commandResult(execution, { isAuthorized: false });
+            if (!await authorized(definition.authorization, execution, options.authorizationPolicies)) return commandResult(execution, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
             if (!parsed.success) return commandResult(execution, { validationResults: malformed(execution) });
             const value = parsed.data;
