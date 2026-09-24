@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { resolve } from 'node:path';
 import ts from 'typescript';
-import { vi } from 'vitest';
+import { it } from 'vitest';
 import { analyzeSource } from '../../analyzeSource.js';
 import { renderSource } from '../../renderSource.js';
 
@@ -16,7 +16,6 @@ describe('when rendering duplicate model names from real classes', () => {
         files.get('Orders/Item.ts')!.should.include('@field(Invoices_Item)');
     });
     it('should compile generated models and queries with tsc', () => {
-        vi.setConfig({ testTimeout: 30000 });
         const clientRoot = resolve(process.cwd(), 'ContractTests/Client');
         const clientSource = resolve(clientRoot, 'src');
         const virtual = new Map([...files].map(([path, text]) => [resolve(clientSource, path), text]));
@@ -32,5 +31,5 @@ describe('when rendering duplicate model names from real classes', () => {
         const program = ts.createProgram([...virtual.keys()], { ...parsed.options, noEmit: true }, host);
         const diagnostics = ts.getPreEmitDiagnostics(program);
         diagnostics.map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')).should.deep.equal([]);
-    });
+    }, 30000);
 });
