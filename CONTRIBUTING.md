@@ -1,6 +1,6 @@
 # Contributing to Arc for TypeScript
 
-Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, an optional MongoDB read helper, an experimental Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
+Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, an optional MongoDB read helper, a bounded client generator, an experimental Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
 
 The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/contributing.md) and [code of conduct](https://github.com/Cratis/.github/blob/main/CODE_OF_CONDUCT.md) apply to this repository.
 
@@ -20,8 +20,10 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 | `Integrations/Express`, `Integrations/Fastify`, `Integrations/Hono` | The host adapters, each with specs in its `specs` folder |
 | `Integrations/MongoDB` | The optional MongoDB read helper, with unit specs and a live replica-set spec |
 | `Integrations/Chronicle` | The experimental Chronicle integration. It is `private` and must stay unpublished until the Chronicle SDK loads in Node.js and it has passed against a live Chronicle kernel. |
+| `CodeGeneration` | `@cratis/arc.server.codegen`, which renders `@cratis/arc` proxies from an exported client manifest, and its JSON-only CLI |
 | `Samples/Tasks` | A runnable sample hosted on Hono |
 | `ContractTests/DotNET`, `ContractTests/Http` | A .NET reference host and the paired HTTP checks that compare it with Arc for TypeScript; see their READMEs |
+| `ContractTests/Client` | Client generation tests: proxy fixtures compiled against the pinned `@cratis/arc`, `@cratis/fundamentals`, and `rxjs` versions, and generated proxies run against live Express, Fastify, and Hono hosts |
 | `Documentation` | Product documentation published on the Cratis site |
 | `scripts` | Release preview tooling and its specs |
 
@@ -50,9 +52,10 @@ It runs, in order:
 1. ESLint (`yarn lint`).
 2. The type check (`yarn typecheck`): `tsc -b` for every package, then `tsc -p tsconfig.specs.json` for the specs.
 3. The build (`yarn build`).
-4. The Vitest specs (`yarn specs`), including the MongoDB unit specs and the Chronicle specs, which use typed substitutes and never load the Chronicle SDK.
-5. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
-6. The release guard specs (`node --test scripts/for_release/*.test.mjs`).
+4. The client generation checks (`yarn test:client-generation:verify`): a strict `Bundler` compile of the proxy fixtures with `skipLibCheck: false`, then the generation tests with Node.js. Run `yarn test:client-generation` on its own to build first.
+5. The Vitest specs (`yarn specs`), including the MongoDB unit specs and the Chronicle specs, which use typed substitutes and never load the Chronicle SDK.
+6. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
+7. The release guard specs (`node --test scripts/for_release/*.test.mjs`).
 
 Run a single step while you work, and the whole gate before you push. Add or update a spec for every behavior you change.
 

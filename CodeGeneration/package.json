@@ -1,16 +1,16 @@
 {
-  "name": "@cratis/arc.server.fastify",
+  "name": "@cratis/arc.server.codegen",
   "version": "0.3.0",
+  "description": "Deterministic manifest-based TypeScript clients for Arc Server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "CodeGeneration"
+  },
   "type": "module",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
-  },
-  "description": "Fastify hosting for Cratis Arc TypeScript",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
-    "directory": "Integrations/Fastify"
   },
   "engines": {
     "node": ">=22"
@@ -21,6 +21,9 @@
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "arc-server-codegen": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "LICENSE"
@@ -28,11 +31,7 @@
   "dependencies": {
     "@cratis/arc.server": "workspace:^"
   },
-  "peerDependencies": {
-    "fastify": "^5.0.0"
-  },
-  "devDependencies": {
-    "fastify": "^5.6.0",
-    "zod": "^4.1.0"
+  "scripts": {
+    "build": "tsc -b"
   }
 }

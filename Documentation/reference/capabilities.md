@@ -68,7 +68,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Failing validators | Supported | A validator that throws produces 400 with reason `validatorFailed` and no exception text. For HTTP requests, the original error goes to the configured logger. |
 | [Severity filtering](/arc/backend/csharp/commands/validation-severity-filtering/) | Supported, with a deliberate difference | See [Deliberate differences](#deliberate-differences). |
 | Concept validators | Not implemented | |
-| Validation rules shared with the client | Not implemented | Depends on proxy generation. |
+| Validation rules shared with the client | Not implemented | Generated proxies carry no validation rules; `validate()` asks the server. |
 
 ## Security, identity, tenancy, and correlation
 
@@ -90,7 +90,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| TypeScript proxy generation | Not implemented | |
+| TypeScript proxy generation | Supported, bounded source preview | `exportClientManifest` in the core writes a version 1 JSON manifest from registered operations that declare an explicit `clientOutput` shape. `@cratis/arc.server.codegen` renders it with `renderClientManifest` or writes it with `generateClient`; its CLI reads only that JSON and takes an absolute manifest path and an existing absolute output directory. Flat DTOs, basic and optional inputs, command responses, and DTO or array queries are tested with `@cratis/arc` 22.19.1, `@cratis/fundamentals` 7.19.3, and `rxjs` 7.8.2 against live Express, Fastify, and Hono hosts. Consumers must compile in strict `Bundler` mode; `skipLibCheck: false` works, and `NodeNext` consumer compilation is not supported because of the published declarations. Set the server origin on each proxy with `setOrigin`. Not generated: Zod defaults, transforms, and refinements, nullable command fields, scalar query results, nested DTOs, observable queries, and React hooks. No automatic discovery, no full type graph, no npm publication, and not parity with Arc's .NET proxy generator. See [Generate command and query clients](../guides/generate-clients.md). |
 | Introspection endpoints | Supported | Anonymous `/.cratis/commands` and `/.cratis/queries`, with the JSON Schema of each input. |
 | OpenAPI | Supported | `/openapi.json` is an OpenAPI 3.1 document with input schemas. It does not describe result schemas. Its `info.version` is a fixed `0.1.0` for the application API document, not the package version. |
 | Concepts and derived types on the wire | Not implemented | |

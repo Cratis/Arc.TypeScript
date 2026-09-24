@@ -15,6 +15,7 @@ import { Severity } from './Severity.js';
 import { ServiceRegistry } from './ServiceRegistry.js';
 import { withServices } from './ServiceScope.js';
 import { requestContext } from './RequestContextStore.js';
+import { inspectClientInput, inspectClientQueryInput } from './ClientManifest.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 function clientAllowedSeverity(value: string | null): Severity {
     const requested = allowedSeverity(value);
@@ -58,6 +59,11 @@ export class ArcServer {
         const skip = options.segmentsToSkip ?? 0;
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid namespace segments to skip');
         for (const item of [...options.commands ?? [], ...options.queries ?? []]) {
+            if (item.clientOutput) {
+                const id = [item.namespace, item.name].filter(Boolean).join('.');
+                if (options.queries?.some(query => query === item)) inspectClientQueryInput(item.schema, id);
+                inspectClientInput(item.schema, id);
+            }
             if (item.authorization?.anonymous && (item.authorization.authenticated || item.authorization.roles?.length))
                 throw new Error(`Conflicting Arc authorization: ${item.name}`);
             if (item.schema instanceof z.ZodObject) {
