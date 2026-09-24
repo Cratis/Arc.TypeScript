@@ -18,6 +18,7 @@ import { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import { withServices } from './dependencyInjection/ServiceScope.js';
 import { requestContext } from './execution/RequestContextStore.js';
 import { isObservableOperation } from './queries/observable/ObservableOperation.js';
+import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { ObservableSessions } from './queries/ObservableSessions.js';
 import { closeNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
@@ -120,6 +121,8 @@ export class ArcServer {
     }
 
     private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly = false): Promise<CommandResult | QueryResult> {
+        if (operation.kind === 'command' && CommandOperationBoundary.attempt())
+            return Promise.resolve(commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
         return this.runOwned(context, async () => {
             try { return await operation.run(input, context, options, validateOnly); }
             catch (error) {
@@ -191,6 +194,7 @@ export class ArcServer {
         return this.executeCommand([operation.namespace, operation.name].filter(Boolean).join('.'), encode(command), context, validateOnly);
     }
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
+        if (CommandOperationBoundary.attempt()) return commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] });
         const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
         return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, validateOnly) as Promise<CommandResult>;

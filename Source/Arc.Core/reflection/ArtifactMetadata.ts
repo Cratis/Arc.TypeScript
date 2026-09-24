@@ -8,6 +8,7 @@ import type { FieldOptions } from './FieldOptions.js';
 /** Shared decorator metadata stored by declaration, including individual member names. */
 export interface ArtifactMetadata {
     command?: boolean;
+    responseValueHandler?: boolean;
     readModel?: boolean;
     namespace?: string;
     authorization?: Authorization;
@@ -17,6 +18,7 @@ export interface ArtifactMetadata {
     methodAuthorization?: Map<string, Authorization>;
     methodRoutes?: Map<string, string>;
     fieldOptions?: Map<string, FieldOptions>;
+    keyField?: string;
     lifetime?: 'singleton' | 'scoped' | 'transient';
     constructorTokens?: readonly ServiceIdentifier<unknown>[];
     validatorTarget?: ClassType;

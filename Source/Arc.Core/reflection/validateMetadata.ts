@@ -28,7 +28,7 @@ export function validateMetadata(type: ClassType): void {
         if (!queryNames.has(name)) throw new Error(`@path on ${type.name}.${name} requires @query`);
     }
     for (const name of metadata.injected?.keys() ?? []) {
-        if (!validCommand || name !== 'handle') throw new Error(`@inject on ${type.name}.${name} requires a command handle()`);
+        if (!validCommand || name !== 'handle' && name !== 'provide') throw new Error(`@inject on ${type.name}.${name} requires a command handle() or provide()`);
     }
     if (metadata.path && !validCommand && !metadata.readModel) throw new Error(`@path requires @command or @readModel: ${type.name}`);
     if (metadata.authorization && !validCommand && !metadata.readModel) {

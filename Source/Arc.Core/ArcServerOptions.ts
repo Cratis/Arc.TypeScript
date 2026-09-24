@@ -14,9 +14,21 @@ import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 import type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
 import type { ServiceToken } from './dependencyInjection/ServiceToken.js';
+import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
+import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
+import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
+import type { CommandKeyProvider } from './commands/CommandKeyProvider.js';
 /** Options shared by the low-level Arc server and model-bound application builder. */
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
+    /** Ordered, scoped server-only response value handlers. */
+    commandResponseValueHandlers?: readonly ServiceIdentifier<CommandResponseValueHandler>[];
+    /** Ordered, scoped command value providers. */
+    commandContextValuesProviders?: readonly ServiceIdentifier<CommandContextValuesProvider>[];
+    /** Application key rules run before the default @key/getKey rule. */
+    commandKeyProviders?: readonly ServiceIdentifier<CommandKeyProvider>[];
+    /** Shared, cooperative compensation budget (default 30 seconds). */
+    commandCompensationTimeoutMs?: number;
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
     /** Observable queries share query routes and the full query pipeline. */
