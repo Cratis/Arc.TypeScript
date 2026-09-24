@@ -27,6 +27,7 @@ export { CurrentValueSubject } from './queries/observable/CurrentValueSubject.js
 export { ObservableEmissionDecision } from './queries/observable/ObservableEmissionDecision.js';
 export type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
 export type { ObservableEmissionContext } from './queries/observable/ObservableEmissionContext.js';
+export type { ChangeSet } from './queries/observable/ChangeSet.js';
 export type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 export type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 export type { ObservableObserver } from './queries/observable/ObservableObserver.js';

@@ -2,9 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ValidationResult } from './ValidationResult.js';
 import type { Paging } from './Paging.js';
+import type { ChangeSet } from './queries/observable/ChangeSet.js';
 export interface QueryResult<T = unknown> {
     correlationId: string;
     data?: T;
+    changeSet?: ChangeSet<unknown>;
     isReady: boolean;
     isAuthorized: boolean;
     validationResults: ValidationResult[];
