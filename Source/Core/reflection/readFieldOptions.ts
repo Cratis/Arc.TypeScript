@@ -3,7 +3,7 @@
 import type { ClassType } from './ClassType.js';
 import type { FieldOptions } from './FieldOptions.js';
 import { store } from './metadataStore.js';
-import { generatedMetadataFor } from './registerGeneratedMetadata.js';
+import { generatedFieldOptionsFor } from './registerGeneratedMetadata.js';
 
 /** Collect inherited field annotations in declaration order. */
 export function readFieldOptions(type: ClassType, name: string): FieldOptions {
@@ -13,7 +13,7 @@ export function readFieldOptions(type: ClassType, name: string): FieldOptions {
     const result: FieldOptions = {};
     for (const current of chain) {
         const standard = Symbol.metadata && Reflect.get(current, Symbol.metadata) as object | undefined;
-        Object.assign(result, generatedMetadataFor(current as ClassType)?.fieldOptions?.get(name),
+        Object.assign(result, generatedFieldOptionsFor(current as ClassType)?.get(name),
             standard && store.get(standard)?.fieldOptions?.get(name), store.get(current)?.fieldOptions?.get(name));
     }
     return result;

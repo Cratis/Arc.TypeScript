@@ -1,16 +1,27 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ArtifactMetadata } from './ArtifactMetadata.js';
+import type { FieldOptions } from './FieldOptions.js';
 import type { ClassType } from './ClassType.js';
 import type { GeneratedMetadata } from './GeneratedArtifactMetadata.js';
 import { generatedMetadataSignature } from './generatedMetadataSignature.js';
 
-const registered = new WeakMap<ClassType, ArtifactMetadata>();
-/** Return the generated fallback for a decorated class. */
-export function generatedMetadataFor(type: ClassType): ArtifactMetadata | undefined { return registered.get(type); }
-
-/** Reject stale output before installing any of the generated bindings. */
-export function registerGeneratedMetadata(module: GeneratedMetadata): void {
+const registrations = new AsyncLocalStorage<ReadonlyMap<ClassType, ArtifactMetadata>>();
+const runtimeFields = new WeakMap<ClassType, Map<string, FieldOptions>>();
+/** Return the builder-local generated fallback for a decorated class. */
+export function generatedMetadataFor(type: ClassType): ArtifactMetadata | undefined { return registrations.getStore()?.get(type); }
+/** Decoding happens after build; retain immutable field annotations for its runtime classes. */
+export function generatedFieldOptionsFor(type: ClassType): Map<string, FieldOptions> | undefined {
+    const current = registrations.getStore();
+    return current ? current.get(type)?.fieldOptions : runtimeFields.get(type);
+}
+/** Run a builder's registration and compilation with its own metadata. */
+export function withGeneratedMetadata<T>(metadata: ReadonlyMap<ClassType, ArtifactMetadata> | undefined, action: () => T): T {
+    return registrations.run(metadata ?? new Map(), action);
+}
+/** Reject stale output before returning a builder-local registration map. */
+export function registerGeneratedMetadata(module: GeneratedMetadata): ReadonlyMap<ClassType, ArtifactMetadata> {
     if (module.version !== 1) throw new Error('Unsupported generated artifact metadata version; regenerate artifact metadata');
     const seen = new Set<ClassType>();
     for (const entry of module.artifacts) {
@@ -18,5 +29,7 @@ export function registerGeneratedMetadata(module: GeneratedMetadata): void {
             throw new Error(`Stale generated artifact metadata for ${entry.type.name}; regenerate artifact metadata`);
         seen.add(entry.type);
     }
-    for (const entry of module.artifacts) registered.set(entry.type, entry.metadata);
+    for (const entry of module.artifacts) if (entry.metadata.fieldOptions)
+        runtimeFields.set(entry.type, entry.metadata.fieldOptions);
+    return new Map(module.artifacts.map(entry => [entry.type, entry.metadata]));
 }
