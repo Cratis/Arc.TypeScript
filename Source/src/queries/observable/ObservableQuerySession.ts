@@ -24,6 +24,7 @@ export class ObservableQuerySession {
     #firstEmissionDelivered = false;
     #closed: Promise<void> | undefined;
     #scopeClosed: Promise<void> | undefined;
+    #terminalFailure: unknown;
 
     private constructor(private readonly config: ObservableSessionConfig) {
         this.#context = Object.freeze({ ...config.context,
@@ -88,6 +89,7 @@ export class ObservableQuerySession {
             }
             try { await this.closeScope(); }
             catch (error) { failures.push(error); }
+            if (this.#terminalFailure) failures.push(this.#terminalFailure);
             if (failures.length) throw new AggregateError(failures, 'Observable subscription cleanup failed');
         })();
         return this.#closed;
@@ -120,11 +122,15 @@ export class ObservableQuerySession {
                 if (!guarded.isAuthorized || guarded.hasExceptions || !guarded.isValid) return;
             }
         } catch (error) {
-            if (!this.#context.signal.aborted) {
+            if (this.#context.signal.aborted) {
+                if (error instanceof DOMException && error.name === 'AbortError') return;
+                this.#terminalFailure = error;
                 await this.config.reportFailure(error);
-                yield queryResult(this.#context, { exceptionMessages: [this.config.development
-                    ? String(error) : 'An unexpected error occurred'] });
+                throw error;
             }
+            await this.config.reportFailure(error);
+            yield queryResult(this.#context, { exceptionMessages: [this.config.development
+                ? String(error) : 'An unexpected error occurred'] });
         } finally { await this.closeScope(); }
     }
 

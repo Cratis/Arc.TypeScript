@@ -4,6 +4,7 @@ import { describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, CurrentValueSubject, ObservableEmissionDecision, Severity, defineObservableQuery, serviceToken } from '../src/index.js';
 import type { ExecutionContext, ObservableEmissionGuard, ObservableObserver } from '../src/index.js';
+import { shouldRejectWithError } from './shouldRejectWithError.js';
 
 should();
 
@@ -96,6 +97,22 @@ describe('observable source cleanup', () => {
         await stream.next();
         await server.dispose();
         tracked.count().should.equal(0);
+    });
+
+    it('should report a producer that ignores cancellation rather than claim cleanup succeeded', async () => {
+        const server = new ArcServer({ observableQueries: [defineObservableQuery({
+            name: 'Stuck', schema: z.object({}), observe: () => (async function* () {
+                yield 1;
+                await new Promise<void>(() => {});
+            })()
+        })] });
+        const session = await server.openObservableQuery('Stuck', {}, context());
+        const stream = session.results();
+        await stream.next();
+        const pending = stream.next().catch(() => undefined);
+        await shouldRejectWithError(session.close(), /cleanup failed/);
+        await pending;
+        await server.dispose();
     });
 
     it('should cancel a cooperative async producer blocked while reading its next emission', async () => {

@@ -5,7 +5,7 @@ import type { Subscribable } from './Subscribable.js';
 
 const maximumPending = 64;
 const cancellationTimeoutMs = 1000;
-const aborted = (): Error => new Error('Observable query subscription was canceled');
+const aborted = (): DOMException => new DOMException('Observable query subscription was canceled', 'AbortError');
 
 async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
     if (!iterator.return) return;
