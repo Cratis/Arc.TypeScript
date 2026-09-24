@@ -10,16 +10,20 @@
     "Source",
     "Integrations/*",
     "Samples/*",
-    "ContractTests/Http"
+    "ContractTests/Http",
+    "ContractTests/Client",
+    "CodeGeneration"
   ],
   "scripts": {
-    "lint": "eslint Source Integrations Samples",
+    "lint": "eslint Source Integrations Samples CodeGeneration",
     "docs:lint": "markdownlint-cli2",
+    "test:client-generation": "yarn build && yarn test:client-generation:verify",
+    "test:client-generation:verify": "yarn tsc -p ContractTests/Client/tsconfig.json && node --test ContractTests/Client/*.test.mjs",
     "test:conformance": "dotnet restore ContractTests/DotNET/HttpFixture.csproj --locked-mode && dotnet build ContractTests/DotNET/HttpFixture.csproj -c Debug --no-restore && yarn build && node --test ContractTests/Http/conformance.test.mjs",
     "typecheck": "tsc -b && tsc -p tsconfig.specs.json",
     "build": "tsc -b",
     "specs": "vitest run",
-    "ci": "yarn lint && yarn typecheck && yarn build && yarn specs && yarn docs:lint && node --test scripts/for_release/*.test.mjs"
+    "ci": "yarn lint && yarn typecheck && yarn build && yarn test:client-generation:verify && yarn specs && yarn docs:lint && node --test scripts/for_release/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

@@ -90,7 +90,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| TypeScript proxy generation | Not implemented | |
+| TypeScript proxy generation | Supported, bounded source preview | `@cratis/arc.server.codegen` renders versioned JSON manifests exported from resolved registered operations with explicit `clientOutput` metadata. Flat DTOs, basic inputs/optional fields, command responses and DTO/array queries run against pinned `@cratis/arc@22.19.1` across live Express/Fastify/Hono. See [Generate command and query clients](../guides/generate-clients.md) for strict Bundler compiler mode and rejected shapes. No npm publication, NodeNext consumer declarations, automatic discovery, hooks or observable clients. |
 | Introspection endpoints | Supported | Anonymous `/.cratis/commands` and `/.cratis/queries`, with the JSON Schema of each input. |
 | OpenAPI | Supported | `/openapi.json` is an OpenAPI 3.1 document with input schemas. It does not describe result schemas. Its `info.version` is a fixed `0.1.0` for the application API document, not the package version. |
 | Concepts and derived types on the wire | Not implemented | |

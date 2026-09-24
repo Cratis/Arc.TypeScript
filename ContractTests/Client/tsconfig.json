@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "strict": true,
+    "verbatimModuleSyntax": true, "experimentalDecorators": false, "skipLibCheck": false, "noEmitOnError": true,
+    "outDir": "../../.ai-work/client-candidate", "rootDir": "src", "types": ["node"], "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src/**/*.ts"]
+}

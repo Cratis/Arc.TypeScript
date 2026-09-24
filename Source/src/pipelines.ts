@@ -10,6 +10,7 @@ import type { Operation } from './operation.js';
 import { recordFailure } from './failures.js';
 import { currentServices } from './ServiceScope.js';
 import { ServiceDependencyError } from './ServiceDependencyError.js';
+import { assertClientOutput } from './ClientManifest.js';
 import type { ServiceToken } from './ServiceToken.js';
 
 async function prepareDependencies(handler: readonly ServiceToken<unknown>[] = [], validators: readonly ServiceToken<unknown>[] = [], execute = true): Promise<void> {
@@ -44,7 +45,7 @@ function compareValues(a: unknown, b: unknown): number {
 }
 export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string): Operation {
     return {
-        ...definition, kind: 'command', route, inputSchema: z.toJSONSchema(definition.schema),
+        ...definition, kind: 'command', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: z.toJSONSchema(definition.schema),
         async run(input, context, _options, validateOnly): Promise<CommandResult> {
             if (!authorized(definition.authorization, context)) return commandResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
@@ -90,8 +91,14 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                         if (isOutcome(handled)) {
                             if (handled.kind === 'denied') result = commandResult(context, { isAuthorized: false, authorizationFailureReason: handled.reason });
                             else if (handled.kind === 'validation') result = commandResult(context, { validationResults: handled.results.filter(item => item.severity > context.allowedSeverity) });
-                            else result = commandResult(context, { response: handled.value });
-                        } else result = commandResult(context, { response: handled });
+                            else {
+                                const response = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, handled.value) : handled.value;
+                                result = commandResult(context, { response });
+                            }
+                        } else {
+                            const response = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, handled) : handled;
+                            result = commandResult(context, { response });
+                        }
                     }
                 } catch (error) {
                     result = commandResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', ...(error instanceof ServiceDependencyError ? { validationResults: dependencyFailure(error) } : {}) });
@@ -104,6 +111,16 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                             result = commandResult(context, { ...previous, response: undefined, exceptionMessages: [...previous.exceptionMessages, String(error)] });
                             recordFailure(result, error, previous);
                         }
+                    }
+                }
+                // A completion callback receives the result and can replace its response.
+                // Recheck that final value, not the handler's original object, before returning.
+                if (definition.clientOutput && result.isSuccess) {
+                    try { result.response = assertClientOutput(definition.clientOutput.output, result.response); }
+                    catch (error) {
+                        const previous = result;
+                        result = commandResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '' });
+                        recordFailure(result, error, previous);
                     }
                 }
                 return result;
@@ -123,7 +140,7 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
 }
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string): Operation {
     return {
-        ...definition, kind: 'query', route, inputSchema: querySchema(definition.schema),
+        ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
             if (!authorized(definition.authorization, context)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
@@ -145,15 +162,17 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 await prepareDependencies(definition.handlerDependencies);
                 const data = await definition.perform(value, context, options);
                 if (isQueryPage(data)) {
+                    const items = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data.items) as typeof data.items : data.items;
                     const page = options.paging?.page ?? 0;
                     const size = options.paging?.pageSize ?? 0;
-                    if (options.sorting || (!size && data.items.length !== data.totalItems) ||
-                        size && data.items.length !== Math.min(size, Math.max(0, data.totalItems - page * size)))
+                    if (options.sorting || (!size && items.length !== data.totalItems) ||
+                        size && items.length !== Math.min(size, Math.max(0, data.totalItems - page * size)))
                         return queryResult(context, { validationResults: malformed(context) });
-                    return queryResult(context, { data: data.items, paging: size ? { page, size, totalItems: data.totalItems, totalPages: Math.ceil(data.totalItems / size) } : emptyPaging() });
+                    return queryResult(context, { data: items, paging: size ? { page, size, totalItems: data.totalItems, totalPages: Math.ceil(data.totalItems / size) } : emptyPaging() });
                 }
                 if (Array.isArray(data)) {
-                    const sorted = [...data];
+                    const wire = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data) as typeof data : data;
+                    const sorted = [...wire];
                     if (options.sorting) {
                         const { field, direction } = options.sorting;
                         if (sorted.some((item: unknown) => {
@@ -174,7 +193,8 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                     return queryResult(context, { data: (size ? sorted.slice(page * size, (page + 1) * size) : sorted) as T, paging });
                 }
                 if (options.paging || options.sorting) return queryResult(context, { validationResults: malformed(context) });
-                return queryResult(context, { data });
+                const wire = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data) : data;
+                return queryResult(context, { data: wire });
             } catch (error) {
                 const failure = queryResult(context, { exceptionMessages: [String(error)], exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', ...(error instanceof ServiceDependencyError ? { validationResults: dependencyFailure(error) } : {}) });
                 recordFailure(failure, error);

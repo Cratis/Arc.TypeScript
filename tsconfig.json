@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "Source" },
+    { "path": "CodeGeneration" },
     { "path": "Integrations/Express" },
     { "path": "Integrations/Fastify" },
     { "path": "Integrations/Hono" },

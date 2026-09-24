@@ -1,0 +1,27 @@
+{
+  "name": "@cratis/arc.server-client-contract",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cratis/arc": "22.19.1",
+    "@cratis/arc.server": "workspace:*",
+    "@cratis/arc.server.codegen": "workspace:*",
+    "@cratis/arc.server.express": "workspace:*",
+    "@cratis/arc.server.fastify": "workspace:*",
+    "@cratis/arc.server.hono": "workspace:*",
+    "@cratis/fundamentals": "7.19.3",
+    "@hono/node-server": "1.19.17",
+    "express": "^5.1.0",
+    "fastify": "^5.6.0",
+    "hono": "^4.9.0",
+    "rxjs": "7.8.2",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

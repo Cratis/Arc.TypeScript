@@ -7,6 +7,7 @@ export interface Operation extends DescriptorBase {
     readonly kind: 'command' | 'query';
     readonly route: string;
     readonly inputSchema: Record<string, unknown>;
+    readonly dynamicAuthorization?: boolean;
     readonly schema: z.ZodType;
     run(input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly?: boolean): Promise<CommandResult | QueryResult>;
 }
