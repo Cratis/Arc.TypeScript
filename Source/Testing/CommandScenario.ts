@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { encodeWireValue, type ExecutionContext, type Severity } from '@cratis/arc.core';
+import { encodeWireValue, type ArcApplicationBuilder, type ExecutionContext, type Severity } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 import { ScenarioHost } from './ScenarioHost.js';
 import { wireRoundTrip } from './wireRoundTrip.js';
@@ -19,6 +19,8 @@ export class CommandScenario<T extends object> {
     static for<T extends object>(type: ClassType<T>, ...artifacts: ClassType[]): CommandScenario<T> {
         return new CommandScenario(type, ...artifacts);
     }
+    /** Install an integration before the scenario builds its application. */
+    extend(install: (builder: ArcApplicationBuilder) => void): this { this.#host.extend(install); return this; }
     /** Register services before the first execution. */
     get services() { return this.#host.services; }
     /** Default trusted request values, applied to every call. */

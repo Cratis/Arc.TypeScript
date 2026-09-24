@@ -31,7 +31,7 @@
     "ci": "yarn lint && yarn typecheck && yarn build && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs"
   },
   "devDependencies": {
-    "@cratis/fundamentals": "7.19.3",
+    "@cratis/fundamentals": "7.19.6",
     "@eslint/js": "^10.0.1",
     "@types/chai": "^5.2.0",
     "@types/chai-as-promised": "^8.0.0",

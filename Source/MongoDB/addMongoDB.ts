@@ -4,6 +4,7 @@ import { ArcApplicationBuilder, serviceToken } from '@cratis/arc.core';
 import type { ExecutionContext } from '@cratis/arc.core';
 import { MongoClientFactory } from './MongoClientFactory.js';
 import { MongoCollection } from './MongoCollection.js';
+import { MongoReadModelForCommandResolver } from './MongoReadModelForCommandResolver.js';
 import type { MongoDBOptions } from './MongoDBOptions.js';
 import { mongoCollection } from './collectionToken.js';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
@@ -23,6 +24,8 @@ export function addMongoDB(builder: ArcApplicationBuilder, options: MongoDBOptio
     if (!options.database && !options.databaseNameResolver) throw new Error('MongoDB requires database or databaseNameResolver');
     const factory = new MongoClientFactory(options);
     builder.services.addSingleton(mongoClientFactory, () => factory);
+    builder.services.addScoped(MongoReadModelForCommandResolver, () => new MongoReadModelForCommandResolver(options));
+    builder.addReadModelForCommandResolver(MongoReadModelForCommandResolver);
     for (const type of options.readModels) {
         const token = mongoCollection(type);
         builder.services.addScoped(token, async scope => {
