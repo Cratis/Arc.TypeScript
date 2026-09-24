@@ -127,7 +127,7 @@ An `AuthenticationHandler` receives the Fetch API `Request` and returns one of t
 | `{ status: AuthenticationStatus.Authenticated, principal }` | The caller is known. No further handler runs. |
 | `{ status: AuthenticationStatus.Failed }` | The request carried credentials that are wrong. The request ends with 401, whatever the operation requires. |
 
-Handlers run in the order you list them, and they can be `async`. The principal has an `id`, an optional `name`, `roles`, and `isAuthenticated`. Arc freezes it and puts it on `context.principal` for the rest of the request. The Express, Fastify, and Hono adapters do not pass on a user that the framework's own middleware authenticated, so verify credentials in a handler.
+Handlers run in the order you list them, and they can be `async`. An authenticated principal must have `isAuthenticated: true`, a string `id`, and an array of string `roles`; `name` is optional. Empty strings and large role lists are accepted, as before. Arc preserves other principal fields, copies and freezes the roles and own claim dictionary, and freezes the principal for `context.principal`. There is no authentication-stage size limit on identity fields or membership claims; the encoded identity **display cookie** has a separate 4096-byte limit. The Express, Fastify, and Hono adapters do not pass on a user that the framework's own middleware authenticated, so verify credentials in a handler.
 
 ## Restrict who can run an operation
 
