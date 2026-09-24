@@ -5,6 +5,7 @@ import type { ArcServer } from '../../ArcServer.js';
 import { BadRequest } from '../../binding.js';
 import type { ExecutionContext } from '../../ExecutionContext.js';
 import { HubFrameType } from './HubFrameType.js';
+import { HubKeepAlive } from './HubKeepAlive.js';
 import type { HubSubscription } from './HubSubscription.js';
 import { HubSubscriptionOutcome } from './HubSubscriptionOutcome.js';
 import { HubSubscriptionRunner } from './HubSubscriptionRunner.js';
@@ -23,8 +24,7 @@ export class HubConnection {
     readonly #subscriptions = new Map<string, HubSubscription>();
     readonly #context: ExecutionContext;
     readonly ownerKey: string;
-    #keepAlive: ReturnType<typeof setTimeout> | undefined;
-    #removeActivity: (() => void) | undefined;
+    readonly #keepAlive: HubKeepAlive;
     #closing: Promise<void> | undefined;
 
     constructor(
@@ -40,6 +40,7 @@ export class HubConnection {
         this.#context = Object.freeze({ ...context, connectionId: this.id,
             principal: clonePrincipal(context.principal), signal: AbortSignal.any([context.signal, output.signal]) });
         this.#states = new SubscriptionRevisions(server.observableLimits.tombstones);
+        this.#keepAlive = new HubKeepAlive(output, intervalMs, () => { void this.close(); });
         output.signal.addEventListener('abort', () => { void this.close(); }, { once: true });
     }
 
@@ -52,25 +53,7 @@ export class HubConnection {
     async connect(): Promise<void> {
         await this.output.send({ type: HubFrameType.Connected, payload: this.id,
             keepAliveIntervalMs: this.intervalMs, supportsSubscriptionRevisions: true });
-        if (this.intervalMs > 0) {
-            this.#removeActivity = this.output.onActivity?.(() => this.scheduleKeepAlive());
-            this.scheduleKeepAlive();
-        }
-    }
-
-    private scheduleKeepAlive(): void {
-        if (this.closed || this.intervalMs <= 0) return;
-        if (this.#keepAlive) clearTimeout(this.#keepAlive);
-        const remaining = this.output.lastActivity + this.intervalMs - Date.now();
-        this.#keepAlive = setTimeout(() => {
-            if (this.closed) return;
-            if (Date.now() - this.output.lastActivity < this.intervalMs) {
-                this.scheduleKeepAlive();
-                return;
-            }
-            void this.output.send({ type: HubFrameType.Ping })
-                .then(() => this.scheduleKeepAlive(), () => this.close());
-        }, Math.max(1, remaining));
+        this.#keepAlive.start();
     }
 
     /** Process a bounded WS control frame without letting one slow producer block later revisions. */
@@ -158,8 +141,7 @@ export class HubConnection {
 
     close(): Promise<void> {
         if (this.#closing) return this.#closing;
-        if (this.#keepAlive) clearTimeout(this.#keepAlive);
-        this.#removeActivity?.();
+        this.#keepAlive.stop();
         this.#closing = Promise.resolve().then(async () => {
             this.output.close();
             const errors: unknown[] = [];
