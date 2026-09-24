@@ -9,7 +9,7 @@ import { providedType } from './provided.js';
 import { optionalServiceType } from '../../reflection/optionalService.js';
 import { readModelArgument } from './readModel.js';
 import { ReadModelForCommandError } from '../ReadModelForCommandError.js';
-import { contextArgumentResolver } from './contextArgument.js';
+import { contextArgumentResolver } from './commandContextArgument.js';
 const signalToken = serviceToken<AbortSignal>('Arc command signal');
 const contextToken = serviceToken<CommandContext>('Arc command context');
 const readModels = new WeakMap<CommandContext, Map<object, unknown>>();

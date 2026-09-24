@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import process from 'node:process';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
+import { setInterval, clearInterval } from 'node:timers';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { test } from 'node:test';
@@ -20,11 +21,14 @@ import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-ho
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
 import { ChronicleArtifacts } from '../dist/ChronicleArtifacts.js';
+import { reactorCommandResultHandler } from '../dist/reactorCommands.js';
 import '../dist/index.js';
 import * as live from '../dist/Integration/LiveArtifacts.js';
 const { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
-    ReadLiveInCommand, AdvanceLiveWithConcurrentAppend, LiveCreated, LiveView } = live;
+    ReadLiveInCommand, AdvanceLiveWithConcurrentAppend, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView } = live;
 
+// Keep the test runner alive while an SDK reactor observation waits on an unreferenced gRPC stream.
+const observationKeepAlive = setInterval(() => {}, 1000);
 const connectionString = process.env.ARC_CHRONICLE_TEST_URL;
 if (!connectionString) throw new Error('ARC_CHRONICLE_TEST_URL is required; do not silently skip the kernel suite');
 const exporter = new InMemorySpanExporter();
@@ -33,9 +37,10 @@ trace.setGlobalTracerProvider(provider);
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 const artifacts = new ChronicleArtifacts();
 for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
-    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveView]) artifacts.register(type);
+    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView]) artifacts.register(type);
+let application;
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
-    clientArtifactsProvider: artifacts, discoveryPatterns: []
+    clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(() => application.server, storeName)
 }));
 const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
 const interceptor = serviceToken('live read model interceptor');
@@ -46,8 +51,8 @@ builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: vie
     Object.assign(new LiveView(), view, { name: `public-${view.name}` }) }));
 builder.addChronicle({ client, eventStore: storeName });
 builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
-    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveView);
-const application = await builder.build();
+    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView);
+application = await builder.build();
 
 async function host(kind) {
     if (kind === 'express') {
@@ -74,8 +79,9 @@ async function call(url, command, id, tenant, name) {
     return { status: response.status, body: await response.json() };
 }
 try {
+    const checks = [];
     for (const adapter of ['express', 'fastify', 'hono']) {
-        await test(`Chronicle command via ${adapter}`, async () => {
+        checks.push(test(`Chronicle command via ${adapter}`, async () => {
             const listener = await host(adapter);
             try {
                 const id = randomUUID();
@@ -85,6 +91,13 @@ try {
                 const store = await client.getEventStore(storeName, tenant);
                 const events = await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated]);
                 assert.equal(events.length, 1, 'append is visible in tenant namespace');
+                let followups = [];
+                for (let attempt = 0; attempt < 40 && followups.length === 0; attempt++) {
+                    followups = await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveFollowedUp]);
+                    if (!followups.length) await delay(250);
+                }
+                assert.equal(followups.length, 1, 'reactor command executes in the event tenant and appends its follow-up');
+                assert.equal(followups[0].content.name, adapter);
                 const commandSpan = exporter.getFinishedSpans().find(span =>
                     span.name === 'cratis.arc.command.execute' &&
                     span.attributes['cratis.correlation_id'] === first.body.correlationId);
@@ -122,7 +135,7 @@ try {
                 const advance = await call(listener.url, 'advance-live', id, tenant, `advanced-${adapter}`);
                 assert.equal(advance.body.isSuccess, true, JSON.stringify(advance));
                 assert.equal((await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated])).length, 2,
-                    'aggregate replays existing state and commits one new event');
+                    'aggregate replays existing state and commits despite an interleaved reactor event');
                 const staleId = randomUUID();
                 const createdForConflict = await call(listener.url, 'create-live', staleId, tenant, adapter);
                 assert.equal(createdForConflict.body.isSuccess, true, JSON.stringify(createdForConflict));
@@ -138,12 +151,15 @@ try {
                 assert.equal((await store.eventLog.getForEventSourceIdAndEventTypes(id, [LiveCreated])).length, 2,
                     'rejected operation batch adds no events');
             } finally { await listener.close(); }
-        });
+        }));
     }
+    await Promise.all(checks);
 } finally {
     await application.dispose();
     client.dispose();
     await provider.shutdown();
     trace.disable();
     context.disable();
+    clearInterval(observationKeepAlive);
+
 }

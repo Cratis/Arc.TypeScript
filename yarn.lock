@@ -40,13 +40,13 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.5.1"
+    "@cratis/chronicle": "npm:6.6.0"
     "@cratis/fundamentals": "npm:7.19.6"
     zod: "npm:^4.1.0"
   peerDependencies:
     "@cratis/arc.core": ^0.15.0
     "@cratis/arc.testing": ^0.11.0
-    "@cratis/chronicle": ^6.5.1
+    "@cratis/chronicle": ^6.6.0
     "@cratis/fundamentals": ^7.19.6
     zod: ^4.1.0
   peerDependenciesMeta:
@@ -247,9 +247,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.5.1":
-  version: 6.5.1
-  resolution: "@cratis/chronicle@npm:6.5.1"
+"@cratis/chronicle@npm:6.6.0":
+  version: 6.6.0
+  resolution: "@cratis/chronicle@npm:6.6.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
     "@cratis/chronicle.contracts": "npm:19.4.0"
@@ -261,7 +261,7 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/3a00926c51e61b06dca4b681afde22719cb8868c17daa15eba3d102d5243c4775e7ca8c9d952b20f23ca3a2abba7cb459136b7cca576d28a13bcef70c20ab771
+  checksum: 10c0/550964cdb550f06c70ec05d0e5671c296042df65cd079de76fa2970a3a16a3991d2ffb070490600f627c716dc65523a12b66e143ee17f8534037664b722d891c
   languageName: node
   linkType: hard
 

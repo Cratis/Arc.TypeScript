@@ -4,6 +4,7 @@ export { defineChronicleCommand } from './ChronicleCommand.js';
 export { addChronicle } from './addChronicle.js';
 export { AggregateRoot, AggregateRootCommitResult } from './AggregateRoot.js';
 export { commandAggregate } from './commandAggregate.js';
+export { executeCommandsAsSystem, reactorCommandResultHandler } from './reactorCommands.js';
 export { eventSourceIdResponse, EventSourceIdResponse } from './eventSourceIdResponse.js';
 export { eventForEventSourceId } from './eventForEventSourceId.js';
 export { ChronicleReadModels } from './ChronicleReadModels.js';

@@ -53,6 +53,7 @@ export class ArcApplicationBuilder {
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
     readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
     readonly #commandScopes: (() => CommandExecutionScope)[] = [];
+    readonly #builtObservers: ((server: ArcServer) => void)[] = [];
     readonly #policies = new Map<string, AuthorizationPolicyRegistration>();
     readonly #identityProviders: ClassType[] = [];
     #built = false;
@@ -102,6 +103,11 @@ export class ArcApplicationBuilder {
     /** Enroll an execution scope in every command, including decorated commands. */
     addCommandExecutionScope(create: () => CommandExecutionScope): this {
         this.#commandScopes.push(create);
+        return this;
+    }
+    /** Bind integrations that need the compiled server before any client observations begin. */
+    addBuiltObserver(observer: (server: ArcServer) => void): this {
+        this.#builtObservers.push(observer);
         return this;
     }
     /** Register a unique named authorization policy before building the application. */
@@ -212,7 +218,10 @@ export class ArcApplicationBuilder {
             readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
             readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations }, this.#generatedMetadata);
-        try { await this.preflight(server, dependencies, validatorTypes); }
+        try {
+            await this.preflight(server, dependencies, validatorTypes);
+            for (const observer of this.#builtObservers) observer(server);
+        }
         catch (error) { await server.dispose(); throw error; }
         return new ArcApplication(server);
     }

@@ -32,7 +32,7 @@
   "peerDependencies": {
     "@cratis/arc.core": "^0.15.0",
     "@cratis/arc.testing": "^0.11.0",
-    "@cratis/chronicle": "^6.5.1",
+    "@cratis/chronicle": "^6.6.0",
     "@cratis/fundamentals": "^7.19.6",
     "zod": "^4.1.0"
   },
@@ -44,7 +44,7 @@
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
-    "@cratis/chronicle": "6.5.1",
+    "@cratis/chronicle": "6.6.0",
     "@cratis/fundamentals": "7.19.6",
     "zod": "^4.1.0"
   }

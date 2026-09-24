@@ -2,6 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
+import { reactor } from '@cratis/chronicle/reactors';
+import type { EventContext } from '@cratis/chronicle/events';
 import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { command, key, readModel, query, argument, service, inject, commandReadModel, commandContext, CommandOperation, tuple } from '@cratis/arc.core';
@@ -15,6 +17,23 @@ import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 
 @eventType('ArcTypeScriptLiveCreated')
 export class LiveCreated { @field(String) name = ''; }
+
+@eventType('ArcTypeScriptLiveFollowedUp')
+export class LiveFollowedUp { @field(String) name = ''; }
+
+@command()
+export class FollowUpLive {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    handle(): LiveFollowedUp { return Object.assign(new LiveFollowedUp(), { name: this.name }); }
+}
+
+@reactor('ArcTypeScriptLiveCommandReactor')
+export class LiveCommandReactor {
+    liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
+        return Object.assign(new FollowUpLive(), { id: context.eventSourceId, name: event.name });
+    }
+}
 
 @command()
 export class CreateLive {
@@ -36,7 +55,7 @@ export class CreateLiveExactlyOnce {
 
 export class LiveAggregate extends AggregateRoot {
     count = 0;
-    onLiveCreated(event: LiveCreated): void { void event; this.count++; }
+    constructor() { super(); this.on(LiveCreated, () => { this.count++; }); }
 }
 
 @command()
