@@ -2,7 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { dirname, join, relative } from 'node:path';
 import { includeRouteName, routeFor } from '@cratis/arc.core';
-import type { SourceAnalysis, SourceModel, SourceOperation, SourceType } from './SourceArtifact.js';
+import type { SourceAnalysis } from './SourceAnalysis.js';
+import type { SourceModel } from './SourceModel.js';
+import type { SourceOperation } from './SourceOperation.js';
+import type { SourceType } from './SourceType.js';
 import { renderSourceQuery } from './renderSourceQuery.js';
 import { renderRecordedRules } from './renderRecordedRules.js';
 import type { RecordedRule } from './RecordedRule.js';

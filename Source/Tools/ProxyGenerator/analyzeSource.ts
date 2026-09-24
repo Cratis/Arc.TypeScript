@@ -3,7 +3,10 @@
 import { dirname, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 import { SourceTypeResolver } from './SourceTypeResolver.js';
-import type { SourceAnalysis, SourceField, SourceOperation, SourceType } from './SourceArtifact.js';
+import type { SourceAnalysis } from './SourceAnalysis.js';
+import type { SourceField } from './SourceField.js';
+import type { SourceOperation } from './SourceOperation.js';
+import type { SourceType } from './SourceType.js';
 
 function annotation(checker: ts.TypeChecker, node: ts.Node, name: string, owner: 'arc' | 'fundamentals' = 'arc'): ts.CallExpression | ts.Identifier | undefined {
     for (const decorator of ts.canHaveDecorators(node) ? ts.getDecorators(node) ?? [] : []) {

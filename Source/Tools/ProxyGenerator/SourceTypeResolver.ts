@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import ts from 'typescript';
 import { dirname, relative, sep } from 'node:path';
-import type { SourceField, SourceModel, SourceType } from './SourceArtifact.js';
+import type { SourceField } from './SourceField.js';
+import type { SourceModel } from './SourceModel.js';
+import type { SourceType } from './SourceType.js';
 
 const fundamentals = new Set(['Guid', 'DateOnly', 'TimeOnly', 'TimeSpan']);
 const primitive = (text: string, constructor: string): SourceType => ({ text, constructor, enumerable: false, nullable: false, void: false });

@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { SourceModel, SourceOperation } from './SourceArtifact.js';
+import type { SourceModel } from './SourceModel.js';
+import type { SourceOperation } from './SourceOperation.js';
 import { quote, typeImports } from './renderSource.js';
 import { renderRecordedRules } from './renderRecordedRules.js';
 import type { RecordedRule } from './RecordedRule.js';
