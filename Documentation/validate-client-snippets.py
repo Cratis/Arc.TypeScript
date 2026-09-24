@@ -28,11 +28,9 @@ The gate checks two things:
   `noUncheckedIndexedAccess`) and resolves `@cratis/arc.core`, `@cratis/fundamentals`,
   `zod` and `vitest` from this repository's `node_modules`, then runs the workspace `tsc`.
 
-Module resolution is `Bundler`, not `NodeNext`. That is the setting the guides document
-for applications and the one the repository's own specs compile with: the installed
-Fundamentals 7.19.3 declaration barrel uses extensionless re-exports that NodeNext cannot
-resolve, so under NodeNext `ConceptAs` and `field` lose their types and a wrong snippet
-would compile. `--self-test` plants a concept type error to prove the types are live.
+Module resolution is `Bundler`, matching the repository's example applications.
+Fundamentals 7.19.6 also resolves under NodeNext; `--self-test` plants a concept
+type error to prove the configured compiler sees the actual declaration types.
 
 Usage:
     python3 Documentation/validate-client-snippets.py [--arc-documentation PATH] [--keep]
