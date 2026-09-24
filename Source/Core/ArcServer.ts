@@ -74,6 +74,10 @@ export class ArcServer {
         })) throw new Error('Invalid allowed Origin');
         this.#ownsServices = !(options.services instanceof ServiceRegistry);
         this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
+        for (const token of [...options.queryRenderers ?? [], ...options.readModelInterceptors ?? []]) {
+            if (this.services.registration(token).lifetime === 'singleton')
+                throw new Error(`Query renderer or read-model interceptor ${this.services.registration(token).token.name} must not be singleton`);
+        }
         if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
         if (options.observableKeepAliveIntervalMs !== undefined &&
@@ -152,8 +156,8 @@ export class ArcServer {
         });
         const name = operation.kind === 'command' ? validateOnly ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute' : 'cratis.arc.query.perform';
         const qualified = [operation.namespace, operation.name].filter(Boolean).join('.');
-        const attributes = operation.kind === 'command' ? { commandType: qualified } : { queryName: qualified };
-        const traced = () => observe(name, context.correlationId, attributes, run);
+        const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
+        const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
     }
 

@@ -5,13 +5,15 @@ import type { DescriptorBase } from '../DescriptorBase.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import { encode } from '../reflection/wireSchema.js';
+import type { WireType } from '../reflection/WireType.js';
+import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { isQueryPage, queryPage } from './QueryPage.js';
 import type { QueryOptions } from './QueryOptions.js';
 import type { QueryResult } from './QueryResult.js';
 import { renderQueryData } from './queryRendering.js';
 
 /** Run provider rendering and exact-type interception inside the current query scope, for every emission. */
-export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput'> & { wireOutput?: boolean }, data: unknown,
+export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput'> & { wireOutput?: boolean; wireType?: WireType }, data: unknown,
     context: ExecutionContext, options: QueryOptions = {}, settings: ArcServerOptions = {}): Promise<QueryResult> {
     const scope = currentServices();
     for (const token of settings.queryRenderers ?? []) {
@@ -19,11 +21,14 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
         if (renderer.canRender(data)) { data = await renderer.render(data, context, options); break; }
     }
     if (!settings.readModelInterceptors?.length)
-        return renderQueryData(definition, definition.wireOutput ? encode(data) : data, context, options);
+        return renderQueryData(definition, definition.wireOutput ? encode(data, definition.wireType, definition.wireType) : data, context, options);
+    const interceptors = await Promise.all(settings.readModelInterceptors.map(token => scope.resolve(token)));
+    const page = Array.isArray(data) ? renderQueryData({ clientOutput: undefined }, data, context, options) : undefined;
+    if (page && !page.isSuccess) return page;
+    if (page) data = page.data;
     const intercept = async (item: unknown): Promise<unknown> => {
         if (item === null || typeof item !== 'object') return item;
-        for (const token of settings.readModelInterceptors ?? []) {
-            const handler = await scope.resolve(token);
+        for (const handler of interceptors) {
             if (item && typeof item === 'object' && item.constructor === handler.model)
                 item = await handler.intercept(item);
         }
@@ -33,5 +38,9 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
         data = queryPage(await Promise.all(data.items.map(intercept)), data.totalItems, data.sorting);
     } else if (Array.isArray(data)) data = await Promise.all(data.map(intercept));
     else data = await intercept(data);
-    return renderQueryData(definition, definition.wireOutput ? encode(data) : data, context, options);
+    if (page) {
+        const output = definition.wireOutput ? encode(data, definition.wireType, definition.wireType) : data;
+        return { ...page, data: definition.clientOutput ? assertClientOutput(definition.clientOutput.output, output) : output };
+    }
+    return renderQueryData(definition, definition.wireOutput ? encode(data, definition.wireType, definition.wireType) : data, context, options);
 }

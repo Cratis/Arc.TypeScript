@@ -20,7 +20,7 @@ export class a_rendering_server {
         services: [
             { token: this.renderer, lifetime: 'scoped', factory: () => ({
                 canRender: (value: unknown) => value === 'provider',
-                render: () => { this.seen.push('render'); return queryPage([new Task('provider')], 1); }
+                render: () => { this.seen.push('render'); return queryPage([new Task('provider')], 3); }
             }) },
             { token: this.interceptor, lifetime: 'scoped', factory: () => ({
                 model: Task, intercept: (model: object) => {

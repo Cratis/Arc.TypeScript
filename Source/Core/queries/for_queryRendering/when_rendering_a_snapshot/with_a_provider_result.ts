@@ -14,7 +14,10 @@ describe('when rendering a snapshot with a provider result', given(a_rendering_s
     it('should apply the renderer then intercept the model before sending it', async () => {
         (await response.json()).data.should.deep.equal([{ name: 'public-provider' }]);
     });
-    it('should preserve the provider total and order', () => {
+    it('should preserve the provider total', async () => {
+        (await response.json()).paging.totalItems.should.equal(3);
+    });
+    it('should render before intercepting', () => {
         context.seen.slice(-2).should.deep.equal(['render', 'provider']);
     });
 }));
