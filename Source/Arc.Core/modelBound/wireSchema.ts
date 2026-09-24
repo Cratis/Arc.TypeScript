@@ -38,11 +38,13 @@ export function schemaFor(type: WireType, options: FieldOptions = {}, element?: 
     } else if (fieldsFor(type).length) schema = z.lazy(() => objectSchema(type));
     else throw new Error(`Unsupported Arc wire type: ${type.name}`);
     if (options.values) {
-        const values = options.values;
-        schema = schema.refine(value => values.includes(value as string | number | boolean));
+        if (!options.values.length) throw new Error(`Enumeration for ${type.name} requires values`);
+        const literals = options.values.map(value => z.literal(value));
+        schema = literals.length === 1 ? literals[0]! : z.union(literals as [z.ZodLiteral<string | number | boolean>, z.ZodLiteral<string | number | boolean>, ...z.ZodLiteral<string | number | boolean>[]]);
     }
     if (options.nullable) schema = schema.nullable();
-    if (options.optional) schema = schema.optional();
+    if (Object.hasOwn(options, 'defaultValue')) schema = schema.default(options.defaultValue);
+    else if (options.optional) schema = schema.optional();
     return schema;
 }
 export function objectSchema(type: WireType): z.ZodObject<z.ZodRawShape> {

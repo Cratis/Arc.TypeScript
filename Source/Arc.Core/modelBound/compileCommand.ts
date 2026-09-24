@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { z } from 'zod';
+import { z } from 'zod';
 import type { CommandDefinition } from '../commands/CommandDefinition.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 import { isOutcome, response } from '../results/Outcome.js';
@@ -26,7 +26,7 @@ export function compileCommand(type: ClassType, namespace: string): CompiledComm
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
-        authorization: metadata.authorization,
+        authorization: metadata.authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
         handlerDependencies: tokens,
         provide: hasProvider ? async input => {
             const instance = decode(type as WireType, input) as { provide(): unknown };

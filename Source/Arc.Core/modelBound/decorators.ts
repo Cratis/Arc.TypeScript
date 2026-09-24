@@ -118,6 +118,7 @@ function fieldOption(option: FieldOptions): (target: object | undefined, nameOrC
 export function key(): ReturnType<typeof fieldOption> { return fieldOption({}); }
 export function optional(): ReturnType<typeof fieldOption> { return fieldOption({ optional: true }); }
 export function nullable(): ReturnType<typeof fieldOption> { return fieldOption({ nullable: true }); }
+export function defaultValue(value: unknown): ReturnType<typeof fieldOption> { return fieldOption({ defaultValue: value }); }
 export function enumeration(values: object): ReturnType<typeof fieldOption> {
     return fieldOption({ values: [...new Set(Object.values(values).filter(value => typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'))] });
 }

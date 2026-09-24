@@ -54,7 +54,7 @@ export function compileQueries(type: ClassType, namespace: string): CompiledQuer
             name, namespace: [metadata.namespace ?? namespace, type.name].filter(Boolean).join('.'),
             routeNamespace: metadata.namespace ?? namespace,
             path: metadata.methodRoutes?.get(name) ?? metadata.path,
-            authorization, schema: z.object(shape), handlerDependencies: services
+            authorization, schema: z.object(shape), wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services
         };
         if (declaration.observable) queries.push({
             definition: { ...descriptor, observe: async input => encodeObservable(await perform(input)) },

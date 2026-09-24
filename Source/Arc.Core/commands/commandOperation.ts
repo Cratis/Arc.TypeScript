@@ -14,7 +14,7 @@ import { prepareDependencies, dependencyFailure, validate, validatorFailure } fr
 
 export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string): Operation {
     return {
-        ...definition, kind: 'command', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: z.toJSONSchema(definition.schema),
+        ...definition, kind: 'command', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
         async run(input, context, _options, validateOnly): Promise<CommandResult> {
             if (!authorized(definition.authorization, context)) return commandResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);

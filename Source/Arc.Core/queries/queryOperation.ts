@@ -20,7 +20,7 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
     observable = false): Operation {
     return {
-        ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: querySchema(definition.schema),
+        ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
             if (!authorized(definition.authorization, context)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
