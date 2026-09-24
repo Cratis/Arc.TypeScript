@@ -39,20 +39,20 @@ if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.ar
 }
 ```
 
-This is the complete [Tasks sample](Samples/Tasks/src/index.ts). It serves `POST /api/tasks/create`, `POST /api/tasks/create/validate`, and `GET` or `QUERY /api/tasks/list`. The Zod schema is the runtime contract: TypeScript types are erased at runtime, so Arc parses every request with the schema, infers the handler's input type from it, and publishes it as JSON Schema.
+This is a self-contained example, not a copy of the sample. It serves `POST /api/tasks/create`, `POST /api/tasks/create/validate`, and `GET` or `QUERY /api/tasks/list`. The [Tasks sample](Samples/Tasks/src/index.ts) serves the same routes but keeps its tasks in a singleton `TaskRepository` service that the handlers declare as a dependency; [Get started](Documentation/getting-started.md) shows its complete source. The Zod schema is the runtime contract: TypeScript types are erased at runtime, so Arc parses every request with the schema, infers the handler's input type from it, and publishes it as JSON Schema.
 
 ## Packages
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.server` | [`Source`](Source) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, authentication handlers, results, introspection, and OpenAPI |
+| `@cratis/arc.server` | [`Source`](Source) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, and OpenAPI. The `@cratis/arc.server/testing` export provides `ArcScenario` and `shouldHaveRuleFailure`. |
 | `@cratis/arc.server.express` | [`Integrations/Express`](Integrations/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.server.fastify` | [`Integrations/Fastify`](Integrations/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.server.hono` | [`Integrations/Hono`](Integrations/Hono) | `mountHono` for Hono 4 |
 | `@cratis/arc.server.mongodb` | [`Integrations/MongoDB`](Integrations/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
-| `@cratis/arc.server.chronicle` | [`Integrations/Chronicle`](Integrations/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. It cannot run against Chronicle today, because the published Chronicle TypeScript SDK does not load in Node.js. |
+| `@cratis/arc.server.chronicle` | [`Integrations/Chronicle`](Integrations/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
 
-The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.2.0. That is the version of this source preview, not a published npm package, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -71,13 +71,25 @@ The sample listens on port 3000 on every network interface. [Get started](Docume
 
 ## What works and what does not
 
-Supported, with specs in this repository: commands and queries with Zod schemas, validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, header or resolver-based tenancy, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and the MongoDB read helper. A paired suite checks 33 bounded HTTP cases against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
+Supported, with specs in this repository: commands and queries with Zod schemas, validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and the MongoDB read helper.
+
+Also supported, each one explicit or opt-in:
+
+- **Services.** You register each service against a `serviceToken` as `singleton`, `scoped`, or `transient`, and a definition declares the tokens it needs in `handlerDependencies` or `validatorDependencies`. Arc creates a scope for every HTTP or direct call and disposes the services it created there; singletons are disposed by `await server.dispose()`, or by disposing a `ServiceRegistry` you passed in yourself. There is no automatic discovery and no integration with an application's dependency injection container.
+- **Identity.** `identityDetails` registers `GET /.cratis/me` and sets a client-readable display cookie. The cookie is for display only; it is not a credential.
+- **Host principals.** `nativePrincipal: true` accepts a principal your host framework has already verified, passed through an explicit adapter callback. It cannot be combined with Arc authentication handlers.
+- **Tenancy.** Besides the tenant header and `resolveTenant`, the `tenancy` option selects ordered header, query, claim, fixed, or subdomain sources, with optional `required` and membership-claim checks.
+- **Testing.** `@cratis/arc.server/testing` runs specs through the real command, query, and HTTP pipelines.
+
+A paired suite checks 33 bounded HTTP cases against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
 
 Not implemented:
 
 - Observable queries over HTTP, server-sent events, or WebSocket.
 - Discovery of commands and queries by convention, and TypeScript proxy generation. You register every definition with `ArcServer`.
-- Dependency injection, identity details, SQL integrations, command operations and effects, and testing helpers such as command scenarios.
+- Named authorization policies, SQL integrations, command operations and effects, and observable query test scenarios.
+
+The Chronicle integration stays experimental and private: the pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js, and this adapter has not been verified against a Chronicle kernel.
 
 The [capability reference](Documentation/reference/capabilities.md) lists every Arc feature family, its status, and the deliberate differences from Arc on .NET.
 
@@ -90,6 +102,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 - [Decide command outcomes](Documentation/guides/command-outcomes.md)
 - [Bind query arguments, page, and sort](Documentation/guides/queries.md)
 - [Configure the server](Documentation/guides/configuration.md)
+- [Compose services and test pipelines](Documentation/guides/services-and-testing.md)
 - [Read models from MongoDB](Documentation/guides/mongodb.md)
 - [Append Chronicle events from commands (experimental)](Documentation/guides/chronicle.md)
 - [Capability reference](Documentation/reference/capabilities.md)
@@ -104,7 +117,7 @@ This repository builds the **server** side under its own `@cratis/arc.server` pa
 
 ## Arc does not require event sourcing
 
-Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental and private: the published [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) does not load in Node.js today, so nothing has run against a Chronicle kernel.
+Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental and private: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.2.0 does not load in native Node.js, and this adapter has not been verified against a Chronicle kernel.
 
 ## Contributing
 

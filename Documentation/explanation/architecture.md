@@ -62,7 +62,7 @@ Parity means the same observable behavior on the wire, not the same implementati
 | Arc on .NET relies on | Arc for TypeScript |
 | --- | --- |
 | Attributes and runtime reflection (`[Command]`, `[ReadModel]`, parameter types) | TypeScript types are erased at runtime, so commands and queries are declared explicitly with Zod schemas that describe their inputs |
-| Dependency injection with per-request scopes | A per-operation context; no container. How services reach handlers beyond ordinary module scope is not decided |
+| Dependency injection with per-request scopes | Explicit typed service tokens and singleton, scoped, or transient registrations. Each operation owns a scope; singleton construction belongs to the registry and receives no request identity. Automatic discovery and .NET container integration are not implemented |
 | `AsyncLocal` ambient context | Node.js `AsyncLocalStorage`, with a frozen context per request or direct call, so one request's principal, tenant, or correlation never leaks into another |
 | `CancellationToken` | `AbortSignal` |
 | `IObservable<T>` and `ISubject<T>` | Not decided. A source that holds a current value is needed to answer an HTTP snapshot with 200 instead of 202 |

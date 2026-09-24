@@ -46,7 +46,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Argument binding | Supported | Case-insensitive names, number and boolean conversion for GET, and repeated GET keys for declared array arguments. |
 | Paging and sorting | Supported | Arrays are sorted and paged in memory. A data source that pages itself returns `queryPage(items, totalItems)`. GET requires `pageSize` of at least 1; `QUERY` treats `pageSize: 0` as unpaged. |
 | Query filters | Supported | Authorization runs before validation, as for commands. |
-| Scoped services and explicit dependencies | Supported | `ServiceRegistry` offers singleton, per-execution scoped, and transient factory registrations. Definitions declare `handlerDependencies` and `validatorDependencies`. Each direct/HTTP pipeline owns a scope; singleton cycles across nested executions are rejected, and a detached nested failure joins registry shutdown after its last living ancestor completes. A settled factory does not pass its identity or captive guard into detached manual scopes. Scope closure is joinable, and shutdown joins captured closing scopes before singletons. Failure or shutdown before result publication clears successful data. Failures dispose owned services. No auto-discovery or application container integration. See [Compose services and test pipelines](../guides/services-and-testing.md). |
+| Scoped services and explicit dependencies | Supported | Services are registered explicitly against a `serviceToken` as `singleton`, per-execution `scoped`, or `transient`, and definitions declare `handlerDependencies` and `validatorDependencies`. Each direct or HTTP pipeline owns a scope and disposes the services it created there, including after a failure. Singletons belong to the registry and are disposed by `server.dispose()`, or by you when you pass your own `ServiceRegistry`. A singleton factory runs in a registry-owned context that carries only a lifetime `signal`, not in a request context. Singleton cycles across nested executions are rejected, and a detached nested failure joins registry shutdown after its last living ancestor completes. Scope closure is joinable, and shutdown drains admitted work and captured closing scopes before disposing singletons. A successful result from admitted work that finishes during ordinary shutdown draining stays successful. A singleton factory failure poisons the registry and clears successful data from results that are not yet published; so does a failure of the execution itself, such as a failed disposal. No auto-discovery or application container integration. See [Compose services and test pipelines](../guides/services-and-testing.md). |
 | Renderers and read-model interceptors | Not implemented | |
 
 ## Observable queries
@@ -92,7 +92,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | --- | --- | --- |
 | TypeScript proxy generation | Not implemented | |
 | Introspection endpoints | Supported | Anonymous `/.cratis/commands` and `/.cratis/queries`, with the JSON Schema of each input. |
-| OpenAPI | Supported | `/openapi.json` is an OpenAPI 3.1 document with input schemas. It does not describe result schemas. |
+| OpenAPI | Supported | `/openapi.json` is an OpenAPI 3.1 document with input schemas. It does not describe result schemas. Its `info.version` is a fixed `0.1.0` for the application API document, not the package version. |
 | Concepts and derived types on the wire | Not implemented | |
 | Build-time diagnostics | Not implemented | |
 | Screenplay generation | Not applicable | .NET only. |
@@ -110,7 +110,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Command and query pipeline testing | Supported | `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. Observable query scenarios are not implemented. |
+| Command and query pipeline testing | Supported | `ArcScenario` from `@cratis/arc.server/testing` runs the actual direct or HTTP pipeline. `shouldHaveRuleFailure` rejects dependency-only failures. Observable query scenarios are not implemented. |
 
 ## Hosting
 
