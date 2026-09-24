@@ -9,5 +9,8 @@ export default tseslint.config(
     { files: ['Samples/Tasks/Features/**/*.ts'], languageOptions: {
         parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname }
     } },
-    arc.configs.recommended
+    arc.configs.recommended,
+    { files: ['Samples/Tasks/Features/**/*.ts'], rules: {
+        'arc-core/validator-target': ['error', { generatedMetadata: true }]
+    } }
 );

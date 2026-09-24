@@ -13,6 +13,7 @@ The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Ta
 
 ```typescript
 const builder = ArcApplication.createBuilder({ development: true });
+builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
 const app = await builder.build();
@@ -24,7 +25,7 @@ const app = await builder.build();
 | `addScoped(Tasks)` | One instance per execution scope: an HTTP request, a direct call, or an observable subscription |
 | `addTransient(Tasks)` | A fresh instance per resolution |
 
-Each method self-binds a class, or takes a second argument: a concrete class for an abstract class token, or a factory `(scope) => instance`. An abstract class is a good token because it exists at runtime; an interface does not. For a value with no class, create a token with `serviceToken<T>('name')`.
+This excerpt assumes `metadata` from the [Tasks generated module](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/generatedMetadata.ts). Each method self-binds a class, or takes a second argument: a concrete class for an abstract class token, or a factory `(scope) => instance`. An abstract class is a good token because it exists at runtime; an interface does not. For a value with no class, create a token with `serviceToken<T>('name')`.
 
 Instead of registering explicitly, decorate a discovered class with `@singleton()`, `@scoped()`, or `@transient()`. Without one of those, add it to `builder.services`.
 
@@ -32,8 +33,8 @@ Instead of registering explicitly, decorate a discovered class with `@singleton(
 
 | Where | How |
 | --- | --- |
-| Command `handle()` or `provide()` | `@inject(Tasks)`, one token per parameter, in order |
-| Query method | `service(Tasks)` in the ordered `@query(...)` descriptors |
+| Command `handle()` or `provide()` | Generated metadata, or `@inject(Tasks)` with one token per parameter in order |
+| Query method | Generated metadata, or `service(Tasks)` in the ordered `@query(...)` descriptors |
 | Class constructor | `@injectable(OtherService)` or `static inject = [OtherService] as const` |
 | Validator constructor | The same as a class constructor |
 
@@ -43,7 +44,7 @@ Instead of registering explicitly, decorate a discovered class with `@singleton(
 
 Two decorator modes are tested:
 
-- **Standard decorators**, used by the sample, need explicit token lists. The compiler cannot reflect erased parameter types.
+- **Standard decorators**, used by the sample, need [generated artifact metadata](proxy-generation/generated-artifact-metadata.md) or explicit token lists. The compiler cannot reflect erased parameter types.
 - **Legacy `experimentalDecorators` with `emitDecoratorMetadata`**: a decorated `@inject()` method, `@query()` method, or `@injectable()` class can infer **class-valued** parameters from `design:paramtypes`. Interfaces, `Object`, missing metadata, and erased generics cannot be inferred; registration fails with a diagnostic naming the member. An explicit token list always wins.
 
 In standard mode, `@inject(...)` and `@query(...)` also type-check their parameters. TypeScript error TS1241 usually means the tokens and parameters do not match; see [Troubleshooting](troubleshooting.md#ts1241-unable-to-resolve-signature-of-method-decorator).

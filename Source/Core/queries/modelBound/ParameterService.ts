@@ -5,4 +5,5 @@ import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentif
 export interface ParameterService {
     readonly kind: 'service';
     readonly token: ServiceIdentifier<unknown>;
+    readonly optional?: boolean;
 }

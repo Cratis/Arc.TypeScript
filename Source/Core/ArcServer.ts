@@ -4,6 +4,9 @@ import { z } from 'zod';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './index.js';
 import type { ArcServerOptions } from './ArcServerOptions.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
+import { withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
+import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
+import type { ClassType } from './reflection/ClassType.js';
 import { encode, objectSchema } from './reflection/wireSchema.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import { validateTenancy } from './tenancy/validateTenancy.js';
@@ -43,8 +46,10 @@ export class ArcServer {
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #hub: ObservableQueryHub;
     readonly #sessions: ObservableSessions;
+    readonly #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
 
-    constructor(options: ArcServerOptions) {
+    constructor(options: ArcServerOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
+        this.#generatedMetadata = generatedMetadata;
         const detailsSchema = options.identityDetails?.schema ?? (options.identityDetails?.detailsType
             ? objectSchema(options.identityDetails.detailsType) : undefined);
         this.options = detailsSchema && options.identityDetails ? {
@@ -99,7 +104,7 @@ export class ArcServer {
     private async runOwned<T>(context: ExecutionContext, callback: () => T | Promise<T>,
         isSuccess: (value: T) => boolean, fail: (error: unknown, previous?: T) => T): Promise<T> {
         const scope = this.services.createScope(context);
-        return this.services.runExecution(() => requestContext.run(context, () => withServices(scope, async () => {
+        return withGeneratedMetadata(this.#generatedMetadata, () => this.services.runExecution(() => requestContext.run(context, () => withServices(scope, async () => {
             let result: T;
             try { result = await callback(); }
             catch (error) { result = fail(error); }
@@ -121,7 +126,7 @@ export class ArcServer {
             }
             checkAvailability();
             return result;
-        });
+        }));
     }
 
     private async runProvider<T>(context: ExecutionContext, callback: () => T | Promise<T>): Promise<T> {

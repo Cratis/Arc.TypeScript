@@ -84,6 +84,7 @@ tester.run('misplaced-decorator', misplacedDecorator, {
 });
 tester.run('validator-target', validatorTarget, {
     valid: [`${core}@validator(String) class Check extends CommandValidator<string> {}`,
+        { code: `${core}class Check extends CommandValidator<string> {}`, options: [{ generatedMetadata: true }] },
         "import { CommandValidator } from 'other'; class Check extends CommandValidator {}"],
     invalid: [{ code: `${core}class Check extends CommandValidator<string> {}`, errors: [{ messageId: 'missing' }] },
         { code: "import { CommandValidator as CV } from '@cratis/arc.core'; class Check extends CV<string> {}", errors: [{ messageId: 'missing' }] }]

@@ -21,6 +21,7 @@ node Source/Tools/ProxyGenerator/dist/cli.js \
   --project "$PWD/Samples/Tasks/tsconfig.json" \
   --artifacts "$PWD/Samples/Tasks/Features" \
   --output "$PWD/my-app/frontend/src/generated" \
+  --use-generated-metadata \
   --use-proxy-file-suffix
 ```
 
@@ -62,16 +63,17 @@ Imports between generated files are extensionless by default, for Vite and other
 
 Compared with Arc's .NET proxy generator, this generator does not yet:
 
-- generate server artifact metadata, infer erased service tokens, or discover identity-only types from identity details providers;
+- discover identity-only types from identity details providers;
 - support two reachable models with the same class name in different namespaces (it fails with `Ambiguous model name`);
 - emit query HTTP method choices or command warning-severity settings (`treatWarningsAsErrors` is always `false`);
-- offer a watch mode or a metadata module, or reproduce every .NET output template.
+- reproduce every .NET output template.
 
 Nullable command types and interface-only model mode have compile coverage only, not live-client equivalence. Do not treat this output as complete .NET proxy parity; the [capability reference](../reference/capabilities.md#proxies-introspection-and-tooling) tracks the details.
 
 ## Continue
 
 - [Configuration](configuration.md): every CLI option.
+- [Generated artifact metadata](generated-artifact-metadata.md): infer server bindings and validate them before startup.
 - [Type mapping](type-mapping.md): which TypeScript types become which client types.
 - [Validation rules](validation.md): which validator rules reach the client.
 - [File index tracking](file-index-tracking.md): ownership headers, barrels, and stale-file cleanup.

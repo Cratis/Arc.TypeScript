@@ -14,6 +14,9 @@ import type { ObservableQueryDefinition } from './queries/observable/ObservableQ
 import { compileCommand } from './commands/modelBound/compileCommand.js';
 import { compileQueries } from './queries/modelBound/compileQueries.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
+import { registerGeneratedMetadata, withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
+import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
+import type { GeneratedMetadata } from './reflection/GeneratedArtifactMetadata.js';
 import type { ClassType } from './reflection/ClassType.js';
 import type { Artifact } from './reflection/Artifact.js';
 import { validateMetadata } from './reflection/validateMetadata.js';
@@ -54,7 +57,14 @@ export class ArcApplicationBuilder {
     readonly #identityProviders: ClassType[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
+    #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
     constructor(private readonly options: ArcServerOptions = {}) {}
+    /** Install source-generated bindings before adding or discovering artifacts. */
+    useGeneratedMetadata(metadata: GeneratedMetadata): this {
+        if (this.#built || this.#artifacts.length) throw new Error('Register generated metadata before artifacts');
+        this.#generatedMetadata = registerGeneratedMetadata(metadata);
+        return this;
+    }
     /** Add an ordered scoped response handler registered in services. */
     addCommandResponseValueHandler(token: ServiceIdentifier<CommandResponseValueHandler>): this {
         this.#responseHandlers.push(token);
@@ -111,11 +121,13 @@ export class ArcApplicationBuilder {
     }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
     add(...types: ClassType[]): this {
-        for (const type of types) {
-            const metadata = ownMetadata(type);
-            if (!this.register(type, metadata.namespace ?? '')) throw new Error(`Not an Arc artifact: ${type.name}`);
-        }
-        return this;
+        return withGeneratedMetadata(this.#generatedMetadata, () => {
+            for (const type of types) {
+                const metadata = ownMetadata(type);
+                if (!this.register(type, metadata.namespace ?? '')) throw new Error(`Not an Arc artifact: ${type.name}`);
+            }
+            return this;
+        });
     }
     private register(type: ClassType, namespace: string): boolean {
         let external = false;
@@ -138,21 +150,26 @@ export class ArcApplicationBuilder {
     }
     /** Import decorated artifacts beneath a dedicated discovery root. */
     async discover(root: URL, options: { rootNamespace?: string } = {}): Promise<this> {
-        if (root.protocol !== 'file:') throw new Error('Arc discovery requires a file URL');
-        const folder = await realpath(fileURLToPath(root));
-        await ensureDiscoveryRootSafe(folder);
-        for (const file of discoveryFiles(folder)) {
-            const module: Record<string, unknown> = await import(pathToFileURL(file).href);
-            const namespace = [options.rootNamespace, ...relative(folder, dirname(file)).split(sep)
-                .filter(value => value && value !== '.')].filter(Boolean).join('.');
-            for (const exported of Object.values(module)) {
-                if (typeof exported === 'function') this.register(exported as ClassType, namespace);
+        return withGeneratedMetadata(this.#generatedMetadata, async () => {
+            if (root.protocol !== 'file:') throw new Error('Arc discovery requires a file URL');
+            const folder = await realpath(fileURLToPath(root));
+            await ensureDiscoveryRootSafe(folder);
+            for (const file of discoveryFiles(folder)) {
+                const module: Record<string, unknown> = await import(pathToFileURL(file).href);
+                const namespace = [options.rootNamespace, ...relative(folder, dirname(file)).split(sep)
+                    .filter(value => value && value !== '.')].filter(Boolean).join('.');
+                for (const exported of Object.values(module)) {
+                    if (typeof exported === 'function') this.register(exported as ClassType, namespace);
+                }
             }
-        }
-        return this;
+            return this;
+        });
     }
     /** Compile artifacts and preflight their declared dependencies. */
-    async build(): Promise<ArcApplication> {
+    build(): Promise<ArcApplication> {
+        return withGeneratedMetadata(this.#generatedMetadata, () => this.buildRegistered());
+    }
+    private async buildRegistered(): Promise<ArcApplication> {
         if (this.#built) throw new Error('Arc application builder can be built only once');
         this.#built = true;
         this.checkServiceOwnership();
@@ -194,7 +211,7 @@ export class ArcApplicationBuilder {
             queryRenderers: [...this.options.queryRenderers ?? [], ...this.#queryRenderers],
             readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
             readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
-            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
+            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations }, this.#generatedMetadata);
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }
         return new ArcApplication(server);

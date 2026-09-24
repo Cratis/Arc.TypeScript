@@ -11,7 +11,7 @@ The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Ta
 
 ```typescript
 import { field } from '@cratis/fundamentals';
-import { argument, query, readModel, service, type ObservableSource } from '@cratis/arc.core';
+import { query, readModel, service, type ObservableSource } from '@cratis/arc.core';
 import { TaskId } from '../TaskId.js';
 import { TaskTitle } from '../TaskTitle.js';
 import { Tasks } from '../Tasks.js';
@@ -24,10 +24,10 @@ export class TaskItem {
     @query(service(Tasks))
     static allTasks(tasks: Tasks): TaskItem[] { return tasks.all(); }
 
-    @query(argument('id', TaskId), service(Tasks))
+    @query()
     static taskById(id: TaskId, tasks: Tasks): TaskItem | undefined { return tasks.byId(id); }
 
-    @query({ observable: true }, service(Tasks))
+    @query()
     static observeAllTasks(tasks: Tasks): ObservableSource<TaskItem[]> { return tasks.observeAll(); }
 }
 ```
@@ -44,7 +44,7 @@ Each parameter gets one descriptor, in the **same order as the method signature*
 | `service(Token)` | A service from the execution scope; see [Dependency injection](../../dependency-injection.md) |
 | `queryOptions()` | The request's paging and sorting; see [Paging and sorting](paging.md) |
 
-Standard decorators cannot see parameter types, so the descriptors are required. With legacy `experimentalDecorators` and `emitDecoratorMetadata`, a bare `@query()` can infer class-valued services; explicit descriptors always win. TypeScript error TS1241 on a `@query(...)` usually means the descriptors do not match the parameters; see [Troubleshooting](../../troubleshooting.md#ts1241-unable-to-resolve-signature-of-method-decorator).
+With [generated artifact metadata](../../proxy-generation/generated-artifact-metadata.md) installed, Arc infers argument names, types, concrete services, and observable returns from these declarations. Without it, standard decorators cannot see parameter types: use `@query(argument('id', TaskId), service(Tasks))` and declare `{ observable: true }` on observable methods. Legacy `experimentalDecorators` and `emitDecoratorMetadata` can infer class-valued services; explicit descriptors always win. TypeScript error TS1241 on a `@query(...)` usually means the descriptors do not match the parameters; see [Troubleshooting](../../troubleshooting.md#ts1241-unable-to-resolve-signature-of-method-decorator).
 
 ## Return a value
 
@@ -52,7 +52,7 @@ A query method can return a value or a promise of one: an array, a single model,
 
 ## Declare observable queries
 
-A query that returns a live source must say so at registration with `{ observable: true }`, so snapshots, server-sent events, WebSocket admission, introspection, and generated clients know its contract before it runs. The source may be an `AsyncIterable`, a structural subscribable, or a `CurrentValueSubject`. See [Observable queries](../observable-queries.md).
+A query that returns a live source must declare `{ observable: true }` without generated metadata; generated metadata infers it from the return type before registration, so snapshots, server-sent events, WebSocket admission, introspection, and generated clients know its contract before it runs. The source may be an `AsyncIterable`, a structural subscribable, or a `CurrentValueSubject`. See [Observable queries](../observable-queries.md).
 
 ## Routes and identity
 

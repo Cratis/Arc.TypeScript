@@ -11,7 +11,7 @@ The [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Sa
 
 ```typescript
 import { field } from '@cratis/fundamentals';
-import { command, inject } from '@cratis/arc.core';
+import { command } from '@cratis/arc.core';
 import { TaskId } from '../TaskId.js';
 import { TaskTitle } from '../TaskTitle.js';
 import { Tasks } from '../Tasks.js';
@@ -21,7 +21,6 @@ export class RegisterTask {
     @field(TaskId) id!: TaskId;
     @field(TaskTitle) title!: TaskTitle;
 
-    @inject(Tasks)
     handle(tasks: Tasks): TaskId {
         tasks.register(this.id, this.title);
         return this.id;
@@ -31,7 +30,7 @@ export class RegisterTask {
 
 - `@command()` from `@cratis/arc.core` marks the class. It must have a public instance `handle()`, which may be inherited.
 - `@field(Type)` from `@cratis/fundamentals` declares each input field and its wire type. Every field is required unless you add `@optional()`, `@nullable()`, or `@defaultValue(value)`. [Concepts](../../concepts.md) lists the supported types.
-- `@inject(Tasks)` lists one service token per `handle()` parameter, in order. See [Dependency injection](../../dependency-injection.md).
+- [Generated artifact metadata](../../proxy-generation/generated-artifact-metadata.md) binds the `Tasks` parameter by type. Without it, use `@inject(Tasks)`. See [Dependency injection](../../dependency-injection.md).
 
 `handle()` can return a plain value or a promise. The value becomes the result's `response`; concepts are encoded as their primitive value. To reject, deny, or return several values, see [Command outcomes](../command-outcomes.md).
 
@@ -70,7 +69,7 @@ For several prepared values, or values mixed with services, return `tuple(...)` 
 | `provided(Type)` | A value returned from `provide()`, matched by runtime type |
 | `commandReadModel(Type)` | A read model loaded by the command's key; see [Command context](../command-context.md#load-a-read-model-by-key) |
 
-Use them in `@inject(...)` on `handle()` or `provide()`, for example `@inject(abortSignal(), commandContext())`. Standard decorators need these explicit markers because TypeScript erases parameter types.
+Use them in `@inject(...)` on `handle()` or `provide()`, for example `@inject(abortSignal(), commandContext())`. Without generated metadata, standard decorators need these explicit markers because TypeScript erases parameter types.
 
 ## Route and namespace
 

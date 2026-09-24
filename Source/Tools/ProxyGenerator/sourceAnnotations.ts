@@ -31,13 +31,31 @@ export function roles(checker: ts.TypeChecker, node: ts.Node): string[] {
         return argument.text;
     });
 }
-export function fieldsFor(declaration: ts.ClassDeclaration, checker: ts.TypeChecker, resolver: SourceTypeResolver, diagnostics: string[]): SourceField[] {
-    return declaration.members.filter(ts.isPropertyDeclaration).filter(member => !!annotation(checker, member, 'field', 'fundamentals'))
+export function classChain(declaration: ts.ClassDeclaration, checker: ts.TypeChecker): ts.ClassDeclaration[] {
+    const chain: ts.ClassDeclaration[] = [];
+    const visited = new Set<ts.Symbol>();
+    let current: ts.ClassDeclaration | undefined = declaration;
+    while (current) {
+        chain.unshift(current);
+        const type = checker.getTypeAtLocation(current);
+        const base: ts.BaseType | undefined = type.getBaseTypes()?.[0];
+        if (!base?.symbol || visited.has(base.symbol)) break;
+        visited.add(base.symbol);
+        current = base.symbol.declarations?.find(ts.isClassDeclaration);
+    }
+    return chain;
+}
+export function fieldsFor(declaration: ts.ClassDeclaration, checker: ts.TypeChecker, resolver: SourceTypeResolver,
+    diagnostics: string[], generatedMetadata = false): SourceField[] {
+    return classChain(declaration, checker).flatMap(owner => owner.members.filter(ts.isPropertyDeclaration))
+        .filter(member => !!annotation(checker, member, 'field', 'fundamentals'))
         .map(member => {
             const name = fieldName(member.name);
-            const hasDefault = !!annotation(checker, member, 'defaultValue');
-            const optional = !!annotation(checker, member, 'optional') || hasDefault;
-            const nullable = !!annotation(checker, member, 'nullable');
+            const hasDefault = !!annotation(checker, member, 'defaultValue') || generatedMetadata && !!member.initializer;
+            const optional = !!annotation(checker, member, 'optional') || hasDefault || generatedMetadata && !!member.questionToken;
+            const memberType = checker.getTypeAtLocation(member);
+            const nullable = !!annotation(checker, member, 'nullable') || generatedMetadata && memberType.isUnion() &&
+                memberType.types.some(part => !!(part.flags & ts.TypeFlags.Null));
             if (member.questionToken && !optional)
                 throw new Error(`${member.getSourceFile().fileName}: ${name} TypeScript ? disagrees with Arc field optionality; add @optional() or remove ?`);
             if (!member.questionToken && optional)
