@@ -9,7 +9,7 @@ A class extends an Arc validator base but has no `@validator(Target)`. Rule: `ar
 
 ## Why
 
-Arc only discovers validators associated with an exact target class. The default rule expects `@validator(Target)`. With [generated artifact metadata](../guides/generated-artifact-metadata.md), Arc reads the validator's generic target from source; configure the rule option `{ generatedMetadata: true }` for files compiled with that module.
+Arc only discovers validators associated with an exact target class. The default rule expects `@validator(Target)`. With [generated artifact metadata](../proxy-generation/generated-artifact-metadata.md), Arc reads the validator's generic target from source; configure the rule option `{ generatedMetadata: true }` for files compiled with that module.
 
 ## Bad
 

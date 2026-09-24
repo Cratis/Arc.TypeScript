@@ -1,19 +1,43 @@
 ---
-title: Resolve tenants
-description: Select a tenant from a trusted claim, configured id, request parameter, or verified host authority.
+title: Tenant resolvers
+description: Select a tenant from a header, query string, trusted claim, fixed value, or verified subdomain, in the order you choose, with optional required and membership checks.
 ---
 
-Arc resolves a tenant for each request; it does not establish whether the caller belongs to that tenant unless you configure a membership check. A header or query string is a **selection**, not proof of authority.
+The `tenancy` option lists built-in tenant sources in the order Arc tries them. The first nonempty result wins. A header or query-string value is a **selection**, not proof of authority.
 
-Set `tenancy: { sources: ['claim', 'header'], claimType: 'tenant', required: true }` on `ArcServer` to try a trusted authenticated claim first and a header second. Sources run in your order; the first nonempty result wins. A selected value must pass Arc's tenant-id validation. Use `membershipClaim: 'tenants'` to require the authenticated principal's own comma-delimited membership claim before using a selected tenant; a mismatch answers 403. `required: true` rejects an unresolved tenant with 400. Those checks do not replace storage-level isolation.
+## Sources
 
 | Source | Configuration | Reads |
 | --- | --- | --- |
 | `header` | `tenantHeader` (default `x-cratis-tenant-id`) | Request header |
 | `query` | `queryParameter` (default `tenantId`) | Request query string |
-| `claim` | Required `claimType` | Own claim on an authenticated principal |
-| `fixed` | Required `fixed` tenant id | Configured deployment value |
-| `development` | Required `fixed` tenant id | Alias of `fixed`, as in .NET; it does **not** check your environment |
-| `subdomain` | Required `baseDomain` | The verified adapter `native.authority`, **not** the raw Host or X-Forwarded-Host header |
+| `claim` | Required `claimType` | An own string claim on an authenticated principal |
+| `fixed` | Required `fixed` tenant ID | A configured deployment value |
+| `development` | Required `fixed` tenant ID | Alias of `fixed`, as in .NET; it does **not** check your environment |
+| `subdomain` | Required `baseDomain` | The verified adapter `native.authority`, **not** the raw `Host` or `X-Forwarded-Host` header |
 
-Never use `development` or `fixed` to accept a browser-supplied tenant without validating access. `resolveTenant` overrides the configured resolver; the legacy header behavior remains when `tenancy` is absent. Local development user and tenant listing endpoints are separate from tenant resolution: `development: true` with `developmentUsers`/`developmentTenants` provider functions (or arrays of functions) aggregates their results on the anonymous `/.cratis/users` and `/.cratis/tenants` routes. Return fixtures only. Production discovery providers are refused at startup, but the endpoints themselves remain anonymous and return `[]` by default. See [identity](../identity/index.md) for principal verification.
+For a single-tenant application, `sources: ['fixed'], fixed: 'default'` gives every request the `default` tenant.
+
+## Options
+
+| Option | Effect |
+| --- | --- |
+| `sources` | The ordered list above |
+| `required` | An unresolved tenant answers 400 |
+| `membershipClaim` | A selected tenant requires an authenticated principal whose own claim of this name, a comma-separated list, includes it; otherwise 403 |
+| `queryParameter`, `claimType`, `fixed`, `baseDomain` | Per-source settings |
+
+## Validation rules
+
+- Nonempty IDs are lowercased and must be DNS labels: letters, digits, and hyphens, at most 63 characters. An invalid selected ID answers 400.
+- A nonstring selected tenant claim answers 400; a nonstring membership claim answers 403. Strategies read only own string values from the claim object.
+- `subdomain` requires an ASCII `baseDomain` of at least two labels and a host-verified `authority` from the adapter callback. Only a single subdomain label matches; IP addresses, unrelated or multi-label hosts, and raw `Host` or forwarded headers never do.
+- No implicit fallback or development strategy is installed. Write `sources: ['subdomain', 'header']` to fall back to a header explicitly.
+- Other strategy errors and unsafe startup options fail closed.
+
+Never use `development` or `fixed` to accept a browser-supplied tenant without validating access. `resolveTenant` overrides this option, and the legacy header behavior applies when `tenancy` is absent; see [Tenancy](index.md).
+
+## Related
+
+- [Native principal](../hosts/native-principal.md) for supplying a verified authority
+- [Authentication](../core/authentication.md)

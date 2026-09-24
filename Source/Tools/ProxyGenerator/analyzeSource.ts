@@ -16,25 +16,26 @@ import type { RecordedRule } from './RecordedRule.js';
 import { sourceProgram } from './sourceProgram.js';
 
 export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
-    program = sourceProgram(project)): SourceAnalysis {
+    program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void): SourceAnalysis {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
     const hasMetadata = generatedMetadata;
     const resolver = new SourceTypeResolver(checker, root, hasMetadata);
     const diagnostics: string[] = [];
-    const discovered = new Set(discoveryFiles(root).map(file => resolve(file)));
+    const discovered = discoveryFiles(root).map(file => resolve(file));
     const operations: SourceOperation[] = [];
     const validators: ValidatorRules[] = [];
     const targets = new Map<string, ts.Symbol>();
     const concepts = new Map<string, { name: string; symbol: ts.Symbol }[]>();
-    for (const file of program.getSourceFiles()) {
-        const path = resolve(file.fileName);
-        if (file.isDeclarationFile || !discovered.has(path)) continue;
+    for (const path of discovered) {
+        const file = program.getSourceFile(path);
+        if (!file || file.isDeclarationFile) continue;
         const module = checker.getSymbolAtLocation(file);
         const exports = new Set(module ? checker.getExportsOfModule(module).map(symbol =>
             symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol) : []);
         for (const declaration of file.statements) {
             if (!ts.isClassDeclaration(declaration) || !declaration.name || !exports.has(checker.getSymbolAtLocation(declaration.name)!)) continue;
+            visit?.(declaration);
             const validator = annotation(checker, declaration, 'validator');
             const explicitTarget = validator && ts.isCallExpression(validator) && validator.arguments[0] ?
                 originalSymbol(checker, validator.arguments[0]) : undefined;
