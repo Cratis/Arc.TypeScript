@@ -136,10 +136,28 @@ curl -X POST http://localhost:3000/api/tasks/create/validate \
 
 ## Read the sample
 
-This is the whole sample, [`Samples/Tasks/src/index.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/src/index.ts):
+The sample is two files. [`Samples/Tasks/src/TaskRepository.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/src/TaskRepository.ts) stores the tasks:
 
 ```typescript
-import { ArcServer, defineCommand, defineQuery, validation } from '@cratis/arc.server';
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+/** Demo-only in-memory storage; use a durable store for a real application. */
+export class TaskRepository {
+    readonly #tasks = new Map<string, string>();
+    save(id: string, title: string): void { this.#tasks.set(id, title); }
+    list(search: string): { id: string; title: string }[] {
+        return [...this.#tasks].filter(([, title]) => title.includes(search)).map(([id, title]) => ({ id, title }));
+    }
+}
+```
+
+[`Samples/Tasks/src/index.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/src/index.ts) defines the command and the query and starts the server:
+
+```typescript
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ArcServer, currentServices, defineCommand, defineQuery, serviceToken, validation } from '@cratis/arc.server';
+import { TaskRepository } from './TaskRepository.js';
 import { mountHono } from '@cratis/arc.server.hono';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
@@ -147,17 +165,21 @@ import { z } from 'zod';
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const tasks = new Map<string, string>();
+const repository = serviceToken<TaskRepository>('tasks repository');
 const create = defineCommand({
     name: 'Create', namespace: 'Tasks', schema: z.object({ id: z.string(), title: z.string() }),
     validate: ({ title }) => title.trim() ? [] : [validation('A title is required', ['title'])],
-    handle: ({ id, title }) => { tasks.set(id, title); return { id }; }
+    handlerDependencies: [repository],
+    handle: async ({ id, title }) => { (await currentServices().resolve(repository)).save(id, title); return { id }; }
 });
 const list = defineQuery({
     name: 'List', namespace: 'Tasks', schema: z.object({ search: z.string().default('') }),
-    perform: ({ search }) => [...tasks].filter(([, title]) => title.includes(search)).map(([id, title]) => ({ id, title }))
+    handlerDependencies: [repository],
+    perform: async ({ search }) => (await currentServices().resolve(repository)).list(search)
 });
-export const server = new ArcServer({ commands: [create], queries: [list] });
+export const server = new ArcServer({ commands: [create], queries: [list], services: [
+    { token: repository, lifetime: 'singleton', factory: () => new TaskRepository() }
+] });
 export const app = new Hono();
 mountHono(app, server);
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
@@ -183,9 +205,17 @@ The schema answers "is this the right shape?". It does not produce per-member me
 
 ### Handlers do the work
 
-`handle` runs only after the schema and every validator accept the input. The value it returns becomes `response` in the command result. It can also be `async` and return a promise.
+`handle` runs only after the schema and every validator accept the input. The value it returns becomes `response` in the command result. It can be `async` and return a promise, as it is here.
 
 A query's `perform` works the same way and returns the data. When it returns an array, the server applies `page` and `pageSize` to it in memory, which is why paging worked without any paging code in the sample.
+
+### Services are registered and declared explicitly
+
+The tasks live in one `TaskRepository` that both the command and the query use. `serviceToken<TaskRepository>('tasks repository')` creates a typed key for it, and the `services` option registers a factory for that key with the `singleton` lifetime, so the server creates one repository on first use and reuses it for every request.
+
+Each definition lists the token in `handlerDependencies`. Before the handler runs, Arc checks that every declared token is registered and that the registrations have no cycles and no singleton that depends on a shorter-lived service. A missing registration fails the request with the reason `dependencyUnavailable` instead of calling your code. Inside `handle` and `perform`, `currentServices().resolve(repository)` returns the instance.
+
+Nothing is discovered automatically, and Arc does not integrate with an application dependency injection container. A singleton belongs to the server's registry and is disposed by `await server.dispose()`; the sample does not call it, because it holds no resources. [Compose services and test pipelines](guides/services-and-testing.md) covers scoped and transient lifetimes, disposal, and testing.
 
 ### Names become routes
 
@@ -219,4 +249,5 @@ The pattern is always the same: define an operation with a Zod schema, add valid
 - [Validate and authorize commands and queries](guides/validation-and-authorization.md) to add authentication, roles, and business rules, and to see the order in which they run.
 - [Bind query arguments, page, and sort](guides/queries.md) for GET and `QUERY` arguments and for paging in a database.
 - [Configure the server](guides/configuration.md) for routes, tenancy, body limits, and error handling.
+- [Compose services and test pipelines](guides/services-and-testing.md) for service lifetimes, disposal, and specs that run the real pipelines.
 - [Architecture](explanation/architecture.md) for how the core, the adapters, and optional integrations fit together.

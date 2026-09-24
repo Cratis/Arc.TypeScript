@@ -17,5 +17,6 @@ The guides describe the current source in this repository. No package is publish
 | [Decide command outcomes](command-outcomes.md) | Load data before a command runs, reject or deny from inside it, and wrap it in execution scopes. |
 | [Bind query arguments, page, and sort](queries.md) | Send arguments with GET or `QUERY`, page and sort results, or return a page your database already cut. |
 | [Configure the server](configuration.md) | Change route prefixes and paths, resolve tenants, limit request bodies, and control what errors reveal. |
+| [Compose services and test pipelines](services-and-testing.md) | Register scoped services and exercise real command and query pipelines in specs. |
 | [Read models from MongoDB](mongodb.md) | Serve queries from a tenant's MongoDB database with a filter your code controls. |
 | [Append Chronicle events from commands (experimental)](chronicle.md) | Review the experimental Chronicle integration and why it cannot run against Chronicle yet. |

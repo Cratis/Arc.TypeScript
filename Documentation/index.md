@@ -8,8 +8,18 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, and then keeping all of it in step with what the generated TypeScript clients expect. With it, commands and queries run through one pipeline that owns those concerns, so the wire behavior follows Arc on .NET instead of being re-invented per endpoint.
 
 :::caution[Unpublished, without full parity]
-Arc for TypeScript is not ready for production use. No package is published to npm, and npm publication is not configured. Parity with Arc on .NET is **not** achieved: observable queries, proxy generation, discovery of commands and queries, dependency injection, and identity details are not implemented. The [capability reference](reference/capabilities.md) lists what is supported. Package names and APIs can still change.
+Arc for TypeScript is not ready for production use. No package is published to npm, and npm publication is not configured. The package manifests are at version 0.2.0 for a source preview. Parity with Arc on .NET is **not** achieved: observable queries, proxy generation, and discovery of commands and queries are not implemented, and the Chronicle integration is private and unverified against a live kernel. The [capability reference](reference/capabilities.md) lists what is supported. Package names and APIs can still change.
 :::
+
+## What the server core provides
+
+Beyond the command and query pipelines, the core offers these explicit or opt-in features:
+
+- **Services.** Register services against a `serviceToken` with a `singleton`, `scoped`, or `transient` lifetime, and declare the tokens a definition needs. Arc creates and disposes a scope per call, and disposes singletons when you dispose the server, or the `ServiceRegistry` you passed in. Nothing is discovered automatically, and there is no integration with an application's dependency injection container. See [Compose services and test pipelines](guides/services-and-testing.md).
+- **Identity details.** The `identityDetails` option registers `/.cratis/me`, which sets a client-readable display cookie. That cookie is not a credential.
+- **Host principals.** `nativePrincipal: true` accepts a principal your host framework already verified, through an explicit adapter callback, instead of Arc authentication handlers.
+- **Tenancy.** The `tenancy` option adds ordered header, query, claim, fixed, and subdomain sources, with optional required-tenant and membership checks.
+- **Testing.** The `@cratis/arc.server/testing` export runs specs through the real command, query, and HTTP pipelines.
 
 ## A server for the clients you already have
 
@@ -36,7 +46,7 @@ A paired suite checks a bounded set of routes against a .NET host built on `Crat
 
 Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The server core has no dependency on event sourcing or on a database.
 
-Two integrations are separate packages. [MongoDB](guides/mongodb.md) is an optional read helper for queries. [Chronicle](guides/chronicle.md) is experimental: the published Chronicle TypeScript SDK does not load in Node.js today, so the integration cannot run against Chronicle. The SDK itself is developed in the [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) repository. See [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how the boundary works in Arc generally.
+Two integrations are separate packages. [MongoDB](guides/mongodb.md) is an optional read helper for queries. [Chronicle](guides/chronicle.md) is experimental: the pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js, and the adapter has not been verified against a live kernel. The SDK itself is developed in the [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) repository. See [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how the boundary works in Arc generally.
 
 ## Host frameworks
 
@@ -44,12 +54,12 @@ The core does not own an HTTP server. Host adapters for [Express](https://expres
 
 ## Releases
 
-Arc for TypeScript is versioned independently of Arc on .NET. Release previews exist; publishing does not. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Preview a TypeScript release](contributing/releases.md).
+Arc for TypeScript is versioned independently of Arc on .NET. GitHub source previews are available; npm publication remains disabled. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Preview a TypeScript release](contributing/releases.md).
 
 ## Where to go next
 
 - [Get started](getting-started.md): run the Tasks sample and read it line by line.
-- [Guides](guides/index.md): host, call, validate, query, configure, and persist.
+- [Guides](guides/index.md): host, call, validate, query, configure, compose services, test, and persist.
 - [Architecture](explanation/architecture.md): the standalone CQRS boundary, the core and host adapters, and how Arc concepts map to TypeScript.
 - [Capability reference](reference/capabilities.md): each Arc feature family, its status here, and the deliberate differences.
 - [Arc HTTP contract](/arc/http-contract/): the wire protocol every Arc backend speaks.

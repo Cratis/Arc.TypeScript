@@ -1,10 +1,12 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { ArcServer } from '@cratis/arc.server';
+import { TLSSocket } from 'node:tls';
+import type { ArcServer, NativeRequestContext } from '@cratis/arc.server';
 
 const origin = 'http://arc.invalid';
-export function mountFastify(app: FastifyInstance, server: ArcServer): void {
+/** The callback must use host-verified identity/authority, never request headers. */
+export function mountFastify(app: FastifyInstance, server: ArcServer, native?: (request: FastifyRequest) => Omit<NativeRequestContext, 'secure'>): void {
     // Encapsulated parsers never replace the parent application's content-type behavior.
     app.register(async scoped => {
         scoped.removeAllContentTypeParsers();
@@ -25,8 +27,9 @@ export function mountFastify(app: FastifyInstance, server: ArcServer): void {
                     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : body,
                     signal: controller.signal
                 });
-                const result = await server.handle(incoming);
+                const result = await server.handle(incoming, () => ({ ...native?.(request), secure: request.raw.socket instanceof TLSSocket && request.raw.socket.encrypted === true }));
                 if (!result) return reply.code(404).send();
+                // Fastify appends Set-Cookie to existing hook cookies itself.
                 result.headers.forEach((value, key) => reply.header(key, value));
                 return reply.code(result.status).send(await result.text());
             } finally {
@@ -34,12 +37,8 @@ export function mountFastify(app: FastifyInstance, server: ArcServer): void {
                 reply.raw.off('close', onClose);
             }
         }
-        for (const path of server.routes.keys()) {
-            scoped.route({ method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'QUERY'], url: path,
-                handler: (request, reply) => dispatch(request, reply, path) });
-        }
-        for (const path of ['/.cratis/commands', '/.cratis/queries', '/.cratis/identity-details/schema', '/openapi.json']) {
-            scoped.route({ method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], url: path,
+        for (const path of server.endpoints.keys()) {
+            scoped.route({ method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', ...(server.routes.has(path) ? ['QUERY' as const] : [])], url: path,
                 handler: (request, reply) => dispatch(request, reply, path) });
         }
     });

@@ -6,8 +6,13 @@ import type { Outcome } from './Outcome.js';
 import type { CommandExecutionScope } from './CommandExecutionScope.js';
 import type { CommandFilter } from './CommandFilter.js';
 import type { DescriptorBase } from './DescriptorBase.js';
+import type { ServiceToken } from './ServiceToken.js';
 export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;
+    /** Preflight without constructing handler services during validation-only requests. */
+    handlerDependencies?: readonly ServiceToken<unknown>[];
+    /** Constructed before validation; validators can access them through currentServices(). */
+    validatorDependencies?: readonly ServiceToken<unknown>[];
     authorize?: (input: z.output<S>, context: ExecutionContext) => boolean | Promise<boolean>;
     validate?: CommandFilter<z.output<S>>;
     provide?: (input: z.output<S>, context: ExecutionContext) => Outcome<unknown> | unknown | Promise<Outcome<unknown> | unknown>;

@@ -5,8 +5,11 @@ import type { DescriptorBase } from './DescriptorBase.js';
 import type { QueryFilter } from './QueryFilter.js';
 import type { ExecutionContext } from './ExecutionContext.js';
 import type { QueryOptions } from './QueryOptions.js';
+import type { ServiceToken } from './ServiceToken.js';
 export interface QueryDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;
+    handlerDependencies?: readonly ServiceToken<unknown>[];
+    validatorDependencies?: readonly ServiceToken<unknown>[];
     authorize?: (input: z.output<S>, context: ExecutionContext) => boolean | Promise<boolean>;
     validate?: QueryFilter<z.output<S>>;
     perform: (input: z.output<S>, context: ExecutionContext, options: QueryOptions) => T | Promise<T>;
