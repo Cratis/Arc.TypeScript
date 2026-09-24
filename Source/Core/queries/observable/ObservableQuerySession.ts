@@ -19,7 +19,7 @@ export class ObservableQuerySession {
     readonly #controller = new AbortController();
     readonly #context: ExecutionContext;
     readonly #scope;
-    readonly #endSubscription: () => void;
+    readonly #subscription: ReturnType<typeof beginSubscription>;
     #source: ObservableSource<unknown> | undefined;
     #result: QueryResult | undefined;
     #activeIterator: AsyncGenerator<QueryResult> | undefined;
@@ -34,7 +34,7 @@ export class ObservableQuerySession {
         this.#context = Object.freeze({ ...config.context, principal: clonePrincipal(config.context.principal),
             signal: AbortSignal.any([config.context.signal, this.#controller.signal]) });
         this.#scope = config.services.createScope(this.#context);
-        this.#endSubscription = beginSubscription(
+        this.#subscription = beginSubscription(
             [config.operation.namespace, config.operation.name].filter(Boolean).join('.'), this.#context.correlationId);
     }
 
@@ -45,7 +45,7 @@ export class ObservableQuerySession {
             const start = (): Promise<QueryResult<ObservableSource<unknown>>> =>
                 config.operation.run(config.input, session.#context, config.options) as Promise<QueryResult<ObservableSource<unknown>>>;
             const result = await session.run(() => observe('cratis.arc.query.perform', session.#context.correlationId,
-                { queryName: [config.operation.namespace, config.operation.name].filter(Boolean).join('.') }, start));
+                { query_name: [config.operation.namespace, config.operation.name].filter(Boolean).join('.') }, start, undefined, result => result.hasExceptions));
             session.#result = result;
             await session.reportResult(result);
             if (result.isSuccess) session.#source = result.data;
@@ -79,8 +79,8 @@ export class ObservableQuerySession {
         }
         if (!present) return undefined;
         const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
-            { queryName: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
-                this.#context, this.config.options, value)));
+            { query_name: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
+                this.#context, this.config.options, value), undefined, result => result.hasExceptions));
         await this.reportResult(result);
         return this.guarded(result);
     }
@@ -122,8 +122,8 @@ export class ObservableQuerySession {
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions)) {
                 const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
-                    { queryName: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
-                        this.#context, this.config.options, value)));
+                    { query_name: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
+                        this.#context, this.config.options, value), undefined, result => result.hasExceptions));
                 await this.reportResult(result);
                 const guarded = await this.guarded(result);
                 if (!guarded) continue;
@@ -153,7 +153,7 @@ export class ObservableQuerySession {
         if (this.#scopeClosed) return this.#scopeClosed;
         this.releaseAdmission();
         this.#scopeClosed = this.#scope.dispose().finally(() => {
-            try { this.#endSubscription(); }
+            try { this.#subscription.end(); }
             finally { this.config.onClose(); }
         });
         return this.#scopeClosed;
@@ -200,6 +200,6 @@ export class ObservableQuerySession {
 
     private run<T>(callback: () => Promise<T>): Promise<T> {
         return this.config.services.runExecution(() => requestContext.run(this.#context,
-            () => withServices(this.#scope, callback)));
+            () => withServices(this.#scope, () => this.#subscription.run(callback))));
     }
 }

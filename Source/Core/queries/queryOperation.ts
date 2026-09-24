@@ -36,7 +36,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
                     issues = await observe('cratis.arc.query.filter', context.correlationId,
-                        { queryName: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
+                        { query_name: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
                             validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;

@@ -1,7 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import { SpanKind } from '@opentelemetry/api';
 import { observe } from '../observability.js';
 import { stringifyWire } from '../reflection/stringifyWire.js';
 import type { ArcServer } from '../ArcServer.js';
@@ -120,7 +119,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             return await requestContext.run(context, async () => {
                 try {
                     if (isIdentity) {
-                        const json = await bindings.runProvider(context, async () => {
+                        const json = await observe('cratis.arc.identity.resolve', correlationId, {}, () => bindings.runProvider(context, async () => {
                             const details = await server.options.identityDetails!.provide(authentication.principal!, context);
                             if (details === undefined) return undefined;
                             const parsed = server.options.identityDetails!.schema!.parse(details);
@@ -131,7 +130,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                             const cookie = `.cratis-identity=${Buffer.from(cookieJson, 'ascii').toString('base64')}; Path=/; SameSite=Lax${trustedNative?.secure === true ? '; Secure' : ''}`;
                             if (Buffer.byteLength(cookie) > 4096) throw new Error('Identity details too large');
                             return { serialized, cookie };
-                        });
+                        }));
                         if (json === undefined) return send({ error: 'Forbidden' }, 403);
                         return new Response(json.serialized, { status: 200, headers: new Headers({ ...Object.fromEntries(headers), 'content-type': 'application/json; charset=utf-8', 'set-cookie': json.cookie }) });
                     }
@@ -218,5 +217,5 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             await logFailure(error);
             return serverFailure();
         }
-        }, SpanKind.SERVER);
+        }, undefined, response => response !== null && response.status >= 500);
     }

@@ -8,7 +8,9 @@ Licensed under the MIT license. See LICENSE file in the project root for full li
 Arc for TypeScript emits spans and an operation-duration histogram through
 `@opentelemetry/api`. Install and start an SDK **in your application** before
 building the Arc server. Core does not install an exporter, context manager or
-SDK, so it remains usable without tracing infrastructure.
+SDK, so it remains usable without tracing infrastructure. Install the required
+`@opentelemetry/api` peer dependency alongside core; no exporter is required.
+Arc never sends raw exception messages to spans (including in development).
 
 ## Start a local console exporter
 
@@ -57,18 +59,19 @@ proxy tracer; initialize before sending requests so nothing is missed.
 
 | Span | Boundary | Attributes |
 | --- | --- | --- |
-| `cratis.arc.command.execute` | Command execution | `commandType`, `cratis.correlation_id` |
-| `cratis.arc.command.validate` | Validate-only pipeline | `commandType`, `cratis.correlation_id` |
-| `cratis.arc.command.filter` | Command validation/filter stage | `commandType`, `cratis.correlation_id` |
-| `cratis.arc.query.perform` | Snapshot query or observable source open | `queryName`, `cratis.correlation_id` |
-| `cratis.arc.query.filter` | Query validation/filter stage | `queryName`, `cratis.correlation_id` |
-| `cratis.arc.http.handle` | Recognized Arc HTTP endpoint | `http.request.method`, `http.route`, `cratis.correlation_id` |
-| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `queryName`, `cratis.correlation_id` |
-| `cratis.arc.query.subscribe` | Scope lifetime, including observable snapshots | `queryName`, `cratis.correlation_id` |
+| `cratis.arc.command.execute` | Command execution | `command_type`, `cratis.correlation_id` |
+| `cratis.arc.command.validate` | Validate-only pipeline | `command_type`, `cratis.correlation_id` |
+| `cratis.arc.command.filter` | Command validation/filter stage | `command_type`, `cratis.correlation_id` |
+| `cratis.arc.query.perform` | Snapshot query or observable source open | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.filter` | Query validation/filter stage | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.http.handle` | Recognized Arc HTTP endpoint (INTERNAL) | `http.request.method`, `http.route`, `cratis.correlation_id` |
+| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.identity.resolve` | Identity details provider resolution | `cratis.correlation_id` |
 
-The first five span names use the .NET pipeline names. The last three are
-Node-specific: .NET uses ASP.NET request instrumentation and does not have a
-per-emission span. `commandType` and `queryName` are the registered qualified names,
+The first five and identity-resolution span names use the .NET pipeline names.
+The HTTP, emission and subscription spans are Node-specific: .NET uses ASP.NET
+request instrumentation and does not have a per-emission span. `command_type` and `query_name` are the registered qualified names,
 not payloads. The `cratis.arc.operation.duration` histogram records seconds under `Cratis.Arc`
 with `operation` and the applicable type/name or route tags;
 `cratis.arc.subscription.duration` measures open subscription lifetimes. .NET's core pipeline exposes a meter

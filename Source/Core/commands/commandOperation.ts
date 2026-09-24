@@ -61,7 +61,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
                     issues = await observe('cratis.arc.command.filter',
-                        context.correlationId, { commandType: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
+                        context.correlationId, { command_type: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
                             validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;
