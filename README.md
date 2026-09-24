@@ -1,38 +1,114 @@
 # Arc for TypeScript
 
-**A server-side implementation of the [Arc](https://github.com/Cratis/Arc) CQRS framework for TypeScript and Node.js.**
+**The [Arc](https://github.com/Cratis/Arc) CQRS server for Node.js: define commands and queries in TypeScript and serve them over the same HTTP contract as Arc on .NET.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/1182595891576717413?label=Discord&logo=discord&logoColor=white)](https://discord.gg/kt4AMpV8WV)
 
 > [!IMPORTANT]
-> **Status: bootstrap.** This repository contains no source code, no packages, and no releases yet. Nothing described below is implemented. Package names and public APIs will be chosen once the architecture work is complete; until then, treat everything on this page as intent, not a contract.
+> **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, an optional MongoDB read helper, and an experimental, private Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
 
-Arc is an opinionated CQRS application framework: commands, queries, validation, authorization, identity, tenancy, and observable queries, discovered by convention instead of hand-wired. Arc on .NET hosts that behavior on ASP.NET Core, and [Arc for Kotlin and Java](https://github.com/Cratis/Arc.Kotlin) hosts it on Spring Boot. This repository brings the same model to Node.js, written as idiomatic TypeScript rather than a line-by-line port.
+Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js as idiomatic TypeScript, not as a line-by-line port.
 
-## What this repository is for
+## A command and a query
 
-| Goal | Intent |
-| --- | --- |
-| Parity with Arc on .NET | Match the behavior of Arc on .NET, which remains the reference implementation. Parity is claimed area by area, only once it is verified. |
-| One wire protocol | Speak the [Arc HTTP contract](https://github.com/Cratis/Arc/blob/main/Documentation/http-contract.md), so existing Arc clients work against a TypeScript backend unchanged. |
-| Idiomatic TypeScript | Follow TypeScript and Node.js conventions where the platforms differ, instead of mirroring .NET mechanics. |
-| No required storage | The core has no dependency on event sourcing or a database. [Chronicle](https://github.com/Cratis/Chronicle) and MongoDB are intended as optional integrations. |
-| Host frameworks | Express, Fastify, and Hono are the Node.js HTTP frameworks we intend to support. **None of them is supported yet.** |
+```typescript
+import { ArcServer, defineCommand, defineQuery, validation } from '@cratis/arc.server';
+import { mountHono } from '@cratis/arc.server.hono';
+import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
+import { z } from 'zod';
+import { realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+const tasks = new Map<string, string>();
+const create = defineCommand({
+    name: 'Create', namespace: 'Tasks', schema: z.object({ id: z.string(), title: z.string() }),
+    validate: ({ title }) => title.trim() ? [] : [validation('A title is required', ['title'])],
+    handle: ({ id, title }) => { tasks.set(id, title); return { id }; }
+});
+const list = defineQuery({
+    name: 'List', namespace: 'Tasks', schema: z.object({ search: z.string().default('') }),
+    perform: ({ search }) => [...tasks].filter(([, title]) => title.includes(search)).map(([id, title]) => ({ id, title }))
+});
+export const server = new ArcServer({ commands: [create], queries: [list] });
+export const app = new Hono();
+mountHono(app, server);
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
+    serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 3000) });
+}
+```
+
+This is the complete [Tasks sample](Samples/Tasks/src/index.ts). It serves `POST /api/tasks/create`, `POST /api/tasks/create/validate`, and `GET` or `QUERY /api/tasks/list`. The Zod schema is the runtime contract: TypeScript types are erased at runtime, so Arc parses every request with the schema, infers the handler's input type from it, and publishes it as JSON Schema.
+
+## Packages
+
+| Package | Folder | Contents |
+| --- | --- | --- |
+| `@cratis/arc.server` | [`Source`](Source) | `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, authentication handlers, results, introspection, and OpenAPI |
+| `@cratis/arc.server.express` | [`Integrations/Express`](Integrations/Express) | `mountExpress` for Express 5 |
+| `@cratis/arc.server.fastify` | [`Integrations/Fastify`](Integrations/Fastify) | `mountFastify` for Fastify 5 |
+| `@cratis/arc.server.hono` | [`Integrations/Hono`](Integrations/Hono) | `mountHono` for Hono 4 |
+| `@cratis/arc.server.mongodb` | [`Integrations/MongoDB`](Integrations/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
+| `@cratis/arc.server.chronicle` | [`Integrations/Chronicle`](Integrations/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. It cannot run against Chronicle today, because the published Chronicle TypeScript SDK does not load in Node.js. |
+
+The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+
+## Try it
+
+Until the packages are published, run the sample from a clone:
+
+```bash
+git clone https://github.com/Cratis/Arc.TypeScript.git
+cd Arc.TypeScript
+corepack enable
+yarn install
+yarn build
+yarn workspace @cratis/arc.server.sample.tasks start
+```
+
+The sample listens on port 3000 on every network interface. [Get started](Documentation/getting-started.md) walks through calling it and explains every line.
+
+## What works and what does not
+
+Supported, with specs in this repository: commands and queries with Zod schemas, validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, header or resolver-based tenancy, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and the MongoDB read helper. A paired suite checks 33 bounded HTTP cases against Arc on .NET 22.22.0 and pins the known differences. That is not full parity.
+
+Not implemented:
+
+- Observable queries over HTTP, server-sent events, or WebSocket.
+- Discovery of commands and queries by convention, and TypeScript proxy generation. You register every definition with `ArcServer`.
+- Dependency injection, identity details, SQL integrations, command operations and effects, and testing helpers such as command scenarios.
+
+The [capability reference](Documentation/reference/capabilities.md) lists every Arc feature family, its status, and the deliberate differences from Arc on .NET.
+
+## Documentation
+
+- [Get started](Documentation/getting-started.md): run the Tasks sample and read it line by line.
+- [Host Arc in Express, Fastify, or Hono](Documentation/guides/host-integration.md)
+- [Call Arc from code](Documentation/guides/direct-calls.md)
+- [Validate and authorize commands and queries](Documentation/guides/validation-and-authorization.md)
+- [Decide command outcomes](Documentation/guides/command-outcomes.md)
+- [Bind query arguments, page, and sort](Documentation/guides/queries.md)
+- [Configure the server](Documentation/guides/configuration.md)
+- [Read models from MongoDB](Documentation/guides/mongodb.md)
+- [Append Chronicle events from commands (experimental)](Documentation/guides/chronicle.md)
+- [Capability reference](Documentation/reference/capabilities.md)
+- [Architecture](Documentation/explanation/architecture.md)
+- [Arc HTTP contract](https://github.com/Cratis/Arc/blob/main/Documentation/http-contract.md): the wire protocol every Arc backend speaks.
 
 ## Relationship to `@cratis/arc`
 
-[`@cratis/arc`](https://github.com/Cratis/Arc/tree/main/Source/JavaScript/Arc) is Arc's existing TypeScript **client** runtime: the command, query, validation, identity, and messaging code that generated proxies and `@cratis/arc.react` use to call an Arc backend. It is built and released from the [Arc](https://github.com/Cratis/Arc) repository.
+[`@cratis/arc`](https://github.com/Cratis/Arc/tree/main/Source/JavaScript/Arc) is Arc's existing TypeScript **client** runtime, used by generated proxies and `@cratis/arc.react` to call an Arc backend. It is built and released from the [Arc](https://github.com/Cratis/Arc) repository.
 
-This repository builds the **server** side. It does not replace, rename, or repurpose `@cratis/arc` or any other published Arc package. The existing client is the compatibility target for this server's wire behavior.
+This repository builds the **server** side under its own `@cratis/arc.server` package names. It does not replace, rename, or republish `@cratis/arc` or any other Arc package. The existing client is the compatibility target for this server's wire behavior.
 
 ## Arc does not require event sourcing
 
-Arc is a CQRS framework first. Commands and queries can work through application services or current-state storage without an event log. Event-sourced behavior comes from the optional Chronicle integration, the same way it does in Arc on .NET. For event sourcing from TypeScript today, use the [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript).
+Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental and private: the published [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) does not load in Node.js today, so nothing has run against a Chronicle kernel.
 
 ## Contributing
 
-Arc for TypeScript is a framework library, not an application. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. While the architecture is still open, start with an issue or a conversation on [Discord](https://discord.gg/kt4AMpV8WV) rather than a large change.
+Arc for TypeScript is a framework library, not an application. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and start with an issue or a conversation on [Discord](https://discord.gg/kt4AMpV8WV) for anything larger than a small fix.
 
 Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 

@@ -14,7 +14,7 @@ You can check a proposed release without changing a package or publishing anythi
    node --test scripts/for_release/*.test.mjs
    ```
 
-3. Once the root Yarn 4 workspace, lockfile, and `ci` script are present, run the same build and test gate as the manual workflows:
+3. Run the same build and test gate as the manual workflows:
 
    ```bash
    corepack enable
@@ -22,11 +22,11 @@ You can check a proposed release without changing a package or publishing anythi
    yarn ci
    ```
 
-   Until those files exist, the Yarn commands cannot pass; a passing guard specification does not mean the framework has passed CI.
+   A passing guard specification alone does not mean the framework has passed CI.
 
 ## Preview a candidate on GitHub
 
-When the root workspace is ready, run **Manual CI** on the intended commit. Save the verified user-facing notes from the merged pull request in a UTF-8 Markdown file, for example `.ai-work/keep/release-notes.md` (ignored). The file requires supported sections such as this illustrative format (not actual release notes):
+Run **Manual CI** on the intended commit. Save the verified user-facing notes from the merged pull request in a UTF-8 Markdown file, for example `.ai-work/keep/release-notes.md` (ignored). The file requires supported sections such as this illustrative format (not actual release notes):
 
 ```markdown
 ## Added
@@ -50,6 +50,6 @@ The workflow is **manual only**, not triggered by pushes or pull requests. The p
 
 ## Before enabling publication
 
-Agree on the package inventory and versioning scheme, verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
+Agree on the package inventory and versioning scheme, including which packages stay private (the experimental Chronicle integration is `private`), verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
 
 **Major releases are never automatic.** They require a human merge and may proceed only after Arc parity has been verified. A minor/patch preview is not a shortcut around those requirements. Merge pull requests with a true merge commit, not squash or rebase; merging and publishing are outside this workflow.

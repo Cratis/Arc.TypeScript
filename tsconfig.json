@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "Source" },
+    { "path": "Integrations/Express" },
+    { "path": "Integrations/Fastify" },
+    { "path": "Integrations/Hono" },
+    { "path": "Integrations/MongoDB" },
+    { "path": "Integrations/Chronicle" },
+    { "path": "Samples/Tasks" }
+  ]
+}

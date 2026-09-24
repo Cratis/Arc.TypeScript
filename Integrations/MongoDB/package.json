@@ -1,0 +1,36 @@
+{
+  "name": "@cratis/arc.server.mongodb",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Explicit tenant-aware MongoDB read-model access for Arc Server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "Integrations/MongoDB"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@cratis/arc.server": "^0.1.0",
+    "mongodb": "^6.21.0"
+  },
+  "devDependencies": {
+    "@cratis/arc.server": "workspace:^",
+    "mongodb": "^6.21.0"
+  }
+}

@@ -1,0 +1,63 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+import express from 'express';
+import { z } from 'zod';
+import { ArcServer, AuthenticationStatus, defineCommand, defineQuery, validation } from '@cratis/arc.server';
+import { mountExpress } from '@cratis/arc.server.express';
+
+let executions = 0;
+const items = Object.freeze([{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }, { id: 3, name: 'Linus' }]);
+const valueSchema = z.object({ value: z.string() });
+const anonymous = { anonymous: true };
+const admin = { roles: ['Admin'] };
+const echo = defineCommand({
+    name: 'EchoValue', path: '/api/echo-value', schema: valueSchema, authorization: anonymous,
+    validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
+    handle: ({ value }) => { executions++; return { value }; }
+});
+const adminEcho = defineCommand({
+    name: 'AdminEcho', path: '/api/admin-echo', schema: valueSchema, authorization: admin,
+    validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
+    handle: ({ value }) => ({ value })
+});
+const throwFailure = defineCommand({
+    name: 'ThrowFailure', path: '/api/throw-failure', schema: z.object({}), authorization: anonymous,
+    handle: () => { throw new Error('Private fixture failure detail'); }
+});
+const echoCount = defineQuery({
+    name: 'Current', namespace: 'EchoCount', path: '/api/echo-count', schema: z.object({}), authorization: anonymous,
+    perform: () => ({ count: executions })
+});
+const byId = defineQuery({
+    name: 'ById', namespace: 'FixtureItem', path: '/api/items/by-id', schema: z.object({ id: z.number().int() }), authorization: anonymous,
+    perform: ({ id }) => items.find(item => item.id === id) ?? null
+});
+const all = defineQuery({
+    name: 'All', namespace: 'FixtureItem', path: '/api/items', schema: z.object({}), authorization: anonymous,
+    perform: () => [...items]
+});
+const privateItems = defineQuery({
+    name: 'Private', namespace: 'FixtureItem', path: '/api/items/private', schema: z.object({}), authorization: admin,
+    perform: () => [...items]
+});
+const authentication = request => {
+    const role = request.headers.get('X-Fixture-Role');
+    if (role === null) return { status: AuthenticationStatus.Anonymous };
+    if (role !== 'Reader' && role !== 'Admin') return { status: AuthenticationStatus.Failed };
+    return { status: AuthenticationStatus.Authenticated, principal: {
+        id: 'fixture-user', roles: [role], isAuthenticated: true
+    } };
+};
+const arc = new ArcServer({
+    commands: [echo, adminEcho, throwFailure], queries: [echoCount, byId, all, privateItems],
+    authentication: [authentication], development: false
+});
+const app = express();
+mountExpress(app, arc);
+const server = app.listen(0, '127.0.0.1', () => {
+    const address = server.address();
+    console.log(JSON.stringify({ kind: 'typescript-http-fixture-ready', baseUrl: `http://127.0.0.1:${address.port}` }));
+});
+server.on('error', error => { console.error(error); process.exitCode = 1; });
+for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => server.close());

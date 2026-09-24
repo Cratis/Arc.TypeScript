@@ -1,0 +1,34 @@
+{
+  "name": "arc-typescript-workspace",
+  "private": true,
+  "type": "module",
+  "packageManager": "yarn@4.18.0",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "workspaces": [
+    "Source",
+    "Integrations/*",
+    "Samples/*",
+    "ContractTests/Http"
+  ],
+  "scripts": {
+    "lint": "eslint Source Integrations Samples",
+    "docs:lint": "markdownlint-cli2",
+    "test:conformance": "dotnet restore ContractTests/DotNET/HttpFixture.csproj --locked-mode && dotnet build ContractTests/DotNET/HttpFixture.csproj -c Debug --no-restore && yarn build && node --test ContractTests/Http/conformance.test.mjs",
+    "typecheck": "tsc -b && tsc -p tsconfig.specs.json",
+    "build": "tsc -b",
+    "specs": "vitest run",
+    "ci": "yarn lint && yarn typecheck && yarn build && yarn specs && yarn docs:lint && node --test scripts/for_release/*.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.39.0",
+    "markdownlint-cli2": "^0.20.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.0"
+  }
+}

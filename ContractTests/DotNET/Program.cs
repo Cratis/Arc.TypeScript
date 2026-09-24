@@ -174,6 +174,17 @@ namespace HttpFixture
     }
 
     /// <summary>
+    /// Applies the same business rule after administrator authorization succeeds.
+    /// </summary>
+    public sealed class AdminEchoValidator : CommandValidator<AdminEcho>
+    {
+        /// <summary>
+        /// Sets the required-value rule for the protected command.
+        /// </summary>
+        public AdminEchoValidator() => RuleFor(command => command.Value).NotEmpty().WithMessage("Value is required");
+    }
+
+    /// <summary>
     /// Exercises production exception redaction from the real command pipeline.
     /// </summary>
     [Command]

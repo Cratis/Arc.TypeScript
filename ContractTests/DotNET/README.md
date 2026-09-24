@@ -25,6 +25,7 @@ All POST and QUERY bodies below are JSON (`Content-Type: application/json`). The
 | POST `/api/echo-value/validate` | `{"value":"hello"}` | 200; no handler response and no count increment |
 | POST `/api/echo-value` or its `/validate` route | `{"value":""}` | 400; validation rule for `value`, no count increment |
 | POST `/api/admin-echo` | `{"value":"ok"}` | 403 anonymous or with `X-Fixture-Role: Reader`; 200 with `X-Fixture-Role: Admin` |
+| POST `/api/admin-echo` | `{"value":""}` | 403 for Reader without validation disclosure; 400 for Admin unless the .NET severity threshold suppresses the rule |
 | POST `/api/throw-failure` | `{}` | 500; exception detail redacted in Production |
 | GET `/api/items/by-id?id=2` | — | 200; `{ "id": 2, "name": "Grace" }` in `data` |
 | QUERY `/api/items/by-id` | `{"arguments":{"id":2}}` | 200; same data and `Cache-Control: no-store` |
