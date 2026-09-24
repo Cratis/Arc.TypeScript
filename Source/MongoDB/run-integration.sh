@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-container_id=$(docker run --rm -d --name "$name" -p 127.0.0.1::27017 mongo:7 --replSet rs0 --bind_ip_all)
+container_id=$(docker run --rm -d --name "$name" -p 127.0.0.1::27017 mongo:7.0 --replSet rs0 --bind_ip_all)
 ready=0
 for attempt in $(seq 1 60); do
     if docker exec "$container_id" mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})' >/dev/null; then

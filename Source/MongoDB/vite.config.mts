@@ -2,4 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { defineConfig } from 'vitest/config';
 import { createConfig } from '../../vite.base.js';
-export default defineConfig(createConfig());
+const config = createConfig();
+export default defineConfig({ ...config, test: { ...config.test,
+    exclude: [...config.test.exclude, '**/*.integration.ts'] } });

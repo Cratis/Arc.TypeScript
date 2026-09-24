@@ -8,6 +8,8 @@ export interface MongoReadModelsOptions<T extends Document, I> {
     readonly client: MongoClient;
     /** Maximum number of rows in one page (default: 100). */
     readonly maxPageSize?: number;
+    /** Explicit fields that a caller may request through Arc sorting. */
+    readonly sortableFields?: readonly string[];
     readonly databaseForTenant: (tenantId: string, context: ExecutionContext) => string;
     /** Application-owned mapping from parsed query input to a trusted MongoDB filter. */
     readonly filterFor: (input: I, context: ExecutionContext) => Filter<T>;

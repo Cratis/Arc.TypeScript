@@ -154,9 +154,11 @@ __metadata:
   resolution: "@cratis/arc.mongodb@workspace:Source/MongoDB"
   dependencies:
     "@cratis/arc.core": "workspace:^"
+    "@cratis/fundamentals": "npm:7.19.3"
     mongodb: "npm:^6.21.0"
   peerDependencies:
     "@cratis/arc.core": ^0.5.0
+    "@cratis/fundamentals": ^7.19.3
     mongodb: ^6.21.0
   languageName: unknown
   linkType: soft

@@ -43,10 +43,15 @@ export class MongoReadModels<T extends Document, I> {
 
     /** Require Arc's actual paging options; never fabricate a request or silently ignore sorting. */
     async queryPage(context: ExecutionContext, input: I, options: QueryOptions, findOptions?: MongoPageFindOptions<T>): Promise<QueryPage<WithId<T>>> {
-        if (options?.sorting) throw new Error('Arc sorting is not supported by MongoDB queryPage; use findOptions.sort');
         if (!options?.paging) throw new Error('MongoDB queryPage requires options.paging');
-        const page = await this.page(context, input, options.paging, findOptions);
-        return createQueryPage(page.items, page.paging.totalItems);
+        const sorting = options.sorting;
+        if (sorting && sorting.direction !== 'asc' && sorting.direction !== 'desc')
+            throw new TypeError('MongoDB sorting direction must be asc or desc');
+        if (sorting && !this.options.sortableFields?.includes(sorting.field))
+            throw new Error(`MongoDB sorting is not allowed for field: ${sorting.field}`);
+        const sort = sorting ? { ...findOptions?.sort, [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const } : findOptions?.sort;
+        const page = await this.page(context, input, options.paging, { ...findOptions, sort });
+        return createQueryPage(page.items, page.paging.totalItems, sorting);
     }
 
     async page(context: ExecutionContext, input: I, request: PageRequest, options?: MongoPageFindOptions<T>): Promise<MongoPage<T>> {
