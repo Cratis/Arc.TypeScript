@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { given } from '../../given.js';
-import { an_application_builder } from '../given/an_application_builder.js';
+import { an_application_builder } from '../../for_ArcApplicationBuilder/given/an_application_builder.js';
 
 describe('when stopping a running standalone application', given(an_application_builder, context => {
     let settledBeforeStop: boolean;
