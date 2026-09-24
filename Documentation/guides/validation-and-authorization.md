@@ -6,7 +6,7 @@ description: Authenticate callers, restrict commands and queries by role or per 
 A command that renames a task has to answer several questions before it touches anything: who is calling, may they call this at all, may they change this particular task, is the input well formed, and does it follow the rules? Arc for TypeScript gives each question its own place in a definition and always asks them in the same order, so a caller who may not run an operation never sees its rule messages.
 
 :::note[Unpublished source]
-Named authorization policies and authentication schemes are not implemented. Model-bound server validators and concept rules are available, but generated client rules are not. See [Validate model-bound commands and queries](validation.md) and the [capability reference](../reference/capabilities.md).
+Named policies and schemes are available in the source preview. Model-bound server validators and concept rules are available, but generated client rules are bounded. See [Authorization](../identity/authorization.md) for policy registration and scheme selection. See [Validate model-bound commands and queries](validation.md) and the [capability reference](../reference/capabilities.md).
 :::
 
 ## A command with every check
@@ -137,8 +137,10 @@ Handlers run in the order you list them, and they can be `async`. An authenticat
 | `{ authenticated: true }` | Any authenticated caller |
 | `{ roles: ['editor', 'admin'] }` | An authenticated caller with at least one of the roles |
 | `{ anonymous: true }` | Everyone; `authorize` still runs |
+| `{ policy: 'Finance', authenticated: true }` | A verified principal accepted by the registered async policy |
+| `{ schemes: ['Verified'], authenticated: true }` | A principal authenticated by the named handler |
 
-Combining `anonymous: true` with `authenticated` or `roles` is a contradiction, and the `ArcServer` constructor throws. Model-bound `@roles('editor', 'admin')` allows either role within that declaration; stacked decorators on one class or query method are separate requirements and **all** must pass. A `@query()` method's authorization replaces the read-model class declaration. Authorization on a command's `handle()` or a static method without `@query()` fails at build time rather than silently leaving the endpoint open.
+Combining `anonymous: true` with `authenticated`, `roles`, `policy`, or `schemes` is a contradiction, and the `ArcServer` constructor throws. Model-bound `@roles('editor', 'admin')` allows either role within that declaration; stacked decorators on one class or query method are separate requirements and **all** must pass. A `@query()` method's authorization replaces the read-model class declaration. Authorization on a command's `handle()` or a static method without `@query()` fails at build time rather than silently leaving the endpoint open.
 
 When the answer depends on the input, the tenant, or stored data, add `authorize(input, context)`. It runs after the schema, receives the typed input, and returns `true` or `false`, or a promise of either. `false` answers 403 without a reason. Put every security and tenant check here, not in a validator: nothing a caller sends, and no allowed severity, changes the outcome of `authorize`.
 
@@ -176,6 +178,7 @@ A client that sends `X-Allowed-Severity: 1` makes warnings block and sees them. 
 
 ## Related
 
+- [Identity and authentication](../identity/index.md) and [authorization policies](../identity/authorization.md) for verified credentials, named rules, and scheme selection.
 - [Decide command outcomes](command-outcomes.md) for `provide`, `handle`, and execution scopes.
 - [Bind query arguments, page, and sort](queries.md) for how input reaches a query.
 - [Configure the server](configuration.md) for tenants, error logging, and development mode.
