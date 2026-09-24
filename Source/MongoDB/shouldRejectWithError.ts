@@ -1,9 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { should } from 'vitest';
-
-should();
-
 export async function shouldRejectWithError(promise: Promise<unknown>, message?: string | RegExp): Promise<void> {
     let rejected = false;
     let reason: unknown;

@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { describe, should, it } from 'vitest';
-import { shouldRejectWithError } from '../Arc.Core/shouldRejectWithError.js';
+import { shouldRejectWithError } from './shouldRejectWithError.js';
 import { MongoClient, ObjectId } from 'mongodb';
 import { ArcServer, defineQuery } from '@cratis/arc.core';
 import type { ExecutionContext } from '@cratis/arc.core';
