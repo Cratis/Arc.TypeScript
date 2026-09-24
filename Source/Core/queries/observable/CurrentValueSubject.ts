@@ -4,7 +4,9 @@ import type { CurrentValue } from './CurrentValue.js';
 import type { ObservableObserver } from './ObservableObserver.js';
 import type { Subscribable } from './Subscribable.js';
 
-/** A current-value source for HTTP snapshots and live query subscriptions. */
+/** A current-value source for HTTP snapshots and live query subscriptions.
+ * @deprecated Use RxJS BehaviorSubject<T> for a current value, or Subject<T> for a pending source.
+ */
 export class CurrentValueSubject<T> implements Subscribable<T> {
     readonly #observers = new Set<ObservableObserver<T>>();
     #value: CurrentValue<T> = { hasValue: false };

@@ -18,7 +18,7 @@ describe('when observing a sharded cluster', given(a_replica_set, context => {
         const database = { command: sinon.stub().resolves({ msg: 'isdbgrid', operationTime: new Timestamp({ t: 1, i: 1 }) }) };
         const collection = new MongoCollection(native as unknown as Collection<Document>, database as unknown as Db,
             TaskRecord, context.context('a'));
-        const observation = await collection.observe();
+        const observation = await collection.observeIterable();
         watch.firstCall.args[1].startAtOperationTime.should.be.instanceOf(Timestamp);
         await observation.close();
     });

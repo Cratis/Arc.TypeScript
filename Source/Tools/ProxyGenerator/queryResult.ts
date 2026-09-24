@@ -6,7 +6,8 @@ import { isStandardType, isTypeFrom } from './sourceSymbols.js';
 export function queryResult(type: ts.Type, checker: ts.TypeChecker, node: ts.Node): { type: ts.Type; observable: boolean; paged: boolean } {
     const current = checker.getAwaitedType(type) ?? type;
     const observable = isTypeFrom(checker, current, 'ObservableSource', '@cratis/arc.core') ||
-        isTypeFrom(checker, current, 'Observable', 'rxjs') || isStandardType(current, 'AsyncIterable') || isStandardType(current, 'AsyncGenerator');
+        ['Observable', 'Subject', 'BehaviorSubject', 'ReplaySubject'].some(name => isTypeFrom(checker, current, name, 'rxjs')) ||
+        isStandardType(current, 'AsyncIterable') || isStandardType(current, 'AsyncGenerator');
     const paged = isTypeFrom(checker, current, 'QueryPage', '@cratis/arc.core');
     if (observable || paged) {
         const argument = current.aliasTypeArguments?.[0] ?? checker.getTypeArguments(current as ts.TypeReference)[0];

@@ -19,7 +19,7 @@ describe('when observing changes with more than the configured limit', given(a_r
         const native = { watch: sinon.stub().returns(stream), find: sinon.stub().returns({ limit }) } as unknown as Collection<Document>;
         const database = { command: sinon.stub().resolves({ setName: 'rs0', operationTime: new Timestamp({ t: 1, i: 1 }) }) } as unknown as Db;
         const collection = new MongoCollection(native, database, TaskRecord, context.context('a'), { maxObservableItems: 1 });
-        try { await collection.observe(); } catch (failure) { error = failure; }
+        try { await collection.observeIterable(); } catch (failure) { error = failure; }
     });
     it('should fail instead of publishing a partial snapshot and close the stream', () => {
         String(error).should.contain('exceeds maxObservableItems');

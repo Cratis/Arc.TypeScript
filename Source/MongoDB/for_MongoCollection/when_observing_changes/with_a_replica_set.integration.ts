@@ -61,7 +61,7 @@ describe('when observing changes with a replica set', given(a_replica_set, conte
         const scope = application.server.services.createScope(tenant);
         const collection = await scope.resolve(mongoCollection(TaskRecord));
         try {
-            const observation = await collection.observeById(id);
+            const observation = await collection.observeByIdIterable(id);
             const iterator = observation[Symbol.asyncIterator]();
             should().equal((await iterator.next()).value, null);
             await collection.native.insertOne(collection.codec.serialize(document));
