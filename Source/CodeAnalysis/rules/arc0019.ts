@@ -8,13 +8,11 @@ export const arc0019 = ESLintUtils.RuleCreator.withoutDocs({
     meta: { type: 'problem', docs: { description: 'Anonymous access conflicts with role or authenticated access' }, messages: { conflict: '@allowAnonymous conflicts with @roles or @authorize on this declaration.' }, schema: [] },
     defaultOptions: [],
     create(context) {
+        const conflict = (node: { decorators?: import('@typescript-eslint/utils').TSESTree.Decorator[] }): boolean =>
+            decorated(context, node, 'allowAnonymous') && (decorated(context, node, 'roles') || decorated(context, node, 'authorize'));
         return {
-            ClassDeclaration(node) {
-                if (decorated(node, 'allowAnonymous') && (decorated(node, 'roles') || decorated(node, 'authorize'))) context.report({ node: node.id ?? node, messageId: 'conflict' });
-            },
-            MethodDefinition(node) {
-                if (decorated(node, 'allowAnonymous') && (decorated(node, 'roles') || decorated(node, 'authorize'))) context.report({ node: node.key, messageId: 'conflict' });
-            }
+            ClassDeclaration(node) { if (conflict(node)) context.report({ node: node.id ?? node, messageId: 'conflict' }); },
+            MethodDefinition(node) { if (conflict(node)) context.report({ node: node.key, messageId: 'conflict' }); }
         };
     }
 });

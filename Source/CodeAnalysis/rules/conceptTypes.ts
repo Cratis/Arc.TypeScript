@@ -4,7 +4,8 @@ import * as ts from 'typescript';
 
 /** Determine whether a class really derives from Fundamentals ConceptAs. */
 export function isConcept(checker: ts.TypeChecker, type: ts.Type): boolean {
-    if (type.symbol?.name === 'ConceptAs') return true;
+    if (type.symbol?.name === 'ConceptAs' && type.symbol.declarations?.some(declaration =>
+        /(?:@cratis\/fundamentals|fundamentals-npm)/i.test(declaration.getSourceFile().fileName))) return true;
     return type.isClassOrInterface() && checker.getBaseTypes(type).some(base => isConcept(checker, base));
 }
 

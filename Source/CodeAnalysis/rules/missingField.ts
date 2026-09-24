@@ -9,9 +9,10 @@ export const missingField = ESLintUtils.RuleCreator.withoutDocs({
     defaultOptions: [],
     create(context) {
         return { ClassDeclaration(node) {
-            if (!decorated(node, 'command') && !decorated(node, 'readModel')) return;
+            if (!decorated(context, node, 'command') && !decorated(context, node, 'readModel')) return;
             for (const member of node.body.body) {
-                if (member.type === 'PropertyDefinition' && !member.static && !member.declare && !decorated(member, 'field') && !memberName(member)?.startsWith('_')) {
+                if (member.type === 'PropertyDefinition' && !member.static && !member.declare && member.accessibility !== 'private' && member.key.type !== 'PrivateIdentifier' &&
+                    !decorated(context, member, 'field') && !memberName(member)?.startsWith('_')) {
                     context.report({ node: member.key, messageId: 'missing', data: { name: memberName(member) ?? 'computed' } });
                 }
             }

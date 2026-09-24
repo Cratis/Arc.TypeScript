@@ -11,12 +11,12 @@ export const arc0012 = ESLintUtils.RuleCreator.withoutDocs({
     defaultOptions: [],
     create(context) {
         let artifact = 0;
-        const isArtifact = (node: TSESTree.ClassDeclaration): boolean => decorated(node, 'command') || decorated(node, 'validator') || decorated(node, 'readModel');
+        const isArtifact = (node: TSESTree.ClassDeclaration): boolean => decorated(context, node, 'command') || decorated(context, node, 'validator') || decorated(context, node, 'readModel');
         return {
             ClassDeclaration(node) { if (isArtifact(node)) artifact++; },
             'ClassDeclaration:exit'(node) { if (isArtifact(node)) artifact--; },
             ThrowStatement(node) {
-                if (!artifact || node.argument?.type !== AST_NODE_TYPES.NewExpression || node.argument.callee.type !== AST_NODE_TYPES.Identifier) return;
+                if (!artifact || node.argument?.type !== AST_NODE_TYPES.NewExpression && node.argument?.type !== AST_NODE_TYPES.CallExpression || node.argument.callee.type !== AST_NODE_TYPES.Identifier) return;
                 if (builtIns.has(node.argument.callee.name)) context.report({ node, messageId: 'builtIn', data: { name: node.argument.callee.name } });
             }
         };

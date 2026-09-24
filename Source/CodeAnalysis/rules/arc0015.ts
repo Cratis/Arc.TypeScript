@@ -4,7 +4,7 @@ import { AST_NODE_TYPES, ESLintUtils, type TSESTree } from '@typescript-eslint/u
 import * as ts from 'typescript';
 import { isConcept, isPrimitive } from './conceptTypes.js';
 import { typesFor } from './bindingTypes.js';
-import { decorated, memberName } from './syntax.js';
+import { decorated, imported } from './syntax.js';
 
 /** Incoming primitives converted in a handler bypass concept validation. */
 export const arc0015 = ESLintUtils.RuleCreator.withoutDocs({
@@ -16,14 +16,22 @@ export const arc0015 = ESLintUtils.RuleCreator.withoutDocs({
             if (value?.type !== AST_NODE_TYPES.Identifier) return;
             let parent: TSESTree.Node | undefined = node.parent;
             while (parent && parent.type !== AST_NODE_TYPES.MethodDefinition) parent = parent.parent;
-            if (parent?.type !== AST_NODE_TYPES.MethodDefinition || memberName(parent) !== 'handle' && !decorated(parent, 'query')) return;
+            if (parent?.type !== AST_NODE_TYPES.MethodDefinition || !decorated(context, parent, 'query')) return;
             const owner = parent.parent?.parent;
-            if (owner?.type !== AST_NODE_TYPES.ClassDeclaration || !decorated(owner, 'command') && !decorated(owner, 'readModel')) return;
+            if (owner?.type !== AST_NODE_TYPES.ClassDeclaration || !decorated(context, owner, 'readModel')) return;
             const parameter = parent.value.params.find(item => item.type === AST_NODE_TYPES.Identifier && item.name === value.name);
             if (!parameter) return;
-            const { checker, node: tsNode } = typesFor(context);
+            const types = typesFor(context);
+            if (!types) return;
+            const { checker, node: tsNode } = types;
             const signature = checker.getSignaturesOfType(checker.getTypeAtLocation(tsNode(node.callee)), ts.SignatureKind.Construct)[0];
-            if (signature && isConcept(checker, checker.getReturnTypeOfSignature(signature)) && isPrimitive(checker.getTypeAtLocation(tsNode(parameter)))) {
+            const concept = signature && isConcept(checker, checker.getReturnTypeOfSignature(signature)) ||
+                checker.getSymbolAtLocation(tsNode(node.callee))?.declarations?.some(declaration => {
+                    const classNode = types.estree(declaration);
+                    return classNode?.type === AST_NODE_TYPES.ClassDeclaration && !!classNode.superClass &&
+                        imported(context, classNode.superClass, '@cratis/fundamentals', 'ConceptAs');
+                });
+            if (concept && isPrimitive(checker.getTypeAtLocation(tsNode(parameter)))) {
                 context.report({ node: parameter, messageId: 'concept', data: { name: value.name } });
             }
         } };

@@ -20,55 +20,76 @@ RuleTester.afterAll = afterAll;
 RuleTester.describe = describe;
 RuleTester.it = it;
 const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecmaVersion: 2022 } } });
+const core = "import { command, readModel, query, inject, validator, CommandValidator, allowAnonymous, roles } from '@cratis/arc.core'; import { field } from '@cratis/fundamentals';\n";
 
 tester.run('arc0002', arc0002, {
-    valid: ['@command() export class Register { handle() {} }'],
-    invalid: [{ code: 'class Register { handle() {} }', errors: [{ messageId: 'missing' }] }]
+    valid: [
+        `${core}@command() export class Register { @field(String) title!: string; handle() {} }`,
+        'class Consumer { handle(message: string) {} }',
+        'abstract class Base { title!: string; abstract handle(): void; }',
+        'interface ICommandHandler { handle(): void; } class Handler implements ICommandHandler { title!: string; handle() {} }',
+        'class Consumer { title!: string; static handle() {} }',
+        "import { command } from 'other'; @command('deploy') class Deploy { title!: string; handle() {} }"
+    ],
+    invalid: [{ code: `${core}class Register { title!: string; handle() {} }`, errors: [{ messageId: 'missing' }] }]
 });
 tester.run('arc0004', arc0004, {
-    valid: ['@command() class Register { handle() {} }'],
-    invalid: [
-        { code: '@command() class Register {}', errors: [{ messageId: 'missing' }] },
-        { code: '@command() class Register { private handle() {} }', errors: [{ messageId: 'missing' }] }
-    ]
+    valid: [`${core}@command() class Register { private handle() {} }`, `${core}class Base { handle() {} } @command() class Register extends Base {}`,
+        "import { command } from 'other'; @command('deploy') class Deploy {}"],
+    invalid: [{ code: `${core}@command() class Register {}`, errors: [{ messageId: 'missing' }] },
+        { code: "import * as arc from '@cratis/arc.core'; @arc.command() class Register {}", errors: [{ messageId: 'missing' }] }]
 });
 tester.run('arc0005', arc0005, {
-    valid: ['@command() class Register { provide() { return new Tasks(); } handle(tasks: Tasks) {} }', '@command() class Register { provide() { return rejected([]); } handle() {} }'],
-    invalid: [{ code: '@command() class Register { provide() { return new Tasks(); } handle() {} }', errors: [{ messageId: 'unused' }] }]
+    valid: [`${core}@command() class Register { provide() { return 1; } handle(value: number) {} }`,
+        `${core}@command() class Register { provide() { return void 0; } handle() {} }`,
+        `${core}class Base { handle(value: number) {} } @command() class Register extends Base { provide() { return 1; } }`],
+    invalid: [{ code: `${core}@command() class Register { provide() { return 1; } handle() {} }`, errors: [{ messageId: 'unused' }] }]
 });
 tester.run('arc0010', arc0010, {
-    valid: ['@command() class Register { async handle() { await work(); } }'],
-    invalid: [{ code: '@command() class Register { async handle() { return 1; } }', errors: [{ messageId: 'unnecessary' }] }]
+    valid: [`${core}@command() class Register { async handle() { await work(); } }`,
+        `${core}@command() class Register { async handle() { for await (const value of values) work(value); } }`,
+        `${core}@command() class Register { async handle() { return work(); } }`],
+    invalid: [{ code: `${core}@command() class Register { async handle() { return 1; } }`, errors: [{ messageId: 'unnecessary' }] }]
 });
 tester.run('arc0014', arc0014, {
-    valid: ['@readModel() class Item { @query() static all() { return []; } }'],
-    invalid: [{ code: '@readModel() class Item { @query() static all<T>() { return [] as T[]; } }', errors: [{ messageId: 'generic' }] }]
+    valid: [`${core}@readModel() class Item { @query() static all() { return []; } }`],
+    invalid: [{ code: `${core}@readModel() class Item { @query() static all<T>() { return [] as T[]; } }`, errors: [{ messageId: 'generic' }] }]
 });
 tester.run('arc0012', arc0012, {
-    valid: ['@command() class Register { handle() { throw new DomainError(); } }'],
-    invalid: [{ code: '@command() class Register { handle() { throw new Error("bad"); } }', errors: [{ messageId: 'builtIn' }] }]
+    valid: [`${core}@command() class Register { handle() { throw new DomainError(); } }`],
+    invalid: [{ code: `${core}@command() class Register { handle() { throw Error('bad'); } }`, errors: [{ messageId: 'builtIn' }] }]
 });
 tester.run('arc0019', arc0019, {
-    valid: ['@roles("Admin") class Register { @allowAnonymous() handle() {} }'],
-    invalid: [{ code: '@allowAnonymous() @roles("Admin") class Register {}', errors: [{ messageId: 'conflict' }] }]
+    valid: [`${core}@roles('Admin') class Register { @allowAnonymous() handle() {} }`],
+    invalid: [{ code: `${core}@allowAnonymous() @roles('Admin') class Register {}`, errors: [{ messageId: 'conflict' }] }]
 });
 tester.run('missing-field', missingField, {
-    valid: ['@command() class Register { @field(String) title!: string; handle() {} }'],
-    invalid: [{ code: '@command() class Register { title!: string; handle() {} }', errors: [{ messageId: 'missing' }] }]
+    valid: [`${core}@command() class Register { @field(String) title!: string; private secret!: string; #internal = 1; handle() {} }`,
+        "import { command } from '@cratis/arc.core'; import { field as f } from '@cratis/fundamentals'; @command() class Register { @f(String) title!: string; handle() {} }",
+        "import { command } from 'other'; @command('deploy') class Deploy { title!: string; }"],
+    invalid: [{ code: `${core}@command() class Register { title!: string; handle() {} }`, errors: [{ messageId: 'missing' }] },
+        { code: "import * as arc from '@cratis/arc.core'; @arc.command() class Register { title!: string; handle() {} }", errors: [{ messageId: 'missing' }] }]
 });
 tester.run('declared-field', declaredField, {
-    valid: ['class Register { @field(String) title!: string; }'],
-    invalid: [{ code: 'class Register { @field(String) declare title: string; }', errors: [{ messageId: 'declared' }] }]
+    valid: [`${core}class Register { @field(String) title!: string; }`],
+    invalid: [{ code: `${core}class Register { @field(String) declare title: string; }`, errors: [{ messageId: 'declared' }] },
+        { code: "import { field as f } from '@cratis/fundamentals'; class Register { @f(String) declare title: string; }", errors: [{ messageId: 'declared' }] }]
 });
 tester.run('misplaced-decorator', misplacedDecorator, {
-    valid: ['@readModel() class Item { @query() static all(): Item[] { return []; } }'],
-    invalid: [{ code: 'class Item { @query() static all(): Item[] { return []; } }', errors: [{ messageId: 'misplaced' }] }]
+    valid: [`${core}@readModel() class Item { @query() static all() { return []; } }`,
+        `${core}@command() class Register { @inject(String) provide(value: string) {} handle() {} }`,
+        "import { inject } from 'other'; class Samurai { @inject(String) sword!: string; }"],
+    invalid: [{ code: `${core}class Item { @query() static all() { return []; } }`, errors: [{ messageId: 'misplaced' }] },
+        { code: "import * as arc from '@cratis/arc.core'; class Item { @arc.query() static all() { return []; } }", errors: [{ messageId: 'misplaced' }] }]
 });
 tester.run('validator-target', validatorTarget, {
-    valid: ['@validator(Register) class Check extends CommandValidator<Register> {}'],
-    invalid: [{ code: 'class Check extends CommandValidator<Register> {}', errors: [{ messageId: 'missing' }] }]
+    valid: [`${core}@validator(String) class Check extends CommandValidator<string> {}`,
+        "import { CommandValidator } from 'other'; class Check extends CommandValidator {}"],
+    invalid: [{ code: `${core}class Check extends CommandValidator<string> {}`, errors: [{ messageId: 'missing' }] },
+        { code: "import { CommandValidator as CV } from '@cratis/arc.core'; class Check extends CV<string> {}", errors: [{ messageId: 'missing' }] }]
 });
 tester.run('unexported-artifact', unexportedArtifact, {
-    valid: ['@command() class Register { handle() {} } export { Register };'],
-    invalid: [{ code: '@command() class Register { handle() {} }', errors: [{ messageId: 'hidden' }] }]
+    valid: [`${core}@command() class Register { handle() {} } export { Register };`],
+    invalid: [{ code: `${core}@command() class Register { handle() {} }`, errors: [{ messageId: 'hidden' }] },
+        { code: "import { command as cmd } from '@cratis/arc.core'; @cmd() class Register { handle() {} }", errors: [{ messageId: 'hidden' }] }]
 });

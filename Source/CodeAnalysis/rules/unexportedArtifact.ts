@@ -5,16 +5,16 @@ import { decorated } from './syntax.js';
 
 /** Discovery needs exported declarations, not file-local artifacts. */
 export const unexportedArtifact = ESLintUtils.RuleCreator.withoutDocs({
-    meta: { type: 'problem', docs: { description: 'Export discoverable Arc artifacts' }, messages: { hidden: 'Export this Arc artifact so discovery can find it.' }, schema: [] },
+    meta: { type: 'problem', docs: { description: 'Export discoverable Arc artifacts' }, messages: { hidden: 'Export Arc artifact {{name}} so discovery can find it.' }, schema: [] },
     defaultOptions: [],
     create(context) {
         return { ClassDeclaration(node) {
-            if (!['command', 'readModel', 'validator'].some(name => decorated(node, name))) return;
+            if (!['command', 'readModel', 'validator'].some(name => decorated(context, node, name))) return;
             if (node.parent.type !== 'ExportNamedDeclaration' && node.parent.type !== 'ExportDefaultDeclaration') {
                 // Re-exports and exports at the end of the same file are valid too.
                 if (!node.id || !context.sourceCode.ast.body.some(statement => statement.type === 'ExportNamedDeclaration' &&
                     statement.specifiers.some(specifier => specifier.local.type === 'Identifier' && specifier.local.name === node.id?.name))) {
-                    context.report({ node: node.id ?? node, messageId: 'hidden' });
+                    context.report({ node: node.id ?? node, messageId: 'hidden', data: { name: node.id?.name ?? '<anonymous>' } });
                 }
             }
         } };

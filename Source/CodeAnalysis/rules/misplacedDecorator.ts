@@ -13,16 +13,16 @@ export const misplacedDecorator = ESLintUtils.RuleCreator.withoutDocs({
                 if (member.type !== 'MethodDefinition') {
                     if (member.type === 'StaticBlock' || member.type === 'TSIndexSignature') continue;
                     for (const name of ['query', 'inject', 'authorize', 'allowAnonymous', 'roles']) {
-                        if (decorated(member, name)) context.report({ node: member, messageId: 'misplaced', data: { decorator: name } });
+                        if (decorated(context, member, name)) context.report({ node: member, messageId: 'misplaced', data: { decorator: name } });
                     }
                     continue;
                 }
                 const name = memberName(member);
                 for (const decorator of ['query', 'inject', 'authorize', 'allowAnonymous', 'roles']) {
-                    if (!decorated(member, decorator)) continue;
-                    const valid = decorator === 'query' ? decorated(node, 'readModel') && member.static :
-                        decorator === 'inject' ? decorated(node, 'command') && !member.static && name === 'handle' :
-                            decorated(node, 'readModel') && member.static && decorated(member, 'query');
+                    if (!decorated(context, member, decorator)) continue;
+                    const valid = decorator === 'query' ? decorated(context, node, 'readModel') && member.static :
+                        decorator === 'inject' ? decorated(context, node, 'command') && !member.static && (name === 'handle' || name === 'provide') :
+                            decorated(context, node, 'readModel') && member.static && decorated(context, member, 'query');
                     if (!valid) context.report({ node: member.key, messageId: 'misplaced', data: { decorator } });
                 }
             }
