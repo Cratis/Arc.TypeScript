@@ -235,17 +235,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/fundamentals@npm:7.19.6":
+"@cratis/fundamentals@npm:7.19.6, @cratis/fundamentals@npm:^7.19.3":
   version: 7.19.6
   resolution: "@cratis/fundamentals@npm:7.19.6"
   checksum: 10c0/815314c051bb17b72803746b71b9e330610d0ad9b5606a53b960796df7366c33dcbec436fc60fcc999b60fb6bd488f938a31440bb6d85cf87821bc60b62995b5
-  languageName: node
-  linkType: hard
-
-"@cratis/fundamentals@npm:^7.19.3":
-  version: 7.19.3
-  resolution: "@cratis/fundamentals@npm:7.19.3"
-  checksum: 10c0/e67e8c0d124f46b458346f52256956c5cce489a4ad980b4468085f5a8a6221ba8d7495a8e9e9c5a318372f4c727c5881811b5bcb95afbcab55cfd945dc2bf5ce
   languageName: node
   linkType: hard
 
