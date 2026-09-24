@@ -24,6 +24,7 @@ import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandContext } from './commands/CommandContext.js';
+import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 /** Options shared by the low-level Arc server and model-bound application builder. */
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
@@ -37,6 +38,8 @@ export interface ArcServerOptions {
     readModelForCommandResolvers?: readonly ServiceIdentifier<ReadModelForCommandResolver>[];
     /** Isolate ambient integration state for the whole validated command execution. */
     commandExecutionRunner?: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>;
+    /** Scopes shared by every command, including commands compiled from decorated classes. */
+    commandExecutionScopes?: readonly (() => CommandExecutionScope)[];
     /** Shared, cooperative compensation budget (default 30 seconds). */
     commandCompensationTimeoutMs?: number;
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
