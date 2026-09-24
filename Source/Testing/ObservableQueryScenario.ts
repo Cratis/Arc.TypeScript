@@ -45,7 +45,10 @@ export class ObservableQueryScenario<T = unknown> {
             input, this.#host.execution(timeout), options);
         // A non-cooperative producer can finish opening after the deadline. Close that session too.
         const session = await Promise.race([opening.then(async opened => {
-            if (timeout.aborted) await opened.close();
+            if (timeout.aborted) {
+                await opened.close();
+                throw new Error(message);
+            }
             return opened;
         }), deadline]);
         try {
@@ -54,6 +57,7 @@ export class ObservableQueryScenario<T = unknown> {
             const iterator = session.results();
             for (let index = 0; index < maximumEmissions; index++) {
                 const next = await Promise.race([iterator.next(), deadline]);
+                if (timeout.aborted) throw new Error(message);
                 if (next.done) return { emissions, completed: true };
                 const result = next.value as QueryResult<T>;
                 emissions.push(this.#host.serializationRoundTrip && result.data !== undefined

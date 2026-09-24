@@ -15,13 +15,18 @@ class CodeItem {
 
 describe('when collecting with JSON round trips disabled', () => {
     let scenario: ObservableQueryScenario<{ code: string; count: number }>;
+    let defaultScenario: ObservableQueryScenario<{ code: string; count: number | null }>;
     let result: { code: string; count: number } | undefined;
+    let defaultCount: number | null | undefined;
     beforeEach(async () => {
         scenario = ObservableQueryScenario.for<{ code: string; count: number }>(CodeItem, 'observe')
             .withSerializationRoundTrip(false);
+        defaultScenario = ObservableQueryScenario.for<{ code: string; count: number | null }>(CodeItem, 'observe');
         result = (await scenario.collect(1, 100, { code: new Code('alpha') })).emissions[0]?.data;
+        defaultCount = (await defaultScenario.collect(1, 100, { code: new Code('alpha') })).emissions[0]?.data?.count;
     });
-    afterEach(async () => { await scenario.dispose(); });
+    afterEach(async () => { await scenario.dispose(); await defaultScenario.dispose(); });
     it('should encode concept arguments despite disabling JSON', () => { result!.code.should.equal('alpha'); });
-    it('should preserve non-JSON emission data', () => { Number.isNaN(result!.count).should.be.true; });
+    it('should preserve non-JSON emission data', () => { Number.isNaN(result!.count).should.equal(true); });
+    it('should convert the same value to null by default', () => { (defaultCount === null).should.equal(true); });
 });
