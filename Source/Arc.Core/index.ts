@@ -1,6 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+(Symbol as unknown as { metadata: symbol }).metadata ??= Symbol.for('Symbol.metadata');
 export { ArcServer, currentContext } from './ArcServer.js';
+export { ArcApplication } from './ArcApplication.js';
+export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
+export { ArcApplicationServices } from './ArcApplicationServices.js';
+export * from './modelBound/index.js';
 export type { ArcServerOptions } from './ArcServerOptions.js';
 export type { DescriptorBase } from './DescriptorBase.js';
 export * from './commands/index.js';
