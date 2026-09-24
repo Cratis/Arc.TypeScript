@@ -8,6 +8,8 @@
   href: identity/toc.yml
 - name: Tenancy
   href: tenancy/toc.yml
+- name: SQL with Drizzle
+  href: sql/toc.yml
 - name: Architecture
   href: explanation/architecture.md
 - name: Reference

@@ -105,9 +105,9 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Capability | Status | Notes |
 | --- | --- | --- |
 | [MongoDB](../guides/mongodb.md) | Supported, bounded integration | `builder.addMongoDB` or `addMongoDB(builder, options)` registers tenant-scoped collections with BSON field mapping, provider-owned count/sort/page, and replica-set or sharded-cluster change streams. Default naming follows Arc .NET's `DefaultNamingPolicy` (declared fields and plural collections); opt into `camelCaseMongoNamingPolicy` to match `.WithCamelCaseNamingPolicy()`. The existing `MongoReadModels` helper remains. Live MongoDB 7 specs cover tenant isolation, insert/delete observation and paging. The driver resumes resumable change-stream errors; non-resumable errors end the subscription. No automatic command-side read-model injection, transaction, joined observation, resilience middleware, or driver metrics; not full parity with Arc on .NET. |
-| Relational databases | Not implemented | No SQL integration. |
+| [Relational databases](../sql/index.md) | Supported, bounded integration | `@cratis/arc.drizzle` registers tenant-scoped Drizzle handles, explicit concept/Guid/temporal/JSON column codecs and SQL count/sort/page for model-bound queries. SQLite and PostgreSQL are tested with real databases; MySQL and live observation are not verified. No automatic migrations, change tracking, transaction, or command-side read-model resolution. See [SQL limits](../sql/observing.md). |
 | [Chronicle](../guides/chronicle.md) | Experimental | A private package that appends events returned from a command. The published Chronicle TypeScript SDK does not load in Node.js today, and nothing has run against a Chronicle kernel. |
-| Transactions and units of work | Not implemented | Neither integration opens a transaction. |
+| Transactions and units of work | Not implemented | No automatic transaction spans the storage integrations; SQL count and page run as separate statements. |
 
 `encodeWireValue` in `@cratis/arc.core` converts concepts and decorated models to Arc's JSON-ready wire shape without stringifying them. It does not validate or decode inputs.
 
