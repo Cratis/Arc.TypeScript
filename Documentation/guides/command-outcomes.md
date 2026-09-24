@@ -17,7 +17,7 @@ Validation answers whether input follows the rules. Some decisions need more: wh
 
 The provided value is typed `unknown` in `handle`, so narrow or cast it, as [the rename example](validation-and-authorization.md#a-command-with-every-check) does with `provided as Task`.
 
-`handle` uses the same helpers. Any value or `response(value)` becomes the result's `response`, `rejected(...)` answers 400, and `denied(...)` answers 403. If `provide` or `handle` throws, the result is a 500. Outside development mode the HTTP result carries `An unexpected error occurred` and no stack trace; [Configure the server](configuration.md#control-error-details) shows how to log the original.
+`handle` uses the same helpers. A single unhandled value or `response(value)` becomes the result's `response`; `rejected(...)` answers 400, and `denied(...)` answers 403. In `tuple(...)`, Arc walks branded nested tuples and active response branches in order, selects at most one unhandled response, then invokes the first matching registered `CommandResponseValueHandler` for each other value. Multiple unhandled values fail the command rather than returning an array. Handlers run in the command's service scope and can read its `CommandContext` (command, key, case-insensitive values, correlation ID, principal, tenant, severity and signal). Mark a handler class `@commandResponseValueHandler()` to discover it with `builder.add(...)` or `builder.discover(...)` (scoped by default). Alternatively register its token in `builder.services` and call `builder.addCommandResponseValueHandler(token)`, or use the `commandResponseValueHandlers` option on `ArcServer`. A handler's `canHandle(context, value)` selects the value; `handle(context, value)` may return `rejected(...)` or `denied(...)` but must not return a client response. If `provide` or `handle` throws, the result is a 500. Outside development mode the HTTP result carries `An unexpected error occurred` and no stack trace; [Configure the server](configuration.md#control-error-details) shows how to log the original.
 
 ## Outcomes are recognized by origin, not by shape
 
@@ -65,7 +65,7 @@ How scopes run:
 3. Every recorded scope completes exactly once, in reverse order, with the result so far. That includes a scope whose `begin` threw, so `complete` must cope with a partly started scope.
 4. If any `complete` throws, the command fails with a 500 and the response is removed from the result, even when `handle` succeeded.
 
-Scopes do not run for the validation-only route or when authorization or validation fails. Arc does not make a scope transactional: whether `complete` commits or rolls back is up to your code, which can read `result.isSuccess`.
+Scopes do not run for the validation-only route or when authorization or validation fails. Arc does not make a scope transactional: whether `complete` commits or rolls back is up to your code, which can read `result.isSuccess`. If the command returns [operations](command-operations.md), scopes must additionally report explicit commit facts before Arc considers compensation; a successful result alone cannot establish that rollback is safe.
 
 ## Related
 
