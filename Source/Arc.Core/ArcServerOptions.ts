@@ -52,6 +52,8 @@ export interface ArcServerOptions {
     observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
     prefix?: string;
     segmentsToSkip?: number;
+    includeCommandNameInRoute?: boolean;
+    includeQueryNameInRoute?: boolean;
     enableQueryMethod?: boolean;
     maxBodyBytes?: number;
     correlationHeader?: string;
