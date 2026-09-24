@@ -1,6 +1,6 @@
 # Contributing to Arc for TypeScript
 
-Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, an optional MongoDB read helper, a bounded client generator, an experimental Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
+Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, optional MongoDB and Drizzle SQL integrations, a source-based client generator, ESLint rules, an experimental Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
 
 The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/contributing.md) and [code of conduct](https://github.com/Cratis/.github/blob/main/CODE_OF_CONDUCT.md) apply to this repository.
 
@@ -19,10 +19,12 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 | `Source/Core` | `@cratis/arc.core`, the host-independent core and standalone Node host, with co-located specs |
 | `Source/Express`, `Source/Fastify`, `Source/Hono` | The framework-specific adapters, each with co-located specs |
 | `Source/Testing` | `@cratis/arc.testing`, the scenario and assertion helpers |
-| `Source/MongoDB` | The optional MongoDB read helper, with unit specs and a live replica-set spec |
-| `Source/Chronicle` | The experimental Chronicle integration. It is `private` and must stay unpublished until the Chronicle SDK loads in Node.js and it has passed against a live Chronicle kernel. |
-| `Source/Tools/ProxyGenerator` | `@cratis/arc.proxygenerator`, which renders `@cratis/arc` proxies from an exported client manifest, and its JSON-only CLI |
-| `Samples/Tasks` | A runnable sample hosted on Hono |
+| `Source/MongoDB` | The optional MongoDB integration, with unit specs and a live replica-set spec |
+| `Source/Drizzle` | The optional Drizzle SQL integration, with SQLite specs and a PostgreSQL integration spec |
+| `Source/Chronicle` | The experimental Chronicle integration, with substitute-based specs and an opt-in live-kernel suite |
+| `Source/CodeAnalysis` | `@cratis/eslint-plugin-arc-core`, the ESLint rules for model-bound artifacts |
+| `Source/Tools/ProxyGenerator` | `@cratis/arc.proxygenerator`, which generates `@cratis/arc` proxies from decorated TypeScript source or from an exported client manifest, and its CLI |
+| `Samples/Tasks` | A runnable model-bound sample on the standalone Node host |
 | `ContractTests/DotNET`, `ContractTests/Http` | A .NET reference host and the paired HTTP checks that compare it with Arc for TypeScript; see their READMEs |
 | `ContractTests/Client` | Client generation tests: proxy fixtures compiled against the pinned `@cratis/arc`, `@cratis/fundamentals`, and `rxjs` versions, and generated proxies run against live Express, Fastify, and Hono hosts |
 | `Documentation` | Product documentation published on the Cratis site |
@@ -54,7 +56,7 @@ It runs, in order:
 2. The type check (`yarn typecheck`): `tsc -b` for every package, then `tsc -p tsconfig.specs.json` for the specs.
 3. The build (`yarn build`).
 4. The client generation checks (`yarn test:client-generation:verify`): a strict `Bundler` compile of the proxy fixtures with `skipLibCheck: false`, then the generation tests with Node.js. Run `yarn test:client-generation` on its own to build first.
-5. The Vitest specs (`yarn test`), including the MongoDB unit specs and the Chronicle specs, which use typed substitutes and never load the Chronicle SDK.
+5. The Vitest specs (`yarn test`), including the MongoDB unit specs and the Chronicle specs, which use typed substitutes and never start a Chronicle kernel.
 6. The legacy-decorator and decorator-type contract checks (`yarn test:legacy-decorators`, `yarn test:decorator-types`).
 7. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
 8. The shared-docs snippet gate: `yarn docs:snippets:self-test` proves the gate still catches planted mistakes, then `yarn docs:snippets` checks every file in `Documentation/client-snippets` and compiles each TypeScript snippet against the built packages. With a sibling `../Arc` checkout it also compares the snippet ids with the `<ArcBackendTabs>` macros on the shared Arc pages; pass `--arc-documentation <path>` to point at another checkout.
@@ -64,7 +66,7 @@ Run a single step while you work, and the whole gate before you push. Add or upd
 
 Two checks need more than Node.js and are not part of `yarn ci`. Run them when you change what they cover:
 
-- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the 33 paired HTTP checks. It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
+- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the 48 paired HTTP checks. It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
 - `bash Source/MongoDB/run-integration.sh` runs the live MongoDB spec in a disposable Docker container. It exits with 2 when Docker is not available, which means the check did not run.
 
 A hosted run does not replace local verification. The hosted CI workflow is started manually.
@@ -81,7 +83,7 @@ A hosted run does not replace local verification. The hosted CI workflow is star
 
 - Formatting follows [`.editorconfig`](.editorconfig).
 - TypeScript conventions, code quality, and specification style follow the Cratis rules under `.cratis/ai/rules/`.
-- Public API changes come with updated documentation under `Documentation/`, with examples checked against the source.
+- Public API changes come with updated documentation under `Documentation/`, with examples checked against the source. The folders mirror Arc's C# backend documentation; every folder has a `toc.yml`, and [the capability reference](Documentation/reference/capabilities.md) is the single place for status and evidence.
 
 ## Pull requests and releases
 
@@ -89,7 +91,7 @@ A hosted run does not replace local verification. The hosted CI workflow is star
 - Write the pull request description as release notes for the people who will use the change. It describes the change, not the checks you ran.
 - Maintainers merge with a merge commit. History is never squashed, rebased, or force-pushed.
 - Label each pull request with its semantic-versioning impact: `major`, `minor`, or `patch`, or `no-release` when nothing a consumer can observe changes.
-- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration stays `private` even then until the conditions in the layout table are met. [Preview a TypeScript release](Documentation/contributing/releases.md) describes the release preview that exists today.
+- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration stays experimental. [Preview a TypeScript release](Documentation/contributing/releases.md) describes the release preview that exists today.
 - **A `major` release needs full parity and a human merge.** No `major` release happens until full parity with Arc on .NET is verified and a maintainer explicitly merges it. Major releases are never merged automatically.
 
 ## AI-assisted contributions
