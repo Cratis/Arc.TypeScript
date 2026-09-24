@@ -100,7 +100,7 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                 const result = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(handle)!);
                 const unwrapped = checker.getAwaitedType(result) ?? result;
                 operations.push({ kind: 'command', name: owner, owner, namespace, routeOverride: pathOverride,
-                    treatWarningsAsErrors: warningOption(annotation(checker, declaration, 'command')),
+                    treatWarningsAsErrors: warningOption(annotation(checker, declaration, 'command'), checker),
                     roles: classRoles, fields, result: resolver.resolve(unwrapped, handle) });
             }
             if (isModel) for (const member of declaration.members) {
@@ -163,7 +163,7 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                     throw new Error(`${path}:${file.getLineAndCharacterOfPosition(member.getStart()).line + 1}: Unsupported paged query element`);
                 const response: SourceType = result.paged ? { ...element, text: `${element.text}[]`, enumerable: true } : element;
                 operations.push({ kind: result.observable ? 'observable' : 'query', name, owner, namespace,
-                    treatWarningsAsErrors: warningOption(queryAnnotation), httpMethod: httpMethodOption(queryAnnotation, checker),
+                    treatWarningsAsErrors: warningOption(queryAnnotation, checker), httpMethod: httpMethodOption(queryAnnotation, checker),
                     routeOverride: stringArgument(annotation(checker, member, 'path') ?? annotation(checker, member, 'route')) ?? pathOverride,
                     roles: annotation(checker, member, 'allowAnonymous') || annotation(checker, member, 'authorize') || annotation(checker, member, 'roles') ?
                         roles(checker, member) : classRoles, fields: parameters, result: response });

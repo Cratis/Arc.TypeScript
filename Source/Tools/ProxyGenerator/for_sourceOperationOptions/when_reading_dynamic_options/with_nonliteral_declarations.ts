@@ -8,7 +8,7 @@ const expression = (source: string): ts.Expression => {
     return (file.statements[0] as ts.ExpressionStatement).expression;
 };
 describe('when reading dynamic decorator options', () => {
-    for (const option of ['command(settings)', 'command({ treatWarningsAsErrors })', 'command({ ...settings })',
+    for (const option of ['command(settings)', 'command(makeOptions())', 'query(makeOptions())', 'command({ treatWarningsAsErrors })', 'command({ ...settings })',
         'command({ namespace: prefix })', 'query({ observable: enabled })']) {
         it(`should reject ${option}`, () => {
             (() => warningOption(expression(option))).should.throw(/static|literal/);
