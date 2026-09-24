@@ -54,7 +54,7 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
             ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip,
                 includeName(item, queryDefinitions, options.includeQueryNameInRoute)))),
             ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip,
-                includeName(item, queryDefinitions, options.includeQueryNameInRoute)))), 
+                includeName(item, queryDefinitions, options.includeQueryNameInRoute)))),
             ...(options.enableObservableHealth ? [{ ...observableOperation({
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },
