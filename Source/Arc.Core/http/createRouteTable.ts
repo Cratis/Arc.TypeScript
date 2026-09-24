@@ -25,9 +25,9 @@ function routeFor(operation: { namespace?: string; routeNamespace?: string; name
 export function createRouteTable(options: ArcServerOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
     commands: readonly Operation[]; queries: readonly Operation[]; routes: ReadonlyMap<string, Operation>; endpoints: ReadonlyMap<string, string>
 } {
-        const prefix = options.prefix ?? 'api';
+        const prefix = options.generatedApis?.routePrefix ?? options.prefix ?? 'api';
         if (prefix && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(prefix)) throw new Error('Unsafe Arc prefix');
-        const skip = options.segmentsToSkip ?? 0;
+        const skip = options.generatedApis?.segmentsToSkipForRoute ?? options.segmentsToSkip ?? 0;
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid namespace segments to skip');
         for (const item of [...options.commands ?? [], ...options.queries ?? [], ...options.observableQueries ?? []]) {
             if (item.clientOutput) {
@@ -46,15 +46,17 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
         const includeName = (item: { namespace?: string; routeNamespace?: string }, items: readonly { namespace?: string; routeNamespace?: string }[], configured?: boolean): boolean =>
             configured !== false || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
                 (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
+        const includeCommandName = options.generatedApis?.includeCommandNameInRoute ?? options.includeCommandNameInRoute;
+        const includeQueryName = options.generatedApis?.includeQueryNameInRoute ?? options.includeQueryNameInRoute;
         const commandDefinitions = options.commands ?? [];
         const queryDefinitions = [...options.queries ?? [], ...options.observableQueries ?? []];
         const commands = commandDefinitions.map(item => commandOperation(item, routeFor(item, prefix, skip,
-            includeName(item, commandDefinitions, options.includeCommandNameInRoute))));
+            includeName(item, commandDefinitions, includeCommandName))));
         const queries = [
             ...(options.queries ?? []).map(item => queryOperation(item, routeFor(item, prefix, skip,
-                includeName(item, queryDefinitions, options.includeQueryNameInRoute)))),
+                includeName(item, queryDefinitions, includeQueryName)))),
             ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip,
-                includeName(item, queryDefinitions, options.includeQueryNameInRoute)))),
+                includeName(item, queryDefinitions, includeQueryName)))),
             ...(options.enableObservableHealth ? [{ ...observableOperation({
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },

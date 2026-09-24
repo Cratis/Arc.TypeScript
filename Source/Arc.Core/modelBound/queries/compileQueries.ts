@@ -1,20 +1,15 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { QueryDefinition } from '../queries/QueryDefinition.js';
-import type { ObservableQueryDefinition } from '../queries/observable/ObservableQueryDefinition.js';
-import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
-import { reflectedParameters, resolveAll } from './dependencies.js';
+import type { CompiledQuery } from './CompiledQuery.js';
+import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentifier.js';
+import { reflectedParameters, resolveAll } from '../reflection/dependencies.js';
 import { encodeObservable } from './encodeObservable.js';
-import { ownMetadata, type ClassType, type Parameter, type WireType } from './metadata.js';
-import { decode, encode, fieldsFor, schemaFor } from './wireSchema.js';
-import type { ModelGraphValidator } from '../validation/ModelGraphValidator.js';
+import { ownMetadata, type ClassType, type Parameter, type WireType } from '../reflection/metadata.js';
+import { decode, encode, fieldsFor, schemaFor } from '../reflection/wireSchema.js';
+import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 
-export interface CompiledQuery {
-    readonly definition: QueryDefinition<z.ZodType, unknown> | ObservableQueryDefinition<z.ZodType, unknown>;
-    readonly dependencies: readonly ServiceIdentifier<unknown>[];
-    readonly observable: boolean;
-}
+/** Compile static read-model queries onto Arc's query pipelines. */
 export function compileQueries(type: ClassType, namespace: string, graph?: ModelGraphValidator): CompiledQuery[] {
     const metadata = ownMetadata(type);
     if (!metadata.readModel) throw new Error(`Not an Arc read model: ${type.name}`);
@@ -42,7 +37,8 @@ export function compileQueries(type: ClassType, namespace: string, graph?: Model
         }
         if (declaration.argumentsModel) {
             const declared = fieldsFor(declaration.argumentsModel as WireType);
-            const arguments_ = parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
+            const arguments_ = parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> =>
+                parameter.kind === 'argument');
             if (declared.length !== arguments_.length || declared.some(field =>
                 !arguments_.some(parameter => parameter.name === field.name && parameter.type === field.type)))
                 throw new Error(`Query arguments model does not match ${type.name}.${name}`);
@@ -62,13 +58,18 @@ export function compileQueries(type: ClassType, namespace: string, graph?: Model
             name, namespace: [metadata.namespace ?? namespace, type.name].filter(Boolean).join('.'),
             routeNamespace: metadata.namespace ?? namespace,
             path: metadata.methodRoutes?.get(name) ?? metadata.path,
-            authorization, schema: z.object(shape), wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services,
+            authorization, schema: z.object(shape),
+            wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services,
             validate: graph ? async (input: unknown, context: { signal: AbortSignal; correlationId: string }) => {
                 const values = input as Record<string, unknown>;
-                const arguments_ = parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
+                const arguments_ = parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> =>
+                    parameter.kind === 'argument');
                 const decoded = Object.fromEntries(arguments_.map(parameter => [parameter.name,
                     decode(parameter.type, values[parameter.name], parameter.element)]));
-                if (declaration.argumentsModel) return graph.validate(Object.assign(Reflect.construct(declaration.argumentsModel, []), decoded), context.signal, '', context.correlationId);
+                if (declaration.argumentsModel) {
+                    const model = Object.assign(Reflect.construct(declaration.argumentsModel, []), decoded);
+                    return graph.validate(model, context.signal, '', context.correlationId);
+                }
                 const results = [];
                 for (const parameter of arguments_) {
                     const value = decoded[parameter.name];
@@ -82,7 +83,14 @@ export function compileQueries(type: ClassType, namespace: string, graph?: Model
             dependencies: services, observable: true
         });
         else queries.push({
-            definition: { ...descriptor, perform: async input => encode(await perform(input)) },
+            definition: { ...descriptor, perform: async input => {
+                const value = await perform(input);
+                if (value && typeof value === 'object' &&
+                    (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {
+                    throw new Error(`Snapshot query ${type.name}.${name} returned an observable`);
+                }
+                return encode(value);
+            } },
             dependencies: services, observable: false
         });
     }

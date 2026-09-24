@@ -1,12 +1,13 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs } from '@cratis/fundamentals';
-import { ownMetadata, type WireType } from '../modelBound/metadata.js';
-import { fieldsFor } from '../modelBound/wireSchema.js';
+import { ownMetadata, type WireType } from '../modelBound/reflection/metadata.js';
+import { fieldsFor } from '../modelBound/reflection/wireSchema.js';
 import { capturePath } from './capturePath.js';
 import { RuleBuilder } from './RuleBuilder.js';
 import type { Rule } from './Rule.js';
 
+/** Rule registration shared by command, query, model, and concept validators. */
 export class BaseValidator<T> {
     readonly #rules: Rule[] = [];
     readonly #ignored = new Set<string>();

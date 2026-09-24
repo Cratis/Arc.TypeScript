@@ -47,6 +47,7 @@ function bind(schema: z.ZodType, values: Record<string, unknown>, get: boolean):
         if (!target || seen.has(target) || value === null && get) throw new BadRequest();
         seen.add(target);
         const declared: z.ZodType = shape[target];
+        if (get && value === '' && declared instanceof z.ZodOptional && !unwrap(declared).safeParse('').success) continue;
         if (get && Array.isArray(value) && unwrap(declared) instanceof z.ZodArray) {
             const array = unwrap(declared) as z.ZodArray<z.ZodType>;
             result[target] = value.map(entry => coerce(entry as string, array.element as z.ZodType));

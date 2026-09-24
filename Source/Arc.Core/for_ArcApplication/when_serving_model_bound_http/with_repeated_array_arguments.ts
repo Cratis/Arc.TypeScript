@@ -16,10 +16,10 @@ describe('when serving a model-bound query with repeated GET array arguments', (
         builder.add(Item);
         const application = await builder.build();
         try {
-            response = (await application.server.handle(new Request('http://localhost/api/by-names?names=one&names=missing')))!;
+            response = (await application.server.handle(new Request('http://localhost/api/by-names?names=one&names=two')))!;
         } finally { await application.dispose(); }
     });
     it('should bind both values and decode each as a concept', async () => {
-        (await response.json()).data.should.deep.equal([{ name: 'one' }]);
+        (await response.json()).data.should.deep.equal([{ name: 'one' }, { name: 'two' }]);
     });
 });

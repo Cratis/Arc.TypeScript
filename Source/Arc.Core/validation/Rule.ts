@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Severity } from './Severity.js';
+/** Immutable rule descriptor evaluated against a model graph. */
 export interface Rule {
     readonly path: readonly string[];
     readonly kind: string;

@@ -15,8 +15,10 @@ describe('when serving a model-bound query with an invalid UUID', () => {
             response = (await application.server.handle(new Request('http://localhost/api/by-guid?id=not-a-uuid')))!;
         } finally { await application.dispose(); }
     });
-    it('should reject before calling the query method', async () => {
+    it('should reject the invalid query argument', () => {
         response.status.should.equal(400);
+    });
+    it('should report malformed input', async () => {
         (await response.json()).validationResults[0].reason.should.equal('malformedRequest');
     });
 });

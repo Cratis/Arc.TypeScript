@@ -11,21 +11,31 @@ import { ArcServer } from './ArcServer.js';
 import type { CommandDefinition } from './commands/CommandDefinition.js';
 import type { QueryDefinition } from './queries/QueryDefinition.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
-import { compileCommand } from './modelBound/compileCommand.js';
-import { compileQueries } from './modelBound/compileQueries.js';
-import { ownMetadata, type ClassType } from './modelBound/metadata.js';
+import { compileCommand } from './modelBound/commands/compileCommand.js';
+import { compileQueries } from './modelBound/queries/compileQueries.js';
+import { ownMetadata, type ClassType } from './modelBound/reflection/metadata.js';
+import type { Artifact } from './modelBound/reflection/Artifact.js';
+import { validateMetadata } from './modelBound/reflection/validateMetadata.js';
 import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
 import { BaseValidator } from './validation/BaseValidator.js';
 import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 
-interface Artifact { readonly type: ClassType; readonly namespace: string }
+/** Collect decorated artifacts and their services into one executable application. */
 export class ArcApplicationBuilder {
     readonly services = new ArcApplicationServices();
     readonly #artifacts: Artifact[] = [];
+    #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     constructor(private readonly options: ArcServerOptions = {}) {}
+    /** Add explicitly named decorated artifacts; reject undecorated classes. */
     add(...types: ClassType[]): this {
-        for (const type of types) this.register(type, ownMetadata(type).namespace ?? '');
+        for (const type of types) {
+            const metadata = ownMetadata(type);
+            if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget) {
+                throw new Error(`Not an Arc artifact: ${type.name}`);
+            }
+            this.register(type, metadata.namespace ?? '');
+        }
         return this;
     }
     private register(type: ClassType, namespace: string): void {
@@ -38,6 +48,7 @@ export class ArcApplicationBuilder {
         this.#namespaces.set(type, effective);
         this.#artifacts.push({ type, namespace: effective });
     }
+    /** Import decorated artifacts beneath a dedicated discovery root. */
     async discover(root: URL, options: { rootNamespace?: string } = {}): Promise<this> {
         if (root.protocol !== 'file:') throw new Error('Arc discovery requires a file URL');
         const folder = await realpath(fileURLToPath(root));
@@ -69,13 +80,22 @@ export class ArcApplicationBuilder {
         }
         return this;
     }
+    /** Compile artifacts and preflight their declared dependencies. */
     async build(): Promise<ArcApplication> {
+        if (this.#built) throw new Error('Arc application builder can be built only once');
+        this.#built = true;
+        if (this.options.services && !Array.isArray(this.options.services) &&
+            (this.services.registrations.length || this.#artifacts.some(({ type }) => {
+                const metadata = ownMetadata(type);
+                return metadata.lifetime || metadata.validatorTarget;
+            }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
         const commands: CommandDefinition<z.ZodType, unknown>[] = [...this.options.commands ?? []];
         const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
         const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
         const dependencies: ServiceIdentifier<unknown>[] = [];
         const validatorTypes = new Map<ClassType, ClassType<BaseValidator<unknown>>>();
         for (const { type } of this.#artifacts) {
+            validateMetadata(type);
             const target = ownMetadata(type).validatorTarget;
             if (!target) continue;
             if (validatorTypes.has(target)) throw new Error(`Duplicate validator target: ${target.name}`);

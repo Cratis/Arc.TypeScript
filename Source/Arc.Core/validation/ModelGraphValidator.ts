@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs } from '@cratis/fundamentals';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
-import { fieldsFor } from '../modelBound/wireSchema.js';
-import type { ClassType, WireType } from '../modelBound/metadata.js';
+import { fieldsFor } from '../modelBound/reflection/wireSchema.js';
+import type { ClassType, WireType } from '../modelBound/reflection/metadata.js';
 import type { ValidationResult } from './ValidationResult.js';
 import { BaseValidator } from './BaseValidator.js';
 import { evaluateRule } from './evaluateRule.js';

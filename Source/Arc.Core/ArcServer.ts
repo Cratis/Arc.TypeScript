@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './index.js';
 import type { ArcServerOptions } from './ArcServerOptions.js';
+import { ownMetadata } from './modelBound/reflection/metadata.js';
+import { encode } from './modelBound/reflection/wireSchema.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import { validateTenancy } from './tenancy/validateTenancy.js';
 import { handleRequest } from './http/handleRequest.js';
@@ -179,6 +181,15 @@ export class ArcServer {
         return this.#hub.webSocket(request, transport, native, resolved);
     }
 
+    /** Execute a decorated command instance through the ordinary direct-call pipeline. */
+    async execute(command: object, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
+        const type = command.constructor;
+        if (!ownMetadata(type as never).command) throw new Error(`Not an Arc command: ${type.name}`);
+        const matches = this.commands.filter(item => item.name === type.name);
+        if (matches.length !== 1) throw new Error(`Ambiguous or unregistered Arc command: ${type.name}`);
+        const operation = matches[0]!;
+        return this.executeCommand([operation.namespace, operation.name].filter(Boolean).join('.'), encode(command), context, validateOnly);
+    }
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
         const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
         if (!operation) throw new Error(`Unknown command: ${name}`);

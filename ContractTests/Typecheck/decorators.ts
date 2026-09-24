@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { argument, inject, query, service } from '@cratis/arc.core';
+import { argument, inject, query, rejected, service, type Outcome } from '@cratis/arc.core';
 class Provider { fetch(): string { return ''; } }
 class NarrowProvider extends Provider { narrow(): void {} }
 class Samples {
@@ -39,5 +39,16 @@ class PreparedSample {
     @inject(Provider)
     incompatible(value: number, provider: Provider): void { void value; void provider; }
 }
+class PreparedOutcomeSample {
+    provide(): string | Outcome<never> {
+        return rejected({ severity: 3, reason: 'rule', message: 'not ready', members: [] });
+    }
+    @inject(Provider)
+    handle(value: string, provider: Provider): string { return value + provider.fetch(); }
+    // @ts-expect-error handler must take the prepared value before injected services
+    @inject(Provider)
+    wrong(provider: Provider): void { provider.fetch(); }
+}
 void Samples;
 void PreparedSample;
+void PreparedOutcomeSample;

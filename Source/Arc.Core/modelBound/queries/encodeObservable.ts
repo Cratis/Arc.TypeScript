@@ -1,8 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ObservableSource } from '../queries/observable/ObservableSource.js';
-import { encode } from './wireSchema.js';
+import type { ObservableSource } from '../../queries/observable/ObservableSource.js';
+import { encode } from '../reflection/wireSchema.js';
 
+/** Encode each value without changing the source's subscription lifecycle. */
 export function encodeObservable(value: unknown): ObservableSource<unknown> {
     if (!value || typeof value !== 'object') throw new Error('Observable query producer must return an async iterable or subscribable');
     const source = value as ObservableSource<unknown>;

@@ -3,6 +3,7 @@
 import { Severity } from './Severity.js';
 import type { Rule } from './Rule.js';
 
+/** Build immutable validation rules for a selected model member. */
 export class RuleBuilder<T, V> {
     constructor(readonly path: readonly string[], private readonly append: (rule: Rule) => void,
         private readonly replace: (rule: Rule, replacement: Rule) => void,

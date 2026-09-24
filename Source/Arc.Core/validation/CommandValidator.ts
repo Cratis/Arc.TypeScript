@@ -1,4 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { BaseValidator } from './BaseValidator.js';
+/** Validate a model-bound command and its fields. */
 export class CommandValidator<T> extends BaseValidator<T> {}

@@ -1,18 +1,14 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { CommandDefinition } from '../commands/CommandDefinition.js';
-import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
-import { isOutcome, response } from '../results/Outcome.js';
-import { reflectedParameters, resolveAll } from './dependencies.js';
-import { ownMetadata, type ClassType, type WireType } from './metadata.js';
-import { decode, encode, objectSchema } from './wireSchema.js';
-import type { ModelGraphValidator } from '../validation/ModelGraphValidator.js';
-
-export interface CompiledCommand {
-    readonly definition: CommandDefinition<z.ZodType, unknown>;
-    readonly dependencies: readonly ServiceIdentifier<unknown>[];
-}
+import type { CommandDefinition } from '../../commands/CommandDefinition.js';
+import { isOutcome, response } from '../../results/Outcome.js';
+import { reflectedParameters, resolveAll } from '../reflection/dependencies.js';
+import { ownMetadata, type ClassType, type WireType } from '../reflection/metadata.js';
+import { decode, encode, objectSchema } from '../reflection/wireSchema.js';
+import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
+import type { CompiledCommand } from './CompiledCommand.js';
+/** Compile a decorated command onto the existing Arc command pipeline. */
 export function compileCommand(type: ClassType, namespace: string, graph?: ModelGraphValidator): CompiledCommand {
     const metadata = ownMetadata(type);
     if (!metadata.command) throw new Error(`Not an Arc command: ${type.name}`);
@@ -21,15 +17,18 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     const hasProvider = typeof prototype.provide === 'function';
     const count = prototype.handle.length - Number(hasProvider);
     if (count < 0) throw new Error(`Invalid handle parameters on ${type.name}`);
-    let tokens = metadata.injected ?? [];
-    if (metadata.injectionDeclared && !tokens.length && count) tokens = reflectedParameters(type.prototype, 'handle', count, Number(hasProvider));
+    let tokens = metadata.injected?.get('handle') ?? [];
+    if (metadata.injected?.has('handle') && !tokens.length && count) {
+        tokens = reflectedParameters(type.prototype, 'handle', count, Number(hasProvider));
+    }
     if (tokens.length !== count) throw new Error(`Unbound handle parameters on ${type.name}.handle`);
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
         authorization: metadata.authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
         handlerDependencies: tokens,
-        validate: graph ? async (input, context) => graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId) : undefined,
+        validate: graph ? async (input, context) =>
+            graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId) : undefined,
         provide: hasProvider ? async input => {
             const instance = decode(type as WireType, input) as { provide(): unknown };
             const value = await instance.provide();
@@ -38,7 +37,8 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
         } : undefined,
         handle: async (input, _context, provided) => {
             const preparation = provided as { instance: { handle(...parameters: unknown[]): unknown }; value: unknown } | undefined;
-            const instance = hasProvider ? preparation!.instance : decode(type as WireType, input) as { handle(...parameters: unknown[]): unknown };
+            const instance = hasProvider ? preparation!.instance :
+                decode(type as WireType, input) as { handle(...parameters: unknown[]): unknown };
             const services = await resolveAll(tokens);
             const result = await instance.handle(...(hasProvider ? [preparation!.value] : []), ...services);
             if (isOutcome(result)) return result.kind === 'response' ? response(encode(result.value)) : result;
