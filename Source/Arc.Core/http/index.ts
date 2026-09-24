@@ -3,6 +3,7 @@
 export type { ArcNodeOptions } from './ArcNodeOptions.js';
 export type { ArcNodeRunOptions } from './ArcNodeRunOptions.js';
 export { createArcNodeHandler } from './createArcNodeHandler.js';
+export { routeFor, includeRouteName } from './createRouteTable.js';
 export { runArc } from './runArc.js';
 export type { NativeRequestContext } from './NativeRequestContext.js';
 export type { Operation } from './Operation.js';

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "generate-proxies": "node generate-proxies.mjs"
   },
   "dependencies": {
     "@cratis/arc.core": "workspace:^",

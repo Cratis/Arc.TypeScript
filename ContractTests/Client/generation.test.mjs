@@ -52,7 +52,7 @@ function fixture() {
 }
 function compile(dir, negative = false) {
     const tsconfig = { compilerOptions: { target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', strict: true, verbatimModuleSyntax: true,
-        skipLibCheck: false, noEmitOnError: true, outDir: './dist', rootDir: './src', types: ['node'] }, include: ['src/*.ts'] };
+        skipLibCheck: false, noEmitOnError: true, outDir: './dist', rootDir: './src', types: ['node'] }, include: ['src/**/*.ts'] };
     return writeFile(join(dir, 'tsconfig.json'), JSON.stringify(tsconfig)).then(() => {
         if (!negative) { execFileSync(join(root, 'node_modules/.bin/tsc'), ['-p', join(dir, 'tsconfig.json')], { cwd: root }); return ''; }
         return spawnSync(join(root, 'node_modules/.bin/tsc'), ['-p', join(dir, 'tsconfig.json')], { cwd: root, encoding: 'utf8' });
