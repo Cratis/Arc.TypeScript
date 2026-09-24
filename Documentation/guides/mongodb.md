@@ -82,7 +82,7 @@ Use `@query(service(tasks), queryOptions())` to receive Arc's paging and sorting
 
 The original `MongoReadModels<T, I>` remains available for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`; other fields fail closed. Its page size cap defaults to 100. This helper has no change-stream or metadata codec behavior; use the model-bound collection for those.
 
-To check the live behavior, run `bash Source/MongoDB/run-integration.sh` from this repository. The script starts a task-owned MongoDB 7 replica set and removes it afterward. The [integration spec](../../Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, DI and provider paging. Docker is required.
+To check the live behavior, run `bash Source/MongoDB/run-integration.sh` from this repository. The script starts a task-owned MongoDB 7 replica set and removes it afterward. The [integration spec](../../Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, DI and provider paging. A second [HTTP integration spec](../../Source/MongoDB/for_MongoCollection/when_serving_a_paged_query/with_each_http_adapter.integration.ts) exercises sorted pages through Express, Fastify and Hono. Docker is required.
 
 ## Current boundaries
 
