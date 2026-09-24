@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ObservableSource, Subscribable } from './ObservableSource.js';
+import type { ObservableSource } from './ObservableSource.js';
+import type { Subscribable } from './Subscribable.js';
 
 const maximumPending = 64;
 const aborted = (): Error => new Error('Observable query subscription was canceled');

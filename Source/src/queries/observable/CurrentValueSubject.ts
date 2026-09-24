@@ -1,6 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { CurrentValue, ObservableObserver, Subscribable } from './ObservableSource.js';
+import type { CurrentValue } from './CurrentValue.js';
+import type { ObservableObserver } from './ObservableObserver.js';
+import type { Subscribable } from './Subscribable.js';
 
 /** A current-value source for HTTP snapshots and live query subscriptions. */
 export class CurrentValueSubject<T> implements Subscribable<T> {
