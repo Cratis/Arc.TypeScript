@@ -40,7 +40,7 @@ export class ServiceScope {
         const chain = active?.chain.filter(node => node.state === ServiceResolutionState.Pending) ?? [];
         const owner = active?.owner;
         const inherit = owner?.state === ServiceResolutionState.Pending && owner.scope.registry === this.registry;
-        const identity = inherit ? active?.identity : this.identity;
+        const identity = this.singleton && inherit ? active?.identity : this.identity;
         const captive = inherit ? active?.singleton ?? false : false;
         const task = this.resolveInChain(token, identity, chain, captive);
         if (chain.length || current.getStore() === this) return task;

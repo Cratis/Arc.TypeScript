@@ -76,7 +76,7 @@ await app.listen({ port: 3000, host: '127.0.0.1' });
 
 `mountFastify` registers an encapsulated plugin that owns Arc's routes. Inside that plugin, one catch-all content type parser hands every body to Arc as a raw buffer, whatever its content type, including vendor types such as `application/vnd.acme+json`. Arc then decodes it as strict UTF-8 JSON, so invalid UTF-8 answers 400 `malformedRequest` with or without `Content-Length`. The parsers of your own application are not changed.
 
-Each Arc route is registered for GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, and `QUERY`, and Arc answers the methods it does not accept with 405 and an `Allow` header. Any other method is left to Fastify's own routing. The handler dispatches only when the raw request path equals the route Fastify matched, on a fixed internal origin, so a crafted `Host` header cannot select a different operation.
+Command and query routes are registered for GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD, and `QUERY`; root metadata/identity/discovery routes are registered for those standard methods without `QUERY`. Arc answers methods it receives but does not accept with 405 and an `Allow` header. Other methods are left to Fastify's own routing (often 404). The handler dispatches only when the raw request path equals the route Fastify matched, on a fixed internal origin, so a crafted `Host` header cannot select a different operation.
 
 Fastify loads plugins lazily, so Arc's routes exist once the application is ready: after `listen`, `ready`, or the first `inject`. Do not register your own routes on Arc's paths; Fastify rejects the duplicate when it loads the plugin.
 
@@ -99,7 +99,7 @@ app.get('/health', context => context.text(`ok since ${context.get('startedAt')}
 serve({ fetch: app.fetch, port: 3000, hostname: '127.0.0.1' });
 ```
 
-`mountHono` adds middleware for every path and accepts an app with your own `Env` type, including `Bindings` and `Variables`. Hono already uses Fetch API requests, so the adapter hands the request to Arc unchanged and returns Arc's response. Requests for other paths continue to your routes. Mount Arc before you add routes. To run on Node.js, add `@hono/node-server` as the Tasks sample does.
+`mountHono` adds middleware for every path and accepts an app with your own `Env` type, including `Bindings` and `Variables`. Hono uses Fetch API requests; the adapter copies the request onto a fixed internal origin before handing it to Arc and returns Arc's response. On `@hono/node-server` it also checks the raw request-target before dispatch: URL normalization and absolute-form paths must not promote foreign paths into Arc endpoints. Requests for other paths continue to your routes. Mount Arc before you add routes. To run on Node.js, add `@hono/node-server` as the Tasks sample does. Other Hono runtimes do not expose raw request-target spelling; they cannot attest the same raw-path defense without host-specific validation.
 
 ## What every adapter serves
 
@@ -109,7 +109,9 @@ serve({ fetch: app.fetch, port: 3000, hostname: '127.0.0.1' });
 | `<command route>/validate` | POST | Command result after authorization and validation; the handler never runs |
 | A query route, such as `/api/tasks/list` | GET, and `QUERY` unless disabled | Query result; `QUERY` responses carry `Cache-Control: no-store` |
 | `/.cratis/commands`, `/.cratis/queries` | GET | Command and query metadata, including the JSON Schema of each input |
-| `/.cratis/identity-details/schema` | GET | The `identityDetailsSchema` option, or `{}` |
+| `/.cratis/identity-details/schema` | GET | Provider Zod schema as JSON Schema, legacy `identityDetailsSchema`, or `{}` |
+| `/.cratis/me` | GET when `identityDetails` is set | 401 anonymous, 403 provider denied, 200 identity JSON with display cookie |
+| `/.cratis/users`, `/.cratis/tenants` | GET | `[]` by default; opt-in development discovery |
 | `/openapi.json` | GET | An OpenAPI 3.1 document for the registered operations |
 
 The description endpoints do not run authentication handlers. Routes and options are covered in [Configure the server](configuration.md). To call the server without a host framework, see [Call Arc from code](direct-calls.md).
@@ -137,7 +139,8 @@ Every callback receives `context.signal`, an `AbortSignal`. Pass it to anything 
 In every adapter:
 
 - Observable queries, server-sent events, and WebSocket transports are not implemented.
-- The principal comes only from `ArcServer`'s own authentication handlers. An adapter does not pick up a user authenticated by the host framework's middleware. See [Validate and authorize commands and queries](validation-and-authorization.md).
+- A principal comes from Arc authentication handlers unless you set `nativePrincipal: true` and provide an explicit host-verified principal callback as the third argument to `mountExpress`, `mountFastify`, or `mountHono`. The two authentication modes cannot be combined. The callbacks also accept an optional `authority` known from trusted host configuration (not the request `Host` header). Express/Fastify derive cookie `Secure` only from the actual Node TLS socket; forwarded protocol/host headers cannot change it. Hono has no attested socket by default and requires an explicit trusted callback to set `secure`/`authority`/`principal`. Do not forward unverified headers into these callbacks.
+- `server.handle(request, nativeContext?)` also accepts a callback returning trusted native context; adapters invoke it inside Arc's protected error boundary so callback errors become redacted 500 responses with correlation and logging. This is a server-side privileged integration seam. Never populate `nativeContext` from browser-supplied properties, cookies, `X-Forwarded-*`, or the Fetch URL. A display cookie cannot authenticate a caller. See [Configure the server](configuration.md#describe-identity-details-and-operations).
 - Static files, SPA fallback, and a standalone host without a web framework are not provided.
 
 ## Related

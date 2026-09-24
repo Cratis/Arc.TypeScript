@@ -6,7 +6,7 @@ description: Set route prefixes and explicit paths, resolve tenants, limit reque
 Everything about how Arc for TypeScript serves your definitions is set in one place: the options object you pass to `new ArcServer(...)`. This guide covers the settings you are most likely to change, then lists every option.
 
 :::note[Unpublished source]
-These options come from the current source and can still change. Tenant resolvers other than a header or your own function, development users and tenants, and `/.cratis/me` are not implemented. See the [capability reference](../reference/capabilities.md).
+These options come from the current source and can still change. Identity and tenant strategies are opt-in, not complete .NET parity. See the [capability reference](../reference/capabilities.md).
 :::
 
 ## A configured server
@@ -78,7 +78,7 @@ The `ArcServer` constructor throws, so the process fails at startup instead of s
 - a `path` or `prefix` is unsafe, or `segmentsToSkip` is not a non-negative integer;
 - `maxBodyBytes` is not a positive safe integer, such as `0`, a negative number, a fraction, `NaN`, or `Infinity`;
 - two operations share a namespace and name, compared case-insensitively;
-- two routes collide, including a command's `/validate` route and the reserved paths `/.cratis/commands`, `/.cratis/queries`, `/.cratis/identity-details/schema`, and `/openapi.json`;
+- two routes collide, including a command's `/validate` route and the reserved identity, discovery, metadata, and OpenAPI paths;
 - an `authorization` declaration combines `anonymous: true` with `authenticated: true` or with `roles`. `anonymous: true` together with an `authorize` callback is allowed, and the callback still runs;
 - a schema has properties whose names differ only in case, or cannot be converted to JSON Schema.
 
@@ -98,10 +98,26 @@ Every result carries a correlation ID, which is also sent in the `X-Correlation-
 
 Without `resolveTenant`, Arc reads the tenant from the `x-cratis-tenant-id` request header, and `tenantHeader` changes the header name. The value is available as `context.tenantId` and is `undefined` when the header is missing.
 
-With `resolveTenant(request, principal)`, the resolver alone decides. It runs after authentication, so it can read the authenticated principal, and it may be `async`. When it returns `undefined`, the tenant is `undefined`; Arc does not fall back to the header.
+With `resolveTenant(request, principal)`, the resolver alone decides. It runs after authentication, so it can read the authenticated principal, and it may be `async`. When it returns `undefined`, the tenant is `undefined`; Arc does not fall back to the header or use `tenancy` strategies, membership enforcement, or `required`.
 
-:::danger[Arc does not check tenant membership]
-Arc trusts the tenant value it resolves. With the default header, the caller chooses the tenant. Arc never checks that the tenant exists or that the caller belongs to it. When tenants separate customers' data, derive the tenant from the principal in `resolveTenant`, or check it in `authorize`. Do not enforce it in a validator: validators are business rules, and a trusted direct caller can lower the severity that blocks them. See [Validate and authorize commands and queries](validation-and-authorization.md#choose-how-strict-warnings-are).
+For a selected chain of built-in sources, omit `resolveTenant` and specify their exact order:
+
+```typescript title="arc.ts"
+const arc = new ArcServer({
+    authentication: [developmentUser],
+    tenancy: {
+        sources: ['claim', 'header'],
+        claimType: 'tenant',
+        membershipClaim: 'tenants',
+        required: true
+    }
+});
+```
+
+This tries an own claim on a verified authenticated principal first, then `x-cratis-tenant-id`. A missing tenant gets 400; a selected tenant requires an authenticated principal with its own nonempty `tenants` claim (comma-separated IDs) listing that tenant, or gets 403. `Principal.claims` remains handler-defined for compatibility. Tenant strategies consume only own string values from a claim object: a nonstring selected tenant claim gets 400, and a nonstring membership claim gets 403. Unused identity fields and claims do not impose an authentication-stage size or cardinality limit. A header only names a requested tenant, **not** membership proof. Without `membershipClaim`, built-in sources do not check membership; enforce it in `authorize` or resolve from a trusted directory. `query` reads `tenantId` from the query string by default; `fixed` uses `fixed`; `subdomain` requires an ASCII `baseDomain` (at least two DNS labels) and an explicitly host-verified `authority` passed from the adapter callback. Only a *single* subdomain label matches; IPs, unrelated or multi-label hosts, and raw `Host`/forwarded headers never do. No implicit fallback or development strategy is installed. Nonempty IDs are lowercased and must be DNS labels (letters, digits, hyphens, at most 63 characters); invalid selected IDs get 400. Set `sources: ['subdomain', 'header']` to request an explicit header fallback. Other strategy errors and unsafe startup options fail closed.
+
+:::danger[The legacy header is not membership enforcement]
+Without `tenancy` or `resolveTenant`, Arc takes the header unchanged and does not check tenant membership. Even with `tenancy`, enforcement requires `membershipClaim` on a verified principal. When tenants separate customers' data, derive the tenant from the principal in `resolveTenant`, or check it in `authorize`. Do not enforce it in a validator: a trusted direct caller can lower blocking severity. See [Validate and authorize commands and queries](validation-and-authorization.md#choose-how-strict-warnings-are).
 :::
 
 ## Read the context anywhere in a request
@@ -121,7 +137,27 @@ Leave `development` off in any environment a real user can reach. To keep the or
 
 ## Describe identity details and operations
 
-`identityDetailsSchema` is returned as-is from `GET /.cratis/identity-details/schema`, and defaults to `{}`. It only describes the shape; Arc for TypeScript does not serve identity details.
+Use `identityDetails` to register `GET /.cratis/me`. Pair the callback with a Zod details schema; schema requests return its derived JSON Schema. The legacy `identityDetailsSchema` option still returns its value unchanged when no provider is configured; it cannot be combined with `identityDetails`.
+
+```typescript title="arc.ts"
+import { ArcServer, AuthenticationStatus } from '@cratis/arc.server';
+import { z } from 'zod';
+
+// Local development only; verify real credentials with a trusted authenticator.
+const arc = new ArcServer({
+    authentication: [request => request.headers.get('authorization') === 'Bearer local-dev'
+        ? { status: AuthenticationStatus.Authenticated, principal: { id: 'ada', name: 'Ada', roles: ['reader'], isAuthenticated: true } }
+        : { status: AuthenticationStatus.Anonymous }],
+    identityDetails: {
+        schema: z.object({ greeting: z.string() }),
+        provide: (principal, context) => ({ greeting: `Hello ${principal.name} (${context.tenantId ?? 'none'})` })
+    }
+});
+```
+
+With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticated:true,isAuthorized:true,roles,details}` and a Base64 `.cratis-identity` display cookie (`Path=/; SameSite=Lax`, not `HttpOnly`); anonymous returns 401, a provider returning `undefined` denies with 403. Its response always has `Cache-Control: no-store`. The cookie is not signed and **must never** be used to authenticate or authorize. The provider runs in the current execution context with owned scoped services, even on denial or error. Failure, including a rejected provider promise, returns a generic 500 without leaking provider details or setting an identity cookie. The JSON response retains Unicode; the cookie escapes non-ASCII JSON code units before Base64 so the existing client's `JSON.parse(atob(cookie))` can recover names and details, including emoji. The complete encoded Set-Cookie header is limited to 4096 bytes; oversized identities fail with a generic 500 rather than a partial display identity. Cookie bytes are not guaranteed to match .NET's JSON escaping.
+
+`/.cratis/users` and `/.cratis/tenants` return `[]` until you set `development: true` and explicitly supply `developmentUsers(context)` or `developmentTenants(context)` callbacks. Both routes are anonymous: never return secrets, production user inventories, or real tenant memberships. User entries have `{microsoftIdentity:{identityProvider,userId,userDetails,userRoles,claims:[{typ,val}]},details?}`; tenant entries have `{id,name}`. Results are capped at 100 entries and 32 KiB, preserving provider order and duplicates; invalid or failing providers return a generic 500. Discovery providers also have per-request owned service scopes.
 
 `summary` on a definition appears as `documentationSummary` in `/.cratis/commands` and `/.cratis/queries`, and as the operation summary in `/openapi.json`. The OpenAPI document uses OpenAPI 3.1, lists commands as POST with a JSON request body and queries as GET with query parameters, and has the fixed title `Arc` and version `0.1.0`.
 
@@ -140,9 +176,14 @@ Leave `development` off in any environment a real user can reach. To keep the or
 | `tenantHeader` | `string` | `'x-cratis-tenant-id'` | Header read for the tenant when there is no `resolveTenant` |
 | `resolveTenant` | `(request, principal) => string \| undefined`, or a promise of it | None | Resolves the tenant; its result is final |
 | `authentication` | `AuthenticationHandler[]` | `[]` | Handlers tried in order to authenticate the caller |
+| `nativePrincipal` | `boolean` | `false` | Trust only an explicit adapter-provided verified principal; cannot coexist with authentication handlers |
+| `tenancy` | `TenancyOptions` | None | Explicit ordered `sources` (`header`, `query`, `claim`, `fixed`, `subdomain`); optional `queryParameter`, `claimType`, `fixed`, `baseDomain`, `required`, `membershipClaim` |
 | `development` | `boolean` | `false` | Return exception messages and stack traces to HTTP callers |
 | `logger` | `(error, correlationId) => void`, or a promise of `void` | None | Receives the original error for failed HTTP requests |
-| `identityDetailsSchema` | `Record<string, unknown>` | `{}` | Body of `/.cratis/identity-details/schema` |
+| `identityDetailsSchema` | `Record<string, unknown>` | `{}` | Legacy schema body when no provider is configured |
+| `identityDetails` | `{schema: z.ZodType, provide(principal, context): unknown}` | None | Registers conditional me route; `undefined` denies; details must parse as schema |
+| `developmentUsers` | `(context) => DevelopmentUser[]`, or a promise | None | Explicit development-only anonymous discovery provider |
+| `developmentTenants` | `(context) => DevelopmentTenant[]`, or a promise | None | Explicit development-only anonymous discovery provider |
 
 Commands and queries share the fields `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, and `validatorDependencies`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required).
 

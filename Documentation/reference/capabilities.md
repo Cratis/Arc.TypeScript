@@ -78,11 +78,11 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 | Per-request authorization | Supported | `authorize(input, context)` runs after the schema. Allowed severity never affects it. |
 | Named policies and authentication schemes | Not implemented | |
 | Authentication handlers | Supported | An ordered chain; the first handler that recognizes the request decides, and a failure is terminal with 401. |
-| Principal from the host framework's authentication | Not implemented | Adapters pass only what Arc's handlers return. |
-| [Identity details](/arc/backend/csharp/identity/) | Not implemented | Only `/.cratis/identity-details/schema` exists, and it returns the configured schema object. `/.cratis/me` and the `.cratis-identity` cookie do not exist. |
-| Development users and tenants | Not implemented | |
-| Microsoft identity platform headers | Not implemented | |
-| [Tenant resolution](/arc/backend/csharp/tenancy/resolvers/) | Supported | A header by default, or a configured `resolveTenant` whose result is final. Other built-in resolvers are not implemented. Arc does not check tenant membership. |
+| Principal from the host framework's authentication | Supported, opt-in | Set `nativePrincipal: true` and supply a host-verified principal through an adapter callback. Mutually exclusive with Arc authentication handlers; no principal is inferred from HTTP headers. Hono requires an explicit trusted callback. |
+| [Identity details](/arc/backend/csharp/identity/) | Supported, opt-in | `identityDetails` pairs a Zod schema with a per-request provider. `/.cratis/me` is registered only with this provider (401/403/200); successful responses set a client-readable Base64 display cookie (ASCII-escaped Unicode JSON for `atob` compatibility, encoded header at most 4096 bytes) with `no-store`. The legacy `identityDetailsSchema` remains available without a provider. The cookie is not a credential. |
+| Development users and tenants | Supported, opt-in | Both discovery routes return `[]` by default. Providers require `development: true`, are anonymous, bounded to 100 entries and 32 KiB, and retain duplicates; do not expose real credentials or memberships. |
+| Microsoft identity platform headers | Not implemented | Unverified headers never authenticate a principal. |
+| [Tenant resolution](/arc/backend/csharp/tenancy/resolvers/) | Supported, bounded | Legacy header and authoritative `resolveTenant` remain unchanged. Opt-in ordered header, query, claim, fixed, and strict subdomain sources support `required` and mandatory own-claim membership checks when configured for a selected tenant. Subdomain requires a configured ASCII base domain and explicit host-verified authority, never raw Host/forwarded headers. No development resolver or automatic membership lookup. |
 | Correlation IDs | Supported | A valid, non-zero UUID in `X-Correlation-ID` is reused; anything else is replaced. |
 | Exception redaction | Supported | Outside development, HTTP results carry a generic message and no stack trace. Direct calls are not redacted. |
 
@@ -116,7 +116,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Express 5, Fastify 5, and Hono 4 adapters | Supported | Their differences are listed in [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#adapter-differences-and-limitations). |
+| Express 5, Fastify 5, and Hono 4 adapters | Supported | Their differences and TLS/native principal trust boundary are listed in [Host Arc in Express, Fastify, or Hono](../guides/host-integration.md#adapter-differences-and-limitations). |
 | Cancellation on client disconnect | Supported for Express and Fastify | Hono passes the signal of the request it received. |
 | Unsupported methods | Supported | 405 with an `Allow` header for methods that reach Arc. Fastify routes only a fixed list of methods to Arc. |
 | Request body limit | Supported | `maxBodyBytes`, 1 MiB by default. Connection, rate, and subscription limits are not implemented. |

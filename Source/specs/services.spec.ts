@@ -58,6 +58,30 @@ describe('owned service composition', () => {
         (events.sort()).should.deep.equal(['alpha', 'beta']);
         await server.dispose();
     });
+    it('uses a manually created scope identity inside an active scoped factory without relaxing singleton captivity', async () => {
+        const outer = serviceToken<object>('outer scoped');
+        const inner = serviceToken<{ tenant: string | undefined }>('manual tenant');
+        const singleton = serviceToken<object>('manual singleton');
+        const registry = new ServiceRegistry([
+            { token: inner, lifetime: 'scoped', factory: (_resolver, identity) => ({ tenant: identity.tenantId }) },
+            { token: outer, lifetime: 'scoped', factory: async () => {
+                const beta = registry.createScope(context('beta'));
+                try { should().equal((await beta.resolve(inner)).tenant, 'beta'); }
+                finally { await beta.dispose(); }
+                return {};
+            } },
+            { token: singleton, lifetime: 'singleton', factory: async () => {
+                const beta = registry.createScope(context('beta'));
+                try { await beta.resolve(inner); }
+                finally { await beta.dispose(); }
+                return {};
+            } }
+        ]);
+        const alpha = registry.createScope(context('alpha'));
+        await alpha.resolve(outer);
+        await shouldRejectWithError(alpha.resolve(singleton), /Captive/);
+        await registry.dispose();
+    });
     it('resets factory resolution state at a nested execution boundary', async () => {
         const outer = serviceToken<object>('outer tenant');
         const inner = serviceToken<{ tenant: string | undefined }>('inner tenant');
