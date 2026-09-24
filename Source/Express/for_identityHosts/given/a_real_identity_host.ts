@@ -11,7 +11,7 @@ import { ArcServer, type NativeRequestContext } from '@cratis/arc.core';
 import { mountExpress } from '../../index.js';
 import { mountFastify } from '../../../Fastify/index.js';
 import { mountHono } from '../../../Hono/index.js';
-import { cert, key } from '../../../Arc.Core/for_legacy/tls-fixture.js';
+import { cert, key } from '../../../Arc.Core/given/tls-fixture.js';
 
 type HostName = 'Express' | 'Fastify' | 'Hono';
 export const hosts: readonly HostName[] = ['Express', 'Fastify', 'Hono'];
