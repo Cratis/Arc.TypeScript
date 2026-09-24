@@ -1,120 +1,89 @@
 ---
 title: Read models from MongoDB
-description: Serve Arc queries from MongoDB with an explicit tenant database, a filter your code controls, and count-then-page results.
+description: Bind tenant-scoped MongoDB collections to model-bound Arc queries and observe changes on a replica set.
 ---
 
-A query that reads from MongoDB has to get three things right on every request: which tenant's database it reads, which documents the caller may see, and how many rows it returns. The optional `@cratis/arc.mongodb` package gives you one small class, `MongoReadModels`, that makes each of those an explicit decision in your code and hands paged results to Arc without slicing them twice.
+If your read models live in MongoDB, `@cratis/arc.mongodb` supplies a collection for each Arc execution's tenant. Your model declares its fields once; the collection maps them to BSON, and its queries return instances of your model. This optional package is a source preview, not yet published to npm.
 
-:::note[What this package does and does not do]
-`MongoReadModels` only reads. It has no writes, transactions, change streams, observable queries, projections, or concept serialization, and it is not parity with Arc's .NET MongoDB support. The package is not published to npm.
+:::caution[Storage does not authorize a caller]
+Arc selects a tenant from the execution context; the collection selects that tenant's database. Your authentication and authorization still have to verify that the caller may use that tenant and read those documents. Never pass untrusted request JSON directly to a MongoDB filter.
 :::
 
-## Before you start
+## Bind a model and a query
 
-- A workspace inside a clone of this repository, as described in [Get started](../getting-started.md). Reference `@cratis/arc.mongodb` with the `workspace:^` protocol.
-- The `mongodb` driver, version 6.21 or later within major version 6. It is a peer dependency, so your application installs it.
-- A `MongoClient` your application creates and closes.
+Install the MongoDB 6 driver and reference `@cratis/arc.mongodb` from this workspace. The following excerpt uses the [replica-set integration fixture](../../Source/MongoDB/for_MongoCollection/given/TaskQueries.ts); it assumes the `TaskRecord` class shown next and a trusted tenant resolver on your Arc host:
 
-## Define queries over a collection
+```typescript
+import { ArcApplication } from '@cratis/arc.core';
+import { MongoClient } from 'mongodb';
+import { mongoCollection } from '@cratis/arc.mongodb';
+import { TaskRecord } from './TaskRecord.js';
+import { TaskQueries } from './TaskQueries.js';
 
-```typescript title="tasks.ts"
-import { ArcServer, AuthenticationStatus, defineQuery } from '@cratis/arc.core';
-import type { AuthenticationHandler } from '@cratis/arc.core';
-import { MongoReadModels } from '@cratis/arc.mongodb';
-import { MongoClient, ObjectId } from 'mongodb';
-import { z } from 'zod';
-
-interface Task { _id: ObjectId; title: string; status: string; owner: string }
-
-// Development only: a fixed token instead of real token verification.
-const developmentUser: AuthenticationHandler = request =>
-    request.headers.get('authorization') === 'Bearer ada-dev-token'
-        ? { status: AuthenticationStatus.Authenticated, principal: { id: 'ada', roles: [], isAuthenticated: true } }
-        : { status: AuthenticationStatus.Anonymous };
-const tenantDatabases = new Map([['acme', 'tasks_acme']]);
-
-export const client = new MongoClient(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017');
-
-const tasks = new MongoReadModels<Task, { status: string }>({
-    client,
-    maxPageSize: 50,
-    databaseForTenant: tenantId => tenantDatabases.get(tenantId) ?? '',
-    filterFor: ({ status }, context) => ({ status, owner: context.principal?.id ?? '' })
-}, 'tasks');
-
-const byStatus = defineQuery({
-    name: 'ByStatus',
-    namespace: 'Tasks',
-    schema: z.object({ status: z.string() }),
-    authorization: { authenticated: true },
-    perform: (input, context, options) => tasks.queryPage(context, input, options, { sort: { title: 1 } })
+const client = new MongoClient(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017');
+const builder = ArcApplication.createBuilder();
+builder.add(TaskQueries).addMongoDB({
+    client, databaseNameResolver: tenant => `tasks_${tenant}`, readModels: [TaskRecord]
 });
-
-const byId = defineQuery({
-    name: 'ById',
-    namespace: 'Tasks',
-    schema: z.object({ id: z.string().regex(/^[0-9a-f]{24}$/), status: z.string() }),
-    authorization: { authenticated: true },
-    perform: ({ id, status }, context) => tasks.findById(context, { status }, new ObjectId(id))
-});
-
-export const arc = new ArcServer({
-    queries: [byStatus, byId],
-    authentication: [developmentUser],
-    resolveTenant: (_request, principal) => principal ? 'acme' : undefined
-});
+const app = await builder.build();
+// Mount app in your host; call await app.dispose() and await client.close() on shutdown.
 ```
 
-Mount `arc` in a host as in [Host Arc in Express, Fastify, or Hono](host-integration.md), and close `client` when your process shuts down. `GET /api/tasks/by-status?status=open&page=0&pageSize=20` with Ada's token returns the first 20 of her open tasks, sorted by title, with `paging.totalItems` counting all of them.
+`addMongoDB` becomes available when the MongoDB package is imported. It leaves a supplied client open. If you supply `server` instead, Arc owns the URI-created client and closes it with the application. Specify exactly one of `client`, `server`, or `serverResolver`; specify `database` or `databaseNameResolver`. A missing tenant or empty database name fails rather than reading an implicit default database. With `database: 'tasks'`, tenant `default` gets `tasks`, and `acme` gets `tasks+acme`. A `serverResolver(tenantId, context)` can route tenants to different MongoDB servers; it must return a URI.
 
-## The decisions you own
+The [test model](../../Source/MongoDB/for_MongoCollection/given/TaskRecord.ts) uses `@field` metadata and `@key()` for `_id`:
 
-`MongoReadModels<T, I>` takes an options object and a collection name. `T` is the document type and `I` is the input your filter reads.
+```typescript
+import { field, Guid } from '@cratis/fundamentals';
+import { key } from '@cratis/arc.core';
 
-| Option | Purpose |
-| --- | --- |
-| `client` | Your `MongoClient`. The package never connects or closes it. |
-| `databaseForTenant(tenantId, context)` | Returns the database name for a tenant. Map known tenants explicitly: when the context has no tenant, or this returns an empty string, the read fails instead of falling back to the driver's default database. |
-| `filterFor(input, context)` | Builds the MongoDB filter from the parsed query input and the context. It is applied to every read. |
-| `maxPageSize` | The largest page `page` and `queryPage` accept. The default is 100; it must be a positive safe integer. |
-
-`filterFor` is where access control on documents lives. Build the filter from specific fields, as the example does, and never pass request JSON through as a filter. Scope it to the caller, as the `owner` condition does. The tenant comes from Arc's context; with the default header resolver the caller chooses it, so derive it from the principal or check it in `authorize`, as described in [Configure the server](configuration.md#resolve-the-tenant).
-
-## The read methods
-
-| Method | Returns |
-| --- | --- |
-| `find(context, input, options?)` | Every document matching the filter, as an array. No page size cap applies. |
-| `findById(context, input, id)` | One document matching both the filter and `_id`, or `null`. `id` must be a string, finite number, boolean, bigint, or `ObjectId`; anything else, such as an object, is rejected. |
-| `page(context, input, { page, pageSize }, options?)` | `{ items, paging }` with `page` and `pageSize` checked and capped by `maxPageSize` |
-| `queryPage(context, input, queryOptions, options?)` | A page for Arc to return from `perform`, built with Arc's `queryPage` |
-
-Every method passes `context.signal` to the driver, so a cancelled request stops its database work. It replaces any `signal` in the options you pass.
-
-`page` counts first and then reads the page:
-
-- The count uses the same filter and your `collation`, `hint`, `session`, `readPreference`, `readConcern`, `maxTimeMS`, and `comment`, without skip or limit. Count and find are separate reads: concurrent writes can make them disagree and cause Arc to reject the page. For a consistent snapshot on a deployment that supports snapshot sessions, supply a session created with `client.startSession({ snapshot: true })` and end it after the operation. Arc does not create a snapshot session or transaction automatically.
-- `sort` accepts only an object of field names and `1` or `-1`. Arc adds `_id: 1` as the last sort key unless you sort by `_id`, so documents with equal sort values never move between pages.
-
-## Paging through Arc
-
-`queryPage` takes the `options` Arc passes to `perform` and needs paging in them:
-
-- Without paging, for example a GET request without `pageSize`, it throws and the query fails with a 500. Call the query with `page` and `pageSize`, or use `find` for queries that are meant to return everything.
-- Arc's own `sortBy` or `sorting` makes it throw, because it does not translate Arc sorting into MongoDB. Pass the sort in its last argument instead.
-- A page size above `maxPageSize` makes it throw.
-
-## How it is checked
-
-The package specs run against a substitute collection in `yarn specs`. A live spec starts a MongoDB 7 single-node replica set in Docker and checks tenant and owner isolation, rejected identifiers, collation-aware counts, stable paging with duplicate sort values, the Arc query pipeline, and cancellation:
-
-```bash
-bash Source/MongoDB/run-integration.sh
+export class TaskRecord {
+    @field(Guid) @key() id!: Guid;
+    @field(String) title!: string;
+}
 ```
 
-It exits with 2 without running anything when Docker is not available.
+A query injects the scoped collection through `service(mongoCollection(TaskRecord))`. This excerpt is from the [test query](../../Source/MongoDB/for_MongoCollection/given/TaskQueries.ts):
 
-## Related
+```typescript
+const tasks = mongoCollection(TaskRecord);
+@readModel()
+export class TaskQueries {
+    @query(service(tasks))
+    static async all(items: MongoCollection<TaskRecord>): Promise<TaskRecord[]> {
+        return items.find();
+    }
 
-- [Bind query arguments, page, and sort](queries.md)
-- [Capability reference](../reference/capabilities.md)
+    @query(service(tasks), queryOptions())
+    static async page(items: MongoCollection<TaskRecord>, options: QueryOptions) {
+        return items.queryPage({}, options);
+    }
+
+    @query({ observable: true }, service(tasks))
+    static async changes(items: MongoCollection<TaskRecord>) {
+        return items.observe();
+    }
+}
+```
+
+Import `readModel`, `query`, `queryOptions`, `service`, and the `QueryOptions` type from `@cratis/arc.core`; import `MongoCollection` from `@cratis/arc.mongodb`. The complete fixture contains those imports. For an owner-restricted query, build a specific filter from the verified principal, for example `items.find({ owner: principal.id })`, rather than forwarding a caller-provided object. The query method owns that policy.
+
+## Storage format and driver access
+
+`MongoCollection<T>.codec` maps decorated fields to BSON; `native` is the underlying `mongodb` driver collection. For a write performed elsewhere in your application, encode the model first: `await items.native.insertOne(items.codec.serialize(task))`. Reads through `items.find(filter)` and `items.findById(id)` materialize model instances. `findById` rejects operator objects as identities. Using `native` for reads instead returns driver documents, not model instances.
+
+The default codec maps `@key()` (or an `id` field) to `_id`, uses camelCase field names, stores Guid values as standard UUID binary (subtype 4), concepts as their underlying primitives, DateOnly as UTC noon BSON dates, TimeOnly as milliseconds after the Unix epoch, TimeSpan as a string, and Date as a BSON date. Nested decorated models and arrays use the same mapping. A class annotated with Fundamentals `@derivedType('identifier')` writes `_derivedTypeId`; an unknown discriminator fails rather than creating a base model. `ignoreConventions: true` bypasses the codec for existing driver-native documents; in that mode you own field names and conversion yourself. No global BSON conventions are installed.
+
+## Page and observe
+
+Use `@query(service(tasks), queryOptions())` to receive Arc's paging and sorting options, then call `items.queryPage(filter, options)`. The helper requires paging, caps each page at 100 by default (`maxPageSize` can raise it to at most 10,000), counts the filter in MongoDB, and applies the requested sort before `skip` and `limit`. Only fields declared on the model may be sorted; an `_id` tie-breaker makes page ordering stable. `queryPage` returns Arc's provider-owned `queryPage`, including the total. Count and find are separate reads, so concurrent writes can change the count between them; this is not a snapshot transaction. You can also use `items.find()` for an unpaged query.
+
+`items.observe(filter?)` and `items.observeById(id)` open a MongoDB change stream before taking the first snapshot. They return Arc observable sources with a current value for plain GET and full snapshots on changes for SSE/WebSocket; deletion appears as an empty list or `null`. The stream watches the tenant's collection and recomputes the query after every change, including changes that do not affect the filter. Each subscriber owns its stream. A full snapshot is capped at 1,000 documents by default (`maxObservableItems` can raise it to at most 10,000); exceeding the cap fails the subscription rather than returning a partial list. Arc scope disposal, cancellation, or closing the iterator closes the cursor. A standalone MongoDB server is rejected with a replica-set requirement, and a failed change stream terminates the observable query; there is no automatic resume or join observation.
+
+The original `MongoReadModels<T, I>` remains available for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`; other fields fail closed. Its page size cap defaults to 100. This helper has no change-stream or metadata codec behavior; use the model-bound collection for those.
+
+To check the live behavior, run `bash Source/MongoDB/run-integration.sh` from this repository. The script starts a task-owned MongoDB 7 replica set and removes it afterward. The [integration spec](../../Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, DI and provider paging. Docker is required.
+
+## Current boundaries
+
+There is no command-side read-model resolver hook in Arc Core yet, so `addMongoDB` cannot inject a read model directly into a command by its key. Inject `mongoCollection(Model)` and call `findById` explicitly instead. This integration does not supply transactions, shared watcher/reconnect policy, joined observations, geometric serializers, resilience middleware, or Mongo driver metrics. None of those guarantees should be inferred from Arc on .NET. See the [capability reference](../reference/capabilities.md) for the broader parity picture.

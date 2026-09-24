@@ -104,7 +104,7 @@ Arc for TypeScript does not have full parity with Arc on .NET, and no package is
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| [MongoDB](../guides/mongodb.md) | Supported, read helper only | `@cratis/arc.mongodb` reads a tenant database through a trusted filter, with count-then-page and a page size cap. Specs run against substitutes and a live MongoDB 7 replica set. No writes, change streams, observable queries, concept serialization, or full parity with Arc's .NET MongoDB support. |
+| [MongoDB](../guides/mongodb.md) | Supported, bounded integration | `builder.addMongoDB` registers tenant-scoped model collections with Arc field metadata mapping, provider-owned count/sort/page, and replica-set change streams for observable queries. The existing `MongoReadModels` read helper remains. Live MongoDB 7 specs cover tenant isolation, insert/delete observation and paging. No automatic command-side read-model injection, transaction, joined observation, change-stream resume, resilience middleware, or driver metrics; not full parity with Arc on .NET. |
 | Relational databases | Not implemented | No SQL integration. |
 | [Chronicle](../guides/chronicle.md) | Experimental | A private package that appends events returned from a command. The published Chronicle TypeScript SDK does not load in Node.js today, and nothing has run against a Chronicle kernel. |
 | Transactions and units of work | Not implemented | Neither integration opens a transaction. |
