@@ -9,8 +9,11 @@ A model-bound `@field(Base)` or array of `Base` can contain a registered
 Fundamentals derivative. Decorate each concrete subclass with
 `@derivedType('identifier')` and load its module before building the server.
 Arc requires a known `_derivedTypeId` in the input for a polymorphic base and
-materializes the concrete subclass; an unknown or missing ID is rejected. The
-output includes `_derivedTypeId` **after** the concrete fields. Introspection
+materializes the concrete subclass; an unknown or missing ID is rejected. For
+multi-level hierarchies, a decorated intermediate type accepts its own ID as
+well as IDs of its registered descendants. Output includes `_derivedTypeId`
+**after** the concrete fields only when the field's declared type has derivatives.
+An untyped top-level response does not acquire a discriminator automatically. Introspection
 and OpenAPI input JSON Schema describe the registered variants with `oneOf`.
 The source proxy generator emits the same `@derivedType` declaration; the
 published Fundamentals client uses `_derivedTypeId` to select a registered
@@ -30,9 +33,13 @@ PascalCase field (`RecordedValue` → `recordedValue`) but keeps a leading acron
 with `@enumeration` remain numeric on the wire, as do .NET enums. String enums
 remain strings. Nonfinite `Number` values use JSON strings `"NaN"`, `"Infinity"`
 and `"-Infinity"`; ordinary finite values remain JSON numbers. Null properties
-are omitted from model output, but an explicit nullable input is still accepted.
-The low-level Zod path is not a CLR JSON converter and retains its declared
-schema and input binding rules.
+are omitted from ordinary model output, but a derived model serialized through
+a polymorphic field retains null fields; an explicit nullable input is accepted.
+Inputs for numeric fields are finite-only by default. Use
+`@fieldOption({ namedFloats: true })` on a field to accept the three named
+literals there. Plain objects, dictionary keys, and introspection/OpenAPI schema
+property names are never renamed. The low-level Zod path is not a CLR JSON
+converter and retains its declared schema and input binding rules.
 
 Node has no CLR per-thread culture. Arc parses query-string numbers through
 explicit numeric conversion and serializes wire values without using the

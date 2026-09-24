@@ -23,6 +23,7 @@ for (const kind of ['express', 'fastify', 'hono']) clientTest(`published client 
     });
     const commandSource = await readFile(join(output, 'Fixtures/EchoNotice.proxy.ts'), 'utf8');
     assert.match(commandSource, /BaseNotice/);
+    assert.match(await readFile(join(output, 'UrgentNotice.proxy.ts'), 'utf8'), /recordedValue!:/);
     await writeFile(join(folder, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
         target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', strict: true,
         skipLibCheck: false, noEmitOnError: true, outDir: './dist', rootDir: './src', types: ['node']
@@ -39,12 +40,13 @@ for (const kind of ['express', 'fastify', 'hono']) clientTest(`published client 
     try {
         const command = new ClientEcho();
         command.setOrigin(listening.origin);
-        const urgent = new ClientUrgent(); urgent.title = 'hello'; urgent.priority = 3;
+        const urgent = new ClientUrgent(); urgent.title = 'hello'; urgent.priority = 3; urgent.recordedValue = 'wire-name';
         command.notice = urgent;
         const result = await command.execute();
         assert.equal(result.isSuccess, true, JSON.stringify(result));
         assert.equal(result.response.notice instanceof ClientUrgent, true);
         assert.equal(result.response.notice.title, 'hello');
         assert.equal(result.response.notice.priority, 3);
+        assert.equal(result.response.notice.recordedValue, 'wire-name');
     } finally { await listening.close(); await application.dispose(); }
 });

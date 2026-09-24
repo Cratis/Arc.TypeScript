@@ -15,7 +15,7 @@ const dateSchema = z.string().refine(value => !Number.isNaN(Date.parse(value)) &
 const dateOnlySchema = z.string().regex(/^\d{4}-\d\d-\d\d$/).meta({ format: 'date' });
 const timeOnlySchema = z.string().regex(/^\d\d:\d\d(?::\d\d)?(?:\.\d{1,7})?$/).meta({ format: 'time' });
 const timeSpanSchema = z.string().regex(/^-?(?:\d+\.)?\d{1,2}:\d\d:\d\d(?:\.\d{1,7})?$/);
-const namedFloatSchema = z.union([z.number(), z.literal('NaN'), z.literal('Infinity'), z.literal('-Infinity')]);
+const namedFloatSchema = z.union([z.number().finite(), z.literal('NaN'), z.literal('Infinity'), z.literal('-Infinity')]);
 /** Arc .NET leaves an initial acronym unchanged rather than lowering its first character. */
 export function wireName(name: string): string {
     if (!name) return name;
@@ -39,7 +39,7 @@ export function schemaFor(type: WireType, options: FieldOptions = {}, element?: 
         if (!element) throw new Error('Array fields require an element type');
         schema = z.array(schemaFor(element));
     } else if (type === String) schema = z.string();
-    else if (type === Number) schema = namedFloatSchema;
+    else if (type === Number) schema = options.namedFloats ? namedFloatSchema : z.number().finite();
     else if (type === Boolean) schema = z.boolean();
     else if (type === Guid) schema = guidSchema;
     else if (type === Date) schema = dateSchema;
@@ -48,7 +48,7 @@ export function schemaFor(type: WireType, options: FieldOptions = {}, element?: 
     else if (type === TimeSpan) schema = timeSpanSchema;
     else if (type.prototype instanceof ConceptAs) {
         if (!type.valueType) throw new Error(`Concept ${type.name} requires static valueType`);
-        schema = schemaFor(type.valueType);
+        schema = schemaFor(type.valueType, { namedFloats: options.namedFloats });
     } else if (DerivedType.getDerivedTypesFor(type as never).length) schema = z.lazy(() => derivedSchema(type));
     else if (fieldsFor(type).length) schema = z.lazy(() => objectSchema(type));
     else throw new Error(`Unsupported Arc wire type: ${type.name}`);
@@ -73,6 +73,7 @@ export function schemaFor(type: WireType, options: FieldOptions = {}, element?: 
 /** Require an unambiguous discriminator and validate every derived shape, including inherited fields. */
 function derivedSchema(type: WireType): z.ZodType {
     const variants = DerivedType.getDerivedTypesFor(type as never) as WireType[];
+    if (DerivedType.get(type as never)) variants.unshift(type);
     const ids = variants.map(variant => DerivedType.get(variant as never));
     if (ids.some(id => !id || typeof id !== 'string') || new Set(ids).size !== ids.length)
         throw new Error(`Ambiguous Arc derived type: ${type.name}`);
@@ -124,22 +125,26 @@ export function decode(type: WireType, value: unknown, element?: WireType): unkn
     return instance;
 }
 /** Convert domain values into the JSON wire representation. */
-export function encode(value: unknown): unknown {
+export function encode(value: unknown, declaredType?: WireType, element?: WireType): unknown {
     if (value === null || value === undefined) return value;
     if (value instanceof ConceptAs) return encode((value as ConceptAs<unknown>).value);
     if (value instanceof Date) return value.toISOString();
     if (value instanceof Guid || value instanceof DateOnly || value instanceof TimeOnly || value instanceof TimeSpan) {
         return value.toString();
     }
-    if (isQueryPage(value)) return queryPage(value.items.map(encode), value.totalItems, value.sorting);
-    if (isArcTuple(value)) return value.values.map(encode);
-    if (Array.isArray(value)) return value.map(encode);
+    if (isQueryPage(value)) return queryPage(value.items.map(item => encode(item, declaredType)), value.totalItems, value.sorting);
+    if (isArcTuple(value)) return value.values.map(item => encode(item));
+    if (Array.isArray(value)) return value.map(item => encode(item, element));
     if (typeof value === 'object') {
         const fields = fieldsFor(value.constructor as WireType);
         const entries = fields.length ? fields.map(field => [field.name, Reflect.get(value, field.name)] as const) : Object.entries(value);
-        const result = Object.fromEntries(entries.filter(([name, item]) => item !== undefined && item !== null && name !== '_derivedTypeId')
-            .map(([name, item]) => [wireName(name), encode(item)]));
-        const id = DerivedType.get(value.constructor as never);
+        const polymorphic = !!declaredType && DerivedType.getDerivedTypesFor(declaredType as never).length > 0;
+        const result = Object.fromEntries(entries.filter(([name, item]) => item !== undefined && (item !== null || polymorphic) && name !== '_derivedTypeId')
+            .map(([name, item]) => {
+                const field = fields.find(candidate => candidate.name === name);
+                return [fields.length ? wireName(name) : name, encode(item, field?.type, field?.element)];
+            }));
+        const id = polymorphic && DerivedType.get(value.constructor as never);
         if (id) result._derivedTypeId = id;
         return result;
     }

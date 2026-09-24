@@ -7,4 +7,5 @@ import { BaseNotice } from './BaseNotice.js';
 @derivedType('urgent')
 export class UrgentNotice extends BaseNotice {
     @field(Number) priority!: number;
+    @field(String) RecordedValue!: string;
 }

@@ -20,7 +20,7 @@ describe('when decoding a registered derivative', () => {
         (result as TextMessage).text.should.equal('world');
     });
     it('should encode the discriminator after its fields', () => {
-        (encode(result) as object).should.deep.equal({ title: 'hello', text: 'world', _derivedTypeId: 'text' });
+        (encode(result, MessageBase) as object).should.deep.equal({ title: 'hello', text: 'world', _derivedTypeId: 'text' });
     });
     it('should expose the derivatives as oneOf in input JSON Schema', () => {
         const schema = z.toJSONSchema(schemaFor(MessageBase));
