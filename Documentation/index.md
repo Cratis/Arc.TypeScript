@@ -8,7 +8,7 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, and then keeping all of it in step with what the generated TypeScript clients expect. With it, commands and queries run through one pipeline that owns those concerns, so the wire behavior follows Arc on .NET instead of being re-invented per endpoint.
 
 :::caution[Unpublished, without full parity]
-Arc for TypeScript is not ready for production use. No package is published to npm, and npm publication is not configured. The package manifests are at version 0.14.0 for a source preview, not an npm release. Parity with Arc on .NET is **not** achieved: command keys and read models resolved into handlers are not implemented, client generation covers only explicitly declared low-level shapes and not model-bound commands and queries, and the Chronicle integration is private and unverified against a live kernel. The [capability reference](reference/capabilities.md) lists what is supported. Package names and APIs can still change.
+Arc for TypeScript is not ready for production use. npm publication is not configured for this repository. The package manifests are at version 0.14.0 for a source preview, not an npm release from this repository. Parity with Arc on .NET is **not** achieved: client generation covers only explicitly declared low-level shapes and not model-bound commands and queries; the experimental Chronicle integration has a live-kernel suite across Express, Fastify, and Hono but not .NET transaction, aggregate, or reactor-command parity. The [capability reference](reference/capabilities.md) lists what is supported. Package names and APIs can still change.
 :::
 
 ## What the server core provides
@@ -34,7 +34,7 @@ Arc's TypeScript **client** packages already exist. They are built and released 
 | `@cratis/arc.express`, `.fastify`, `.hono` | Host adapters that connect the core to a Node.js HTTP framework | This repository, unpublished |
 | `@cratis/arc.proxygenerator` | Generator and `arc-proxygenerator` CLI that write `@cratis/arc` proxies from your TypeScript source or from an exported client manifest | This repository, unpublished |
 | `@cratis/arc.mongodb` | Optional tenant-aware MongoDB read helper | This repository, unpublished |
-| `@cratis/arc.chronicle` | Experimental Chronicle event append for commands | This repository, private, not published |
+| `@cratis/arc.chronicle` | Experimental Chronicle event append for commands | This repository; experimental, not private since v0.12.0 |
 
 The client packages are the compatibility target. A frontend should work against an Arc for TypeScript backend for the capabilities marked supported, within the [deliberate differences](reference/capabilities.md#deliberate-differences). See [Frontend](/arc/frontend/) for the client side.
 
@@ -42,7 +42,7 @@ The client packages are the compatibility target. A frontend should work against
 
 Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification: routes, methods, headers, result envelopes, status codes, identity, and validation values. Arc for TypeScript matches that observable behavior in idiomatic TypeScript. It does not port .NET mechanics such as attribute reflection or dependency injection containers.
 
-A paired suite checks a bounded set of routes against a .NET host built on `Cratis.Arc` 22.22.0 and pins the known differences. The largest deliberate one is that an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass.
+A paired suite checks a bounded set of routes against a .NET host built on `Cratis.Arc` 22.23.0 and pins the known differences. The largest deliberate one is that an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass.
 
 ## CQRS first, event sourcing optional
 

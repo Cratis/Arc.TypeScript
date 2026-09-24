@@ -174,7 +174,7 @@ Each validation result has a severity: `Unknown` (0), `Information` (1), `Warnin
 | `executeCommand` | `context.allowedSeverity` as given, including `Error` |
 | `performQuery` | Always `Warning` |
 
-A client that sends `X-Allowed-Severity: 1` makes warnings block and sees them. The cap on `3` is a deliberate difference from Arc on .NET 22.22.0, which accepts `3` and runs a command whose only problems are errors. Results passed to `rejected(...)` in `provide` or `handle` are filtered the same way.
+A client that sends `X-Allowed-Severity: 1` makes warnings block and sees them. The cap on `3` is a deliberate difference from Arc on .NET 22.23.0, which accepts `3` and runs a command whose only problems are errors. Results passed to `rejected(...)` in `provide` or `handle` are filtered the same way.
 
 ## Related
 
