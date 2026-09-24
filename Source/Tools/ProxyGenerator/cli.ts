@@ -72,7 +72,9 @@ async function main(): Promise<void> {
             let pending: Promise<void> = Promise.resolve();
             const schedule = () => {
                 if (timer) clearTimeout(timer);
+                else process.stdout.write('Watch change detected\n');
                 timer = setTimeout(() => {
+                    timer = undefined;
                     pending = pending.then(generate).catch(error => { console.error(error); process.exitCode = 1; });
                 }, 150);
             };
@@ -84,11 +86,12 @@ async function main(): Promise<void> {
             }), ...[...new Set(external.map(dirname))].map(directory => watch(directory, (_, filename) => {
                 if (filename && watched.has(resolve(directory, filename))) schedule();
             }))];
-            process.stdout.write(`Watching artifact sources (${watchers.length} directories)\n`);
+            const watchFailure = new Promise<void>((_, reject) => {
+                for (const watcher of watchers) watcher.on('error', reject);
+            });
+            process.stdout.write(`Watching artifact sources (${watchers.length} directories)\nWatch ready\n`);
             try {
-                await new Promise<void>((_, reject) => {
-                    for (const watcher of watchers) watcher.on('error', reject);
-                });
+                await watchFailure;
             } finally {
                 if (timer) clearTimeout(timer);
                 for (const watcher of watchers) watcher.close();
