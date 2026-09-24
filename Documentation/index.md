@@ -59,7 +59,7 @@ Arc's TypeScript **client** packages, `@cratis/arc`, `@cratis/arc.react`, and `@
 
 ## One wire contract
 
-Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification. Arc for TypeScript matches that observable behavior in idiomatic TypeScript; it does not port .NET mechanics such as attribute reflection or dependency injection containers. A paired suite checks 58 cases against a .NET host on `Cratis.Arc` 22.23.0 and pins the known differences. The largest deliberate one: an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass. See the [HTTP contract reference](reference/http-contract.md).
+Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification. Arc for TypeScript matches that observable behavior in idiomatic TypeScript; it does not port .NET mechanics such as attribute reflection or dependency injection containers. A paired suite checks 57 cases against a .NET host on `Cratis.Arc` 22.23.0 and pins the known differences. The largest deliberate one: an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass. See the [HTTP contract reference](reference/http-contract.md).
 
 ## On the shared Arc pages
 
