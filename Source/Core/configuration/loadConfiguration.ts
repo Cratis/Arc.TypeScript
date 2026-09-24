@@ -6,6 +6,7 @@ import { z } from 'zod';
 const arc = z.strictObject({
     development: z.boolean().optional(),
     enableQueryMethod: z.boolean().optional(),
+    openApiVersion: z.string().optional(),
     maxBodyBytes: z.number().int().positive().optional(),
     correlationHeader: z.string().min(1).optional(),
     tenantHeader: z.string().min(1).optional(),
@@ -24,7 +25,7 @@ export type CratisConfiguration = z.infer<typeof schema>;
 const names: Record<string, string> = {
     cratis: 'Cratis', arc: 'Arc', chronicle: 'Chronicle', mongodb: 'MongoDB', generatedapis: 'generatedApis',
     connectionstring: 'connectionString', eventstore: 'eventStore', server: 'server', database: 'database',
-    development: 'development', enablequerymethod: 'enableQueryMethod', maxbodybytes: 'maxBodyBytes',
+    development: 'development', enablequerymethod: 'enableQueryMethod', openapiversion: 'openApiVersion', maxbodybytes: 'maxBodyBytes',
     correlationheader: 'correlationHeader', tenantheader: 'tenantHeader', routeprefix: 'routePrefix',
     segmentstoskipforroute: 'segmentsToSkipForRoute', includecommandnameinroute: 'includeCommandNameInRoute',
     includequerynameinroute: 'includeQueryNameInRoute'

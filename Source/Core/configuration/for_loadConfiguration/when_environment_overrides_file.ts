@@ -6,7 +6,7 @@ import { loadConfiguration } from '../loadConfiguration.js';
 
 should();
 class a_configuration_environment {
-    readonly variables = { Cratis__Arc__Development: 'false', CRATIS__ARC__MAXBODYBYTES: '512' };
+    readonly variables = { Cratis__Arc__Development: 'false', CRATIS__ARC__MAXBODYBYTES: '512', Cratis__Arc__OpenApiVersion: '2.0.0' };
 }
 
 describe('when environment overrides are provided', given(a_configuration_environment, context => {
@@ -16,4 +16,5 @@ describe('when environment overrides are provided', given(a_configuration_enviro
     });
     it('should coerce boolean values', () => { configuration.Cratis?.Arc?.development?.should.equal(false); });
     it('should coerce numeric values', () => { configuration.Cratis?.Arc?.maxBodyBytes?.should.equal(512); });
+    it('should bind the OpenAPI version', () => { configuration.Cratis?.Arc?.openApiVersion?.should.equal('2.0.0'); });
 }));
