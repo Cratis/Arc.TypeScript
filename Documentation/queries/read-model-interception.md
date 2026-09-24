@@ -46,3 +46,5 @@ interceptors do not apply to unrelated scalar values or plain objects of a
 different class. Unlike the current .NET `ObservableQueryHttp` path, TypeScript
 also intercepts observable HTTP snapshots to avoid a bypass through GET.
 For provider-owned paging see [query renderers](renderers.md).
+
+See the [query pipeline](query-pipeline.md#result-stages) for where interceptors run relative to renderers, paging, and emission guards.

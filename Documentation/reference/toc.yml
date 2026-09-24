@@ -3,3 +3,9 @@
   items:
     - name: Capabilities
       href: capabilities.md
+    - name: HTTP contract
+      href: http-contract.md
+    - name: Packages
+      href: packages.md
+    - name: Wire format
+      href: wire-format.md

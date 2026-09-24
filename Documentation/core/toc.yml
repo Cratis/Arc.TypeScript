@@ -1,0 +1,12 @@
+- name: Arc.Core and the standalone host
+  href: index.md
+- name: Build an application
+  href: getting-started.md
+- name: Endpoint mapping
+  href: endpoint-mapping.md
+- name: Static files and SPA fallback
+  href: static-files.md
+- name: Authentication
+  href: authentication.md
+- name: Authorization policies and schemes
+  href: authorization.md

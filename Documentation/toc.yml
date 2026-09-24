@@ -1,24 +1,56 @@
 - name: Overview
   href: index.md
-- name: Get started
-  href: getting-started.md
-- name: Guides
-  href: guides/toc.yml
-- name: Observability
-  href: observability.md
-- name: Query rendering and wire format
+- name: Coming from Express and NestJS
+  href: coming-from-express-and-nestjs.md
+- name: Getting Started
+  href: getting-started/toc.yml
+- name: Hosting overview
+  href: overview.md
+- name: Arc.Core
+  href: core/toc.yml
+- name: Host adapters
+  href: hosts/toc.yml
+- name: Configuration
+  href: configuration/toc.yml
+- name: Commands
+  href: commands/toc.yml
+- name: Queries
   href: queries/toc.yml
-- name: Identity and authorization
+- name: Authorizing commands and queries
+  href: authorizing-commands-and-queries.md
+- name: Concepts
+  href: concepts.md
+- name: Dependency injection
+  href: dependency-injection.md
+- name: Identity
   href: identity/toc.yml
 - name: Tenancy
   href: tenancy/toc.yml
+- name: MongoDB
+  href: mongodb/toc.yml
 - name: SQL with Drizzle
   href: sql/toc.yml
+- name: Proxy Generation
+  href: proxy-generation/toc.yml
+- name: Code Analysis
+  href: code-analysis/toc.yml
+- name: OpenAPI
+  href: open-api/toc.yml
+- name: Introspection
+  href: introspection/toc.yml
+- name: Decorator reference
+  href: decorators.md
+- name: Observability
+  href: observability.md
+- name: Testing
+  href: testing/toc.yml
+- name: Chronicle
+  href: chronicle/toc.yml
 - name: Architecture
-  href: explanation/architecture.md
+  href: architecture.md
+- name: Troubleshooting
+  href: troubleshooting.md
 - name: Reference
   href: reference/toc.yml
-- name: Code analysis
-  href: code-analysis/toc.yml
 - name: Contributing
   href: contributing/toc.yml
