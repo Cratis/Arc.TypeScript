@@ -14,6 +14,8 @@ describe('when selecting MongoDB naming policies', () => {
     it('should match default Arc .NET names for fields and plural collections', () => {
         const codec = new MongoDocumentCodec(TaskRecord);
         codec.fieldName('Title').should.equal('Title');
+        codec.fieldName('title').should.equal('Title');
+        codec.fieldName('id').should.equal('_id');
         defaultMongoNamingPolicy.collectionName(TaskRecord).should.equal('TaskRecords');
         defaultMongoNamingPolicy.collectionName(Category).should.equal('Categories');
     });
