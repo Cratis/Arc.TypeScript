@@ -24,4 +24,8 @@ describe('when describing an observable query in OpenAPI', () => {
     it('should document pending snapshots', () => { replies['202']?.description.should.equal('No current value'); });
     it('should document wait timeout', () => { replies['408']?.description.should.equal('First-result wait timed out'); });
     it('should document overload', () => { replies['503']?.description.should.equal('Subscription limit reached'); });
+    it('should document query result envelopes for protocol responses', () => {
+        for (const code of ['202', '408', '503'])
+            replies[code]!.content['application/json']!.schema.type.should.equal('object');
+    });
 });

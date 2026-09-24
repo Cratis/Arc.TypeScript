@@ -13,6 +13,8 @@ const callArguments = (expression: ts.Expression | undefined): readonly ts.Expre
     expression && ts.isCallExpression(expression) ? expression.arguments : [];
 const method = (member: ts.ClassElement, name: string): member is ts.MethodDeclaration =>
     ts.isMethodDeclaration(member) && member.name.getText() === name;
+const summary = (node: ts.Node): string | undefined => ts.getJSDocCommentsAndTags(node)
+    .filter(ts.isJSDoc).map(doc => ts.getTextOfJSDocComment(doc.comment)?.trim()).find(Boolean);
 
 /** Render one class's generated fallback; explicit decorator bindings still take precedence. */
 export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker: ts.TypeChecker, imports: MetadataImports): string | undefined {
@@ -98,6 +100,9 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
         checker.getReturnTypeOfSignature(handleSignature));
     return `{ type: ${type}, signature: ${JSON.stringify(signature)}, metadata: {` +
         `${isCommand ? ' command: true,' : ''}${isModel ? ' readModel: true,' : ''}` +
+        `${summary(declaration) ? ` summary: ${JSON.stringify(summary(declaration))},` : ''}` +
+        `${queries.some(query => summary(query)) ? ` methodSummaries: new Map([${queries.filter(query => summary(query))
+            .map(query => `[${JSON.stringify(query.name.getText())}, ${JSON.stringify(summary(query))}]`).join(', ')}]),` : ''}` +
         `${handleReturn ? ` handleResult: ${metadataResult(handleReturn, checker, imports, handle!)},` : ''}` +
         `${handle && injected.some(entry => entry.startsWith("['handle'")) ? ` handleParameters: ${handle.parameters.length - Number(!!provide)},` : ''}` +
         `${provide && injected.some(entry => entry.startsWith("['provide'")) ? ` provideParameters: ${provide.parameters.length},` : ''}` +

@@ -18,9 +18,9 @@ const root = resolve(import.meta.dirname, '../..');
 const project = join(root, 'Samples/Tasks/tsconfig.json');
 const artifacts = join(root, 'Samples/Tasks/Features');
 const options = { project, artifacts, generatedMetadata: true, useProxyFileSuffix: true, jsImportSpecifiers: true };
-async function within(promise, message) {
+async function within(promise, message, timeoutMs = 3000) {
     let timer;
-    try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), 3000); })]); }
+    try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeoutMs); })]); }
     finally { clearTimeout(timer); }
 }
 async function generated(overrides = {}) {
@@ -63,6 +63,22 @@ test('source analyzer resolves imported decorator symbols, types, routes and sta
     await writeFile(own, (await readFile(own, 'utf8')).replace("'/api/tasks/listing/all-tasks'", "'/altered'"));
     await assert.rejects(generateFromSource({ ...options, output }), /edited file/);
     assert.ok((await readdir(join(output, 'Tasks/Listing'))).includes('TaskItem.proxy.ts'));
+});
+
+test('generated JSDoc summary reaches the OpenAPI HTTP document', async () => {
+    const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
+    const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
+    const builder = ArcApplication.createBuilder();
+    builder.useGeneratedMetadata(metadata);
+    builder.services.addSingleton(Tasks);
+    await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));
+    const app = await builder.build();
+    try {
+        const response = await app.server.handle(new Request('http://localhost/openapi.json'));
+        assert.equal(response.status, 200);
+        const document = await response.json();
+        assert.equal(document.paths['/api/tasks/registration/register-task'].post.summary, 'Register a task.');
+    } finally { await app.stop(); }
 });
 
 for (const kind of ['express', 'fastify', 'hono']) test(`analyzer-generated published client runs against live model-bound ${kind}`, async () => {
@@ -346,7 +362,7 @@ import { Service } from '../Service.js';
         };
         child.once('exit', onExit);
         child.stdout.on('data', check); check();
-    }), `Timed out waiting for watch generation ${count}: ${errors}`);
+    }), `Timed out waiting for watch generation ${count}: ${errors}`, 15000);
     try {
         await nextGeneration(1);
         await within(new Promise(resolve => {
