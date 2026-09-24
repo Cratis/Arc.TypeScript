@@ -65,7 +65,7 @@ for (const [direct, method] of [
         const subscription = subject.subscribe(observer);
         return { unsubscribe() { active--; subscription.unsubscribe(); } };
     } };
-    const server = new ArcServer({ authentication: [request => request.headers.get('authorization') === 'Bearer alice'
+    const server = new ArcServer({ authentication: [request => (request.headers.get('authorization') === 'Bearer alice' || request.headers.get('cookie')?.includes('arc-session=alice'))
         ? { status: AuthenticationStatus.Authenticated, principal: { id: 'alice', roles: [], isAuthenticated: true } }
         : { status: AuthenticationStatus.Anonymous }],
     observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}), observe: () => tracked })] });
@@ -84,8 +84,8 @@ for (const [direct, method] of [
         Globals.queryConnectionCount = 1;
         if (method === QueryTransportMethod.ServerSentEvents) {
             globalThis.EventSource = FetchEventSource;
-            Globals.eventSourceFactory = url => new FetchEventSource(url, { authorization: 'Bearer alice' });
-            Globals.httpHeadersCallback = () => ({ Authorization: 'Bearer alice' });
+            Globals.eventSourceFactory = url => new FetchEventSource(url, { cookie: 'arc-session=alice' });
+            Globals.httpHeadersCallback = () => ({ Cookie: 'arc-session=alice' });
             globalThis.fetch = (url, init) => {
                 const response = previous.fetch(url, init);
                 if (String(url).endsWith('/sse/unsubscribe')) pendingControls.push(response);

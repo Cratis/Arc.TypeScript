@@ -33,6 +33,11 @@
     "@hono/node-server": "^1.19.11",
     "hono": "^4.0.0"
   },
+  "peerDependenciesMeta": {
+    "@hono/node-server": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@hono/node-server": "^1.19.11",
     "hono": "^4.10.0",

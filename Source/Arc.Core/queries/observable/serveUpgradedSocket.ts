@@ -9,7 +9,7 @@ import type { NodeWebSocketLike } from './NodeWebSocketLike.js';
 
 /** Host adapters bridge an already-upgraded socket; all frames remain core-owned. */
 export function serveUpgradedSocket(server: ArcServer, socket: NodeWebSocketLike, request: Request,
-    native?: NativeRequestContext, resolved?: ResolvedConnectionContext): { close(): void; completion: Promise<void> } {
+    native: NativeRequestContext | undefined, resolved: ResolvedConnectionContext): { close(): void; completion: Promise<void> } {
     const transport = new WebSocketTransport(socket, server.observableLimits);
     const path = new URL(request.url).pathname;
     const completion = path === '/.cratis/queries/ws'

@@ -1,20 +1,23 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { Server as HttpServer } from 'node:http';
+import type { IncomingMessage, Server as HttpServer } from 'node:http';
+import type { Socket } from 'node:net';
 import { createNodeWebSocket } from '@hono/node-ws';
+import type { NodeWebSocket } from '@hono/node-ws';
 import type { Context, Env, Hono } from 'hono';
 import { ObservableHandshakeTimeoutError, prepareObservableUpgrade, serveUpgradedSocket,
-    withObservableHandshakeTimeout } from '@cratis/arc.core';
+    withObservableHandshakeTimeout } from '@cratis/arc.core/hosting';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 /** Register Hono WebSocket routes before serve(), then inject into the Node listener. */
 export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServer,
-    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): {
+    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>,
+    existingWebSockets?: NodeWebSocket): {
         injectWebSocket(host: HttpServer): void;
         dispose(): Promise<void>;
     } {
-    const helper = createNodeWebSocket({ app: app as unknown as Hono });
-    helper.wss.options.maxPayload = server.observableLimits.inboundFrameBytes;
+    const helper = existingWebSockets ?? createNodeWebSocket({ app: app as unknown as Hono });
+    if (!existingWebSockets) helper.wss.options.maxPayload = server.observableLimits.inboundFrameBytes;
     const sockets = new Set<{ close(): void; completion: Promise<void> }>();
     const listeners = new Map<HttpServer, readonly ((...arguments_: unknown[]) => void)[]>();
     const routes = [...server.routes].filter(([, operation]) => 'observable' in operation && operation.observable === true)
@@ -22,7 +25,10 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
     routes.push('/.cratis/queries/ws');
     for (const path of routes) {
         app.get(path, async (context, next) => {
-            const raw = (context.env as { incoming?: { url?: string; socket?: { remoteAddress?: string } } } | undefined)?.incoming;
+            if (context.req.header('upgrade')?.toLowerCase() !== 'websocket') return next();
+            const raw = (context.env as { incoming?: {
+                url?: string; socket?: { remoteAddress?: string; encrypted?: boolean }
+            } } | undefined)?.incoming;
             if (raw?.url?.split('?')[0] !== path) return new Response(null, { status: 404 });
             const url = new URL(raw.url, 'http://arc.invalid');
             if (url.origin !== 'http://arc.invalid' || url.pathname !== path) return new Response(null, { status: 400 });
@@ -31,7 +37,8 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
                 handshake = await withObservableHandshakeTimeout(async () => {
                     const supplied = await native?.(context);
                     const trusted: NativeRequestContext = { ...supplied,
-                        remoteAddress: supplied?.remoteAddress ?? raw.socket?.remoteAddress };
+                        remoteAddress: supplied?.remoteAddress ?? raw.socket?.remoteAddress,
+                        secure: supplied?.secure ?? raw.socket?.encrypted === true };
                     const request = new Request(url, { headers: context.req.raw.headers });
                     const prepared = await prepareObservableUpgrade(server, request, trusted);
                     return { trusted, request, prepared };
@@ -43,11 +50,12 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
             }
             if (handshake.prepared.status !== 101 || !handshake.prepared.resolved)
                 return new Response(null, { status: handshake.prepared.status });
+            const resolved = handshake.prepared.resolved;
             return helper.upgradeWebSocket(() => ({
                 onOpen: (_event, connection) => {
                     if (!connection.raw) { connection.close(1008, 'Missing host socket'); return; }
                     const bridge = serveUpgradedSocket(server, connection.raw, handshake.request,
-                        handshake.trusted, handshake.prepared.resolved);
+                        handshake.trusted, resolved);
                     sockets.add(bridge);
                     const release = (): void => { sockets.delete(bridge); bridge.close(); };
                     void bridge.completion.then(release, release);
@@ -59,7 +67,13 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
         injectWebSocket(host) {
             if (listeners.has(host)) throw new Error('Hono observable WebSockets are already injected');
             const before = new Set(host.listeners('upgrade'));
-            helper.injectWebSocket(host);
+            if (!existingWebSockets) helper.injectWebSocket(host);
+            host.prependListener('upgrade', (request: IncomingMessage, socket: Socket) => {
+                if (!server.endpoints.has(request.url?.split('?')[0] ?? '')) return;
+                const onSocketError = (): void => { socket.destroy(); };
+                socket.on('error', onSocketError);
+                socket.once('close', () => socket.off('error', onSocketError));
+            });
             listeners.set(host, host.listeners('upgrade').filter(listener => !before.has(listener))
                 .map(listener => listener as (...arguments_: unknown[]) => void));
         },
