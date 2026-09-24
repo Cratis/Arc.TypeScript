@@ -6,7 +6,7 @@ import { schemaFor } from '../reflection/wireSchema.js';
 
 const validationResult = { type: 'object', properties: {
     severity: { type: 'integer' }, message: { type: 'string' }, members: { type: 'array', items: { type: 'string' } },
-    reason: { type: 'string' }
+    reason: { type: 'string' }, reasonDetail: { type: 'string' }, state: {}
 } };
 const common = {
     correlationId: { type: 'string' }, isAuthorized: { type: 'boolean' },
@@ -19,7 +19,7 @@ const paging = { type: 'object', properties: {
 }, required: ['page', 'size', 'totalItems', 'totalPages'] };
 
 /** Describe only output types known at registration time; never guess a low-level handler's return type. */
-export function resultSchema(operation: Operation): Record<string, unknown> {
+export function resultSchema(operation: Operation, success = true): Record<string, unknown> {
     const result = operation.generatedReturn;
     const properties: Record<string, unknown> = { ...common };
     const required = [...Object.keys(common)];
@@ -31,7 +31,7 @@ export function resultSchema(operation: Operation): Record<string, unknown> {
         properties.paging = paging;
         required.push('isReady', 'paging');
     }
-    if (result && result.cardinality !== 'void' && result.element) {
+    if (success && result && result.cardinality !== 'void' && result.element) {
         const element = z.toJSONSchema(schemaFor(result.element), { io: 'output' });
         const value: Record<string, unknown> = result.cardinality === 'one' ? element : { type: 'array', items: element };
         properties[operation.kind === 'command' ? 'response' : 'data'] = result.nullable ?
