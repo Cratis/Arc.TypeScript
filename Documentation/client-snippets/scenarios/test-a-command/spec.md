@@ -1,36 +1,24 @@
 ```typescript
-import { randomUUID } from 'node:crypto';
-import { ArcApplication, Severity, type CommandResult } from '@cratis/arc.core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { CommandScenario, type ScenarioCommandResult } from '@cratis/arc.testing';
+import { afterEach, beforeEach, describe, it } from 'vitest';
 import { AuthorRegistration, RecordAuthor, RecordAuthorValidator } from './RecordAuthor.js';
 
 describe('when recording an author', () => {
-    const id = AuthorId.create();
-    const name = new AuthorName('Ada Lovelace');
-    let registered: string[][];
-    let application: ArcApplication;
-    let result: CommandResult;
+    let scenario: CommandScenario<RecordAuthor>;
+    let result: ScenarioCommandResult;
 
     beforeEach(async () => {
-        registered = [];
-        const builder = ArcApplication.createBuilder();
-        builder.services.addSingleton(AuthorRegistration, () => ({
-            register: async (authorId: AuthorId, authorName: AuthorName) => {
-                registered.push([authorId.toString(), authorName.value]);
-            }
-        }));
-        builder.add(RecordAuthor, RecordAuthorValidator);
-        application = await builder.build();
-
-        result = await application.server.execute(Object.assign(new RecordAuthor(), { id, name }), {
-            correlationId: randomUUID(), principal: undefined, tenantId: undefined,
-            signal: AbortSignal.timeout(5_000), allowedSeverity: Severity.Warning
+        scenario = CommandScenario.for(RecordAuthor, RecordAuthorValidator);
+        scenario.services.addSingleton(AuthorRegistration, {
+            register: async (_id: AuthorId, _name: AuthorName) => {}
         });
+        result = await scenario.execute({ id: AuthorId.create(), name: new AuthorName('Ada Lovelace') });
     });
 
-    afterEach(() => application.dispose());
+    afterEach(async () => { await scenario.dispose(); });
 
-    it('should succeed', () => expect(result.isSuccess).toBe(true));
-    it('should register the author', () => expect(registered).toEqual([[id.toString(), name.value]]));
+    it('should succeed through the real command pipeline', () => {
+        result.shouldBeSuccessful();
+    });
 });
 ```

@@ -48,7 +48,32 @@ Arc creates and disposes a scope per HTTP or direct call, including a denied or 
 
 `validatorDependencies` are preflighted **and constructed** before validators, including on `/validate`; `handlerDependencies` are preflighted but constructed only after validation succeeds on the execution route. Validation-only does not call `provide`, `handle`, or command execution scopes. Authorization runs before dependency checks. A missing dependency is reported with reason `dependencyUnavailable`, not `rule` (HTTP errors are redacted outside development). Existing definitions without service declarations and manually constructed execution contexts still work.
 
-## Test the real pipeline
+## Test a decorated command
+
+Use `CommandScenario` when the command's authorization, validator, service resolution, or handler behavior matters to the spec. The [Tasks sample spec](../../Samples/Tasks/Features/Tasks/Registration/for_RegisterTask/when_registering/with_valid_title.ts) runs a decorated command through the real pipeline without starting an HTTP server:
+
+```typescript
+const scenario = CommandScenario.for(RegisterTask, RegisterTaskValidator);
+scenario.services.addSingleton(Tasks, new Tasks());
+try {
+    const result = await scenario.execute({ id: TaskId.create(), title: new TaskTitle('Plan release') });
+    result.shouldBeSuccessful();
+} finally {
+    await scenario.dispose();
+}
+```
+
+Import `CommandScenario` from `@cratis/arc.testing` and the domain types from your application. Pass decorated validators as additional arguments: the scenario cannot discover classes that were never imported. Register fakes before `execute()` or `validate()`; the application and its service provider are built lazily on the first call. `execute()` accepts property values or a command instance. `validate()` runs authorization and validation but never calls `provide()` or `handle()`. The scenario returns the actual `CommandResult` with chainable `shouldBeSuccessful()`, `shouldNotBeSuccessful()`, `shouldBeValid()`, `shouldHaveValidationErrors()`, `shouldHaveValidationErrorFor(member)`, `shouldHaveValidationErrorBecauseOf(reason)`, `shouldBeAuthorized()`, `shouldNotBeAuthorized()`, `shouldHaveExceptions()`, and `shouldNotHaveExceptions()`. A dependency or validator construction failure alone cannot satisfy the generic or member validation assertions; assert its reason explicitly if that failure is the behavior under test. No operation execution/compensation assertions are exposed until command operations exist in this package.
+
+Inputs cross Arc's JSON wire representation before the pipeline decodes concepts and model fields, and snapshot query data crosses the same boundary on return. Use `withSerializationRoundTrip(false)` only for a deliberate object-only check. Set `scenario.withContext({ principal, tenantId, correlationId, signal })` for trusted direct-call identity; `dispose()` is idempotent. A fake passed to `addSingleton` remains caller-owned, while factories registered through `addScoped` are application-owned.
+
+## Test a query or observable query
+
+`QueryScenario.for(TaskItem, 'taskById')` selects a decorated static `@query` method. Register the same dependencies before calling `perform({ id: TaskId.create() })`; supply `{ paging: { page: 0, pageSize: 10 }, sorting: { field: 'title', direction: 'asc' } }` as a second argument for a list query. Its result is the actual `QueryResult` with JSON-shaped `data`; generic type parameters describe that wire data, not a rehydrated read-model instance. [The Tasks query spec](../../Samples/Tasks/Features/Tasks/Listing/for_TaskItem/when_performing/with_sorting_and_paging.ts) checks sorting and paging through this pipeline.
+
+`ObservableQueryScenario.for(TaskItem, 'observeAllTasks')` opens the real observable pipeline. `collect(count, timeoutMs, arguments, options)` waits for up to `count` emissions, or fails at the explicit deadline if they do not arrive. A finite stream may complete earlier. An opening rejection appears in `rejection`, not as a successful emission; always assert the expected emission count. The scenario closes its subscription even on a timeout. See [the sample observable spec](../../Samples/Tasks/Features/Tasks/Listing/for_TaskItem/when_collecting/with_current_value.ts).
+
+## Test low-level definitions and HTTP behavior
 
 Use `@cratis/arc.testing` for specs that need the same command, query, or HTTP behavior as production. `ArcScenario` accepts the same registrations and definitions as `ArcServer`, optional default context fields, and per-call overrides. It delegates to the real server. After your assertions, call `dispose()`; if you passed an existing registry, dispose that registry yourself.
 
