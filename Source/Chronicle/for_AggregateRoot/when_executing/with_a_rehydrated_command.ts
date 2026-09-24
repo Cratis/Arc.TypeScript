@@ -10,10 +10,25 @@ import { Created, a_registered_command, context } from '../../for_ChronicleRespo
 
 class Counter extends AggregateRoot {
     count = 0;
-    constructor() { super(); this.on(Created, () => { this.count++; }); }
+    replayedSequence?: bigint;
+    constructor() { super(); this.on(Created, (event, context) => {
+        if (!(event instanceof Created)) throw new Error('Expected a class instance');
+        this.count++;
+        this.replayedSequence = context?.sequenceNumber;
+    }); }
 }
 @eventType() class Unhandled { @field(String) name = ''; }
-class Stateless extends AggregateRoot {}
+class Stateless extends AggregateRoot { get fresh(): boolean { return this.isNew; } }
+@command() class CheckSource {
+    @field(String) @key() id = '';
+    @inject(commandAggregate(Stateless))
+    handle(aggregate: Stateless) { return aggregate.fresh; }
+}
+@command() class CheckReplayContext {
+    @field(String) @key() id = '';
+    @inject(commandAggregate(Counter))
+    handle(aggregate: Counter) { return aggregate.replayedSequence?.toString(); }
+}
 class BrokenOperation extends CommandOperation {
     execute(): void { throw new Error('operation unavailable'); }
     compensate(): void {}
@@ -139,6 +154,39 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             [entry.eventSourceType, entry.eventStreamType, entry.eventStreamId].should.deep.equal(['orders', 'active', 'one']);
             const scope = setup.appendMany.firstCall.args[1].concurrencyScopes['counter-1'];
             [scope.eventSourceType, scope.eventStreamType, scope.eventStreamId, scope.sequenceNumber].should.deep.equal(['orders', 'active', 'one', 15n]);
+        } finally { await app.dispose(); }
+    });
+    it('should mark a source with only unhandled events as existing without reading history', async () => {
+        const store = await setup.getEventStore();
+        let read = false;
+        setup.getEventStore.resolves({ ...store, eventLog: { ...store.eventLog,
+            getTailSequenceNumber: async () => new EventSequenceNumber(8n),
+            getForEventSourceIdAndEventTypes: async () => { read = true; return []; } } });
+        const builder = ArcApplication.createBuilder();
+        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.add(CheckSource, Created, Unhandled);
+        const app = await builder.build();
+        try {
+            const result = await app.server.executeCommand('CheckSource', { id: 'counter-1' }, context());
+            result.isSuccess.should.equal(true, JSON.stringify(result));
+            (result.response as boolean).should.equal(false);
+            read.should.equal(false);
+        } finally { await app.dispose(); }
+    });
+    it('should replay class instances with their stored event context', async () => {
+        const store = await setup.getEventStore();
+        const metadata = getEventTypeMetadata(Created)!.eventType;
+        setup.getEventStore.resolves({ ...store, eventLog: { ...store.eventLog,
+            getTailSequenceNumber: async () => new EventSequenceNumber(9n),
+            getForEventSourceIdAndEventTypes: async () => [{ eventType: metadata, content: {}, context: { sequenceNumber: 9n } }] } });
+        const builder = ArcApplication.createBuilder();
+        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.add(CheckReplayContext, Created);
+        const app = await builder.build();
+        try {
+            const result = await app.server.executeCommand('CheckReplayContext', { id: 'counter-1' }, context());
+            result.isSuccess.should.equal(true, JSON.stringify(result));
+            (result.response as string).should.equal('9');
         } finally { await app.dispose(); }
     });
     it('should enroll applied events even when commit is not returned', async () => {
