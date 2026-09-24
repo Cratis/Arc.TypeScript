@@ -43,7 +43,7 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.3"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.5.0
+    "@cratis/arc.core": ^0.6.0
     "@cratis/chronicle": ^6.2.0
     "@cratis/fundamentals": ^7.19.3
     zod: ^4.1.0
@@ -60,11 +60,14 @@ __metadata:
     "@cratis/arc.fastify": "workspace:*"
     "@cratis/arc.hono": "workspace:*"
     "@cratis/arc.proxygenerator": "workspace:*"
+    "@cratis/arc.react": "npm:22.19.1"
     "@cratis/fundamentals": "npm:7.19.3"
     "@hono/node-server": "npm:1.19.17"
+    "@types/react": "npm:18.3.28"
     express: "npm:^5.1.0"
     fastify: "npm:^5.6.0"
     hono: "npm:^4.9.0"
+    react: "npm:18.3.1"
     rxjs: "npm:7.8.2"
     typescript: "npm:7.0.2"
     zod: "npm:^4.1.0"
@@ -157,7 +160,7 @@ __metadata:
     "@cratis/fundamentals": "npm:7.19.3"
     mongodb: "npm:^6.21.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.5.0
+    "@cratis/arc.core": ^0.6.0
     "@cratis/fundamentals": ^7.19.3
     mongodb: ^6.21.0
   languageName: unknown
@@ -168,10 +171,24 @@ __metadata:
   resolution: "@cratis/arc.proxygenerator@workspace:Source/Tools/ProxyGenerator"
   dependencies:
     "@cratis/arc.core": "workspace:^"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
     arc-proxygenerator: ./dist/cli.js
   languageName: unknown
   linkType: soft
+
+"@cratis/arc.react@npm:22.19.1":
+  version: 22.19.1
+  resolution: "@cratis/arc.react@npm:22.19.1"
+  dependencies:
+    "@cratis/arc": "npm:22.19.1"
+    "@cratis/fundamentals": "npm:^7.19.3"
+    tsyringe: "npm:^4.10.0"
+  peerDependencies:
+    react: ^18.0.0 || ^19.0.0
+  checksum: 10c0/b0f0138bab0e67aa52987d021a508ad070a4ce9a3e3c8f018459ca0781d0f85568a22c63ec49479a212215ab1d755604d99ab74b86571e2ab7cf92dec8a1f4b3
+  languageName: node
+  linkType: hard
 
 "@cratis/arc.testing@workspace:Source/Testing, @cratis/arc.testing@workspace:^":
   version: 0.0.0-use.local
@@ -1128,6 +1145,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/prop-types@npm:*":
+  version: 15.7.15
+  resolution: "@types/prop-types@npm:15.7.15"
+  checksum: 10c0/b59aad1ad19bf1733cf524fd4e618196c6c7690f48ee70a327eb450a42aab8e8a063fbe59ca0a5701aebe2d92d582292c0fb845ea57474f6a15f6994b0e260b2
+  languageName: node
+  linkType: hard
+
 "@types/qs@npm:*":
   version: 6.15.1
   resolution: "@types/qs@npm:6.15.1"
@@ -1139,6 +1163,16 @@ __metadata:
   version: 1.2.7
   resolution: "@types/range-parser@npm:1.2.7"
   checksum: 10c0/361bb3e964ec5133fa40644a0b942279ed5df1949f21321d77de79f48b728d39253e5ce0408c9c17e4e0fd95ca7899da36841686393b9f7a1e209916e9381a3c
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:18.3.28":
+  version: 18.3.28
+  resolution: "@types/react@npm:18.3.28"
+  dependencies:
+    "@types/prop-types": "npm:*"
+    csstype: "npm:^3.2.2"
+  checksum: 10c0/683e19cd12b5c691215529af2e32b5ffbaccae3bf0ba93bfafa0e460e8dfee18423afed568be2b8eadf4b837c3749dd296a4f64e2d79f68fa66962c05f5af661
   languageName: node
   linkType: hard
 
@@ -2091,6 +2125,13 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 10c0/053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
+  languageName: node
+  linkType: hard
+
+"csstype@npm:^3.2.2":
+  version: 3.2.3
+  resolution: "csstype@npm:3.2.3"
+  checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
   languageName: node
   linkType: hard
 
@@ -3196,6 +3237,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"js-tokens@npm:^3.0.0 || ^4.0.0":
+  version: 4.0.0
+  resolution: "js-tokens@npm:4.0.0"
+  checksum: 10c0/e248708d377aa058eacf2037b07ded847790e6de892bbad3dac0abba2e759cb9f121b00099a65195616badcb6eca8d14d975cb3e89eb1cfda644756402c8aeed
+  languageName: node
+  linkType: hard
+
 "js-yaml@npm:4.1.1":
   version: 4.1.1
   resolution: "js-yaml@npm:4.1.1"
@@ -3455,6 +3503,17 @@ __metadata:
   version: 5.3.2
   resolution: "long@npm:5.3.2"
   checksum: 10c0/7130fe1cbce2dca06734b35b70d380ca3f70271c7f8852c922a7c62c86c4e35f0c39290565eca7133c625908d40e126ac57c02b1b1a4636b9457d77e1e60b981
+  languageName: node
+  linkType: hard
+
+"loose-envify@npm:^1.1.0":
+  version: 1.4.0
+  resolution: "loose-envify@npm:1.4.0"
+  dependencies:
+    js-tokens: "npm:^3.0.0 || ^4.0.0"
+  bin:
+    loose-envify: cli.js
+  checksum: 10c0/655d110220983c1a4b9c0c679a2e8016d4b67f6e9c7b5435ff5979ecdb20d0813f4dec0a08674fcbdd4846a3f07edbb50a36811fd37930b94aaa0d9daceb017e
   languageName: node
   linkType: hard
 
@@ -4442,6 +4501,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react@npm:18.3.1":
+  version: 18.3.1
+  resolution: "react@npm:18.3.1"
+  dependencies:
+    loose-envify: "npm:^1.1.0"
+  checksum: 10c0/283e8c5efcf37802c9d1ce767f302dd569dd97a70d9bb8c7be79a789b9902451e0d16334b05d73299b20f048cbc3c7d288bbbde10b701fa194e2089c237dbea3
+  languageName: node
+  linkType: hard
+
 "readable-stream@npm:^3.1.1":
   version: 3.6.2
   resolution: "readable-stream@npm:3.6.2"
@@ -5052,10 +5120,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tslib@npm:^1.9.3":
+  version: 1.14.1
+  resolution: "tslib@npm:1.14.1"
+  checksum: 10c0/69ae09c49eea644bc5ebe1bca4fa4cc2c82b7b3e02f43b84bd891504edf66dbc6b2ec0eef31a957042de2269139e4acff911e6d186a258fb14069cd7f6febce2
+  languageName: node
+  linkType: hard
+
 "tslib@npm:^2.1.0":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
+  languageName: node
+  linkType: hard
+
+"tsyringe@npm:^4.10.0":
+  version: 4.10.0
+  resolution: "tsyringe@npm:4.10.0"
+  dependencies:
+    tslib: "npm:^1.9.3"
+  checksum: 10c0/918594b4dfac97beb8be2c041c6ec45f078ef3768ed4edfe35ae2c709ab503e2e6b454b2b37e692c658572d1972a428fbfdbc0a2b42fee727a83c1c685fbe5e1
   languageName: node
   linkType: hard
 

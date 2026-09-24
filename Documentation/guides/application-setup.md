@@ -1,8 +1,9 @@
 ---
 title: Build and host an Arc application
+description: Collect model-bound artifacts with the application builder, discover them from a folder or add them explicitly, and run or mount the built application.
 ---
 
-An application builder collects model-bound artifacts before it creates an `ArcServer`. The [Tasks entry point](../../Samples/Tasks/main.ts) uses a dedicated discovery root so importing the bootstrap cannot re-enter a suspended top-level `await`:
+An application builder collects model-bound artifacts before it creates an `ArcServer`. The [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) uses a dedicated discovery root so importing the bootstrap cannot re-enter a suspended top-level `await`:
 
 ```typescript
 import { ArcApplication } from '@cratis/arc.core';
