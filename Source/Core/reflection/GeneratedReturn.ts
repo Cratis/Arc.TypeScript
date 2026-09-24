@@ -6,5 +6,6 @@ import type { ClassType } from './ClassType.js';
 export interface GeneratedReturn {
     readonly cardinality: 'one' | 'many' | 'paged' | 'void';
     readonly nullable: boolean;
+    readonly observable?: boolean;
     readonly element?: ClassType | StringConstructor | NumberConstructor | BooleanConstructor | DateConstructor;
 }

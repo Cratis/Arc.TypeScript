@@ -34,7 +34,7 @@ export async function preflightGeneratedMetadata(file: string): Promise<void> {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
         throw error;
     });
-    if (previous !== undefined && !valid(previous)) throw new Error(`Refusing to overwrite handwritten or edited metadata: ${file}`);
+    if (previous !== undefined && !valid(previous)) throw new Error(`Refusing to overwrite handwritten or edited metadata: ${file}; review and delete the file before regenerating`);
 }
 /** Publish only owned metadata, keeping unchanged output byte-for-byte stable. */
 export async function publishGeneratedMetadata(file: string, text: string): Promise<boolean> {

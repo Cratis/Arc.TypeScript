@@ -31,9 +31,24 @@ export function roles(checker: ts.TypeChecker, node: ts.Node): string[] {
         return argument.text;
     });
 }
+export function classChain(declaration: ts.ClassDeclaration, checker: ts.TypeChecker): ts.ClassDeclaration[] {
+    const chain: ts.ClassDeclaration[] = [];
+    const visited = new Set<ts.Symbol>();
+    let current: ts.ClassDeclaration | undefined = declaration;
+    while (current) {
+        chain.unshift(current);
+        const type = checker.getTypeAtLocation(current);
+        const base: ts.BaseType | undefined = type.getBaseTypes()?.[0];
+        if (!base?.symbol || visited.has(base.symbol)) break;
+        visited.add(base.symbol);
+        current = base.symbol.declarations?.find(ts.isClassDeclaration);
+    }
+    return chain;
+}
 export function fieldsFor(declaration: ts.ClassDeclaration, checker: ts.TypeChecker, resolver: SourceTypeResolver,
     diagnostics: string[], generatedMetadata = false): SourceField[] {
-    return declaration.members.filter(ts.isPropertyDeclaration).filter(member => !!annotation(checker, member, 'field', 'fundamentals'))
+    return classChain(declaration, checker).flatMap(owner => owner.members.filter(ts.isPropertyDeclaration))
+        .filter(member => !!annotation(checker, member, 'field', 'fundamentals'))
         .map(member => {
             const name = fieldName(member.name);
             const hasDefault = !!annotation(checker, member, 'defaultValue') || generatedMetadata && !!member.initializer;

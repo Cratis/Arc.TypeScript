@@ -19,6 +19,8 @@ export interface ArtifactMetadata {
     path?: string;
     injected?: Map<string, readonly ServiceIdentifier<unknown>[]>;
     generatedBindings?: boolean;
+    handleParameters?: number;
+    provideParameters?: number;
     queryMethods?: Map<string, QueryMetadata>;
     methodAuthorization?: Map<string, Authorization>;
     methodRoutes?: Map<string, string>;

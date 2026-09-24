@@ -6,6 +6,7 @@ import { currentServices } from '../../dependencyInjection/ServiceScope.js';
 import type { CommandContext } from '../CommandContext.js';
 import { flattenCommandResponse } from '../processCommandResponse.js';
 import { providedType } from './provided.js';
+import { optionalServiceType } from '../../reflection/optionalService.js';
 import { readModelArgument } from './readModel.js';
 import { ReadModelForCommandError } from '../ReadModelForCommandError.js';
 const signalToken = serviceToken<AbortSignal>('Arc command signal');
@@ -38,6 +39,12 @@ export async function resolveCommandArguments(tokens: readonly ServiceIdentifier
             values.push(found);
             continue;
         }
+        const optional = optionalServiceType(token);
+        if (optional) {
+            const scope = currentServices();
+            values.push(scope.registry.hasRegistration(optional) ? await scope.resolve(optional) : null);
+            continue;
+        }
         const type = providedType(token);
         if (!type) { values.push(await currentServices().resolve(token)); continue; }
         const index = candidates.findIndex(candidate => candidate instanceof type ||
@@ -50,5 +57,6 @@ export async function resolveCommandArguments(tokens: readonly ServiceIdentifier
 }
 /** Service tokens alone participate in DI preflight. */
 export function commandServiceTokens(tokens: readonly ServiceIdentifier<unknown>[]): ServiceIdentifier<unknown>[] {
-    return tokens.filter(token => token !== signalToken && token !== contextToken && !providedType(token) && !readModelArgument(token));
+    return tokens.filter(token => token !== signalToken && token !== contextToken && !providedType(token) &&
+        !readModelArgument(token) && !optionalServiceType(token));
 }

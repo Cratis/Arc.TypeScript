@@ -12,7 +12,8 @@ describe('when rendering a command with built-in parameter markers', given(a_mar
     it('should bind the provided value, keyed read model, command context, and signal in declaration order', () => {
         rendered.should.contain('commandReadModel(_arc');
         rendered.should.contain('{ optional: true }');
-        rendered.should.contain('commandContext(), abortSignal(), provided(_arc');
+        rendered.should.contain('commandContext(), abortSignal()');
+        rendered.should.contain('handleParameters: 3');
         rendered.should.contain("['provide', [commandContext(), abortSignal()]]");
     });
 }));

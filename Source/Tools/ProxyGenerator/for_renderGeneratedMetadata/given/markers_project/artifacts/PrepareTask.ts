@@ -10,7 +10,7 @@ export class PrepareTask {
         void context; void signal;
         return new Prepared();
     }
-    handle(model: TaskDetail | null, context: CommandContext, signal: AbortSignal, prepared: Prepared): void {
+    handle(prepared: Prepared, model: TaskDetail | null, context: CommandContext, signal: AbortSignal): void {
         void model; void context; void signal; void prepared;
     }
 }

@@ -25,5 +25,7 @@ export function ownMetadata(type: ClassType): ArtifactMetadata {
     for (const [name, tokens] of explicit.injected ?? []) if (tokens.length || !injected.has(name)) injected.set(name, tokens);
     const fieldOptions = new Map(generated.fieldOptions);
     for (const [name, options] of explicit.fieldOptions ?? []) fieldOptions.set(name, { ...fieldOptions.get(name), ...options });
-    return { ...generated, ...explicit, queryMethods, injected, fieldOptions };
+    return { ...generated, ...explicit, queryMethods, injected, fieldOptions,
+        handleParameters: explicit.injected?.get('handle')?.length ? undefined : generated.handleParameters,
+        provideParameters: explicit.injected?.get('provide')?.length ? undefined : generated.provideParameters };
 }

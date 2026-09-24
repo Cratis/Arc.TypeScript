@@ -203,7 +203,7 @@ export class ArcApplicationBuilder {
             queryRenderers: [...this.options.queryRenderers ?? [], ...this.#queryRenderers],
             readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
             readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
-            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations });
+            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations }, this.#generatedMetadata);
         try { await this.preflight(server, dependencies, validatorTypes); }
         catch (error) { await server.dispose(); throw error; }
         return new ArcApplication(server);

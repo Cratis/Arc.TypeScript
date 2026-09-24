@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { chmod, link, lstat, mkdir, readFile, readdir, realpath, rename, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { analyzeSource } from './analyzeSource.js';
+import { sourceProgram } from './sourceProgram.js';
 import { filename, queryClassName, renderSource, type SourceRenderOptions } from './renderSource.js';
 import { renderGeneratedMetadata } from './renderGeneratedMetadata.js';
 import { preflightGeneratedMetadata, publishGeneratedMetadata } from './publishGeneratedMetadata.js';
@@ -27,6 +28,8 @@ export interface SourceGeneratorOptions extends SourceRenderOptions {
     readonly emitInterfaces?: boolean;
     /** Absolute path of an optional source-generated server metadata module. */
     readonly metadata?: string;
+    /** Opt into source-inferred bindings even when this invocation does not publish metadata. */
+    readonly generatedMetadata?: boolean;
 }
 /** Analyze source once, preflight owned paths and publish only changed files. Never delete handwritten files. */
 export async function generateFromSource(options: SourceGeneratorOptions): Promise<readonly string[]> {
@@ -38,9 +41,10 @@ export async function generateFromSource(options: SourceGeneratorOptions): Promi
     const output = await realpath(requested);
     const artifacts = await realpath(options.artifacts);
     if (!(await lstat(artifacts)).isDirectory()) throw new Error('Artifacts must be a directory');
-    const metadata = options.metadata ? renderGeneratedMetadata(options.project, artifacts, options.metadata) : undefined;
     if (options.metadata) await preflightGeneratedMetadata(options.metadata);
-    const analysis = analyzeSource(options.project, artifacts, options.rootNamespace, !!metadata);
+    const program = sourceProgram(options.project);
+    const metadata = options.metadata ? renderGeneratedMetadata(options.project, artifacts, options.metadata, program) : undefined;
+    const analysis = analyzeSource(options.project, artifacts, options.rootNamespace, !!metadata || options.generatedMetadata === true, program);
     const rendered = renderSource(analysis, options);
     const sources = new Map([
         ...analysis.models.map(model => [filename(model.name, model.namespace, options),

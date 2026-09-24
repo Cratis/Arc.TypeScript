@@ -11,6 +11,7 @@ import { commandServiceTokens, resolveCommandArguments } from './commandArgument
 import { encodeCommandResponse } from './encodeCommandResponse.js';
 import { providedType } from './provided.js';
 import { ownMetadata } from '../../reflection/ownMetadata.js';
+import { validateGeneratedReturn } from '../../reflection/validateGeneratedReturn.js';
 import type { ClassType } from '../../reflection/ClassType.js';
 import type { WireType } from '../../reflection/WireType.js';
 import { decode, objectSchema } from '../../reflection/wireSchema.js';
@@ -29,19 +30,19 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     let tokens = metadata.injected?.get('handle') ?? [];
     const typedPreparation = tokens.some(token => !!providedType(token));
     if (typedPreparation && !hasProvider) throw new Error(`Command ${type.name} uses provided() without provide()`);
-    const count = prototype.handle.length - Number(hasProvider && !typedPreparation);
-    if (count < 0 && !metadata.generatedBindings) throw new Error(`Invalid handle parameters on ${type.name}`);
+    const count = metadata.handleParameters ?? prototype.handle.length - Number(hasProvider && !typedPreparation);
+    if (count < 0) throw new Error(`Invalid handle parameters on ${type.name}`);
     if (metadata.injected?.has('handle') && !tokens.length && count) {
         tokens = reflectedParameters(type.prototype, 'handle', count, Number(hasProvider));
     }
-    if (tokens.length !== count && !(metadata.generatedBindings && tokens.length > count))
-        throw new Error(`Unbound handle parameters on ${type.name}.handle; default and rest parameters require explicit binding`);
-    const provideCount = hasProvider ? prototype.provide!.length : 0;
+    if (tokens.length !== count)
+        throw new Error(`Unbound handle parameters on ${type.name}.handle; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding`);
+    const provideCount = metadata.provideParameters ?? (hasProvider ? prototype.provide!.length : 0);
     let provideTokens = metadata.injected?.get('provide') ?? [];
     if (hasProvider && metadata.injected?.has('provide') && !provideTokens.length && provideCount)
         provideTokens = reflectedParameters(type.prototype, 'provide', provideCount, 0);
-    if (provideTokens.length !== provideCount && !(metadata.generatedBindings && provideTokens.length > provideCount))
-        throw new Error(`Unbound provide parameters on ${type.name}.provide; default and rest parameters require explicit binding`);
+    if (provideTokens.length !== provideCount)
+        throw new Error(`Unbound provide parameters on ${type.name}.provide; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding`);
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
@@ -63,6 +64,7 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
                 (context as CommandContext).command as { handle(...parameters: unknown[]): unknown };
             const services = await resolveCommandArguments(tokens, context as CommandContext, preparation?.value);
             const result = await instance.handle(...(hasProvider && !typedPreparation ? [preparation!.value] : []), ...services);
+            if (!isOutcome(result)) validateGeneratedReturn(`${type.name}.handle`, metadata.handleResult, result);
             return result;
         }
     };

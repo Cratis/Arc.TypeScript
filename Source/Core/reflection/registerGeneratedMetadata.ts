@@ -8,13 +8,12 @@ import type { GeneratedMetadata } from './GeneratedArtifactMetadata.js';
 import { generatedMetadataSignature } from './generatedMetadataSignature.js';
 
 const registrations = new AsyncLocalStorage<ReadonlyMap<ClassType, ArtifactMetadata>>();
-const runtimeFields = new WeakMap<ClassType, Map<string, FieldOptions>>();
 /** Return the builder-local generated fallback for a decorated class. */
 export function generatedMetadataFor(type: ClassType): ArtifactMetadata | undefined { return registrations.getStore()?.get(type); }
 /** Decoding happens after build; retain immutable field annotations for its runtime classes. */
 export function generatedFieldOptionsFor(type: ClassType): Map<string, FieldOptions> | undefined {
     const current = registrations.getStore();
-    return current ? current.get(type)?.fieldOptions : runtimeFields.get(type);
+    return current?.get(type)?.fieldOptions;
 }
 /** Run a builder's registration and compilation with its own metadata. */
 export function withGeneratedMetadata<T>(metadata: ReadonlyMap<ClassType, ArtifactMetadata> | undefined, action: () => T): T {
@@ -29,7 +28,5 @@ export function registerGeneratedMetadata(module: GeneratedMetadata): ReadonlyMa
             throw new Error(`Stale generated artifact metadata for ${entry.type.name}; regenerate artifact metadata`);
         seen.add(entry.type);
     }
-    for (const entry of module.artifacts) if (entry.metadata.fieldOptions)
-        runtimeFields.set(entry.type, entry.metadata.fieldOptions);
     return new Map(module.artifacts.map(entry => [entry.type, entry.metadata]));
 }

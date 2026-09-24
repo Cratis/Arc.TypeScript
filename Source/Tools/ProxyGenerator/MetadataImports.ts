@@ -6,7 +6,15 @@ import { identifier, originalSymbol } from './sourceSymbols.js';
 
 /** Stable, collision-free imports of runtime class tokens from their declaring modules. */
 export class MetadataImports {
-    readonly #imports = new Map<ts.Symbol, { module: string; name: string; alias: string }>();
+    readonly #imports = new Map<ts.Symbol | string, { module: string; name: string; alias: string }>();
+    fundamental(name: 'Guid' | 'DateOnly' | 'TimeOnly' | 'TimeSpan'): string {
+        const key = `@cratis/fundamentals:${name}`;
+        const existing = this.#imports.get(key);
+        if (existing) return existing.alias;
+        const alias = `_arc${this.#imports.size}`;
+        this.#imports.set(key, { module: '@cratis/fundamentals', name, alias });
+        return alias;
+    }
     constructor(private readonly checker: ts.TypeChecker, private readonly output: string) {}
     classToken(type: ts.Type, node: ts.Node): string {
         const symbol = type.getSymbol();
@@ -30,10 +38,14 @@ export class MetadataImports {
             importDeclaration.moduleSpecifier.text : undefined;
         if (importedModule && !importedModule.startsWith('.')) module = importedModule;
         else if (!source.includes('/node_modules/')) {
-            const path = relative(dirname(this.output), resolve(source)).replace(/\\/g, '/').replace(/\.(mts|cts|tsx?|jsx?)$/, '.js');
+            const path = relative(dirname(this.output), resolve(source)).replace(/\\/g, '/')
+                .replace(/\.d\.(mts|cts|ts)$/, (_, kind: string) => kind === 'mts' ? '.mjs' : kind === 'cts' ? '.cjs' : '.js')
+                .replace(/\.(mts|cts|tsx?|jsx?)$/, (_, kind: string) => kind === 'mts' ? '.mjs' : kind === 'cts' ? '.cjs' : '.js');
             module = path.startsWith('.') ? path : `./${path}`;
         }
-        if (!module || !ts.isClassDeclaration(declaration) || !declaration.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword))
+        if (!module) throw new Error(`${node.getSourceFile().fileName}:${node.getSourceFile().getLineAndCharacterOfPosition(node.getStart()).line + 1}: ` +
+            `Cannot import ${name} from ${source}; use a named runtime import from its package`);
+        if (!ts.isClassDeclaration(declaration) || !declaration.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword))
             throw new Error(`${source}: ${name} must be exported to generate a runtime token`);
         const alias = `_arc${this.#imports.size}`;
         this.#imports.set(symbol, { module, name, alias });
