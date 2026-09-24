@@ -11,22 +11,22 @@ The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Ta
 
 ```typescript
 @query({ observable: true }, service(Tasks))
-static observeAllTasks(tasks: Tasks): ObservableSource<TaskItem[]> { return tasks.observeAll(); }
+static observeAllTasks(tasks: Tasks): BehaviorSubject<TaskItem[]> { return tasks.observeAll(); }
 ```
 
-The sample's `Tasks` service keeps a `CurrentValueSubject.of<TaskItem[]>([])` and calls `next(...)` whenever a task is registered. The `{ observable: true }` flag is required: it tells snapshots, server-sent events, WebSocket admission, introspection, and generated clients the query's contract before it runs.
+The sample's `Tasks` service keeps a `new BehaviorSubject<TaskItem[]>([])` from RxJS and calls `next(...)` whenever a task is registered. The `{ observable: true }` flag is required: it tells snapshots, server-sent events, WebSocket admission, introspection, and generated clients the query's contract before it runs.
 
 ## Choose a source
 
 | Source | Snapshot behavior |
 | --- | --- |
-| `CurrentValueSubject.of(value)` | Has a current value: GET answers 200 immediately, and new subscribers receive it first |
-| `CurrentValueSubject.pending<T>()` | No value yet: GET answers 202 with `isReady: false` until the first `next(...)` |
-| An object with `getValue()` or `value` (a behavior subject) | Supplies the snapshot from its current value |
+| RxJS `BehaviorSubject<T>` | Has a current value: GET answers 200 immediately, and new subscribers receive it first |
+| RxJS `Subject<T>` or `Observable<T>` | No current value: GET answers 202 with `isReady: false`; `waitForFirstResult=true` subscribes until the first value |
+| RxJS `ReplaySubject<T>` | No readable current value: GET answers 202 even after an emission; a waiting GET receives the buffered value |
 | `AsyncIterable<T>` | No current value until the first item |
-| An object with `subscribe({ next, error, complete })` returning an unsubscribe handle | RxJS-compatible; Arc does not require RxJS at runtime |
+| `CurrentValueSubject<T>` (deprecated) | Legacy current/pending source; use RxJS `BehaviorSubject` or `Subject` instead |
 
-A current value is tagged explicitly, so even `undefined` is distinguishable from "no value yet". The query method runs after authorization and validation, and its `context.signal` aborts when the subscription ends. Each subscription owns its own service scope; do not share scoped service instances across subscriptions.
+A `BehaviorSubject` exposes its current value, including `undefined`; `Subject` and `ReplaySubject` do not. The core accepts structural subscribables and async iterables without loading RxJS at runtime, so RxJS is an optional peer dependency for consumers using only async iterables. A completed source before its first emission returns an error to a waiting GET; an errored source reports a query failure. Disconnecting cancels the subscription. The query method runs after authorization and validation, and its `context.signal` aborts when the subscription ends. Each subscription owns its own service scope; do not share scoped service instances across subscriptions.
 
 ## Read the snapshot and subscribe from the terminal
 
@@ -87,10 +87,11 @@ Generated proxies carry the exact query name. The [proxy generator](../proxy-gen
 ```typescript title="observable.ts"
 import express from 'express';
 import { z } from 'zod';
-import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.core';
+import { ArcServer, defineObservableQuery } from '@cratis/arc.core';
+import { BehaviorSubject } from 'rxjs';
 import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
 
-const numbers = CurrentValueSubject.of<number[]>([1]);
+const numbers = new BehaviorSubject<number[]>([1]);
 const query = defineObservableQuery({
     name: 'Numbers',
     schema: z.object({}),

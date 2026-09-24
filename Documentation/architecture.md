@@ -66,7 +66,7 @@ Parity means the same observable behavior on the wire, not the same implementati
 | Dependency injection with per-request scopes | Class or `serviceToken` tokens with singleton, scoped, or transient registrations. Each operation owns a scope; singleton construction belongs to the registry and receives no request identity. There is no integration with another container |
 | `AsyncLocal` ambient context | Node.js `AsyncLocalStorage`, with a frozen context per request or direct call, so one request's principal, tenant, or correlation never leaks into another |
 | `CancellationToken` | `AbortSignal` |
-| `IObservable<T>` and `ISubject<T>` | An async iterable or a structural subscribable. `CurrentValueSubject` holds a current value, so an HTTP snapshot answers 200 instead of 202 |
+| `IObservable<T>` and `ISubject<T>` | RxJS `BehaviorSubject` (200 current snapshot), `Subject`/`Observable` (202 pending snapshot), an async iterable, or a structural subscribable. `CurrentValueSubject` remains available but is deprecated |
 | `IQueryable<T>` paging and sorting | In-memory paging and sorting of arrays, or a page the data source already cut, returned with `queryPage` |
 | FluentValidation and DataAnnotations | Field types for shape, and `CommandValidator`, `QueryValidator`, and `ConceptValidator` classes with `ruleFor` rules. The low-level path uses Zod schemas and validator functions |
 | Roslyn analyzers and a proxy generator that reads compiled assemblies | ESLint rules for decorated artifacts, and a generator that reads your TypeScript source through the compiler API without running it. See [Code analysis](code-analysis/index.md) and [Proxy generation](proxy-generation/index.md) |

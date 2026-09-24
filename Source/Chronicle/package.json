@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.chronicle",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "publishConfig": {
     "access": "public"
   },
@@ -34,10 +34,11 @@
     "README.md"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.17.0",
-    "@cratis/arc.testing": "^0.17.0",
+    "@cratis/arc.core": "^0.18.0",
+    "@cratis/arc.testing": "^0.18.0"
     "@cratis/chronicle": "^6.6.0",
     "@cratis/fundamentals": "^7.19.6",
+    "rxjs": "^7.8.2",
     "zod": "^4.1.0"
   },
   "peerDependenciesMeta": {
@@ -50,6 +51,7 @@
     "@cratis/arc.testing": "workspace:^",
     "@cratis/chronicle": "6.6.0",
     "@cratis/fundamentals": "7.19.6",
+    "rxjs": "^7.8.2",
     "zod": "^4.1.0"
   }
 }

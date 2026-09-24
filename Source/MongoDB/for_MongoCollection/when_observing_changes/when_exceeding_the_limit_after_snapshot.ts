@@ -19,7 +19,7 @@ describe('when the observable limit is exceeded after the snapshot', given(a_rep
         }) } as unknown as Collection<Document>;
         const database = { command: sinon.stub().resolves({ setName: 'rs0', operationTime: new Timestamp({ t: 1, i: 1 }) }) } as unknown as Db;
         const collection = new MongoCollection(native, database, TaskRecord, context.context('a'), { maxObservableItems: 1 });
-        const observation = await collection.observe();
+        const observation = await collection.observeIterable();
         const iterator = observation[Symbol.asyncIterator]();
         (await iterator.next()).value.should.deep.equal([]);
         try { await iterator.next(); throw new Error('Expected limit failure'); }
