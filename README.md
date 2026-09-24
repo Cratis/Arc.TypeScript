@@ -49,6 +49,7 @@ This is a self-contained example, not a copy of the sample. It serves `POST /api
 | `@cratis/arc.server.express` | [`Integrations/Express`](Integrations/Express) | `mountExpress` for Express 5 |
 | `@cratis/arc.server.fastify` | [`Integrations/Fastify`](Integrations/Fastify) | `mountFastify` for Fastify 5 |
 | `@cratis/arc.server.hono` | [`Integrations/Hono`](Integrations/Hono) | `mountHono` for Hono 4 |
+| `@cratis/arc.server.node` | [`Integrations/Node`](Integrations/Node) | `createArcNodeHandler` and `runArc` for standalone Node HTTP/HTTPS hosting, public static files and SPA fallback |
 | `@cratis/arc.server.codegen` | [`CodeGeneration`](CodeGeneration) | `renderClientManifest`, `generateClient`, and the `arc-server-codegen` CLI, which turn an exported JSON client manifest into `.proxy.ts` files for the published `@cratis/arc` client. Bounded to the shapes in [Generate command and query clients](Documentation/guides/generate-clients.md). |
 | `@cratis/arc.server.mongodb` | [`Integrations/MongoDB`](Integrations/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
 | `@cratis/arc.server.chronicle` | [`Integrations/Chronicle`](Integrations/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
@@ -99,6 +100,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 
 - [Get started](Documentation/getting-started.md): run the Tasks sample and read it line by line.
 - [Host Arc in Express, Fastify, or Hono](Documentation/guides/host-integration.md)
+- [Host Arc directly in Node.js](Documentation/guides/standalone-host.md)
 - [Call Arc from code](Documentation/guides/direct-calls.md)
 - [Validate and authorize commands and queries](Documentation/guides/validation-and-authorization.md)
 - [Decide command outcomes](Documentation/guides/command-outcomes.md)

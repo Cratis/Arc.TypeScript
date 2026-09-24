@@ -17,7 +17,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 | Folder | Contents |
 | --- | --- |
 | `Source` | `@cratis/arc.server`, the host-independent core, with its specs in `Source/specs` |
-| `Integrations/Express`, `Integrations/Fastify`, `Integrations/Hono` | The host adapters, each with specs in its `specs` folder |
+| `Integrations/Express`, `Integrations/Fastify`, `Integrations/Hono`, `Integrations/Node` | The framework adapters and standalone Node host, each with specs in its `specs` folder |
 | `Integrations/MongoDB` | The optional MongoDB read helper, with unit specs and a live replica-set spec |
 | `Integrations/Chronicle` | The experimental Chronicle integration. It is `private` and must stay unpublished until the Chronicle SDK loads in Node.js and it has passed against a live Chronicle kernel. |
 | `CodeGeneration` | `@cratis/arc.server.codegen`, which renders `@cratis/arc` proxies from an exported client manifest, and its JSON-only CLI |

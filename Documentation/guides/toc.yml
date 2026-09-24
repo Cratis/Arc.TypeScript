@@ -3,6 +3,8 @@
   items:
     - name: Host in Express, Fastify, or Hono
       href: host-integration.md
+    - name: Host directly in Node.js
+      href: standalone-host.md
     - name: Call Arc from code
       href: direct-calls.md
     - name: Validate and authorize

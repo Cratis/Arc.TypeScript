@@ -4,5 +4,5 @@
     "noEmit": true, "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["node", "vitest/globals"],
     "noUncheckedIndexedAccess": true
   },
-  "include": ["Source/specs/**/*.ts", "Integrations/Express/specs/**/*.ts", "Integrations/Fastify/specs/**/*.ts", "Integrations/Hono/specs/**/*.ts", "Integrations/MongoDB/specs/**/*.ts", "Integrations/Chronicle/specs/**/*.ts", "vitest.config.ts"]
+  "include": ["Source/specs/**/*.ts", "Integrations/Express/specs/**/*.ts", "Integrations/Fastify/specs/**/*.ts", "Integrations/Hono/specs/**/*.ts", "Integrations/Node/specs/**/*.ts", "Integrations/MongoDB/specs/**/*.ts", "Integrations/Chronicle/specs/**/*.ts", "vitest.config.ts"]
 }

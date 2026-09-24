@@ -6,6 +6,7 @@
     { "path": "Integrations/Express" },
     { "path": "Integrations/Fastify" },
     { "path": "Integrations/Hono" },
+    { "path": "Integrations/Node" },
     { "path": "Integrations/MongoDB" },
     { "path": "Integrations/Chronicle" },
     { "path": "Samples/Tasks" }

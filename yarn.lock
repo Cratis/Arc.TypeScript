@@ -145,6 +145,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@cratis/arc.server.node@workspace:Integrations/Node":
+  version: 0.0.0-use.local
+  resolution: "@cratis/arc.server.node@workspace:Integrations/Node"
+  dependencies:
+    "@cratis/arc.server": "workspace:^"
+    zod: "npm:^4.1.0"
+  languageName: unknown
+  linkType: soft
+
 "@cratis/arc.server.sample.tasks@workspace:Samples/Tasks":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.server.sample.tasks@workspace:Samples/Tasks"
