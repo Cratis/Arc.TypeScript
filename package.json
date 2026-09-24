@@ -28,7 +28,7 @@
     "build": "tsc -b",
     "test": "vitest run",
     "specs": "yarn test",
-    "ci": "yarn lint && yarn lint:tasks:arc && yarn typecheck && yarn build && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs"
+    "ci": "yarn lint && yarn typecheck && yarn build && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs"
   },
   "devDependencies": {
     "@cratis/fundamentals": "7.19.3",
