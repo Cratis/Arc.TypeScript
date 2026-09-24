@@ -19,6 +19,8 @@ export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBas
     validate?: CommandFilter<z.output<S>>;
     provide?: (input: z.output<S>, context: ExecutionContext) => Outcome<unknown> | unknown | Promise<Outcome<unknown> | unknown>;
     handle: (input: z.output<S>, context: ExecutionContext, provided: unknown) => T | Outcome<T> | Promise<T | Outcome<T>>;
+    /** Encode only the client response after server-only return handlers have consumed their values. */
+    encodeResponse?: (response: unknown) => unknown;
     scopes?: readonly (() => CommandExecutionScope)[];
     filters?: readonly CommandFilter<z.output<S>>[];
 }

@@ -54,13 +54,14 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
             if (isOutcome(value)) return value.kind === 'response' ? { instance, value: value.value } : value;
             return { instance, value };
         } : undefined,
+        encodeResponse: encodeCommandResponse,
         handle: async (_input, context, provided) => {
             const preparation = provided as { instance: { handle(...parameters: unknown[]): unknown }; value: unknown } | undefined;
             const instance = hasProvider ? preparation!.instance :
                 (context as CommandContext).command as { handle(...parameters: unknown[]): unknown };
             const services = await resolveCommandArguments(tokens, context as CommandContext, preparation?.value);
             const result = await instance.handle(...(hasProvider && !typedPreparation ? [preparation!.value] : []), ...services);
-            return encodeCommandResponse(result);
+            return result;
         }
     };
     return { definition, dependencies: commandServiceTokens([...tokens, ...provideTokens]) };

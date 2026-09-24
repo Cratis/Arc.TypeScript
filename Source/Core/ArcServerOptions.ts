@@ -21,6 +21,9 @@ import type { CommandContextValuesProvider } from './commands/CommandContextValu
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 import type { QueryRenderer } from './queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
+import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
+import type { CommandResult } from './commands/CommandResult.js';
+import type { CommandContext } from './commands/CommandContext.js';
 /** Options shared by the low-level Arc server and model-bound application builder. */
 export interface ArcServerOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
@@ -30,6 +33,10 @@ export interface ArcServerOptions {
     commandContextValuesProviders?: readonly ServiceIdentifier<CommandContextValuesProvider>[];
     /** Application key rules run before the default @key/getKey rule. */
     commandKeyResolvers?: readonly ServiceIdentifier<CommandKeyResolver>[];
+    /** Ordered read-model sources used by explicit command parameter markers. */
+    readModelForCommandResolvers?: readonly ServiceIdentifier<ReadModelForCommandResolver>[];
+    /** Isolate ambient integration state for the whole validated command execution. */
+    commandExecutionRunner?: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>;
     /** Shared, cooperative compensation budget (default 30 seconds). */
     commandCompensationTimeoutMs?: number;
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];

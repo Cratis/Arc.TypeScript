@@ -11,6 +11,7 @@ import type { Operation } from '../http/Operation.js';
 import { recordFailure } from '../results/failureTracking.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
+import { ReadModelForCommandError } from './ReadModelForCommandError.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { prepareDependencies, dependencyFailure, validate, validatorFailure } from './OperationValidation.js';
 import { createCommandContext } from './createCommandContext.js';
@@ -34,9 +35,10 @@ function disposition(scopes: readonly CommandExecutionScope[], context: CommandC
 }
 function failure(context: CommandContext, error: unknown, previous?: CommandResult): CommandResult {
     const result = commandResult(context, { isAuthorized: previous?.isAuthorized,
-        validationResults: [...previous?.validationResults ?? [], ...(error instanceof ServiceDependencyError ? dependencyFailure(error) : [])],
+        validationResults: [...previous?.validationResults ?? [], ...(error instanceof ServiceDependencyError ? dependencyFailure(error) : []),
+            ...(error instanceof ReadModelForCommandError ? [{ severity: 3, message: error.message, members: [], reason: 'rule' as const }] : [])],
         authorizationFailureReason: previous?.authorizationFailureReason,
-        exceptionMessages: [...previous?.exceptionMessages ?? [], String(error)],
+        exceptionMessages: [...previous?.exceptionMessages ?? [], ...(error instanceof ReadModelForCommandError ? [] : [String(error)])],
         exceptionStackTrace: error instanceof Error ? error.stack ?? '' : previous?.exceptionStackTrace });
     recordFailure(result, error, previous);
     return result;
@@ -56,7 +58,8 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
             let context: CommandContext;
             try { context = await createCommandContext(definition.commandFactory?.(value) ?? value, execution, options); }
             catch (error) { return failure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error); }
-            try {
+            const execute = async (): Promise<CommandResult> => {
+                try {
                 let issues: ValidationResult[];
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
@@ -97,6 +100,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                     if (result.isSuccess) {
                         ({ result, journal } = await prepareCommandResponse(
                             await definition.handle(value, context, provided), context, scopes, options));
+                        if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
                         if (definition.clientOutput && result.isSuccess) {
                             result.response = assertClientOutput(definition.clientOutput.output, result.response);
                         }
@@ -145,7 +149,9 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 }
                 if (!result.isSuccess) result.response = undefined;
                 return result;
-            } catch (error) { return failure(context, error); }
+                } catch (error) { return failure(context, error); }
+            };
+            return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
         }
     };
 }

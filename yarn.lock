@@ -39,14 +39,19 @@ __metadata:
   resolution: "@cratis/arc.chronicle@workspace:Source/Chronicle"
   dependencies:
     "@cratis/arc.core": "workspace:^"
-    "@cratis/chronicle": "npm:6.2.0"
-    "@cratis/fundamentals": "npm:7.19.3"
+    "@cratis/arc.testing": "workspace:^"
+    "@cratis/chronicle": "npm:6.5.1"
+    "@cratis/fundamentals": "npm:7.19.6"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.11.0
-    "@cratis/chronicle": ^6.2.0
-    "@cratis/fundamentals": ^7.19.3
+    "@cratis/arc.core": ^0.12.0
+    "@cratis/arc.testing": ^0.11.0
+    "@cratis/chronicle": ^6.5.1
+    "@cratis/fundamentals": ^7.19.6
     zod: ^4.1.0
+  peerDependenciesMeta:
+    "@cratis/arc.testing":
+      optional: true
   languageName: unknown
   linkType: soft
 
@@ -61,7 +66,7 @@ __metadata:
     "@cratis/arc.hono": "workspace:*"
     "@cratis/arc.proxygenerator": "workspace:*"
     "@cratis/arc.react": "npm:22.19.1"
-    "@cratis/fundamentals": "npm:7.19.3"
+    "@cratis/fundamentals": "npm:7.19.6"
     "@hono/node-server": "npm:1.19.17"
     "@types/react": "npm:18.3.28"
     express: "npm:^5.1.0"
@@ -91,7 +96,7 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/fundamentals": "npm:7.19.3"
+    "@cratis/fundamentals": "npm:7.19.6"
   languageName: unknown
   linkType: soft
 
@@ -100,13 +105,13 @@ __metadata:
   resolution: "@cratis/arc.core@workspace:Source/Core"
   dependencies:
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/fundamentals": "npm:7.19.3"
+    "@cratis/fundamentals": "npm:7.19.6"
     "@opentelemetry/api": "npm:^1.9.0"
     jose: "npm:^6.1.0"
     ws: "npm:^8.21.3"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/fundamentals": ^7.19.3
+    "@cratis/fundamentals": ^7.19.6
     "@opentelemetry/api": ^1.9.0
   languageName: unknown
   linkType: soft
@@ -161,11 +166,11 @@ __metadata:
   resolution: "@cratis/arc.mongodb@workspace:Source/MongoDB"
   dependencies:
     "@cratis/arc.core": "workspace:^"
-    "@cratis/fundamentals": "npm:7.19.3"
+    "@cratis/fundamentals": "npm:7.19.6"
     mongodb: "npm:^6.21.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.11.0
-    "@cratis/fundamentals": ^7.19.3
+    "@cratis/arc.core": ^0.12.0
+    "@cratis/fundamentals": ^7.19.6
     mongodb: ^6.21.0
   languageName: unknown
   linkType: soft
@@ -212,23 +217,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle.contracts@npm:19.0.1":
-  version: 19.0.1
-  resolution: "@cratis/chronicle.contracts@npm:19.0.1"
+"@cratis/chronicle.contracts@npm:19.4.0":
+  version: 19.4.0
+  resolution: "@cratis/chronicle.contracts@npm:19.4.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.14.0"
     "@grpc/grpc-js": "npm:^1.14.4"
     nice-grpc: "npm:^2.1.17"
-  checksum: 10c0/cb0921fd9a52561075e7a3d9f541a05e4343736f3c05dfbcaff9c811e13c8fff40ee9f59a7630df1f8e74f3494f73ae3452b077be0f4497357afa322e2936f29
+  checksum: 10c0/bf44625f1329f029ffdec697c3350fc6326c3cff372310ee02a037264c27ab632dffa29fd86ef50e9afb3f953e4577ceb2817c6c43b997f1cfdc50c50de6d505
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.2.0":
-  version: 6.2.0
-  resolution: "@cratis/chronicle@npm:6.2.0"
+"@cratis/chronicle@npm:6.5.1":
+  version: 6.5.1
+  resolution: "@cratis/chronicle@npm:6.5.1"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
-    "@cratis/chronicle.contracts": "npm:19.0.1"
+    "@cratis/chronicle.contracts": "npm:19.4.0"
     "@grpc/grpc-js": "npm:^1.14.4"
     "@opentelemetry/api": "npm:^1.9.1"
     nice-grpc: "npm:^2.1.17"
@@ -237,7 +242,7 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/a15a3c3522dcbdd6ed1ed0971a0ff57387400c7989c7c509705fa5a6a815225773caa99e38f179a022802d9ee693374080aa2c52697162cd54fd2e030af881b9
+  checksum: 10c0/3a00926c51e61b06dca4b681afde22719cb8868c17daa15eba3d102d5243c4775e7ca8c9d952b20f23ca3a2abba7cb459136b7cca576d28a13bcef70c20ab771
   languageName: node
   linkType: hard
 
@@ -257,10 +262,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/fundamentals@npm:7.19.3, @cratis/fundamentals@npm:^7.19.3":
-  version: 7.19.3
-  resolution: "@cratis/fundamentals@npm:7.19.3"
-  checksum: 10c0/e67e8c0d124f46b458346f52256956c5cce489a4ad980b4468085f5a8a6221ba8d7495a8e9e9c5a318372f4c727c5881811b5bcb95afbcab55cfd945dc2bf5ce
+"@cratis/fundamentals@npm:7.19.6, @cratis/fundamentals@npm:^7.19.3":
+  version: 7.19.6
+  resolution: "@cratis/fundamentals@npm:7.19.6"
+  checksum: 10c0/815314c051bb17b72803746b71b9e330610d0ad9b5606a53b960796df7366c33dcbec436fc60fcc999b60fb6bd488f938a31440bb6d85cf87821bc60b62995b5
   languageName: node
   linkType: hard
 
@@ -2286,7 +2291,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "arc-typescript-workspace@workspace:."
   dependencies:
-    "@cratis/fundamentals": "npm:7.19.3"
+    "@cratis/fundamentals": "npm:7.19.6"
     "@eslint/js": "npm:^10.0.1"
     "@opentelemetry/api": "npm:^1.9.0"
     "@opentelemetry/context-async-hooks": "npm:^2.0.0"

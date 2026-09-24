@@ -28,11 +28,9 @@ The gate checks two things:
   `noUncheckedIndexedAccess`) and resolves `@cratis/arc.core`, `@cratis/fundamentals`,
   `zod` and `vitest` from this repository's `node_modules`, then runs the workspace `tsc`.
 
-Module resolution is `Bundler`, not `NodeNext`. That is the setting the guides document
-for applications and the one the repository's own specs compile with: the installed
-Fundamentals 7.19.3 declaration barrel uses extensionless re-exports that NodeNext cannot
-resolve, so under NodeNext `ConceptAs` and `field` lose their types and a wrong snippet
-would compile. `--self-test` plants a concept type error to prove the types are live.
+Module resolution is `Bundler`, matching the repository's example applications.
+Fundamentals 7.19.6 also resolves under NodeNext; `--self-test` plants a concept
+type error to prove the configured compiler sees the actual declaration types.
 
 Usage:
     python3 Documentation/validate-client-snippets.py [--arc-documentation PATH] [--keep]
@@ -181,8 +179,7 @@ SNIPPETS: dict[str, Context | None] = {
         host=ASSESS_LOAN_COMMAND,
         imports=(FUNDAMENTALS_FIELD,
                  "import { command, currentServices, rejected, validation, type Outcome } from '@cratis/arc.core';")),
-    # Arc for TypeScript does not resolve a read model by command key into provide().
-    "scenarios/provide-data-to-a-command/provider-owned-state": None,
+    "scenarios/provide-data-to-a-command/provider-owned-state": MODULE,
     "scenarios/validate-a-command/concept-rule": MODULE,
     "scenarios/validate-a-command/command-rule": MODULE,
     "scenarios/validate-a-command/state-rule": MODULE,
@@ -195,15 +192,15 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/test-a-command/command-under-test": MODULE,
     "scenarios/test-a-command/spec": Context(
         siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
-    # Command keys, read models injected into handlers and validators, and the Chronicle
-    # integration's event appends and test seeding are not implemented in TypeScript.
-    "scenarios/use-current-state-in-a-command/rename-author": None,
+    # Command-key model resolution is available for handlers and provide(), not validator parameters.
+    # The in-memory Chronicle scenario pins models but does not materialize projections from seed events.
+    "scenarios/use-current-state-in-a-command/rename-author": MODULE,
     "scenarios/use-current-state-in-a-command/rename-author-validator": MODULE,
     "scenarios/use-current-state-in-a-command/register-customer-validator": MODULE,
-    "scenarios/use-current-state-in-a-command/required-order-state": None,
-    "scenarios/use-current-state-in-a-command/chronicle-commands": None,
+    "scenarios/use-current-state-in-a-command/required-order-state": MODULE,
+    "scenarios/use-current-state-in-a-command/chronicle-commands": MODULE,
     "scenarios/use-current-state-in-a-command/seed-events": None,
-    "scenarios/use-current-state-in-a-command/pin-read-model": None,
+    "scenarios/use-current-state-in-a-command/pin-read-model": MODULE,
     "frontend/index/open-account": MODULE,
     "frontend/react/commands/index/command-payload": MODULE,
     "frontend/react/proxy-generation/open-debit-account": MODULE,

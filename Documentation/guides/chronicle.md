@@ -1,105 +1,62 @@
 ---
 title: Append Chronicle events from commands (experimental)
-description: What the experimental Chronicle integration does, why it cannot run against a real Chronicle today, and exactly how it appends events and reports failures.
+description: Configure the experimental Chronicle integration, return events from model-bound commands, and read projected state.
 ---
 
-In Arc on .NET, a command can return events and Arc appends them to [Chronicle](/chronicle/) when the command succeeds. The experimental `@cratis/arc.chronicle` package explores the same boundary for Node.js: a command produces events, and the package appends them to the tenant's event store before it reports success.
+You can return a Chronicle event from an Arc command instead of appending it inside `handle()`. Arc runs authorization and validation first, then the optional `@cratis/arc.chronicle` integration appends the event in the trusted tenant's namespace. The integration is **experimental**; it is not a substitute for Arc on .NET's transactional Chronicle integration.
 
-:::danger[Experimental, private, and not usable against a real Chronicle yet]
+The published `@cratis/chronicle` 6.5.1 and `@cratis/fundamentals` 7.19.6 load in native Node ESM with NodeNext resolution. A kernel-backed suite verifies returned-event batches, command-key read models for existing keys, readback, tenant isolation, before-first concurrency rejection, a projected read-model query, and real Express, Fastify, and Hono HTTP adapters. Run `Source/Chronicle/run-integration.sh` to repeat that check against a task-owned development kernel (Docker required). The test image is `cratis/chronicle:latest-development`, which is mutable; pin a compatible image for reproducible deployment testing.
 
-- The package is marked `private` and is not published. It is not a supported integration.
-- The published Chronicle TypeScript SDK, `@cratis/chronicle` 6.2.0, cannot be imported by Node.js: the import fails with `ERR_UNSUPPORTED_DIR_IMPORT`, on Node.js 24 as well. Version 6.3.1 was inspected and ships the same kind of imports. Without the SDK you cannot create the `IChronicleClient` this package needs.
-- The package's specs use typed substitutes for the SDK's public interfaces. They do not load the SDK, and nothing has run against a Chronicle kernel. Passing specs here are not an integration test.
+## Return an event
 
-:::
+This is an excerpt from the compiled [kernel suite](../../Source/Chronicle/Integration/LiveArtifacts.ts); initialize `@cratis/chronicle` with `reflect-metadata` before importing decorated artifacts in your application entry point.
 
-The rest of this page describes the current source, so you can review the design or build on it once the SDK loads.
+```typescript
+import { field } from '@cratis/fundamentals';
+import { eventType } from '@cratis/chronicle/events';
+import { ArcApplication, command, key } from '@cratis/arc.core';
+import '@cratis/arc.chronicle';
 
-## Requirements
+@eventType()
+class TaskCreated { @field(String) title = ''; }
 
-- Node.js 22.19 or later, which the SDK's HTTP dependency requires.
-- `@cratis/chronicle` `^6.2.0` and `@cratis/fundamentals` `^7.19.2` as peer dependencies.
-- TypeScript `moduleResolution` set to `Bundler`. The SDK's declaration files use extensionless relative imports. With `NodeNext`, the SDK types do not resolve, and mistakes such as a misspelled event property compile without an error.
+@command()
+class CreateTask {
+    @field(String) @key() id = '';
+    @field(String) title = '';
 
-## Define a command that produces events
-
-```typescript title="tasks.ts"
-import { ArcServer, validation } from '@cratis/arc.core';
-import type { AuthenticationHandler } from '@cratis/arc.core';
-import { defineChronicleCommand } from '@cratis/arc.chronicle';
-import type { IChronicleClient } from '@cratis/chronicle';
-import { z } from 'zod';
-
-export class TaskCreated {
-    constructor(readonly title: string) {}
+    handle(): TaskCreated {
+        return Object.assign(new TaskCreated(), { title: this.title });
+    }
 }
 
-const namespacesByTenant = new Map([['acme', 'acme']]);
-
-export function createTasksServer(client: IChronicleClient, authentication: readonly AuthenticationHandler[]): ArcServer {
-    const create = defineChronicleCommand({
-        name: 'Create',
-        namespace: 'Tasks',
-        schema: z.object({ id: z.uuid(), title: z.string() }),
-        authorization: { authenticated: true },
-        authorize: (_input, context) => namespacesByTenant.has(context.tenantId ?? ''),
-        validate: ({ title }) => title.trim() ? [] : [validation('A title is required', ['title'])],
-        client,
-        eventStore: 'Tasks',
-        namespaceForContext: context => namespacesByTenant.get(context.tenantId ?? '') ?? '',
-        produce: ({ id, title }) => ({
-            events: [{ eventSourceId: id, event: new TaskCreated(title), eventStreamType: 'tasks' }],
-            response: { id }
-        })
-    });
-    return new ArcServer({ commands: [create], authentication });
-}
+const builder = ArcApplication.createBuilder();
+builder.addChronicle({ connectionString: 'chronicle://localhost:35000', eventStore: 'Tasks' });
+builder.add(CreateTask, TaskCreated);
+const app = await builder.build();
+// Mount app in your HTTP host, then await app.dispose() on shutdown.
 ```
 
-`defineChronicleCommand` takes every command field except `handle`, plus:
+The connection string above uses the SDK's **development credentials** and accepts the kernel's self-signed certificate. Provide credentials and `skipTlsValidation=false` in production. You can instead pass a caller-owned `client`; Arc never disposes it, so your host must call `client.dispose()`. With a connection string, Arc owns and closes the client. Pass `eventStore` in either case. A caller-owned client must already have a provider that registers the event types, projections, reducers, and reactors you use; an Arc-built client uses a per-builder catalog from `builder.add(...)` and `builder.discover(...)`. Call `addChronicle` before discovering artifacts.
 
-| Field | Purpose |
-| --- | --- |
-| `client` | An `IChronicleClient` your application creates, connects, and disposes |
-| `eventStore` | The event store name |
-| `namespaceForContext(context)` | The Chronicle namespace for this request. Arc never derives it from a header on its own. |
-| `produce(input, context, provided)` | Returns `{ events, response? }`: the events to append, as the SDK's `EventForEventSourceId`, and the command response |
+The command's `@key()` field determines its event source ID. `getEventSourceId()` takes precedence over that field; `tuple(eventSourceIdResponse(id), event)` explicitly overrides the key and returns `id` to the caller. An ordinary `tuple(event, 'message')` still appends to the command key. Without a key, Arc creates a new UUID for each execution. A plain array of registered events appends in one SDK batch; an array of ordinary DTOs remains a response. For a different event target, return `eventForEventSourceId({ eventSourceId, event, ...routing })`; the explicit route, subject, occurred time, and tags override command defaults. The brand prevents an ordinary DTO with `event` and `eventSourceId` fields from being mistaken for an event. The SDK's `@tag` and `@tags` on event classes still apply. Class decorators `@eventSourceType`, `@eventStreamType`, `@eventStreamId`, and `@eventSubject` set command defaults. Mark a field `@notAudited()` to exclude its value from the permanent causation chain; Arc also excludes SDK `@pii` fields and obvious secret-named fields. The trusted Arc principal, correlation ID, and command causation are scoped with the SDK's async `run` methods.
 
-It returns an ordinary command definition. Authorization, the schema, validators, `provide`, and scopes run as for any command, and `produce` runs in place of `handle`.
+Use `eventsWithConcurrencyScopes(events, scopes)` for exact, server-authored revisions; scope keys may refer to different sources from the appended events. `EventSequenceNumber.beforeFirst.value` is the initial expected revision. The kernel requires at least one event in a batch: **scope-only empty batches fail**. A routing decorator's `{ concurrency: true }` instead reads the tail immediately before append and scopes that dimension. It does not pin the revision you used when reading state; use exact scopes for a read-modify-write rule.
 
-The event's class must be registered with the SDK for that event store; the package checks it against the store's `eventTypes.all`, the current-generation constructors exposed by the SDK. Older-generation constructors are not supported by this adapter. Registering event types is done with the Chronicle SDK, not with Arc.
+## Read projected state in a command
 
-## What happens when the command runs
+Use `@inject(commandReadModel(LiveView))` on `handle()` or `provide()` to load a registered Chronicle read model by the command's `@key()` field. A missing required model becomes a validation failure; `commandReadModel(LiveView, { optional: true })` passes `null` when the SDK reports absence. Without a usable command key, both forms reject the command. Only Chronicle-decorated models in the application's artifact catalog qualify. If MongoDB owns the model instead, `builder.addMongoDB` provides the same key-based hook for its explicitly configured `readModels`; do not register both integrations as owners of the same type. The [kernel fixture](../../Source/Chronicle/Integration/LiveArtifacts.ts) includes a compiled handler example.
 
-1. `produce` runs. If the request has been cancelled, the command fails before anything is appended.
-2. `namespaceForContext` must return a non-empty namespace, even when there are no events. Otherwise the command fails.
-3. An empty `events` list appends nothing, does not contact Chronicle, and returns `response`, which may be an Arc outcome such as `denied(...)`. With events, `response` must not be an Arc outcome.
-4. Every event needs an `eventSourceId` and an object. The adapter captures the event list, routing metadata, and response reference before resolving the store. Event payload objects are not deep-cloned: keep them immutable. The package refuses any event whose class is not in the selected store's `eventTypes.all`, before appending anything.
-5. One event is appended with `eventLog.append`, passing the Arc correlation ID and the event's source type, stream type, stream ID, subject, occurred time, and tags. Several events are appended with one `eventLog.appendMany` call, with the correlation ID and each event's own metadata.
-6. The response is returned only after Chronicle acknowledged every event.
+`ChronicleReadModels` is a tenant-scoped service for explicit lookups and queries. Inject it with `@inject(ChronicleReadModels)` or `service(ChronicleReadModels)` and call `findInstanceById` or `watch`. A class used by both Arc queries and Chronicle projections needs *both* `@readModel()` decorators (alias one import). Published SDK 6.5.1 handles the kernel's literal JSON `null` for missing models. The live suite verifies that missing required models become Arc validation failures. These read-model parameters are not injected into `BaseValidator` rules; make an explicit tenant-scoped lookup in a rule when validation needs state.
 
-## How append failures are reported
+You can test returned events without a kernel using `ChronicleCommandScenario.for(CreateTask, TaskCreated)` from `@cratis/arc.chronicle/testing`. Its `execute()` result has `shouldHaveAppendedEvent(TaskCreated, sourceId, event => event.title === '...')`; `givenReadModel(Type, sourceId, instance, tenant?)` pins a model. The in-memory log records successful returned events; it records routing and accepts concurrency scopes for command-flow assertions, but does not enforce concurrency or constraints, run projections, or replace the kernel suite. Assertions on `execute()` inspect only that execution's events.
 
-| Chronicle reports | Command result |
-| --- | --- |
-| Every event accepted | Success with `response` |
-| A single event rejected by a constraint | 400 with reason `constraintViolation`, the constraint ID in `reasonDetail` |
-| A single event rejected for concurrency | 400 with reason `concurrencyViolation`; `state` has `eventSourceId`, `expectedEventSequenceNumber`, and `actualEventSequenceNumber`. Sequence numbers are strings to preserve 64-bit precision |
-| Any error, a thrown call, an unknown result, or a result count that does not match | 500 |
-| Some events accepted and others not | 500; accepted events stay appended, because nothing can roll them back |
-| A rejected batch of several events | 500. The published SDK returns no results for a rejected batch, so the package cannot tell a constraint violation from any other failure and reports it as an exception. |
+## Failure and consistency boundaries
 
-Cancellation after Chronicle has acknowledged the append does not undo it. A later execution-scope failure can still fail the overall command despite the committed events; there is no automatic rollback or retry guarantee.
+Chronicle constraint and concurrency rejections become Arc validation results; unknown, incomplete, contradictory, or partial acknowledgments fail the command. Authorization, Arc validation, and a rejecting `provide()` run before returned events are appended. Returned events from nested Arc commands using the same tenant, correlation ID, and event store join the outer command's single `eventLog.appendMany` call. If either command fails, none of their staged events are sent. A nested command's temporary success is not a durable append acknowledgment; only the outer result includes the final commit verdict. Even if the outer command ignores a failed nested command that staged no events, the outer command fails. A detached command executing after the outer unit completes starts a new unit and appends independently. The SDK stamps a single batch causation chain: nested events carry the outer command's causation, not their individual command's.
 
-## What it does not do
+**This is a single-event-log returned-event batch, not a .NET transaction.** An immediate SDK append inside `handle()`, a low-level `defineChronicleCommand`, a completed aggregate, or any non-Chronicle effect happens outside this batch and cannot be rolled back. Returning Chronicle events and command operations together is rejected before executing either effect; operations performed by a separate nested command or directly inside a handler are outside this protection. No aggregate-root or Arc reactor-command integration is provided: the SDK constructs reactors independently and its side-effect dispatcher does not execute Arc command returns or guarantee that failed commands fail a reactor partition. Use the SDK directly for its existing event-return reactor behavior; do not claim .NET reactor command-side-effect semantics. The package is experimental despite the passing missing-model live check; the batch is not a commit participant in Arc command operations.
 
-- No transactions or units of work. Events are not appended atomically with anything else, and a scope cannot roll them back.
-- No bridge from Arc's principal or command properties into Chronicle's identity or causation context. The SDK and kernel retain their own auditing and compliance behavior; this adapter adds no Arc-specific compliance or read-model release behavior.
-- No waiting for observers, and no reactors, projections, read models, or observable queries.
-- No tenant membership check. `namespaceForContext` receives whatever tenant Arc resolved; verify it in `authorize`, as the example does.
+The older low-level `defineChronicleCommand` remains available. It accepts a client, event store, tenant namespace resolver, and `produce()` returning `{ events, response }`. Its own immediate append semantics and rejection mapping are described in source; use the model-bound path for new Arc commands. Neither route makes the SDK's observer completion synchronous with an append acknowledgment.
 
-## Related
-
-- [Decide command outcomes](command-outcomes.md)
-- [Capability reference](../reference/capabilities.md)
-- [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript)
+See the [capability reference](../reference/capabilities.md) for the distinction between implemented behavior and .NET parity.
