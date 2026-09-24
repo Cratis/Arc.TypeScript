@@ -3,7 +3,7 @@
 
 import express from 'express';
 import { z } from 'zod';
-import { ArcApplication, AuthenticationStatus, defineCommand, defineQuery, validation } from '@cratis/arc.core';
+import { ArcApplication, AuthenticationStatus, defineCommand, defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
 import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
 import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
@@ -28,6 +28,10 @@ const adminEcho = defineCommand({
     name: 'AdminEcho', path: '/api/admin-echo', schema: valueSchema, authorization: admin,
     validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
     handle: ({ value }) => ({ value })
+});
+const tupleEcho = defineCommand({
+    name: 'TupleEcho', path: '/api/tuple-echo', schema: valueSchema, authorization: anonymous,
+    handle: ({ value }) => tuple({ value }, rejected(validation('Cannot echo', ['value'])))
 });
 const throwFailure = defineCommand({
     name: 'ThrowFailure', path: '/api/throw-failure', schema: z.object({}), authorization: anonymous,
@@ -58,7 +62,7 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, throwFailure], queries: [echoCount, byId, all, privateItems],
+    commands: [echo, adminEcho, throwFailure, tupleEcho], queries: [echoCount, byId, all, privateItems],
     authentication: [authentication], development: false, segmentsToSkip: 1
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,

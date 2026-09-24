@@ -25,6 +25,8 @@
       href: validation-and-authorization.md
     - name: Decide command outcomes
       href: command-outcomes.md
+    - name: Declare command operations
+      href: command-operations.md
     - name: Bind query arguments, page, and sort
       href: queries.md
     - name: Stream an observable query
