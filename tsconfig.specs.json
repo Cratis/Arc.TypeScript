@@ -7,6 +7,6 @@
     "moduleResolution": "Bundler",
     "types": ["node", "vitest/globals", "chai", "sinon"]
   },
-  "include": ["Source/**/for_*/**/*.ts", "Samples/Tasks/**/for_*/**/*.ts", "Source/**/given.ts", "Source/**/given/**/*.ts", "vitest.config.ts", "vitest.setup.ts", "vite.base.ts", "test.d.ts"],
+  "include": ["Source/**/for_*/**/*.ts", "Source/Drizzle/*.integration.ts", "Samples/Tasks/**/for_*/**/*.ts", "Source/**/given.ts", "Source/**/given/**/*.ts", "vitest.config.ts", "vitest.setup.ts", "vite.base.ts", "test.d.ts"],
   "references": []
 }

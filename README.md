@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/1182595891576717413?label=Discord&logo=discord&logoColor=white)](https://discord.gg/kt4AMpV8WV)
 
 > [!IMPORTANT]
-> **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections, a bounded source-based client generator, and an experimental Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
+> **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections and Drizzle SQL queries, a bounded source-based client generator, and an experimental Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
 
 Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js as idiomatic TypeScript, not as a line-by-line port.
 
@@ -51,9 +51,10 @@ export class TaskItem {
 | `@cratis/arc.proxygenerator` | [`Source/Tools/ProxyGenerator`](Source/Tools/ProxyGenerator) | `analyzeSource`, `renderSource`, `generateFromSource`, and the `arc-proxygenerator` CLI generate published-client proxies from decorated source. The original `renderClientManifest`/`generateClient` JSON path remains available for low-level definitions. See [Generate command and query clients](Documentation/guides/generate-clients.md). |
 | `@cratis/eslint-plugin-arc-core` | [`Source/CodeAnalysis`](Source/CodeAnalysis) | ESLint 10 flat-config diagnostics for model-bound server artifacts, with an untyped-safe recommended config and an optional type-checked preset. See [Code analysis](Documentation/code-analysis/index.md). |
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.addMongoDB`, tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
+| `@cratis/arc.drizzle` | [`Source/Drizzle`](Source/Drizzle) | `builder.addDrizzle`, tenant-scoped SQL handles, explicit column codecs and provider-owned paging; SQLite and PostgreSQL tested, MySQL and observation unverified |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.addChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.5.1 imports natively; an opt-in kernel suite exercises all three HTTP adapters. No .NET transaction, aggregate, or reactor-command parity. |
 
-Every package manifest is at version 0.13.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.14.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, MongoDB, and Drizzle packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -72,7 +73,7 @@ The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops 
 
 ## What works and what does not
 
-Supported, with specs in this repository: commands and queries with Zod schemas, observable queries (HTTP snapshots, direct SSE and WebSocket, and the multiplexed WebSocket and SSE hubs used by the `@cratis/arc` client), validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and tenant-scoped MongoDB collections with live replica-set specs.
+Supported, with specs in this repository: commands and queries with Zod schemas, observable queries (HTTP snapshots, direct SSE and WebSocket, and the multiplexed WebSocket and SSE hubs used by the `@cratis/arc` client), validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, tenant-scoped MongoDB collections with live replica-set specs, and SQL paging with SQLite and PostgreSQL specs.
 
 Also supported, each one explicit or opt-in:
 
@@ -88,7 +89,7 @@ A paired suite checks 48 bounded HTTP cases, including model-bound validation, a
 Not implemented:
 
 - Generated server artifact metadata and complete .NET proxy parity. The source analyzer emits a bounded client model, but standard-mode injection still needs explicit tokens; identity-only models and some .NET template options are not yet emitted. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
-- SQL integrations. Named policies and guarded identity handlers are supported; see [authorization](Documentation/identity/authorization.md). Command operations and effects have a bounded implementation, not a distributed transaction.
+- SQL observation and automatic migration execution. [Drizzle SQL](Documentation/sql/index.md) supports explicit conversions and SQL paging but not EF change tracking or cross-process notifications. Named policies and guarded identity handlers are supported; see [authorization](Documentation/identity/authorization.md). Command operations and effects have a bounded implementation, not a distributed transaction.
 
 The Chronicle integration stays experimental despite passing a bounded live-kernel suite. SDK 6.5.1 handles literal JSON `null` for a missing model, which the suite checks across all three adapters. Command-key read-model injection and a single-event-log nested returned-event batch exist; returned events and command operations cannot be combined. Immediate appends, aggregates, and reactor command effects do not join that batch.
 
@@ -112,6 +113,7 @@ The [capability reference](Documentation/reference/capabilities.md) lists every 
 - [Model-bound JSON wire format](Documentation/queries/wire-format.md) for derived types, acronyms and named floats
 - [Compose services and test pipelines](Documentation/guides/services-and-testing.md)
 - [Read models from MongoDB](Documentation/guides/mongodb.md)
+- [Read models from SQL with Drizzle](Documentation/sql/index.md)
 - [Generate command and query clients](Documentation/guides/generate-clients.md)
 - [Append Chronicle events from commands (experimental)](Documentation/guides/chronicle.md)
 - [Capability reference](Documentation/reference/capabilities.md)

@@ -20,6 +20,7 @@
     { "path": "Source/Fastify" },
     { "path": "Source/Hono" },
     { "path": "Source/MongoDB" },
+    { "path": "Source/Drizzle" },
     { "path": "Source/Chronicle" },
     { "path": "Source/Testing" },
     { "path": "Source/Tools/ProxyGenerator" },

@@ -1,16 +1,16 @@
 {
-  "name": "@cratis/arc.mongodb",
+  "name": "@cratis/arc.drizzle",
   "version": "0.14.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "description": "Tenant-scoped MongoDB collections, BSON codecs, and observable Arc queries",
+  "description": "Tenant-scoped Drizzle SQL queries for Arc",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
-    "directory": "Source/MongoDB"
+    "directory": "Source/Drizzle"
   },
   "engines": {
     "node": ">=22"
@@ -28,11 +28,16 @@
   "peerDependencies": {
     "@cratis/arc.core": "^0.14.0",
     "@cratis/fundamentals": "^7.19.6",
-    "mongodb": "^6.21.0"
+    "drizzle-orm": "^0.45.0"
   },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
     "@cratis/fundamentals": "7.19.6",
-    "mongodb": "^6.21.0"
+    "@types/pg": "^8.0.0",
+    "@types/sql.js": "^1.4.11",
+    "drizzle-orm": "^0.45.0",
+    "pg": "^8.0.0",
+    "postgres": "^3.4.9",
+    "sql.js": "^1.14.2"
   }
 }
