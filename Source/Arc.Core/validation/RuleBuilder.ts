@@ -4,6 +4,7 @@ import type { DateOnly, TimeOnly, TimeSpan } from '@cratis/fundamentals';
 import { ApplyConditionTo } from './ApplyConditionTo.js';
 import { Severity } from './Severity.js';
 import type { Rule } from './Rule.js';
+import { compareValues } from './compareValues.js';
 
 type Comparable = number | Date | DateOnly | TimeOnly | TimeSpan;
 
@@ -17,7 +18,7 @@ export class RuleBuilder<T, V> {
     private add(kind: string, args: readonly unknown[] = [], safe = true): this {
         if (['minLength', 'maxLength', 'length'].includes(kind) &&
             args.some(value => !Number.isSafeInteger(value) || (value as number) < 0) ||
-            ['length', 'inclusiveBetween', 'exclusiveBetween'].includes(kind) && compareArgs(args[0], args[1]) > 0)
+            ['length', 'inclusiveBetween', 'exclusiveBetween'].includes(kind) && (compareValues(args[0], args[1]) ?? 0) > 0)
             throw new Error(`Invalid validation rule arguments: ${kind}`);
         const rule: Rule = Object.freeze({ path: Object.freeze([...this.path]), kind,
             args: Object.freeze([...args]), severity: Severity.Error, clientSafe: safe });
@@ -140,8 +141,4 @@ export class RuleBuilder<T, V> {
 
 function safeNumber(value: unknown): boolean {
     return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER;
-}
-function compareArgs(left: unknown, right: unknown): number {
-    if (typeof left === 'number' && typeof right === 'number') return left - right;
-    return String(left).localeCompare(String(right));
 }
