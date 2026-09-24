@@ -65,6 +65,22 @@ test('source analyzer resolves imported decorator symbols, types, routes and sta
     assert.ok((await readdir(join(output, 'Tasks/Listing'))).includes('TaskItem.proxy.ts'));
 });
 
+test('generated JSDoc summary reaches the OpenAPI HTTP document', async () => {
+    const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
+    const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
+    const builder = ArcApplication.createBuilder();
+    builder.useGeneratedMetadata(metadata);
+    builder.services.addSingleton(Tasks);
+    await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));
+    const app = await builder.build();
+    try {
+        const response = await app.server.handle(new Request('http://localhost/openapi.json'));
+        assert.equal(response.status, 200);
+        const document = await response.json();
+        assert.equal(document.paths['/api/tasks/registration/register-task'].post.summary, 'Register a task.');
+    } finally { await app.stop(); }
+});
+
 for (const kind of ['express', 'fastify', 'hono']) test(`analyzer-generated published client runs against live model-bound ${kind}`, async () => {
     const { modules } = await generated();
     const { RegisterTask } = await modules('Tasks/Registration/RegisterTask.proxy.js');
