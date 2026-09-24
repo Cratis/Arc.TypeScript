@@ -36,6 +36,7 @@
     "@cratis/arc.testing": "workspace:^"
   },
   "dependencies": {
+    "@cratis/fundamentals": "7.19.3",
     "ws": "^8.21.3",
     "zod": "^4.1.0"
   }

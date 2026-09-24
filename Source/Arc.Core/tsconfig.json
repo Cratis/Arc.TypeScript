@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "dist" },
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "module": "ESNext", "moduleResolution": "Bundler" },
   "include": ["**/*.ts"],
   "exclude": ["dist", "node_modules", "for_*/**", "given/**", "vite.config.mts"]
 }
