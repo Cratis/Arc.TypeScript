@@ -7,12 +7,13 @@ import { TLSSocket } from 'node:tls';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import type { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
-import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
+import { ArcApplication, type ArcServer, type NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
 /** The callback must use host-verified identity/authority, never request headers. */
-export function mountExpress(app: Express, server: ArcServer,
+export function mountExpress(app: Express, application: ArcServer | ArcApplication,
     native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
+    const server = application instanceof ArcApplication ? application.server : application;
     app.use(async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
         const rawPath = request.originalUrl.split('?')[0] ?? '';
         if (!server.endpoints.has(rawPath)) return next();
@@ -55,7 +56,7 @@ export function mountExpress(app: Express, server: ArcServer,
 }
 
 /** Bridge upgrades on the listener returned by app.listen(); the Arc server owns protocol and shutdown. */
-export function mountExpressWebSockets(host: HttpServer, server: ArcServer,
+export function mountExpressWebSockets(host: HttpServer, application: ArcServer | ArcApplication,
     native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
-    return attachNodeWebSockets(host, server, native);
+    return attachNodeWebSockets(host, application instanceof ArcApplication ? application.server : application, native);
 }

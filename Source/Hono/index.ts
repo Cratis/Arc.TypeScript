@@ -2,11 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Context, Env, Hono } from 'hono';
 export { mountHonoWebSockets } from './WebSocketMount.js';
-import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
+import { ArcApplication, type ArcServer, type NativeRequestContext } from '@cratis/arc.core';
 
 /** No TLS or principal is inferred from Fetch URLs/headers. Explicit callback must attest both. */
-export function mountHono<E extends Env>(app: Hono<E>, server: ArcServer,
+export function mountHono<E extends Env>(app: Hono<E>, application: ArcServer | ArcApplication,
     native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): void {
+    const server = application instanceof ArcApplication ? application.server : application;
     app.use('*', async (context, next) => {
         if (context.req.header('upgrade')?.toLowerCase() === 'websocket') return next();
         // The Node adapter exposes the unnormalized request-target through env.incoming.
