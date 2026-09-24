@@ -1,0 +1,42 @@
+{
+  "name": "@cratis/cratis",
+  "version": "0.15.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Arc and experimental Chronicle composition for Node.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
+    "directory": "Source/Cratis"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@cratis/arc.chronicle": "workspace:^",
+    "@cratis/arc.core": "workspace:^",
+    "@cratis/arc.testing": "workspace:^"
+  },
+  "peerDependencies": {
+    "@cratis/chronicle": "^6.5.1",
+    "@cratis/fundamentals": "^7.19.6",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@cratis/chronicle": "6.5.1",
+    "@cratis/fundamentals": "7.19.6",
+    "zod": "^4.1.0"
+  }
+}

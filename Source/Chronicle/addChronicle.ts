@@ -12,10 +12,13 @@ import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
-export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleRegistration): ArcApplicationBuilder {
+export function withChronicle(builder: ArcApplicationBuilder, options: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
+    const registration = { ...builder.configuration.Cratis?.Chronicle, ...options };
+    if (!registration.eventStore || (!registration.connectionString && !registration.client) ||
+        (registration.connectionString && registration.client)) throw new Error('Chronicle requires eventStore and exactly one of connectionString or client');
     const artifacts = new ChronicleArtifacts();
     builder.addArtifactObserver(type => artifacts.register(type as Constructor));
-    builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(options, artifacts));
+    builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(registration as ChronicleRegistration, artifacts));
     builder.services.addScoped(ChronicleReadModels, async scope =>
         new ChronicleReadModels(await scope.resolve(ChronicleRuntime), scope.identity!));
     builder.services.addScoped(ChronicleReadModelForCommandResolver, async scope =>
@@ -31,12 +34,9 @@ export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleR
 }
 
 declare module '@cratis/arc.core' {
-    interface ArcApplicationBuilder {
-        /** Add optional Chronicle events and tenant-scoped read-model access. Import @cratis/arc.chronicle first. */
-        addChronicle(options: ChronicleRegistration): this;
-    }
+    interface ArcBuilderIntegrationOptions { chronicle: Partial<ChronicleRegistration>; }
 }
-ArcApplicationBuilder.prototype.addChronicle = function (options: ChronicleRegistration) {
-    addChronicle(this, options);
-    return this;
-};
+
+/** @deprecated Use withChronicle. */
+export const addChronicle = withChronicle;
+ArcApplicationBuilder.registerExtension('chronicle', withChronicle);

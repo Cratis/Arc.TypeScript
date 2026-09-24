@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist" },
+  "include": ["*.ts"],
+  "exclude": ["dist", "node_modules"],
+  "references": [{ "path": "../Core" }, { "path": "../Chronicle" }, { "path": "../Testing" }]
+}

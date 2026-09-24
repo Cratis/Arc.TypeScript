@@ -34,7 +34,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/arc.chronicle@workspace:Source/Chronicle":
+"@cratis/arc.chronicle@workspace:Source/Chronicle, @cratis/arc.chronicle@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.chronicle@workspace:Source/Chronicle"
   dependencies:
@@ -264,6 +264,23 @@ __metadata:
   checksum: 10c0/3a00926c51e61b06dca4b681afde22719cb8868c17daa15eba3d102d5243c4775e7ca8c9d952b20f23ca3a2abba7cb459136b7cca576d28a13bcef70c20ab771
   languageName: node
   linkType: hard
+
+"@cratis/cratis@workspace:Source/Cratis":
+  version: 0.0.0-use.local
+  resolution: "@cratis/cratis@workspace:Source/Cratis"
+  dependencies:
+    "@cratis/arc.chronicle": "workspace:^"
+    "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.testing": "workspace:^"
+    "@cratis/chronicle": "npm:6.5.1"
+    "@cratis/fundamentals": "npm:7.19.6"
+    zod: "npm:^4.1.0"
+  peerDependencies:
+    "@cratis/chronicle": ^6.5.1
+    "@cratis/fundamentals": ^7.19.6
+    zod: ^4.1.0
+  languageName: unknown
+  linkType: soft
 
 "@cratis/eslint-plugin-arc-core@workspace:Source/CodeAnalysis":
   version: 0.0.0-use.local
