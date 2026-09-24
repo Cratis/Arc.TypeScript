@@ -47,7 +47,7 @@ const result = await arc.executeCommand('Echo', { value: 'hello' }, {
 console.log(result.isSuccess, result.response);
 ```
 
-`executeCommand` and `performQuery` find the operation by its full name: the namespace and name joined with a dot, such as `Tasks.Create`, or the bare name when the definition has no namespace. They throw when no operation matches. Pass `true` as the fourth argument of `executeCommand` to validate without running the command, like the `/validate` route. `performQuery` takes paging and sorting as its fourth argument, for example `{ paging: { page: 0, pageSize: 10 } }`.
+`executeCommand` and `performQuery` find the operation by its full name: for low-level definitions, the namespace and name joined with a dot (such as `Tasks.Create`), or the bare name when there is no namespace. A model-bound query includes the read-model name too, such as `Tasks.Listing.TaskItem.allTasks`; a model-bound command uses its namespace and class name. They throw when no operation matches. Pass `true` as the fourth argument of `executeCommand` to validate without running the command, like the `/validate` route. `performQuery` takes paging and sorting as its fourth argument, for example `{ paging: { page: 0, pageSize: 10 } }`.
 
 ## What a direct call does differently
 

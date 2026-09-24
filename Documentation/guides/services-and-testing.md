@@ -3,7 +3,7 @@ title: Compose scoped services and test real pipelines
 description: Register owned services, declare handler dependencies, and assert command results through the same pipelines used by HTTP.
 ---
 
-Use a service token when a command or query needs a dependency that must live for one execution or for the server's lifetime. Declare handler dependencies so Arc can reject missing registrations, cycles, and captive lifetimes before calling your handler. The [Tasks sample](../../Samples/Tasks/src/index.ts) uses a singleton in-memory repository for both commands and queries.
+Use a service token when a command or query needs a dependency that must live for one execution or for the server's lifetime. Declare handler dependencies so Arc can reject missing registrations, cycles, and captive lifetimes before calling your handler. The [Tasks sample](../../Samples/Tasks/main.ts) registers a singleton in-memory service for both its command and queries. Model-bound services also accept class tokens through the [application builder](dependency-injection.md).
 
 ## Register a scoped service
 

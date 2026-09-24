@@ -11,6 +11,12 @@ The guides describe the current source in this repository. No package is publish
 
 | Guide | Use it when you want to |
 | --- | --- |
+| [Define commands](commands.md) | Add a model-bound command with typed fields, a handler, and an optional preparation step. |
+| [Define read models and queries](read-models-and-queries.md) | Bind named query arguments and scope services; expose an observable query. |
+| [Use concepts](concepts.md) | Decode domain values and nested fields without losing the wire schema. |
+| [Register services](dependency-injection.md) | Choose a lifetime, declare constructor and method dependencies, and preflight the graph. |
+| [Build an application](application-setup.md) | Discover artifacts, configure routes, and start a standalone or adapted host. |
+| [Use low-level definitions](low-level-definitions.md) | Keep a Zod-backed command or query instead of converting it to decorators. |
 | [Host Arc in Express, Fastify, or Hono](host-integration.md) | Serve your commands and queries from the web framework you already use. |
 | [Host Arc directly in Node.js](standalone-host.md) | Serve Arc and a built SPA without a web framework. |
 | [Call Arc from code](direct-calls.md) | Run a command or query from a spec, a job, or a Fetch API host, without a web framework. |
