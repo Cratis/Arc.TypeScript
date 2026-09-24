@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-export { command } from './modelBound/index.js';
+export { command, isArcCommand } from './modelBound/index.js';
 export { defineCommand } from './defineCommand.js';
 export type { CommandDefinition } from './CommandDefinition.js';
 export type { CommandExecutionScope } from './CommandExecutionScope.js';
@@ -23,4 +23,6 @@ export type { CommandRecoverySummary } from './CommandRecoverySummary.js';
 export { abortSignal, commandContext } from './modelBound/commandArgument.js';
 export { provided } from './modelBound/provided.js';
 export { commandReadModel } from './modelBound/readModel.js';
+export { readModelForValidation } from '../validation/readModelForValidation.js';
+export { commandArgument } from './modelBound/commandContextArgument.js';
 export type { ReadModelForCommandResolver } from './ReadModelForCommandResolver.js';

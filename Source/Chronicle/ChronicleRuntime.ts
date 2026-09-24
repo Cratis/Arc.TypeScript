@@ -2,7 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ChronicleClient, ChronicleOptions, EventStoreNamespaceName } from '@cratis/chronicle';
 import type { IEventStore } from '@cratis/chronicle';
-import type { ExecutionContext } from '@cratis/arc.core';
+import type { ArcServer, ExecutionContext } from '@cratis/arc.core';
+import { reactorCommandResultHandler } from './reactorCommands.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
 
@@ -10,11 +11,11 @@ import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
 export class ChronicleRuntime {
     readonly #client;
     readonly #owned;
-    constructor(readonly options: ChronicleRegistration, artifacts: ChronicleArtifacts) {
+    constructor(readonly options: ChronicleRegistration, artifacts: ChronicleArtifacts, server: () => ArcServer) {
         if (!options.eventStore) throw new Error('A Chronicle event store is required');
         this.#owned = !options.client;
         this.#client = options.client ?? new ChronicleClient(ChronicleOptions.fromConnectionString(options.connectionString!, {
-            clientArtifactsProvider: artifacts, discoveryPatterns: []
+            clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(server, options.eventStore)
         }));
     }
     /** Resolves the selected event store in the namespace authorized by Arc. */

@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ArcApplicationBuilder } from '@cratis/arc.core';
+import type { ArcServer } from '@cratis/arc.core';
 import type { Constructor } from '@cratis/fundamentals';
 import { ChronicleArtifacts } from './ChronicleArtifacts.js';
 import { ChronicleReadModels } from './ChronicleReadModels.js';
@@ -10,12 +11,18 @@ import { ChronicleCommandKeyResolver } from './ChronicleCommandKeyResolver.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
+import { ChronicleCommandScope } from './ChronicleCommandScope.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
 export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleRegistration): ArcApplicationBuilder {
     const artifacts = new ChronicleArtifacts();
+    let server: ArcServer | undefined;
+    builder.addBuiltObserver(built => { server = built; });
     builder.addArtifactObserver(type => artifacts.register(type as Constructor));
-    builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(options, artifacts));
+    builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(options, artifacts, () => {
+        if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');
+        return server;
+    }));
     builder.services.addScoped(ChronicleReadModels, async scope =>
         new ChronicleReadModels(await scope.resolve(ChronicleRuntime), scope.identity!));
     builder.services.addScoped(ChronicleReadModelForCommandResolver, async scope =>
@@ -27,6 +34,7 @@ export function addChronicle(builder: ArcApplicationBuilder, options: ChronicleR
     builder.services.addScoped(ChronicleCommandKeyResolver);
     builder.addCommandKeyResolver(ChronicleCommandKeyResolver);
     builder.addCommandExecutionRunner(runChronicleCommand);
+    builder.addCommandExecutionScope(() => new ChronicleCommandScope());
     return builder;
 }
 

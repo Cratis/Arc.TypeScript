@@ -12,7 +12,8 @@ import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 import { eventRoutingFor } from './eventRouting.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { EventSourceIdResponse } from './eventSourceIdResponse.js';
-import { isRoutedEvent } from './eventForEventSourceId.js';
+import { eventForEventSourceId, isRoutedEvent } from './eventForEventSourceId.js';
+import { AggregateRootCommitResult } from './AggregateRoot.js';
 function eventLike(value: unknown): boolean {
     return typeof value === 'object' && value !== null && (isRoutedEvent(value) || hasEventType(value.constructor));
 }
@@ -23,16 +24,17 @@ function identifier(value: unknown): string | undefined {
 }
 /** Consume only registered Chronicle events, leaving ordinary DTOs in the Arc response pipeline. */
 export class ChronicleResponseHandler implements CommandResponseValueHandler {
-    readonly incompatibleWithOperations = true;
     constructor(private readonly runtime: ChronicleRuntime) {}
     canHandle(_context: CommandContext, value: unknown): boolean {
-        if (value instanceof EventsWithConcurrencyScopes) return true;
+        if (value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
         if (Array.isArray(value)) return value.length === 0 || value.some(eventLike);
         return eventLike(value);
     }
     async handle(context: CommandContext, value: unknown) {
+        if (value instanceof AggregateRootCommitResult) value.aggregate.assertUnstaged(value);
         const exact = value instanceof EventsWithConcurrencyScopes ? value : undefined;
-        const values = exact ? [...exact.events] : Array.isArray(value) ? [...value] : [value];
+        const values = value instanceof AggregateRootCommitResult ? value.events.map(eventForEventSourceId) :
+            exact ? [...exact.events] : Array.isArray(value) ? [...value] : [value];
         if (!values.length) return;
         const store = await this.runtime.getStore(context);
         if (!values.every(item => isRegisteredEvent(store, isRoutedEvent(item) ? item.event : item)))
@@ -59,7 +61,8 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
                 subject: original.subject ?? subject ?? original.eventSourceId,
                 tags: original.tags, occurred: original.occurred };
         });
-        const scopes: Record<string, ConcurrencyScope> = { ...exact?.scopes };
+        const scopes: Record<string, ConcurrencyScope> = { ...exact?.scopes,
+            ...(value instanceof AggregateRootCommitResult ? value.scopes : {}) };
         if (route.concurrentSource || route.concurrentStreamType || route.concurrentStreamId) {
             await Promise.all([...new Set(entries.map(entry => entry.eventSourceId))].map(async id => {
                 if (scopes[id]) return;
@@ -75,8 +78,14 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         const options: AppendOptions = { correlationId: context.correlationId,
             ...(Object.keys(scopes).length ? { concurrencyScopes: scopes } : {}) };
         const unit = ChronicleUnitOfWork.active();
-        if (unit) { unit.stage(store, context, entries, options); return; }
+        if (unit) {
+            unit.stage(store, context, entries, options);
+            if (value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
+            return;
+        }
         const results = await store.eventLog.appendMany(entries, options);
-        return checkResults(results, entries.length);
+        const outcome = checkResults(results, entries.length);
+        if (!outcome && value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
+        return outcome;
     }
 }
