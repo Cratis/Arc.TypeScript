@@ -41,8 +41,8 @@ export class HubConnection {
         this.#context = Object.freeze({ ...context, connectionId: this.id,
             principal: clonePrincipal(context.principal), signal: AbortSignal.any([context.signal, output.signal]) });
         this.#states = new SubscriptionRevisions(server.observableLimits.tombstones);
-        this.#keepAlive = new HubKeepAlive(output, intervalMs, () => { void this.close(); });
-        output.signal.addEventListener('abort', () => { void this.close(); }, { once: true });
+        this.#keepAlive = new HubKeepAlive(output, intervalMs, () => { void this.close().catch(() => {}); });
+        output.signal.addEventListener('abort', () => { void this.close().catch(() => {}); }, { once: true });
     }
 
     get context(): ExecutionContext { return this.#context; }
@@ -74,10 +74,10 @@ export class HubConnection {
             const queryId = this.queryId(message.queryId);
             const revision = this.revision(message);
             if (message.type === HubFrameType.Unsubscribe) {
-                void this.unsubscribe(queryId, revision).catch(() => this.close());
+                void this.unsubscribe(queryId, revision).catch(() => this.close()).catch(() => {});
                 return;
             }
-            void this.subscribe(queryId, revision, message.payload).catch(() => this.close());
+            void this.subscribe(queryId, revision, message.payload).catch(() => this.close()).catch(() => {});
         } catch {
             if (!this.closed) await this.output.send({ type: HubFrameType.Error, payload: 'Malformed query control' });
         }
@@ -135,7 +135,7 @@ export class HubConnection {
     }
 
     private async recordCleanupFailure(subscription: HubSubscription, error: unknown): Promise<void> {
-        if (!recordObservableCleanupFailure(this.server, subscription, error)) return;
+        if (!recordObservableCleanupFailure(this.server, subscription)) return;
         try { await this.server.options.logger?.(error, this.#context.correlationId); }
         catch { /* Cleanup was already recorded; a failing logger must not orphan the connection. */ }
     }

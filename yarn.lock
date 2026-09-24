@@ -124,6 +124,7 @@ __metadata:
     "@cratis/arc.core": "workspace:^"
     "@fastify/websocket": "npm:^11.3.1"
     fastify: "npm:^5.6.0"
+    fastify-plugin: "npm:^6.0.0"
     zod: "npm:^4.1.0"
   peerDependencies:
     fastify: ^5.0.0

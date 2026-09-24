@@ -2,9 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { TLSSocket } from 'node:tls';
 import websocket from '@fastify/websocket';
+import fastifyPlugin from 'fastify-plugin';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { ObservableHandshakeTimeoutError, prepareObservableUpgrade, serveUpgradedSocket,
-    withObservableHandshakeTimeout } from '@cratis/arc.core/hosting';
+    withObservableHandshakeTimeout, observableLimits } from '@cratis/arc.core/hosting';
 import type { NodeWebSocketLike } from '@cratis/arc.core/hosting';
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
@@ -41,7 +42,7 @@ export class FastifyWebSocketMount {
                 const incoming = new Request(url, { headers: new Headers(request.headers as Record<string, string>) });
                 const outcome = await prepareObservableUpgrade(this.server, incoming, verified);
                 return { verified, incoming, outcome };
-            }, this.server.observableLimits.handshakeTimeoutMs);
+            }, observableLimits(this.server).handshakeTimeoutMs);
             if (prepared.outcome.status !== 101 || !prepared.outcome.resolved) {
                 await reply.code(prepared.outcome.status).send();
                 return;
@@ -90,11 +91,10 @@ export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
         socket.once('close', () => socket.off('error', onSocketError));
     };
     app.server.prependListener('upgrade', onUpgrade);
-    app.after(error => {
-        if (error) return;
-        if (!app.hasRequestDecorator('ws'))
-            app.register(websocket, { options: { maxPayload: server.observableLimits.inboundFrameBytes } });
-    });
+    app.register(fastifyPlugin(async instance => {
+        if (!instance.hasRequestDecorator('ws'))
+            await instance.register(websocket, { options: { maxPayload: observableLimits(server).inboundFrameBytes } });
+    }));
     app.addHook('onClose', async () => {
         app.server.off('upgrade', onUpgrade);
         await mount.dispose();

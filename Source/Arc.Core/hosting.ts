@@ -3,6 +3,7 @@
 /** Node hosting integration points; adapters own trusted native context resolution. */
 export { attachNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
 export { serveUpgradedSocket } from './queries/observable/serveUpgradedSocket.js';
+export { observableLimits } from './queries/observable/observableHosting.js';
 export type { NodeWebSocketLike } from './queries/observable/NodeWebSocketLike.js';
 export { prepareObservableUpgrade } from './queries/observable/prepareObservableUpgrade.js';
 export { ObservableHandshakeTimeoutError, withObservableHandshakeTimeout } from './queries/observable/withObservableHandshakeTimeout.js';
