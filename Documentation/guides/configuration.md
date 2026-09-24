@@ -177,14 +177,15 @@ With an authenticated request, `GET /.cratis/me` returns `{id,name,isAuthenticat
 | `segmentsToSkip` | `number` | `0` | Leading namespace segments left out of routes |
 | `enableQueryMethod` | `boolean` | `true` | Accept the `QUERY` method on query routes |
 | `maxBodyBytes` | `number` | `1048576` | Largest accepted request body; must be a positive safe integer |
-| `maxObservableSubscriptions` / `maxObservableSubscriptionsPerCaller` | `number` | `4096` / `4096` | Live and opening subscriptions globally / per principal or anonymous connection/address |
-| `maxObservableHubConnections` / `maxObservableHubConnectionsPerCaller` | `number` | `512` / `512` | Physical hub connections globally / per caller |
+| `maxObservableSubscriptions` / `maxObservableSubscriptionsPerCaller` | `number` | `4096` / `4096` | Live and opening subscriptions globally / per principal or anonymous connection/address; set a lower caller cap for public hosts |
+| `maxObservableHubConnections` / `maxObservableHubConnectionsPerCaller` | `number` | `512` / `512` | Physical hub connections globally / per caller; the default gives no per-caller fairness |
 | `maxObservableHubSubscriptionsPerConnection` | `number` | `256` | Subscriptions on one hub connection |
 | `maxObservableInboundFrames` / `maxObservableOutboundFrames` | `number` | `256` / `256` | Bounded transport queues |
 | `maxObservablePendingEmissions` | `number` | `256` | Pending snapshots from one structural subscribable |
 | `maxObservableInboundFrameBytes` / `maxObservableOutboundFrameBytes` | `number` | `65536` / `1048576` | Maximum incoming WS frame or SSE control JSON / outgoing frame |
 | `maxObservableTombstones` | `number` | `1024` | Unsubscribe tombstones retained per hub connection for two minutes |
 | `observableHandshakeTimeoutMs` | `number` | `10000` | Maximum time to complete a Node WS upgrade handshake |
+| `observableShutdownTimeoutMs` | `number` | `10000` | Maximum time to join hub subscriptions during shutdown; independent of the handshake timeout |
 | `observableKeepAliveIntervalMs` | `number` | `30000` | Idle time before a hub Ping; `0` disables keep-alive |
 | `correlationHeader` | `string` | `'X-Correlation-ID'` | Header read and written for the correlation ID |
 | `tenantHeader` | `string` | `'x-cratis-tenant-id'` | Header read for the tenant when there is no `resolveTenant` |

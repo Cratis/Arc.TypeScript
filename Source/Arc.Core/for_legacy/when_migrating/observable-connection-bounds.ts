@@ -42,7 +42,7 @@ describe('observable connection bounds', () => {
         const blocked = new Promise<void>(resolve => { release = resolve; });
         let started!: () => void;
         const opening = new Promise<void>(resolve => { started = resolve; });
-        const server = new ArcServer({ observableHandshakeTimeoutMs: 10,
+        const server = new ArcServer({ observableHandshakeTimeoutMs: 10, observableShutdownTimeoutMs: 10,
             observableQueries: [defineObservableQuery({ name: 'Slow', schema: z.object({}),
                 observe: async () => { started(); await blocked; return CurrentValueSubject.of(1); } })] });
         const controller = new AbortController();
@@ -55,10 +55,10 @@ describe('observable connection bounds', () => {
         await connection.connect();
         const admission = connection.subscribe('q', 1, { queryName: 'Slow' });
         await opening;
-        await connection.close();
+        await shouldRejectWithError(connection.close(), /Observable hub shutdown timed out/);
         release();
         (await admission).should.equal(HubSubscriptionOutcome.Stale);
-        await shouldRejectWithError(server.dispose(), /Observable hub shutdown timed out/);
+        await server.dispose();
     });
 
     it('should reject a 33rd subscription on one physical connection', async () => {

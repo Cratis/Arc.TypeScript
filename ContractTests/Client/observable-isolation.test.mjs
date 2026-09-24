@@ -17,10 +17,14 @@ test('a slow-to-cancel source fails only its own hub subscription', async () => 
     let enteredWait;
     const waiting = new Promise(resolve => { enteredWait = resolve; });
     let failedCleanup;
+    let cleanupLogs = 0;
     const logged = new Promise(resolve => { failedCleanup = resolve; });
     const other = CurrentValueSubject.of([{ id: 'other', name: 'first' }]);
     const server = new ArcServer({ logger: error => {
-        if (String(error).includes('cancel') || String(error).includes('cleanup')) failedCleanup(error);
+        if (String(error).includes('cancel') || String(error).includes('cleanup')) {
+            cleanupLogs++;
+            failedCleanup(error);
+        }
     }, observableQueries: [
         defineObservableQuery({ name: 'Slow', schema: z.object({}), observe: () => (async function* () {
             yield [{ id: 'slow' }];
@@ -54,6 +58,12 @@ test('a slow-to-cancel source fails only its own hub subscription', async () => 
         await within(resultFor('other'), 'Other first result');
         await within(waiting, 'Slow producer wait');
         socket.send(JSON.stringify({ type: 'Unsubscribe', queryId: 'slow', revision: 1 }));
+        const pong = new Promise(resolve => listeners.push(frame => {
+            if (frame.type === 'Pong' && frame.timestamp === 501) resolve(frame);
+        }));
+        socket.send(JSON.stringify({ type: 'Ping', timestamp: 501 }));
+        await within(Promise.race([pong, new Promise((_, reject) => setTimeout(() => reject(Error('Ping blocked by unsubscribe')), 300))]),
+            'Ping after unsubscribe');
         await within(logged, 'Canceled source failure');
         assert.equal(socket.readyState, WebSocket.OPEN);
         other.next([{ id: 'other', name: 'later' }]);
@@ -63,7 +73,8 @@ test('a slow-to-cancel source fails only its own hub subscription', async () => 
         })), 'Other subscription update');
         assert.equal(later.payload.data[0].name, 'later');
         assert.equal(frames.some(frame => frame.type === 'Error' && frame.payload === 'Malformed query control'), false);
-        await assert.rejects(server.dispose(), /Observable query shutdown failed/);
+        await server.dispose();
+        assert.equal(cleanupLogs, 1);
         disposed = true;
     } finally {
         socket.close();

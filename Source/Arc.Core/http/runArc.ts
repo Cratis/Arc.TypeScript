@@ -7,6 +7,7 @@ import { createServer as createHttpsServer, type Server as HttpsServer } from 'n
 import type { ArcServer } from '../ArcServer.js';
 import type { ArcNodeRunOptions } from './ArcNodeRunOptions.js';
 import { nodeHandler } from './createArcNodeHandler.js';
+import { attachNodeWebSockets } from '../queries/observable/attachNodeWebSockets.js';
 
 /** Start listening; shutdown drains ordinary requests for up to 30 seconds, then closes connections. ArcServer remains caller-owned. */
 export async function runArc(
@@ -24,6 +25,7 @@ export async function runArc(
         if (!(await stat(root)).isDirectory()) throw Error('Static file root must be a directory');
     }
     const listener = options.https ? createHttpsServer(options.https, handler) : createServer(handler);
+    const closeWebSockets = attachNodeWebSockets(listener, server, undefined, options.pathBase);
     listener.on('connect', (_request, socket) => {
         socket.end('HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\nContent-Length: 0\r\nX-Content-Type-Options: nosniff\r\n\r\n');
     });
@@ -31,28 +33,33 @@ export async function runArc(
     listener.on('error', error => {
         try { server.options.logger?.(error, ''); } catch { /* An error logger cannot crash the host. */ }
     });
-    await new Promise<void>((resolveListen, reject) => {
+    try { await new Promise<void>((resolveListen, reject) => {
         const onError = (error: Error) => { listener.off('listening', onListening); reject(error); };
         const onListening = () => { listener.off('error', onError); resolveListen(); };
         listener.once('error', onError);
         listener.once('listening', onListening);
         try { listener.listen(options.port ?? 3000, options.host ?? '127.0.0.1'); }
         catch (error) { listener.off('error', onError); listener.off('listening', onListening); reject(error); }
-    });
+    }); } catch (error) { await closeWebSockets(); throw error; }
     let pendingClose: Promise<void> | undefined;
     return { server: listener, close: ({ timeoutMs = 30_000 } = {}) => {
         if (pendingClose) return pendingClose;
         if (!Number.isFinite(timeoutMs) || timeoutMs < 0) return Promise.reject(Error('Invalid shutdown timeout'));
         closing = true;
-        pendingClose = new Promise<void>((resolveClose, reject) => {
-            const timer = setTimeout(() => listener.closeAllConnections(), timeoutMs);
-            listener.close(error => {
-                clearTimeout(timer);
-                if (error) reject(error);
-                else resolveClose();
+        pendingClose = (async () => {
+            let failure: unknown;
+            try { await closeWebSockets(); } catch (error) { failure = error; }
+            await new Promise<void>((resolveClose, reject) => {
+                const timer = setTimeout(() => listener.closeAllConnections(), timeoutMs);
+                listener.close(error => {
+                    clearTimeout(timer);
+                    if (error) reject(error);
+                    else resolveClose();
+                });
+                for (const stream of streams) stream.destroy();
             });
-            for (const stream of streams) stream.destroy();
-        });
+            if (failure) throw failure;
+        })();
         return pendingClose;
     } };
 }

@@ -4,8 +4,9 @@ import { TLSSocket } from 'node:tls';
 import websocket from '@fastify/websocket';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { ObservableHandshakeTimeoutError, prepareObservableUpgrade, serveUpgradedSocket,
-    withObservableHandshakeTimeout } from '@cratis/arc.core';
-import type { ArcServer, NativeRequestContext, NodeWebSocketLike } from '@cratis/arc.core';
+    withObservableHandshakeTimeout } from '@cratis/arc.core/hosting';
+import type { NodeWebSocketLike } from '@cratis/arc.core/hosting';
+import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 interface PreparedUpgrade {
     readonly request: Request;
@@ -82,8 +83,22 @@ export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
     if (mounts.has(app)) throw new Error('Fastify observable WebSockets are already mounted');
     const mount = new FastifyWebSocketMount(server, native);
     mounts.set(app, mount);
-    app.register(websocket, { options: { maxPayload: server.observableLimits.inboundFrameBytes } });
-    app.addHook('onClose', async () => { await mount.dispose(); await server.dispose(); });
+    const onUpgrade = (request: import('node:http').IncomingMessage, socket: import('node:net').Socket): void => {
+        if (!server.endpoints.has(request.url?.split('?')[0] ?? '')) return;
+        const onSocketError = (): void => { socket.destroy(); };
+        socket.on('error', onSocketError);
+        socket.once('close', () => socket.off('error', onSocketError));
+    };
+    app.server.prependListener('upgrade', onUpgrade);
+    app.after(error => {
+        if (error) return;
+        if (!app.hasRequestDecorator('ws'))
+            app.register(websocket, { options: { maxPayload: server.observableLimits.inboundFrameBytes } });
+    });
+    app.addHook('onClose', async () => {
+        app.server.off('upgrade', onUpgrade);
+        await mount.dispose();
+    });
     return () => mount.dispose();
 }
 

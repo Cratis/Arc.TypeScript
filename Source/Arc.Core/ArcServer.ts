@@ -23,6 +23,7 @@ import { ObservableLimits } from './queries/observable/ObservableLimits.js';
 import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
 import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
+import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 export class ArcServer {
     readonly commands: readonly Operation[];
@@ -32,6 +33,7 @@ export class ArcServer {
     readonly endpoints: ReadonlyMap<string, string>;
     readonly options: ArcServerOptions;
     readonly services: ServiceRegistry;
+    /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
     readonly #ownsServices: boolean;
     readonly #identitySchema: Record<string, unknown> | undefined;
@@ -72,6 +74,7 @@ export class ArcServer {
         this.endpoints = table.endpoints;
         this.#hub = new ObservableQueryHub(this);
         this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.queries);
+        registerObservableCleanup(this, this.#sessions);
     }
 
     /** Complete both provider and operation executions through the same scope and registry shutdown boundary. */
@@ -133,16 +136,13 @@ export class ArcServer {
         });
     }
 
-    /** Internal transport boundary: preserve cleanup failures for the owning server's shutdown verdict. */
-    recordObservableCleanupFailure(error: unknown): void { this.#sessions.recordCleanupFailure(error); }
-
     async dispose(): Promise<void> {
         this.#sessions.markDisposed();
         const activeHubConnections = this.#hub.connections.length;
         const hubClosing = this.#hub.dispose();
         const closing = closeNodeWebSockets(this);
         const sessions = this.#sessions.sessions;
-        if (!sessions.length && !closing && !activeHubConnections && !this.#sessions.cleanupFailures.length) {
+        if (!sessions.length && !closing && !activeHubConnections) {
             if (this.#ownsServices) await this.services.dispose();
             return;
         }
@@ -161,7 +161,6 @@ export class ArcServer {
             try { await this.services.dispose(); }
             catch (error) { failures.push(error); }
         }
-        failures.push(...this.#sessions.cleanupFailures);
         if (failures.length === 1) throw failures[0];
         if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     }
@@ -171,10 +170,10 @@ export class ArcServer {
         return this.#sessions.openSession(name, input, context, options, 'subscription');
     }
 
-    /** Internal admission check before accepting a hub WebSocket upgrade. */
+    /** @internal Admission check for hosting adapters. */
     canAdmitObservableHubConnection(context: ExecutionContext): boolean { return this.#hub.canAdmit(context); }
 
-    /** Multiplexed socket entry point shared by all Node host bridges. */
+    /** @internal Multiplexed socket entry point shared by Node hosts. */
     handleObservableHubSocket(request: Request, transport: ObservableSocket, native?: NativeRequestContext,
         resolved?: ResolvedConnectionContext): Promise<void> {
         return this.#hub.webSocket(request, transport, native, resolved);

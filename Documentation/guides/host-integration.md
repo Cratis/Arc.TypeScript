@@ -18,9 +18,10 @@ The adapters are not published to npm. Observable queries use the same HTTP rout
 | Package | Export | Host framework peer range |
 | --- | --- | --- |
 | `@cratis/arc.core` | `ArcServer`, `defineCommand`, `defineQuery`, `defineObservableQuery`, and result helpers | None |
-| `@cratis/arc.express` | `mountExpress(app, server)` | `express` `^5.0.0` |
-| `@cratis/arc.fastify` | `mountFastify(app, server)` | `fastify` `^5.0.0` |
-| `@cratis/arc.hono` | `mountHono(app, server)` | `hono` `^4.0.0` |
+| `@cratis/arc.core/hosting` | `attachNodeWebSockets` and adapter hosting primitives | None |
+| `@cratis/arc.express` | `mountExpress(app, server)`, `mountExpressWebSockets(listener, server)` | `express` `^5.0.0` |
+| `@cratis/arc.fastify` | `mountFastify(app, server)`, `mountFastifyWebSockets(app, server)` | `fastify` `^5.0.0` |
+| `@cratis/arc.hono` | `mountHono(app, server)`, `mountHonoWebSockets(app, server)` | `hono` `^4.0.0`; optional `@hono/node-server` for the Node host |
 
 ## Define the server once
 
@@ -105,9 +106,21 @@ serve({ fetch: app.fetch, port: 3000, hostname: '127.0.0.1' });
 
 Mount the HTTP adapter as above. WebSocket upgrades need a separate, framework-specific step:
 
-- **Express:** call `mountExpressWebSockets(listener, arc, async rawRequest => verifiedContext)` on the listener returned by `app.listen()`. Express HTTP middleware does **not** run on Node `upgrade` requests: its session, authentication, CORS and rate-limiting middleware cannot authorize the socket. Supply a trusted, possibly asynchronous `native` resolver, or let Arc's configured authentication handlers check the handshake. Do not assume `req.user` from an HTTP middleware exists on the raw upgrade request.
-- **Fastify:** call `mountFastifyWebSockets(app, arc, async fastifyRequest => verifiedContext)` **before** `mountFastify(app, arc)` and before `listen()`. It registers `@fastify/websocket` routes; Fastify's `onRequest`, `preValidation` and `preHandler` hooks run before the upgrade. `app.close()` disposes Arc-owned subscriptions and sockets.
-- **Hono:** call `mountHono(app, arc)`, then `const sockets = mountHonoWebSockets(app, arc, async context => verifiedContext)`, before starting `@hono/node-server`. After `const listener = serve({ fetch: app.fetch, ... })`, call `sockets.injectWebSocket(listener)`; call `await sockets.dispose()` at shutdown. The `@hono/node-ws` route helper runs application middleware. Hono's WebSocket host is Node-specific; other Hono runtimes need their own verified bridge.
+- **Express:** call `mountExpressWebSockets(listener, arc, async rawRequest => verifiedContext)` on the listener returned by `app.listen()`. Express HTTP middleware does **not** run on Node `upgrade` requests: its session, authentication, CORS and rate-limiting middleware cannot authorize the socket. The callback receives a raw `IncomingMessage`, not an Express request: `trust proxy` and `req.protocol` do not apply. Authenticate it with a trusted session or Arc authentication handlers. If a proxy terminates TLS, validate the proxy connection against a fixed trusted proxy list before parsing `Forwarded` or `X-Forwarded-Proto` and `X-Forwarded-Host`; reject untrusted or ambiguous values, then return trusted `secure` and `authority` values. Never trust forwarded headers merely because they are present.
+- **Fastify:** call `mountFastifyWebSockets(app, arc, async fastifyRequest => verifiedContext)` **before** `mountFastify(app, arc)` and before `listen()`. If your app already registered `@fastify/websocket`, Arc uses that plugin rather than registering another. Fastify's `onRequest`, `preValidation` and `preHandler` hooks run before the upgrade. `app.close()` disposes Arc-owned sockets and subscriptions, **not** `arc` or its owned services; call `await arc.dispose()` separately.
+- **Hono:** call `mountHono(app, arc)`, then `const sockets = mountHonoWebSockets(app, arc, async context => verifiedContext)`, before starting `@hono/node-server`. After `const listener = serve({ fetch: app.fetch, ... })`, call `sockets.injectWebSocket(listener)`; call `await sockets.dispose()` at shutdown. If your app already has a `createNodeWebSocket({ app })` helper, pass it as the fourth argument to `mountHonoWebSockets(app, arc, native, helper)` and call **only** `helper.injectWebSocket(listener)`: Arc does not own that shared listener. Ordinary GETs pass through the WS route to your HTTP handlers. The helper runs application middleware, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is an optional peer needed only for this Node host; other Hono runtimes need their own verified bridge. Dispose `arc` after its sockets.
+
+For a fixed loopback TLS proxy, an Express resolver can parse and validate its forwarded authority explicitly. Adapt the trusted proxy address and host to your deployment; never accept these headers from direct clients:
+
+```typescript
+mountExpressWebSockets(listener, arc, request => {
+    if (request.socket.remoteAddress !== '127.0.0.1') throw new Error('Untrusted proxy');
+    const protocol = request.headers['x-forwarded-proto'];
+    const host = request.headers['x-forwarded-host'];
+    if (protocol !== 'https' || host !== 'app.example.com') throw new Error('Invalid forwarded authority');
+    return { secure: true, authority: host };
+});
+```
 
 Each bridge checks exact raw paths and the configured `allowedOrigins` before upgrade. By default a present browser `Origin` must match the trusted transport's scheme and authority; `allowedOrigins: ['http://localhost:5173']` replaces that default with an explicit list, and an async predicate can implement a host policy. Include your application origin in the list when it must remain allowed. A trusted `native` callback can set `secure` and `authority` for TLS-terminating proxies. Arc never trusts `X-Forwarded-*` by itself. An absent Origin is permitted for native clients; it is **not** proof of authentication.
 
@@ -152,9 +165,9 @@ Every callback receives `context.signal`, an `AbortSignal`. Pass it to anything 
 
 In every adapter:
 
-- A principal comes from Arc authentication handlers unless you set `nativePrincipal: true` and provide an explicit host-verified principal callback as the third argument to `mountExpress`, `mountFastify`, or `mountHono`. The two authentication modes cannot be combined. The callbacks also accept an optional `authority` known from trusted host configuration (not the request `Host` header). Express/Fastify use the actual Node TLS socket by default, but a trusted callback can override `secure` and `authority` when a verified proxy terminates TLS. Hono has no attested socket by default and requires an explicit trusted callback to set `secure`/`authority`/`principal`. Do not forward unverified headers into these callbacks.
+- A principal comes from Arc authentication handlers unless you set `nativePrincipal: true` and provide an explicit host-verified principal callback as the third argument to `mountExpress`, `mountFastify`, or `mountHono`. The two authentication modes cannot be combined. The callbacks also accept an optional `authority` known from trusted host configuration (not the request `Host` header). Express/Fastify use the actual Node TLS socket by default, but a trusted callback can override `secure` and `authority` when a verified proxy terminates TLS. Hono on Node infers `secure` from its TLS socket; proxy `secure`/`authority` and a host-verified `principal` still require a trusted callback. Do not forward unverified headers into these callbacks.
 - `server.handle(request, nativeContext?)` also accepts an async callback returning trusted native context; adapters invoke it inside Arc's protected error boundary so callback errors become redacted 500 responses with correlation and logging. This is a server-side privileged integration seam. Never populate `nativeContext` from browser-supplied properties, cookies, `X-Forwarded-*`, or the Fetch URL. A display cookie cannot authenticate a caller. See [Configure the server](configuration.md#describe-identity-details-and-operations).
-- Static files, SPA fallback, and a standalone host without a web framework are not provided.
+- For static files, SPA fallback, and a standalone host without a web framework, use [Host Arc directly in Node.js](standalone-host.md).
 
 ## Related
 

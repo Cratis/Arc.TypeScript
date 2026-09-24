@@ -16,6 +16,7 @@ export class ObservableLimits {
     readonly outboundFrameBytes: number;
     readonly tombstones: number;
     readonly handshakeTimeoutMs: number;
+    readonly shutdownTimeoutMs: number;
 
     constructor(options: ArcServerOptions) {
         const bound = (value: number | undefined, fallback: number, maximum: number, name: string): number => {
@@ -42,6 +43,8 @@ export class ObservableLimits {
         this.tombstones = bound(options.maxObservableTombstones, 1024, 100_000, 'observable tombstone limit');
         this.handshakeTimeoutMs = bound(options.observableHandshakeTimeoutMs, 10_000, 120_000,
             'observable handshake timeout');
+        this.shutdownTimeoutMs = bound(options.observableShutdownTimeoutMs, 10_000, 120_000,
+            'observable shutdown timeout');
         Object.freeze(this);
     }
 

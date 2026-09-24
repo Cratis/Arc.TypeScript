@@ -54,7 +54,7 @@ This is a self-contained example, not a copy of the sample. It serves `POST /api
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `MongoReadModels`, an optional tenant-aware read helper for queries, for the `mongodb` 6 driver |
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental and private.** `defineChronicleCommand`, which appends events returned from a command. The pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js; this adapter has not been verified against a live kernel. |
 
-Every package manifest is at version 0.3.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.4.0. That is the version of this source preview, not an npm release, and the Chronicle package stays private. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, and MongoDB packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -73,7 +73,7 @@ The sample listens on port 3000 on every network interface. [Get started](Docume
 
 ## What works and what does not
 
-Supported, with specs in this repository: commands and queries with Zod schemas, validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and the MongoDB read helper.
+Supported, with specs in this repository: commands and queries with Zod schemas, observable queries (HTTP snapshots, direct SSE and WebSocket, and the multiplexed WebSocket and SSE hubs used by the `@cratis/arc` client), validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, and the MongoDB read helper.
 
 Also supported, each one explicit or opt-in:
 
@@ -88,11 +88,10 @@ A paired suite checks 33 bounded HTTP cases against Arc on .NET 22.22.0 and pins
 
 Not implemented:
 
-- Observable queries over HTTP, server-sent events, or WebSocket.
 - Discovery of commands and queries by convention. You register every definition with `ArcServer`, and client generation reads only the output shapes you declare, not a full type graph. It does not match Arc's .NET proxy generator.
 - Named authorization policies, SQL integrations, command operations and effects, and observable query test scenarios.
 
-The Chronicle integration stays experimental and private: the pinned Chronicle TypeScript SDK 6.2.0 does not load in native Node.js, and this adapter has not been verified against a Chronicle kernel.
+The Chronicle integration stays experimental and private: this adapter has not yet been verified against a Chronicle kernel.
 
 The [capability reference](Documentation/reference/capabilities.md) lists every Arc feature family, its status, and the deliberate differences from Arc on .NET.
 

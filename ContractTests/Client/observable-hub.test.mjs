@@ -35,7 +35,9 @@ for (const kind of ['express', 'fastify', 'hono']) test(`raw observable hubs on 
     let observed = 0;
     let privateObserved = 0;
     const server = new ArcServer({ authentication: [request => {
-        const id = request.headers.get('authorization');
+        const id = request.headers.get('authorization') ??
+            (request.headers.get('cookie')?.includes('arc-session=alice') ? 'Bearer alice' :
+                request.headers.get('cookie')?.includes('arc-session=bob') ? 'Bearer bob' : null);
         return id === 'Bearer alice' || id === 'Bearer bob'
             ? { status: AuthenticationStatus.Authenticated, principal: {
                 id: id.slice(7), isAuthenticated: true, roles: ['reader'] } }
@@ -108,7 +110,7 @@ for (const kind of ['express', 'fastify', 'hono']) test(`raw observable hubs on 
         socket.send(JSON.stringify({ type: 'Unsubscribe', queryId: 'scalar', revision: 1 }));
         subject.next([{ id: '1', name: 'first' }]);
         const origin = `${listening.origin}/.cratis/queries/sse`;
-        events = new FetchEventSource(origin, { authorization: 'Bearer alice' });
+        events = new FetchEventSource(origin, { cookie: 'arc-session=alice' });
         const sse = new Promise(resolve => { events.onmessage = event => resolve(JSON.parse(event.data)); });
         const sseConnected = await within(sse, 'SSE Connected');
         assert.equal(sseConnected.type, 'Connected');
@@ -116,28 +118,28 @@ for (const kind of ['express', 'fastify', 'hono']) test(`raw observable hubs on 
         const subscribeUrl = `${origin}/subscribe`;
         const payload = { connectionId: sseConnected.payload, queryId: 's', revision: 2,
             request: { queryName: 'Numbers' } };
-        const wrong = await fetch(subscribeUrl, { method: 'POST', headers: { authorization: 'Bearer bob',
+        const wrong = await fetch(subscribeUrl, { method: 'POST', headers: { cookie: 'arc-session=bob',
             'content-type': 'application/json' }, body: JSON.stringify(payload) });
         assert.equal(wrong.status, 404);
         const otherTenant = await fetch(subscribeUrl, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json',
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json',
                 'x-cratis-tenant-id': 'other-tenant' }, body: JSON.stringify(payload) });
         assert.equal(otherTenant.status, 404);
         const unknown = await fetch(subscribeUrl, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json' },
             body: JSON.stringify({ ...payload, connectionId: crypto.randomUUID() }) });
         assert.equal(unknown.status, 404);
         const invalidRevision = await fetch(subscribeUrl, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json' },
             body: JSON.stringify({ ...payload, revision: 0 }) });
         assert.equal(invalidRevision.status, 400);
         const unsafeContentType = await fetch(subscribeUrl, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'text/plain' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'text/plain' },
             body: JSON.stringify(payload) });
         assert.equal(unsafeContentType.status, 415);
         const next = new Promise(resolve => { events.onmessage = event => resolve(JSON.parse(event.data)); });
         const accepted = await fetch(subscribeUrl, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json' },
             body: JSON.stringify(payload) });
         assert.equal(accepted.status, 200);
         const result = await within(next, 'SSE result');
@@ -152,12 +154,12 @@ for (const kind of ['express', 'fastify', 'hono']) test(`raw observable hubs on 
         assert.equal(legacy.payload.data[0].name, 'third');
         assert.deepEqual(legacy.payload.changeSet.replaced, [{ id: '1', name: 'third' }]);
         const unsubscribe = await fetch(`${origin}/unsubscribe`, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json' },
             body: JSON.stringify({ connectionId: sseConnected.payload, queryId: 's', revision: 2 }) });
         assert.equal(unsubscribe.status, 200);
         const unauthorizedFrame = new Promise(resolve => { events.onmessage = event => resolve(JSON.parse(event.data)); });
         const unauthorized = await fetch(subscribeUrl, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json' },
             body: JSON.stringify({ ...payload, queryId: 'private', revision: 3,
                 request: { queryName: 'Private' } }) });
         assert.equal(unauthorized.status, 401);
@@ -274,7 +276,8 @@ for (const kind of ['express', 'fastify', 'hono']) {
                     } };
                 }
             };
-            const server = new ArcServer({ authentication: [request => request.headers.get('authorization') === 'Bearer alice'
+            const server = new ArcServer({ authentication: [request =>
+                request.headers.get('authorization') === 'Bearer alice' || request.headers.get('cookie')?.includes('arc-session=alice')
                 ? { status: AuthenticationStatus.Authenticated, principal: { id: 'alice', isAuthenticated: true, roles: ['reader'] } }
                 : { status: AuthenticationStatus.Anonymous }],
             observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}), observe: () => tracked })] });
@@ -290,8 +293,8 @@ for (const kind of ['express', 'fastify', 'hono']) {
                 Globals.observableQueryTransferMode = mode;
                 if (method === QueryTransportMethod.ServerSentEvents) {
                     globalThis.EventSource = FetchEventSource;
-                    Globals.eventSourceFactory = url => new FetchEventSource(url, { authorization: 'Bearer alice' });
-                    Globals.httpHeadersCallback = () => ({ Authorization: 'Bearer alice' });
+                    Globals.eventSourceFactory = url => new FetchEventSource(url, { cookie: 'arc-session=alice' });
+                    Globals.httpHeadersCallback = () => ({ Cookie: 'arc-session=alice' });
                     unsubscribeFinished = new Promise(resolve => {
                         globalThis.fetch = (url, options) => {
                             const response = previous.fetch(url, options);

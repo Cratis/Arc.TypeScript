@@ -5,10 +5,11 @@ import { fileURLToPath } from 'node:url';
 export function createConfig() {
     return {
         resolve: {
-            alias: {
-                '@cratis/arc.core': fileURLToPath(new URL('./Source/Arc.Core/index.ts', import.meta.url)),
-                '@cratis/arc.testing': fileURLToPath(new URL('./Source/Testing/index.ts', import.meta.url))
-            }
+            alias: [
+                { find: /^@cratis\/arc\.core\/hosting$/, replacement: fileURLToPath(new URL('./Source/Arc.Core/hosting.ts', import.meta.url)) },
+                { find: /^@cratis\/arc\.core$/, replacement: fileURLToPath(new URL('./Source/Arc.Core/index.ts', import.meta.url)) },
+                { find: /^@cratis\/arc\.testing$/, replacement: fileURLToPath(new URL('./Source/Testing/index.ts', import.meta.url)) }
+            ]
         },
         test: {
             globals: true,

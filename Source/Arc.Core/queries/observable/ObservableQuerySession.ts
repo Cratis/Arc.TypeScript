@@ -128,7 +128,6 @@ export class ObservableQuerySession {
             if (this.#context.signal.aborted) {
                 if (error instanceof DOMException && error.name === 'AbortError') return;
                 this.#terminalFailure = error;
-                await this.config.reportFailure(error);
                 throw error;
             }
             await this.config.reportFailure(error);
@@ -167,7 +166,7 @@ export class ObservableQuerySession {
                 this.#scope.registry.preflight(this.config.guards);
                 let mostRestrictive = ObservableEmissionDecision.Allow;
                 const identity = Object.freeze({ ...this.#context,
-                    principal: this.#context.principal ? structuredClone(this.#context.principal) : undefined });
+                    principal: clonePrincipal(this.#context.principal) });
                 const emission: ObservableEmissionContext = Object.freeze({
                     queryName: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.'),
                     input: structuredClone(this.config.input), data: structuredClone(result.data),

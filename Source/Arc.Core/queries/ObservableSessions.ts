@@ -17,6 +17,8 @@ export class ObservableSessions {
     readonly #observableOwners = new Map<ObservableQuerySession, string>();
     readonly #openingOwners = new Map<string, number>();
     readonly #cleanupFailures: unknown[] = [];
+    readonly #reportedCleanup = new WeakSet<object>();
+    #cleanupFailureCount = 0;
     #openingObservableSessions = 0;
     #openingSnapshots = 0;
     #disposed = false;
@@ -28,7 +30,14 @@ export class ObservableSessions {
         return [...new Set([...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
     }
     get cleanupFailures(): readonly unknown[] { return this.#cleanupFailures; }
-    recordCleanupFailure(error: unknown): void { this.#cleanupFailures.push(error); }
+    get cleanupFailureCount(): number { return this.#cleanupFailureCount; }
+    recordCleanupFailure(session: object, error: unknown): boolean {
+        if (this.#reportedCleanup.has(session)) return false;
+        this.#reportedCleanup.add(session);
+        this.#cleanupFailureCount++;
+        if (this.#cleanupFailures.length < 16) this.#cleanupFailures.push(error);
+        return true;
+    }
     markDisposed(): void { this.#disposed = true; }
 
     private callerKey(context: ExecutionContext): string { return observableCallerKey(context); }

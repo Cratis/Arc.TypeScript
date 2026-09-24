@@ -74,7 +74,8 @@ test('Fastify WS runs authentication hooks before resolving the native principal
         assert.ok(hooks > 0);
     } finally {
         await app.close();
-        assert.equal(server.services.disposed, true);
+        assert.equal(server.services.disposed, false);
+        await server.dispose();
     }
 });
 
@@ -96,7 +97,7 @@ test('Hono WS runs application middleware before resolving the native principal'
         await server.dispose();
         const installed = listener.listenerCount('upgrade');
         await webSockets.dispose();
-        assert.equal(listener.listenerCount('upgrade'), installed - 1);
+        assert.equal(listener.listenerCount('upgrade'), installed - 2);
         await new Promise(resolve => listener.close(resolve));
     }
 });

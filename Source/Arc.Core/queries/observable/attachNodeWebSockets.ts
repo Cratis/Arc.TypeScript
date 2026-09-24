@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import type { ArcServer } from '../../ArcServer.js';
 import type { NativeRequestContext } from '../../http/NativeRequestContext.js';
 import { correlation } from '../../execution/correlation.js';
+import { stripPathBase } from '../../http/requestPath.js';
 import { directWebSocket } from './directWebSocket.js';
 import { prepareObservableUpgrade } from './prepareObservableUpgrade.js';
 import { WebSocketTransport } from './WebSocketTransport.js';
@@ -19,15 +20,20 @@ const reasons: Record<number, string> = {
 
 /** Node upgrade bridge; an async trusted host callback runs before the WebSocket handshake. */
 export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
-    native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
+    native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>,
+    pathBase = ''): () => Promise<void> {
     const owned = bridges.get(arc) ?? new Map<HttpServer, () => Promise<void>>();
     if (owned.has(host)) throw new Error('Arc WebSocket bridge is already mounted on this server');
     const webSockets = new WebSocketServer({ noServer: true, maxPayload: arc.observableLimits.inboundFrameBytes,
         perMessageDeflate: false });
     const connections = new Set<{ transport: WebSocketTransport; work: Promise<void> }>();
     const onUpgrade = (request: IncomingMessage, socket: Socket, head: Buffer): void => {
+        const onSocketError = (): void => { socket.destroy(); };
+        socket.on('error', onSocketError);
+        socket.once('close', () => socket.off('error', onSocketError));
         const raw = request.url ?? '';
-        const path = raw.split('?')[0];
+        const rawPath = raw.split('?')[0];
+        const path = rawPath ? stripPathBase(rawPath, pathBase) : undefined;
         const correlationHeader = (arc.options.correlationHeader ?? 'X-Correlation-ID').toLowerCase();
         const inbound = request.headers[correlationHeader];
         const correlationId = correlation(typeof inbound === 'string' ? inbound : null);
@@ -49,21 +55,23 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
             let url: URL;
             try { url = new URL(raw, 'http://arc.invalid'); }
             catch { reject(400); return; }
-            if (url.origin !== 'http://arc.invalid' || url.pathname !== path) { reject(400); return; }
+            if (url.origin !== 'http://arc.invalid' || url.pathname !== rawPath) { reject(400); return; }
+            const routed = new URL(`${path}${url.search}`, 'http://arc.invalid');
             socket.setTimeout(arc.observableLimits.handshakeTimeoutMs, () => reject(408));
             const provided = await native?.(request);
             if (socket.destroyed) return;
             const trusted: NativeRequestContext = { ...provided,
                 secure: provided?.secure ?? (request.socket instanceof TLSSocket && request.socket.encrypted === true),
                 remoteAddress: provided?.remoteAddress ?? request.socket.remoteAddress };
-            const handshake = new Request(url, { headers: new Headers(request.headers as Record<string, string>) });
+            const handshake = new Request(routed, { headers: new Headers(request.headers as Record<string, string>) });
             const prepared = await prepareObservableUpgrade(arc, handshake, trusted);
             if (prepared.status !== 101 || !prepared.resolved) { reject(prepared.status); return; }
             if (socket.destroyed) return;
             socket.setTimeout(0);
             webSockets.handleUpgrade(request, socket, head, connection => {
+                socket.off('error', onSocketError);
                 const transport = new WebSocketTransport(connection, arc.observableLimits);
-                const incoming = new Request(url, {
+                const incoming = new Request(routed, {
                     headers: new Headers(request.headers as Record<string, string>), signal: transport.signal
                 });
                 const work = path === '/.cratis/queries/ws'

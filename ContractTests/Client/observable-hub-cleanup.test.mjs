@@ -24,7 +24,7 @@ for (const kind of ['express', 'fastify', 'hono']) test(`hub disconnect and shut
             return { unsubscribe() { active--; subscription.unsubscribe(); } };
         }
     };
-    const server = new ArcServer({ authentication: [request => request.headers.get('authorization') === 'Bearer alice'
+    const server = new ArcServer({ authentication: [request => request.headers.get('authorization') === 'Bearer alice' || request.headers.get('cookie')?.includes('arc-session=alice')
         ? { status: AuthenticationStatus.Authenticated, principal: { id: 'alice', isAuthenticated: true, roles: [] } }
         : { status: AuthenticationStatus.Anonymous }],
     observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}), observe: () => tracked })] });
@@ -44,11 +44,11 @@ for (const kind of ['express', 'fastify', 'hono']) test(`hub disconnect and shut
         socket.send(JSON.stringify({ type: 'Subscribe', queryId: 'ws', revision: 1, payload: { queryName: 'Numbers' } }));
         assert.equal((await within(wsResult)).queryId, 'ws');
         const url = `${listening.origin}/.cratis/queries/sse`;
-        events = new FetchEventSource(url, { authorization: 'Bearer alice' });
+        events = new FetchEventSource(url, { cookie: 'arc-session=alice' });
         const sseConnected = await within(new Promise(resolve => { events.onmessage = event => resolve(JSON.parse(event.data)); }));
         const sseResult = new Promise(resolve => { events.onmessage = event => resolve(JSON.parse(event.data)); });
         const response = await fetch(`${url}/subscribe`, { method: 'POST',
-            headers: { authorization: 'Bearer alice', 'content-type': 'application/json' },
+            headers: { cookie: 'arc-session=alice', 'content-type': 'application/json' },
             body: JSON.stringify({ connectionId: sseConnected.payload, queryId: 'sse', revision: 1,
                 request: { queryName: 'Numbers' } }) });
         assert.equal(response.status, 200);

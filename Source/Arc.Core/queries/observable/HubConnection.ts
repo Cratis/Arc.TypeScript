@@ -15,6 +15,7 @@ import { parseHubRequest } from './parseHubRequest.js';
 import { SubscriptionRevisions } from './SubscriptionRevisions.js';
 import { observableCallerKey } from './observableCallerKey.js';
 import { clonePrincipal } from './clonePrincipal.js';
+import { recordObservableCleanupFailure } from './observableCleanupFailures.js';
 
 /** Owns bounded, revision-aware subscriptions on one physical WS or SSE connection. */
 export class HubConnection {
@@ -73,7 +74,7 @@ export class HubConnection {
             const queryId = this.queryId(message.queryId);
             const revision = this.revision(message);
             if (message.type === HubFrameType.Unsubscribe) {
-                await this.unsubscribe(queryId, revision);
+                void this.unsubscribe(queryId, revision).catch(() => this.close());
                 return;
             }
             void this.subscribe(queryId, revision, message.payload).catch(() => this.close());
@@ -97,7 +98,7 @@ export class HubConnection {
             return Promise.resolve(HubSubscriptionOutcome.Stale);
         if (previous) {
             previous.controller.abort();
-            void previous.session?.close().catch(error => this.recordCleanupFailure(error));
+            void previous.session?.close().catch(error => this.recordCleanupFailure(previous, error));
         }
         const subscription: HubSubscription = { queryId, queryName: request.queryName,
             connectedAt: new Date().toISOString(), revision, transfer: new ObservableTransfer(request.transferMode),
@@ -129,14 +130,14 @@ export class HubConnection {
         if (current) {
             current.controller.abort();
             try { await current.session?.close(); }
-            catch (error) { await this.recordCleanupFailure(error); }
+            catch (error) { await this.recordCleanupFailure(current, error); }
         }
     }
 
-    private async recordCleanupFailure(error: unknown): Promise<void> {
-        this.server.recordObservableCleanupFailure(error);
+    private async recordCleanupFailure(subscription: HubSubscription, error: unknown): Promise<void> {
+        if (!recordObservableCleanupFailure(this.server, subscription, error)) return;
         try { await this.server.options.logger?.(error, this.#context.correlationId); }
-        catch (loggingError) { this.server.recordObservableCleanupFailure(loggingError); }
+        catch { /* Cleanup was already recorded; a failing logger must not orphan the connection. */ }
     }
 
     close(): Promise<void> {
@@ -149,9 +150,11 @@ export class HubConnection {
             this.#subscriptions.clear();
             for (const subscription of active) subscription.controller.abort();
             const joined = Promise.allSettled(active.map(async subscription => {
-                await subscription.session?.close();
-                await subscription.admission;
-                await subscription.delivery;
+                try {
+                    await subscription.session?.close();
+                    await subscription.admission;
+                    await subscription.delivery;
+                } catch (error) { await this.recordCleanupFailure(subscription, error); }
             }));
             let timer: ReturnType<typeof setTimeout> | undefined;
             try {
@@ -159,15 +162,16 @@ export class HubConnection {
                     joined,
                     new Promise<never>((_, reject) => {
                         timer = setTimeout(() => reject(new Error('Observable hub shutdown timed out')),
-                            this.server.observableLimits.handshakeTimeoutMs);
+                            this.server.observableLimits.shutdownTimeoutMs);
                     })
                 ]);
                 for (const result of results) if (result.status === 'rejected') errors.push(result.reason);
             } catch (error) { errors.push(error); }
             finally { if (timer) clearTimeout(timer); }
-            for (const error of errors) await this.recordCleanupFailure(error);
             this.onClose();
             this.onChange();
+            if (errors.length === 1) throw errors[0];
+            if (errors.length) throw new AggregateError(errors, 'Observable hub shutdown failed');
         });
         return this.#closing;
     }
