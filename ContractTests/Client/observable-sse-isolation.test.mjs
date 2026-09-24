@@ -18,7 +18,7 @@ test('SSE unsubscribe answers 200 despite one producer ignoring cancellation', a
     let enteredWait;
     const waiting = new Promise(resolve => { enteredWait = resolve; });
     const other = CurrentValueSubject.of([{ id: 'other', name: 'first' }]);
-    const server = new ArcServer({ authentication: [request => request.headers.get('authorization') === 'Bearer alice'
+    const server = new ArcServer({ authentication: [request => request.headers.get('cookie')?.includes('arc-session=alice')
         ? { status: AuthenticationStatus.Authenticated, principal: { id: 'alice', roles: [], isAuthenticated: true } }
         : { status: AuthenticationStatus.Anonymous }],
     observableQueries: [
@@ -31,7 +31,7 @@ test('SSE unsubscribe answers 200 despite one producer ignoring cancellation', a
     ] });
     const listening = await observableHost('express', server);
     const url = `${listening.origin}/.cratis/queries/sse`;
-    const events = new FetchEventSource(url, { authorization: 'Bearer alice' });
+    const events = new FetchEventSource(url, { cookie: 'arc-session=alice' });
     const frames = [];
     const listeners = [];
     events.onmessage = event => {
@@ -48,7 +48,7 @@ test('SSE unsubscribe answers 200 despite one producer ignoring cancellation', a
                 frame.payload.data?.[0]?.name === name) resolve(frame);
         });
     }), queryId);
-    const headers = { authorization: 'Bearer alice', 'content-type': 'application/json' };
+    const headers = { cookie: 'arc-session=alice', 'content-type': 'application/json' };
     let disposed = false;
     try {
         const connected = await within(new Promise(resolve => listeners.push(frame => {
@@ -63,7 +63,7 @@ test('SSE unsubscribe answers 200 despite one producer ignoring cancellation', a
         assert.equal((await control('unsubscribe', 'slow', 1)).status, 200);
         other.next([{ id: 'other', name: 'later' }]);
         assert.equal((await resultFor('other', 'later')).payload.data[0].name, 'later');
-        await assert.rejects(server.dispose(), /Observable query shutdown failed/);
+        await server.dispose();
         disposed = true;
     } finally {
         events.close();

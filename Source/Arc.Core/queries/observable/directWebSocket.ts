@@ -24,7 +24,8 @@ export async function directWebSocket(server: ArcServer, request: Request, trans
         const operation = server.routes.get(new URL(request.url).pathname);
         if (!operation || !isObservableOperation(operation)) throw new BadRequest();
         const identity = resolved ?? await resolveConnectionContext(server, request, native);
-        context = identity.context;
+        context = Object.freeze({ ...identity.context,
+            signal: AbortSignal.any([identity.context.signal, transport.signal]) });
         if (identity.authenticationFailed) {
             await transport.send({ type: 'Data', data: queryResult(context, { isAuthorized: false }) });
             return;

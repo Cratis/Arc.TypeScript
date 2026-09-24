@@ -40,6 +40,8 @@ export interface ArcServerOptions {
     maxObservableTombstones?: number;
     /** Maximum duration for an upgrade before its handshake finishes; defaults to 10 seconds. */
     observableHandshakeTimeoutMs?: number;
+    /** Maximum time to join hub subscriptions on shutdown; defaults to 10 seconds. */
+    observableShutdownTimeoutMs?: number;
     /** Allowed WS/SSE control Origins. By default only the trusted native authority is allowed. */
     allowedOrigins?: readonly string[] | ((origin: string, request: Request, native?: NativeRequestContext) => boolean | Promise<boolean>);
     /** Advertised hub keep-alive cadence in milliseconds (0 disables); defaults to 30 seconds. */

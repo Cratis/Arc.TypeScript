@@ -5,7 +5,11 @@ import type { Principal } from '../../identity/Principal.js';
 /** Keep one subscription's mutable claim graph out of every other subscription. */
 export function clonePrincipal(principal: Principal | undefined): Principal | undefined {
     if (!principal) return undefined;
-    const copy = structuredClone(principal);
+    const copy: Principal = {
+        id: principal.id, name: principal.name, roles: [...principal.roles],
+        isAuthenticated: principal.isAuthenticated,
+        ...(principal.claims === undefined ? {} : { claims: structuredClone(principal.claims) })
+    };
     const seen = new WeakSet<object>();
     const freeze = (value: unknown, depth: number): void => {
         if (!value || typeof value !== 'object' || seen.has(value)) return;

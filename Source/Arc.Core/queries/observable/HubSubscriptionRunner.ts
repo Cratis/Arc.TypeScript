@@ -13,6 +13,7 @@ import type { HubSubscription } from './HubSubscription.js';
 import { HubSubscriptionOutcome } from './HubSubscriptionOutcome.js';
 import type { HubTransport } from './HubTransport.js';
 import type { ObservableQuerySession } from './ObservableQuerySession.js';
+import { recordObservableCleanupFailure } from './observableCleanupFailures.js';
 
 /** Opens the real pipeline and serializes one generation's frames without stale writes. */
 export class HubSubscriptionRunner {
@@ -107,9 +108,9 @@ export class HubSubscriptionRunner {
     private async closeSession(session: ObservableQuerySession): Promise<void> {
         try { await session.close(); }
         catch (error) {
-            this.server.recordObservableCleanupFailure(error);
+            if (!recordObservableCleanupFailure(this.server, this.subscription, error)) return;
             try { await this.server.options.logger?.(error, this.context.correlationId); }
-            catch (loggingError) { this.server.recordObservableCleanupFailure(loggingError); }
+            catch { /* Cleanup is already recorded; logging failure must not block other subscriptions. */ }
         }
     }
 
