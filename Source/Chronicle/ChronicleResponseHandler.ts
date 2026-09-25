@@ -14,6 +14,7 @@ import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { EventSourceIdResponse } from './eventSourceIdResponse.js';
 import { eventForEventSourceId, isRoutedEvent } from './eventForEventSourceId.js';
 import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
+import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
 function eventLike(value: unknown): boolean {
     return typeof value === 'object' && value !== null && (isRoutedEvent(value) || hasEventType(value.constructor));
 }
@@ -85,7 +86,10 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         }
         const results = await store.eventLog.appendMany(entries, options);
         const outcome = checkResults(results, entries.length);
-        if (!outcome && value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
+        if (!outcome) {
+            if (value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
+            await waitForProjectionCompletion(results, this.runtime.options.completionTimeoutMs, context.signal);
+        }
         return outcome;
     }
 }

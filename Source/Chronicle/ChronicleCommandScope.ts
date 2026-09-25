@@ -9,6 +9,7 @@ import { ChronicleResponseHandler } from './ChronicleResponseHandler.js';
 export class ChronicleCommandScope implements CommandOperationExecutionScope {
     get isCommitParticipant(): boolean { return this.#unit?.hasStagedEvents ?? false; }
     #unit?: ChronicleUnitOfWork;
+    constructor(private readonly completionTimeoutMs?: number) {}
     begin(context: CommandContext): void {
         this.#unit = ChronicleUnitOfWork.active();
         if (!this.#unit) throw new Error('Chronicle command scope requires a running Chronicle command');
@@ -30,6 +31,6 @@ export class ChronicleCommandScope implements CommandOperationExecutionScope {
                 }
             }
         }
-        Object.assign(result, await this.#unit.commit(result));
+        Object.assign(result, await this.#unit.commit(result, this.completionTimeoutMs));
     }
 }

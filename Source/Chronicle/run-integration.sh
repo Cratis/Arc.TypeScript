@@ -39,5 +39,11 @@ if [ -z "${ARC_CHRONICLE_TEST_URL:-}" ]; then
     fi
 fi
 yarn build
-# The SDK's reactor observation can keep a gRPC socket open after disposal.
-node --test --test-force-exit Source/Chronicle/Integration/live.test.mjs
+if [ "${ARC_CHRONICLE_TEST_SUITE:-}" = 'kernel-scenarios' ]; then
+    yarn workspace @cratis/arc.sample.library generate-proxies
+    yarn tsc -b Samples/Library
+    node --test Samples/Library/kernel-scenarios.test.mjs
+else
+    # The SDK's reactor observation can keep a gRPC socket open after disposal.
+    node --test --test-force-exit Source/Chronicle/Integration/live.test.mjs
+fi
