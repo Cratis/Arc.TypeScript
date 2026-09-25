@@ -36,16 +36,17 @@ Register the command and the event type:
 ```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
 import '@cratis/arc.chronicle';
-import { AddItemToOrder, ItemAdded } from './Features/Orders/Adding/Adding.js';
+import { metadata } from './Features/generatedMetadata.js';
 
 const builder = ArcApplication.createBuilder();
 builder.withChronicle({ eventStore: 'Orders', connectionString: 'chronicle://localhost:35000' });
-builder.add(AddItemToOrder, ItemAdded);
+builder.useGeneratedMetadata(metadata);
+await builder.discover(new URL('./Features/', import.meta.url));
 const application = await builder.build();
 await application.run();
 ```
 
-`Order` and `ItemAdded` come from [Defining an aggregate root](defining-an-aggregate-root.md). The aggregate class itself is not registered; `commandAggregate(Order)` is enough. Register the event types it handles, after `withChronicle`. The development connection string needs a running local Chronicle kernel; [Add event sourcing](../add-event-sourcing.md) starts one, and [Registration options](../registration-options.md) covers other environments.
+`Order` and `ItemAdded` come from [Defining an aggregate root](defining-an-aggregate-root.md). Keep those exports and `AddItemToOrder` in `Features/`. Generate `Features/generatedMetadata.ts` and client proxies with the [proxy generator](../../proxy-generation/getting-started.md) before running the application. Point `--artifacts` at `Features/` and `--metadata` at `Features/generatedMetadata.ts`, using absolute paths as in the linked generator script. `discover()` registers the exported command and event type after `withChronicle`. The aggregate class itself is not registered; `commandAggregate(Order)` is enough. The development connection string needs a running local Chronicle kernel; [Add event sourcing](../add-event-sourcing.md) starts one, and [Registration options](../registration-options.md) covers other environments.
 
 Executing `AddItemToOrder` for an empty order appends one `ItemAdded`. The next execution for the same `id` replays that event, so `quantity` starts from the stored total, and the rule is checked against it.
 

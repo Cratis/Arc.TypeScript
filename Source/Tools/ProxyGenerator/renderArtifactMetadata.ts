@@ -9,6 +9,7 @@ import { metadataParameter } from './metadataParameter.js';
 import { metadataResult } from './metadataResult.js';
 import { queryResult } from './queryResult.js';
 import { commandResponseType } from './commandResponseType.js';
+import { isOutcomeType } from './isOutcomeType.js';
 
 const callArguments = (expression: ts.Expression | undefined): readonly ts.Expression[] =>
     expression && ts.isCallExpression(expression) ? expression.arguments : [];
@@ -72,7 +73,7 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
         const returnType = result && (checker.getAwaitedType(checker.getReturnTypeOfSignature(result)) ?? checker.getReturnTypeOfSignature(result));
         const parts = returnType?.isUnion() ? returnType.types : returnType ? [returnType] : [];
         const provided = parts.find(part => !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)) &&
-            !part.getProperties().some(property => property.getName().includes('outcomeBrand')));
+            !isOutcomeType(part, checker));
         if (provided && handle.parameters[0] && !checker.isTypeAssignableTo(provided, checker.getTypeAtLocation(handle.parameters[0]))) {
             const first = handle.parameters[0];
             throw new Error(`${first.getSourceFile().fileName}:${first.getSourceFile().getLineAndCharacterOfPosition(first.getStart()).line + 1}: ` +
@@ -102,8 +103,10 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
     const responseType = handleReturn && commandResponseType(handleReturn, checker, handle!);
     const responseShape = responseType ? metadataResult(responseType, checker, imports, handle!) :
         "{ cardinality: 'void', nullable: false }";
+    const valueParts = handleReturn && (handleReturn.isUnion() ? handleReturn.types : [handleReturn])
+        .filter(part => !isOutcomeType(part, checker));
     const valueShape = handleReturn && (responseType === handleReturn ? responseShape :
-        metadataResult(handleReturn, checker, imports, handle!, false, undefined, false));
+        metadataResult(handleReturn, checker, imports, handle!, false, undefined, false, valueParts));
     return `{ type: ${type}, signature: ${JSON.stringify(signature)}, metadata: {` +
         `${isCommand ? ' command: true,' : ''}${isModel ? ' readModel: true,' : ''}` +
         `${summary(declaration) ? ` summary: ${JSON.stringify(summary(declaration))},` : ''}` +

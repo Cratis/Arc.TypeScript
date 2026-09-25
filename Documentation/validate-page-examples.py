@@ -96,7 +96,10 @@ PAGE_FIXTURES: dict[str, dict[str, tuple[str, str]]] = {
         for name in ('NoteId.ts', 'NoteText.ts', 'Writing/Writing.ts', 'Listing/Listing.ts', 'Notes.ts')
     },
 }
-GENERATED_METADATA_PAGES = {'chronicle/add-event-sourcing.md', 'getting-started/create-an-application.md', 'chronicle/cratis-package.md'}
+GENERATED_METADATA_PAGES = {
+    'chronicle/add-event-sourcing.md', 'getting-started/create-an-application.md', 'chronicle/cratis-package.md',
+    'chronicle/aggregates/injecting-into-commands.md'
+}
 
 
 class InvalidExample(Exception):
