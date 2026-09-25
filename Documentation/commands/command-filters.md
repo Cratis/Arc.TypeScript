@@ -35,7 +35,7 @@ export const builder = ArcApplication.createBuilder();
 builder.add(TenantGate, TitleGate);
 ```
 
-A denial answers 403 with `isAuthorized: false` and an optional `authorizationFailureReason`; validation answers 400. Authorization filters always run first regardless of registration order. Within each group registration order is preserved. Each nonempty result fragment merges into the current result; the first unsuccessful result stops the chain. Validation severity is applied afterward, so even a filtered-out warning can stop subsequent filters. A thrown filter fails the operation; it never permits handling to continue. Both execute and `/validate` run both groups, before validator or handler dependencies and before scopes, `provide()`, or `handle()`. `/validate` never starts execution scopes.
+A denial answers 403 with `isAuthorized: false` and an optional `authorizationFailureReason`; validation answers 400. Authorization filters always run first regardless of registration order. Within each group registration order is preserved: `ArcOptions` tokens first, explicit `add*` calls next, then decorated classes in `add()` order. Duplicate tokens run only once; a token in both groups fails at build. Each nonempty result fragment merges into the current result; severity is applied to each fragment before deciding whether to stop. Filtered-out warnings cannot bypass later authorization filters. A thrown filter fails the operation with 500; it never permits handling to continue. Both execute and `/validate` run both groups, before validator or handler dependencies and before scopes, `provide()`, or `handle()`. `/validate` runs validators inside an execution runner but never starts execution scopes.
 
 ## Per-definition callbacks
 

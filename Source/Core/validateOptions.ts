@@ -51,6 +51,8 @@ export function validateOptions(options: ArcOptions): {
 
 /** Enforce scoped read-side extensions after the service registry has been created. */
 export function validateRegistryOptions(options: ArcOptions, services: ServiceRegistry): void {
+    for (const token of options.authorizationCommandFilters ?? []) if (options.commandPipelineFilters?.includes(token))
+        throw new Error(`Command filter registered in both groups: ${String(token)}`);
     for (const token of [...options.authorizationCommandFilters ?? [], ...options.commandPipelineFilters ?? []]) {
         if (services.registration(token).lifetime === ServiceLifetime.Singleton)
             throw new Error(`Command filter ${services.registration(token).token.name} must not be singleton`);

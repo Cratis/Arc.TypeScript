@@ -10,11 +10,18 @@ describe('when running command filters with validate only', given(command_filter
     let application: FetchArcApplication;
     beforeEach(async () => {
         context.calls.length = 0;
-        application = await context.builder.add(context.authorization, context.pipeline).build();
+        const builder = context.builder.add(context.authorization, context.pipeline);
+        builder.addCommandExecutionRunner(async (_command, execute) => {
+            context.calls.push('runner start');
+            const result = await execute();
+            context.calls.push('runner end');
+            return result;
+        });
+        application = await builder.build();
         await application.server.validateCommand('Filtered', { value: 'allowed' }, context.execution);
     });
     afterEach(async () => { await application.dispose(); });
     it('should run both groups and local validation without calling provide or handle', () => {
-        context.calls.should.deep.equal(['authorization', 'pipeline', 'validate', 'local']);
+        context.calls.should.deep.equal(['authorization', 'pipeline', 'runner start', 'validate', 'local', 'runner end']);
     });
 }));

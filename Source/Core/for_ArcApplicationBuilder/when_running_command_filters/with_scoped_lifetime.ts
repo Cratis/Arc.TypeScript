@@ -19,8 +19,8 @@ describe('when running command filters with scoped lifetime', given(command_filt
         builder.services.addScoped(ScopedFilter);
         builder.addAuthorizationCommandFilter(ScopedFilter);
         application = await builder.build();
-        await Promise.all([application.server.validateCommand('Filtered', { value: 'denied' }, context.execution),
-            application.server.validateCommand('Filtered', { value: 'denied' }, context.execution)]);
+        await Promise.all([application.server.validateCommand('Filtered', { value: 'allowed' }, context.execution),
+            application.server.validateCommand('Filtered', { value: 'allowed' }, context.execution)]);
     });
     afterEach(async () => { await application.dispose(); });
     it('should resolve a new filter in each operation scope', () => { instances.should.equal(2); });

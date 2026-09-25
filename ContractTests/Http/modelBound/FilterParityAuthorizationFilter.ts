@@ -8,7 +8,11 @@ import { FilterParityCommand } from './FilterParityCommand.js';
 @authorizationCommandFilter()
 export class FilterParityAuthorizationFilter implements AuthorizationCommandFilter {
     onExecution(context: CommandContext): CommandResult | void {
-        if (context.command instanceof FilterParityCommand && context.command.value.startsWith('deny'))
+        const value = context.command instanceof FilterParityCommand ? context.command.value :
+            typeof context.command === 'object' && context.command !== null && 'value' in context.command
+                ? context.command.value : undefined;
+        if (typeof value === 'string' && value.startsWith('deny') ||
+            Array.isArray(value) && value[0] === 'deny')
             return unauthorizedCommandResult(context, 'Fixture filter denied');
     }
 }

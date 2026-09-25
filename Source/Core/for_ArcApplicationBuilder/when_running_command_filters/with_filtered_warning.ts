@@ -27,7 +27,7 @@ describe('when running command filters with a filtered warning', given(command_f
         await application.server.validateCommand('Filtered', { value: 'allowed' }, context.execution);
     });
     afterEach(async () => { await application.dispose(); });
-    it('should stop the global chain but still run per-definition validation', () => {
-        context.calls.should.deep.equal(['warning', 'validate', 'local']);
+    it('should continue through authorization and pipeline filters after a filtered warning', () => {
+        context.calls.should.deep.equal(['warning', 'pipeline', 'validate', 'local']);
     });
 }));

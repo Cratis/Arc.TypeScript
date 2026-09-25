@@ -72,12 +72,15 @@ function serverOptions(registrations: BuildRegistrations, commands: CommandDefin
     const runners = [...options.commandExecutionRunner ? [options.commandExecutionRunner] : [], ...registrations.commandRunners];
     const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
         runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
+    const authorizationCommandFilters = [...new Set([...options.authorizationCommandFilters ?? [], ...registrations.authorizationCommandFilters])];
+    const commandPipelineFilters = [...new Set([...options.commandPipelineFilters ?? [], ...registrations.commandPipelineFilters])];
+    for (const token of authorizationCommandFilters) if (commandPipelineFilters.includes(token))
+        throw new Error(`Command filter registered in both groups: ${String(token)}`);
     return { ...options, commands, queries, observableQueries, commandExecutionRunner,
         commandExecutionScopes: [...options.commandExecutionScopes ?? [], ...registrations.commandScopes],
         identityDetails: options.identityDetails ?? discovered,
         authorizationPolicies: { ...options.authorizationPolicies, ...Object.fromEntries(registrations.policies) },
-        authorizationCommandFilters: [...options.authorizationCommandFilters ?? [], ...registrations.authorizationCommandFilters],
-        commandPipelineFilters: [...options.commandPipelineFilters ?? [], ...registrations.commandPipelineFilters],
+        authorizationCommandFilters, commandPipelineFilters,
         commandResponseValueHandlers: [...options.commandResponseValueHandlers ?? [], ...registrations.responseHandlers],
         commandContextValuesProviders: [...options.commandContextValuesProviders ?? [], ...registrations.valueProviders],
         commandKeyResolvers: [...options.commandKeyResolvers ?? [], ...registrations.keyResolvers],

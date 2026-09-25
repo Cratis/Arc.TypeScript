@@ -11,40 +11,41 @@ import { authorizationCommandFilter } from '../../commands/authorizationCommandF
 import { commandPipelineFilter } from '../../commands/commandPipelineFilterDecorator.js';
 import { validation } from '../../validation/ValidationResult.js';
 
-const calls: string[] = [];
-
-@authorizationCommandFilter()
-class Authorization {
-    onExecution(context: CommandContext): CommandResult | void {
-        calls.push('authorization');
-        if ((context.command as { value: string }).value === 'denied' ||
-            (context.command as { value: string }).value === 'invalid')
-            return unauthorizedCommandResult(context, 'Denied by fixture');
-    }
-}
-
-@commandPipelineFilter()
-class Pipeline {
-    onExecution(context: CommandContext): CommandResult {
-        calls.push('pipeline');
-        return commandResult(context);
-    }
-}
-
 /** A reusable command world with distinguishable filter, validator, and handler effects. */
 export class command_filter_fixture {
-    readonly calls = calls;
-    readonly authorization = Authorization;
-    readonly pipeline = Pipeline;
+    readonly calls: string[] = [];
+    readonly authorization: new () => { onExecution(context: CommandContext): CommandResult | void };
+    readonly pipeline: new () => { onExecution(context: CommandContext): CommandResult };
+    constructor() {
+        const calls = this.calls;
+        @authorizationCommandFilter()
+        class Authorization {
+            onExecution(context: CommandContext): CommandResult | void {
+                calls.push('authorization');
+                if ((context.command as { value: string }).value === 'denied' ||
+                    (context.command as { value: string }).value === 'invalid')
+                    return unauthorizedCommandResult(context, 'Denied by fixture');
+            }
+        }
+        @commandPipelineFilter()
+        class Pipeline {
+            onExecution(context: CommandContext): CommandResult {
+                calls.push('pipeline');
+                return commandResult(context);
+            }
+        }
+        this.authorization = Authorization;
+        this.pipeline = Pipeline;
+    }
     get builder(): ReturnType<typeof ArcApplication.createBuilder> { return ArcApplication.createBuilder({ commands: [defineCommand({
         name: 'Filtered', schema: z.object({ value: z.string() }), authorization: { anonymous: true },
         validate: ({ value }) => {
-            calls.push('validate');
+            this.calls.push('validate');
             return value === 'invalid' ? [validation('Invalid value', ['value'])] : [];
         },
-        filters: [() => { calls.push('local'); return [validation('Local result')]; }],
-        provide: () => { calls.push('provide'); },
-        handle: () => { calls.push('handle'); return 'handled'; }
+        filters: [() => { this.calls.push('local'); return [validation('Local result')]; }],
+        provide: () => { this.calls.push('provide'); },
+        handle: () => { this.calls.push('handle'); return 'handled'; }
     })] }); }
     readonly execution = { correlationId: 'filter-request', principal: undefined, tenantId: undefined,
         signal: new AbortController().signal, allowedSeverity: 2 };

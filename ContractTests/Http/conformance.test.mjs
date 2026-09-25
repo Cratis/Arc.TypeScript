@@ -216,6 +216,12 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             await parity(`command filter ${mode} allows valid input`, 'POST', path, { value: 'allow-valid' }, {
                 status: 200, body: command(200, response)
             });
+            await divergence(`command filter ${mode} denies malformed input in TypeScript`, 'POST', path,
+                { value: ['deny'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                { status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' }) });
+            await divergence(`command filter ${mode} allows malformed input with different message`, 'POST', path,
+                { value: ['allow'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
         }
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })

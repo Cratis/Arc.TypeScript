@@ -47,9 +47,9 @@ flowchart TD
 
 ## Consequences that are easy to miss
 
-- Global filters short-circuit at the first unsuccessful fragment; existing per-definition callbacks still collect every result.
-- `POST <command route>/validate` stops after step 9. `provide()`, `handle()`, execution runners, and scopes never run.
-- Unparseable JSON is rejected in step 3. A parsed body with the wrong shape reaches global authorization before reporting 400. A denial never discloses validation results.
+- Global filters short-circuit at the first fragment that remains unsuccessful after severity filtering; existing per-definition callbacks still collect every result.
+- `POST <command route>/validate` stops after step 9. `provide()`, `handle()`, and execution scopes never run; execution runners wrap the validation stage.
+- Unparseable JSON is rejected in step 3. A parsed body with the wrong shape reaches global authorization before reporting 400. On binding failure `context.command` is raw input, and context value providers and key resolvers do not run. A denial never discloses validation results.
 - Step 1 answers 401 only when at least one authentication handler is configured. With none, nobody is authenticated and a protected operation answers 403 in step 4.
 - Filter services are resolved in the operation scope. Validator dependencies are constructed after global filters, including on `/validate`; handler dependencies are constructed only after validation succeeds. A missing dependency reports reason `dependencyUnavailable`.
 - A validator that throws produces 400 with reason `validatorFailed` and message `Validation failed`; the exception text is never sent, and the error goes to the configured logger.

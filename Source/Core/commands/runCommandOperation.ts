@@ -34,11 +34,12 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 return commandFailure({ ...execution, command: parsed.data, key: undefined, values: new CommandContextValues() }, error);
             }
         }
-        let context: CommandContext;
-        try { context = await createCommandContext(parsed.success ? definition.commandFactory?.(parsed.data) ?? parsed.data : input,
-            execution, options); }
-        catch (error) {
-            return commandFailure({ ...execution, command: input, key: undefined, values: new CommandContextValues() }, error);
+        const minimalContext: CommandContext = { ...execution, command: input, key: undefined,
+            values: new CommandContextValues(), readModelResolvers: options.readModelForCommandResolvers };
+        let context: CommandContext = minimalContext;
+        if (parsed.success) {
+            try { context = await createCommandContext(definition.commandFactory?.(parsed.data) ?? parsed.data, execution, options); }
+            catch (error) { return commandFailure(minimalContext, error); }
         }
         const authorization = await runCommandFilters(context, options, true);
         if (!authorization.result.isSuccess) return authorization.result;
@@ -48,8 +49,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
             if (!filtered.result.isSuccess) return filtered.result;
         }
         const execute = () => executeCommandOperation(definition, parsed.data, context, options, mode === CommandOperationMode.Validate);
-        return mode === CommandOperationMode.Execute && options.commandExecutionRunner
-            ? options.commandExecutionRunner(context, execute) : execute();
+        return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
     };
     return {
         ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: fullyQualifiedName(definition),
