@@ -4,7 +4,7 @@ import ts from 'typescript';
 import { MetadataImports } from './MetadataImports.js';
 
 /** Describe result cardinality and element type without executing the method. */
-export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: MetadataImports, location: ts.Node, paged = false, observable?: boolean): string {
+export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: MetadataImports, location: ts.Node, paged = false, observable?: boolean, includeElement = true): string {
     const parts = type.isUnion() ? type.types : [type];
     const nullable = parts.some(part => !!(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)));
     const value = parts.find(part => !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined))) ?? type;
@@ -12,6 +12,7 @@ export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: 
     const element = many ? checker.getTypeArguments(value as ts.TypeReference)[0] ?? value : value;
     const cardinality = paged ? 'paged' : many ? 'many' : value.flags & ts.TypeFlags.Void ? 'void' : 'one';
     let token: string | undefined;
+    if (!includeElement) return `{ cardinality: '${cardinality}', nullable: ${nullable} }`;
     if (element.flags & ts.TypeFlags.StringLike) token = 'String';
     else if (element.flags & ts.TypeFlags.NumberLike) token = 'Number';
     else if (element.flags & ts.TypeFlags.BooleanLike) token = 'Boolean';
