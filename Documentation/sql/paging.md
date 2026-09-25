@@ -35,7 +35,7 @@ Build filters from trusted values with Drizzle's operators, which bind parameter
 
 | Rule | Detail |
 | --- | --- |
-| Paging is required | `queryPage` throws without `options.paging`. Use `find` for an unpaged read. |
+| Paging absent | `queryPage` reads the first `maxPageSize` rows. Arc returns an unpaged response only when the count fits; otherwise it rejects the incomplete list with 400. |
 | Page size | At least 1, at most `maxPageSize`: 100 by default, configurable up to 10,000 with `withDrizzle({ maxPageSize })` |
 | Page index | A nonnegative safe integer |
 | Sort field | Must be a declared `@field` on the model **and** a column of the table. An unknown field, or a table column the model does not declare, answers 400 before any SQL runs |
@@ -47,7 +47,10 @@ The client's sort field is matched against the declared fields and never becomes
 
 ## Unpaged reads
 
-`find(filter, sorting?)` returns every match only when there are at most `maxPageSize` of them, and throws `Drizzle find exceeds maxPageSize` otherwise, instead of silently truncating. `findOne(filter)` returns the first match in primary-key order, or `undefined`.
+`find(filter, sorting?)` returns every match only when there are at most `maxPageSize` of them. Above that limit it
+rejects with a `QueryPagingRequired` error saying to use `queryPage`, rather than silently truncating. Use `queryPage`
+for paged endpoints: `find` does not accept paging options, even if the client sends `pageSize`. `findOne(filter)` returns
+the first match in primary-key order, or `undefined`.
 
 ## Consistency
 

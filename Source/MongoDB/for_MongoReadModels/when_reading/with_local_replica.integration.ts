@@ -62,8 +62,8 @@ describe('when reading models from a local MongoDB replica set', () => {
             ((result.data as Task[]).map(item => item._id)).should.deep.equal([secondId]);
             (result.paging).should.deep.equal({ page: 1, size: 1, totalItems: 2, totalPages: 2 });
             const unpaged = await server.performQuery('OwnerTasks', input, context('a'));
-            (unpaged.isSuccess).should.equal(false);
-            (unpaged.exceptionMessages).should.contain('Error: MongoDB queryPage requires options.paging');
+            (unpaged.isSuccess).should.equal(true);
+            ((unpaged.data as Task[]).map(item => item._id)).should.deep.equal([firstId, secondId]);
             const aborted = new AbortController();
             aborted.abort();
             await shouldRejectWithError(models.find(context('a', aborted.signal), input));

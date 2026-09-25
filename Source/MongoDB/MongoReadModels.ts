@@ -1,7 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { SortDirection } from '@cratis/arc.core';
-import { queryPage as createQueryPage } from '@cratis/arc.core';
+import { QueryPagingRequired, queryPage as createQueryPage, SortDirection } from '@cratis/arc.core';
 import type { ExecutionContext, PageRequest, QueryOptions, QueryPage } from '@cratis/arc.core';
 import { ObjectId } from 'mongodb';
 import type { CountDocumentsOptions, Document, Filter, FindOptions, WithId } from 'mongodb';
@@ -11,7 +10,9 @@ import type { MongoPageFindOptions } from './MongoPageFindOptions.js';
 
 /** Read-only access to an application-owned collection in an explicitly resolved tenant database. */
 export class MongoReadModels<T extends Document, I> {
+    private readonly maxPageSize: number;
     constructor(private readonly options: MongoReadModelsOptions<T, I>, private readonly collectionName: string) {
+        this.maxPageSize = options.maxPageSize ?? 100;
         if (!collectionName) throw new Error('A collection name is required');
         if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) || options.maxPageSize <= 0))
             throw new RangeError('maxPageSize must be a positive safe integer');
@@ -39,10 +40,9 @@ export class MongoReadModels<T extends Document, I> {
         return collection.findOne({ $and: [filter, { _id: id }] } as Filter<T>, { signal: context.signal });
     }
 
-    /** Require Arc's actual paging options; never fabricate a request or silently ignore sorting. */
+    /** Read a bounded first page when Arc has no paging; never silently ignore sorting. */
     async queryPage(context: ExecutionContext, input: I, options: QueryOptions,
         findOptions?: MongoPageFindOptions<T>): Promise<QueryPage<WithId<T>>> {
-        if (!options?.paging) throw new Error('MongoDB queryPage requires options.paging');
         const sorting = options.sorting;
         if (sorting && sorting.direction !== SortDirection.Ascending && sorting.direction !== SortDirection.Descending)
             throw new TypeError('MongoDB sorting direction must be asc or desc');
@@ -51,16 +51,22 @@ export class MongoReadModels<T extends Document, I> {
         const sort = sorting ? { [sorting.field]: sorting.direction === SortDirection.Ascending ? 1 as const : -1 as const,
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {})
                 .filter(([field]) => field !== sorting.field)) } : findOptions?.sort;
-        const page = await this.page(context, input, options.paging, { ...findOptions, sort });
+        const page = await this.readPage(context, input, options.paging ?? { page: 0, pageSize: this.maxPageSize },
+            { ...findOptions, sort }, !options.paging);
         return createQueryPage(page.items, page.paging.totalItems, sorting);
     }
 
     async page(context: ExecutionContext, input: I, request: PageRequest, options?: MongoPageFindOptions<T>): Promise<MongoPage<T>> {
+        return this.readPage(context, input, request, options, false);
+    }
+
+    private async readPage(context: ExecutionContext, input: I, request: PageRequest, options: MongoPageFindOptions<T> | undefined,
+        rejectUnpaged: boolean): Promise<MongoPage<T>> {
         if (!Number.isSafeInteger(request.page) || request.page < 0 ||
             !Number.isSafeInteger(request.pageSize) || request.pageSize <= 0 ||
             !Number.isSafeInteger(request.page * request.pageSize))
             throw new RangeError('Paging requires a nonnegative page and positive pageSize within safe integer bounds');
-        if (request.pageSize > (this.options.maxPageSize ?? 100)) throw new RangeError('Paging exceeds maxPageSize');
+        if (request.pageSize > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize);
         const sort = options?.sort;
         if (sort !== undefined && (typeof sort !== 'object' || sort === null || Array.isArray(sort) ||
             Object.getPrototypeOf(sort) !== Object.prototype && Object.getPrototypeOf(sort) !== null ||
@@ -75,6 +81,7 @@ export class MongoReadModels<T extends Document, I> {
             collation, hint, session, readPreference, readConcern, maxTimeMS, comment, signal: context.signal
         };
         const totalItems = await collection.countDocuments(filter, countOptions);
+        if (rejectUnpaged && totalItems > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
         const items = await collection.find(filter, { ...options, sort: orderedSort, signal: context.signal })
             .skip(request.page * request.pageSize).limit(request.pageSize).toArray();
         return { items, paging: { page: request.page, size: request.pageSize,

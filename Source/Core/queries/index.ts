@@ -12,6 +12,7 @@ export type { Paging } from './Paging.js';
 export type { QueryOptions } from './QueryOptions.js';
 export { queryPage } from './QueryPage.js';
 export { InvalidQuerySort } from './InvalidQuerySort.js';
+export { QueryPagingRequired } from './QueryPagingRequired.js';
 export type { QueryPage } from './QueryPage.js';
 export type { SortRequest } from './SortRequest.js';
 export { SortDirection } from './SortDirection.js';

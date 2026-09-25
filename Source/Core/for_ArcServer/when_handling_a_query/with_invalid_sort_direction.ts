@@ -8,7 +8,7 @@ should();
 
 describe('when handling a query with an invalid sort direction', given(a_server_with_a_list_query, context => {
     let response: Response | null;
-    let body: { validationResults: { reason: string }[] };
+    let body: { validationResults: { reason: string; message: string; members: string[]; severity: number }[] };
 
     beforeEach(async () => {
         response = await context.server.handle(new Request('http://localhost/api/tasks/list?limit=1&sortBy=index&sortDirection=sideways'));
@@ -17,5 +17,7 @@ describe('when handling a query with an invalid sort direction', given(a_server_
     afterAll(async () => context.server.dispose());
 
     it('should reject the request', () => response!.status.should.equal(400));
-    it('should report a malformed request', () => body.validationResults[0]!.reason.should.equal('malformedRequest'));
+    it('should report the sort direction with the malformed request', () => body.validationResults[0]!.should.deep.equal({
+        severity: 3, message: 'The sort direction is not a recognized value.', members: ['sortDirection'], reason: 'malformedRequest'
+    }));
 }));

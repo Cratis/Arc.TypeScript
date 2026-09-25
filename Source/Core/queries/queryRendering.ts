@@ -11,6 +11,13 @@ import { emptyPaging } from './emptyPaging.js';
 import { malformed } from '../http/malformed.js';
 import { queryResult } from './createQueryResult.js';
 
+function safeOffset(page: number, size: number): number | undefined {
+    const maxInt32 = 2_147_483_647;
+    if (!Number.isInteger(page) || !Number.isInteger(size) || page < 0 || size < 0 ||
+        page > maxInt32 || size > maxInt32) return undefined;
+    return size > 0 && page > Math.floor(maxInt32 / size) ? maxInt32 : page * size;
+}
+
 function compareValues(left: unknown, right: unknown): number {
     if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime();
     if (left == null || right == null) return left == null ? right == null ? 0 : -1 : 1;
@@ -27,9 +34,11 @@ export function renderQueryData<T>(definition: Pick<DescriptorBase, 'clientOutpu
         const items = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data.items) as typeof data.items : data.items;
         const page = options.paging?.page ?? 0;
         const size = options.paging?.pageSize ?? 0;
+        const offset = safeOffset(page, size);
+        if (offset === undefined) return queryResult(context, { validationResults: malformed(context) });
         if (options.sorting && (data.sorting?.field !== options.sorting.field || data.sorting.direction !== options.sorting.direction) ||
             (!size && items.length !== data.totalItems) ||
-            size && items.length !== Math.min(size, Math.max(0, data.totalItems - page * size)))
+            size && items.length !== Math.min(size, Math.max(0, data.totalItems - offset)))
             return queryResult(context, { validationResults: malformed(context) });
         return queryResult(context, { data: items, paging: size ? {
             page, size, totalItems: data.totalItems, totalPages: Math.ceil(data.totalItems / size)
@@ -51,10 +60,12 @@ export function renderQueryData<T>(definition: Pick<DescriptorBase, 'clientOutpu
         }
         const page = options.paging?.page ?? 0;
         const size = options.paging?.pageSize ?? 0;
+        const offset = safeOffset(page, size);
+        if (offset === undefined) return queryResult(context, { validationResults: malformed(context) });
         const paging = size ? {
             page, size, totalItems: sorted.length, totalPages: Math.ceil(sorted.length / size)
         } : emptyPaging();
-        return queryResult(context, { data: (size ? sorted.slice(page * size, (page + 1) * size) : sorted) as T, paging });
+        return queryResult(context, { data: (size ? sorted.slice(offset, offset + size) : sorted) as T, paging });
     }
     if (options.paging || options.sorting) return queryResult(context, { validationResults: malformed(context) });
     const wire = definition.clientOutput ? assertClientOutput(definition.clientOutput.output, data) : data;

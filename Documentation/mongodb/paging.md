@@ -16,10 +16,10 @@ static async page(items: MongoCollection<TaskRecord>, options: QueryOptions) {
 
 ## Rules
 
-- `queryPage(filter, options)` requires paging. Each page is capped at `maxPageSize`, 100 by default and at most 10,000.
+- `queryPage(filter, options)` defaults to the first `maxPageSize` rows when paging is absent. Each read is capped at `maxPageSize`, 100 by default and at most 10,000. If the count exceeds the cap, Arc rejects the incomplete unpaged result with 400 rather than returning partial data.
 - Only fields declared on the model may be sorted. The Arc wire name resolves to the declared property, then to its BSON name under the selected [naming policy](naming-policies.md). An unknown field, including `$where`, answers 400.
 - An `_id` tie-breaker makes page order stable. An application-provided default sort is used when the request asks for none.
-- For an unpaged list, use `items.find()`.
+- For an intentionally unbounded list, use `items.find()`; do not use it on large collections.
 
 ## Consistency
 

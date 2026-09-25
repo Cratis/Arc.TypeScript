@@ -1,7 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { SortDirection } from '@cratis/arc.core';
-import { queryPage } from '@cratis/arc.core';
+import { QueryPagingRequired, queryPage, SortDirection } from '@cratis/arc.core';
 import type { ExecutionContext, QueryOptions, QueryPage } from '@cratis/arc.core';
 import type { ChangeStream, Collection, Db, Document, Filter, FindOptions, Timestamp } from 'mongodb';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
@@ -41,10 +40,10 @@ export class MongoCollection<T extends object> {
     /** Count and page in MongoDB, using only fields declared in the model for client sorting. */
     async queryPage(filter: Filter<Document>, options: QueryOptions,
         findOptions?: Omit<FindOptions, 'sort' | 'skip' | 'limit'> & { sort?: Readonly<Record<string, 1 | -1>> }): Promise<QueryPage<T>> {
-        if (!options.paging) throw new Error('MongoDB queryPage requires options.paging');
-        const { page, pageSize } = options.paging;
+        const { page, pageSize } = options.paging ?? { page: 0, pageSize: this.#maxPageSize };
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize <= 0 ||
-            pageSize > this.#maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid MongoDB page');
+            !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid MongoDB page');
+        if (pageSize > this.#maxPageSize) throw new QueryPagingRequired(this.#maxPageSize);
         const sorting = options.sorting;
         if (sorting && sorting.direction !== SortDirection.Ascending && sorting.direction !== SortDirection.Descending)
             throw new TypeError('MongoDB sorting direction must be asc or desc');
@@ -56,6 +55,7 @@ export class MongoCollection<T extends object> {
         const total = await retryRead(() => this.native.countDocuments(filter, { collation: findOptions?.collation,
             session: findOptions?.session, signal: this.context.signal } as Parameters<typeof this.native.countDocuments>[1]),
         this.context.signal);
+        if (!options.paging && total > this.#maxPageSize) throw new QueryPagingRequired(this.#maxPageSize, true);
         const documents = await retryRead(() => this.native.find(filter, { ...findOptions, sort, signal: this.context.signal })
             .skip(page * pageSize).limit(pageSize).toArray(), this.context.signal);
         return queryPage(documents.map(document => this.codec.deserialize(document)), total, sorting);

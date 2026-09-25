@@ -7,8 +7,9 @@ import type { Operation } from './Operation.js';
 import type { RequestBindings } from './handleRequest.js';
 import type { EndpointResponse } from './EndpointResponse.js';
 import { BadRequest } from './BadRequest.js';
+import { UnreadableQueryBody } from './UnreadableQueryBody.js';
 import { body } from './body.js';
-import { getQuery, structuredQuery } from './queryBinding.js';
+import { getQuery, QueryValidationError, structuredQuery } from './queryBinding.js';
 import { commandResult } from '../commands/createCommandResult.js';
 import { queryResult } from '../queries/createQueryResult.js';
 import { malformed } from './malformed.js';
@@ -32,7 +33,7 @@ async function readInput(server: ArcServer, request: Request, operation: Operati
     if (operation.kind === 'command') input = await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024);
     else if (request.method === 'GET') ({ input, options } = getQuery(new URL(request.url), operation.schema, isObservableOperation(operation)));
     else ({ input, options } = structuredQuery(
-        await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024), operation.schema));
+        await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024, true), operation.schema));
     return { input, options, snapshotRequest };
 }
 
@@ -72,6 +73,12 @@ export async function handleOperation(server: ArcServer, bindings: RequestBindin
         bound = await readInput(server, request, operation);
     } catch (error) {
         if (!(error instanceof BadRequest)) throw error;
+        if (error instanceof QueryValidationError) return response.send(queryResult(context, { validationResults: error.results }), 400);
+        if (error instanceof UnreadableQueryBody) {
+            const details = exposeExceptionDetails(server.options);
+            return response.send(queryResult(context, { exceptionMessages: [details ? String(error) : 'An unexpected error occurred'],
+                exceptionStackTrace: details ? error.stack ?? '' : '' }), 400);
+        }
         const failure = operation.kind === 'command' ? commandResult(context, { validationResults: malformed(context) }) :
             queryResult(context, { validationResults: malformed(context) });
         return response.send(failure, 400);
