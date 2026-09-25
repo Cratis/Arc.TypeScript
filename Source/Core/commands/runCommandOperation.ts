@@ -14,6 +14,7 @@ import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { createCommandContext } from './createCommandContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
 import { commandFailure, executeCommandOperation } from './executeCommandOperation.js';
+import { setCommandRecovery } from './commandRecovery.js';
 import { runCommandFilters } from './runCommandFilters.js';
 import type { CommandContext } from './CommandContext.js';
 import { withOperationName } from '../execution/withOperationName.js';
@@ -62,8 +63,13 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         if (context.signal.aborted) return commandFailure(context, context.signal.reason ?? new Error('Command canceled'));
         const execute = () => executeCommandOperation(definition, parsed.data, context, options, mode === CommandOperationMode.Validate);
         const result = await (options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute());
-        return result.isSuccess && context.signal.aborted ?
-            commandFailure(context, context.signal.reason ?? new Error('Command canceled'), result) : result;
+        if (result.isSuccess && context.signal.aborted) {
+            const failure = commandFailure(context, context.signal.reason ?? new Error('Command canceled'), result);
+            if (result.recovery !== undefined && result.operationOutcomes !== undefined)
+                setCommandRecovery(failure, result.recovery, result.operationOutcomes);
+            return failure;
+        }
+        return result;
     };
     return {
         ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: operationName,

@@ -3,10 +3,16 @@
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { ArcApplication, command, Severity } from '../../index.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
+import { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
+import { CommandOperationCompensation } from '../../commands/CommandOperationCompensation.js';
+import { CommandRecoveryStatus } from '../../commands/CommandRecoveryStatus.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
+import { tuple } from '../../commands/tuple.js';
 import type { FetchArcApplication } from '../../FetchArcApplication.js';
 should();
 
-@command() class RunAfterAbort { handle(): string { return 'done'; } }
+class SuccessfulOperation extends CommandOperation { execute(signal: AbortSignal): void { void signal; } }
+@command() class RunAfterAbort { handle() { return tuple('done', new SuccessfulOperation()); } }
 function deferred<T>() {
     let release!: (value: T) => void;
     const promise = new Promise<T>(resolve => { release = resolve; });
@@ -43,4 +49,17 @@ for (const runnerFails of [false, true])
     it('should preserve the runner failure or report cancellation', () => {
         result.exceptionMessages.join(' ').should.contain(runnerFails ? 'runner failed' : 'canceled');
     });
+    if (!runnerFails) {
+        it('should retain recovery and executed operation outcomes on the cancellation failure', () => {
+            result.recovery!.commitDisposition.should.equal(CommandCommitDisposition.NoCommit);
+            result.recovery!.status.should.equal(CommandRecoveryStatus.NotNeeded);
+            result.recovery!.startedCount.should.equal(1);
+            result.operationOutcomes!.map(outcome => [outcome.operationType, outcome.executionCompleted, outcome.compensation])
+                .should.deep.equal([['SuccessfulOperation', true, CommandOperationCompensation.NotNeeded]]);
+        });
+        it('should keep recovery and operation outcomes out of the JSON result', () => {
+            JSON.stringify(result).should.not.contain('recovery');
+            JSON.stringify(result).should.not.contain('operationOutcomes');
+        });
+    }
 });
