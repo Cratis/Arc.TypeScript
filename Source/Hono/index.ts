@@ -7,13 +7,14 @@ import { mountHonoWebSockets } from './WebSocketMount.js';
 export { mountHonoWebSockets } from './WebSocketMount.js';
 export { serveCratisArc } from './serveCratisArc.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
+import { serverOf } from '@cratis/arc.core/hosting';
 
 /** Create Arc middleware; for caller-owned Node listeners inject WebSockets separately. */
 export function cratisArc<E extends Env>(application: ArcServer | ArcApplication,
     native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): MiddlewareHandler<E> & {
         injectWebSocket(host: HttpServer): () => Promise<void>;
     } {
-    const server = 'server' in application ? application.server : application;
+    const server = serverOf(application);
     const middleware: MiddlewareHandler<E> = async (context, next) => {
         if (context.req.header('upgrade')?.toLowerCase() === 'websocket') return next();
         // A wildcard middleware mounted at /v1/* receives the full URL; strip only its declared base.

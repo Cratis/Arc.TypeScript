@@ -6,7 +6,7 @@ import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import type { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction, RequestHandler } from 'express';
-import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
+import { attachNodeWebSockets, serverOf } from '@cratis/arc.core/hosting';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
@@ -15,7 +15,7 @@ export function cratisArc(application: ArcServer | ArcApplication,
     native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): RequestHandler & {
         injectWebSocket(host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void>;
     } {
-    const server = 'server' in application ? application.server : application;
+    const server = serverOf(application);
     const middleware = async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
         const rawPath = request.originalUrl.split('?')[0] ?? '';
         if (!server.endpoints.has(rawPath)) return next();
@@ -70,5 +70,5 @@ export function mountExpress(app: Express, application: ArcServer | ArcApplicati
 /** @deprecated Use cratisArc(application).injectWebSocket(listener). */
 export function mountExpressWebSockets(host: HttpServer, application: ArcServer | ArcApplication,
     native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
-    return attachNodeWebSockets(host, 'server' in application ? application.server : application, native);
+    return attachNodeWebSockets(host, serverOf(application), native);
 }

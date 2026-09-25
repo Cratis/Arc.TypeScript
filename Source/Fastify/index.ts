@@ -7,6 +7,7 @@ import { TLSSocket } from 'node:tls';
 import { fastifyWebSocketMount, mountFastifyWebSockets } from './WebSocketMount.js';
 export { mountFastifyWebSockets } from './WebSocketMount.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
+import { serverOf } from '@cratis/arc.core/hosting';
 
 const origin = 'http://arc.invalid';
 export interface CratisArcOptions {
@@ -17,7 +18,7 @@ export interface CratisArcOptions {
 }
 /** One encapsulated Fastify registration for Arc HTTP and observable upgrades. */
 export const cratisArc: FastifyPluginAsync<CratisArcOptions> = async (app, options) => {
-    const server = 'server' in options.arc ? options.arc.server : options.arc;
+    const server = serverOf(options.arc);
     const prefix = app.prefix || options.prefix || '';
     if (options.webSockets !== false) mountFastifyWebSockets(app, server, options.native, prefix);
     mountFastify(app, options.arc, options.native, prefix);
@@ -27,7 +28,7 @@ export default cratisArc;
 /** @deprecated Use app.register(cratisArc, { arc, webSockets: true }). */
 export function mountFastify(app: FastifyInstance, application: ArcServer | ArcApplication,
     native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>, prefix = ''): void {
-    const server = 'server' in application ? application.server : application;
+    const server = serverOf(application);
     // Encapsulated parsers never replace the parent application's content-type behavior.
     const webSockets = fastifyWebSocketMount(app);
     const streams = new Set<{ abort(): void }>();
