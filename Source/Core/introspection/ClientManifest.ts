@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ClientAuthentication } from './ClientAuthentication.js';
+import { ClientOperationKind } from './ClientOperationKind.js';
 import { z } from 'zod';
 import type { ArcServer } from '../ArcServer.js';
 import type { ClientField } from './ClientField.js';
@@ -99,7 +100,10 @@ export function validateClientManifest(value: unknown): ClientManifest {
         if (raw.kind !== 'command' && (output.kind === 'void' || ['string', 'boolean', 'number', 'enum'].includes(output.kind)))
             fail(at, 'scalar query results can lose false/zero/empty values in published client');
         if (input.some(field => field.type.kind === 'dto' || field.type.kind === 'array' && field.type.element.kind === 'dto')) fail(at, 'object input unsupported by client binder');
-        return { id, kind: raw.kind, route: raw.route, methods, ...(raw.kind !== 'command' ? { queryName: id } : {}), roles: [...raw.roles].sort() as string[], authentication: raw.authentication as ClientOperation['authentication'], dynamicAuthorization: raw.dynamicAuthorization, input, output };
+        return { id, kind: raw.kind as ClientOperationKind, route: raw.route, methods,
+            ...(raw.kind !== 'command' ? { queryName: id } : {}), roles: [...raw.roles].sort() as string[],
+            authentication: raw.authentication as ClientOperation['authentication'], dynamicAuthorization: raw.dynamicAuthorization,
+            input, output };
     });
     // Measure only the sanitized copy: never serialize the caller's objects or execute toJSON.
     if (JSON.stringify(operations).length > 1024 * 1024) fail('root', 'manifest exceeds 1 MiB');
@@ -172,7 +176,8 @@ export function exportClientManifest(server: ArcServer): ClientManifest {
         if (!operation.clientOutput) fail(id, 'missing explicit client output metadata');
         const input = inspectClientInput(operation.schema, id);
         return {
-            id, kind: 'observable' in operation && operation.observable === true ? 'observable' : operation.kind, route: operation.route,
+            id, kind: 'observable' in operation && operation.observable === true ? ClientOperationKind.Observable : operation.kind,
+            route: operation.route,
             methods: server.endpoints.get(operation.route)?.split(', ') ?? [],
             ...(operation.kind === 'query' ? { queryName: id } : {}),
             roles: [...new Set((operation.authorization?.requirements ?? [operation.authorization])

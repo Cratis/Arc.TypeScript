@@ -3,8 +3,9 @@
 import type { SourceField } from './SourceField.js';
 import type { SourceType } from './SourceType.js';
 import type { QueryHttpMethod } from '@cratis/arc.core';
+import { ClientOperationKind } from '@cratis/arc.core';
 export interface SourceOperation {
-    readonly kind: 'command' | 'query' | 'observable';
+    readonly kind: ClientOperationKind;
     readonly name: string;
     readonly namespace: string;
     readonly owner: string;

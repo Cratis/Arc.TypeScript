@@ -11,6 +11,7 @@ import { malformed } from '../http/malformed.js';
 import { renderQuery } from './renderQuery.js';
 import { observe } from '../execution/observability.js';
 import type { Operation } from '../http/Operation.js';
+import { ClientOperationKind } from '../introspection/ClientOperationKind.js';
 import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { recordFailure } from '../execution/failureTracking.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
@@ -27,7 +28,7 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
     observable = false, serverOptions: ArcOptions = {}): Operation {
     return {
-        ...definition, kind: 'query', route, fullyQualifiedName: fullyQualifiedName(definition),
+        ...definition, kind: ClientOperationKind.Query, route, fullyQualifiedName: fullyQualifiedName(definition),
         dynamicAuthorization: typeof definition.authorize === 'function',
         inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {

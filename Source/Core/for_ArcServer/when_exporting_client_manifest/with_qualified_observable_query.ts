@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { should } from 'vitest';
 import { z } from 'zod';
-import { ArcServer, exportClientManifest } from '../../index.js';
+import { ArcServer, ClientOperationKind, exportClientManifest } from '../../index.js';
 import { CurrentValueSubject } from '../../queries/observable/CurrentValueSubject.js';
 import { defineObservableQuery } from '../../queries/observable/defineObservableQuery.js';
 
@@ -21,6 +21,6 @@ describe('when exporting the client manifest with a qualified observable query',
         await server.dispose();
     });
 
-    it('should export an observable operation', () => { operation.kind.should.equal('observable'); });
+    it('should export an observable operation', () => { operation.kind.should.equal(ClientOperationKind.Observable); });
     it('should preserve the qualified query name', () => { operation.queryName?.should.equal('Samples.Numbers'); });
 });
