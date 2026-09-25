@@ -3,6 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { request as httpRequest } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { normalize, request, startServer } from './harness.mjs';
@@ -32,6 +33,18 @@ const tsReaderFailure = query(400, { isValid: true, hasExceptions: true, excepti
 const pagingRule = (message, member) => query(400, { validationResults: [{ severity: 3, message, members: [member], reason: 'rule' }] });
 const badDirection = member => query(400, { validationResults: [{ severity: 3,
     message: 'The sort direction is not a recognized value.', members: [member], reason: 'malformedRequest' }] });
+// fetch overrides Host with the dialed loopback address. Exercise the explicit authority with a raw HTTP request.
+const requestWithHost = (baseUrl, path, headers) => new Promise((resolveResponse, reject) => {
+    const connection = httpRequest(new URL(path, baseUrl), { headers }, response => {
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', chunk => { text += chunk; });
+        response.on('end', () => resolveResponse({ status: response.statusCode,
+            headers: response.headers, body: JSON.parse(text) }));
+    });
+    connection.on('error', reject);
+    connection.end();
+});
 
 // Every pair first checks each server against independent, explicit expectations.
 // The final equality check then detects any unanticipated protocol difference.
@@ -88,6 +101,105 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 400, body: netReaderFailure, headers: { 'cache-control': 'no-store' } },
             { status: 400, body: tsReaderFailure, headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
 
+        const identity = { id: 'fixture-user', name: 'fixture-user', isAuthenticated: true, isAuthorized: true,
+            roles: ['Admin'], details: { greeting: 'Hello fixture-user' } };
+        await parity('authenticated identity returns verified principal details', 'GET', '/.cratis/me', undefined,
+            { status: 200, body: identity }, { 'X-Fixture-Role': 'Admin' });
+        await t.test('authenticated identity issues a display-only cookie matching its response', async () => {
+            const [net, ts] = await send('GET', '/.cratis/me', undefined, { 'X-Fixture-Role': 'Admin' });
+            for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
+                assert.equal(actual.status, 200, label);
+                assert.deepEqual(actual.body, identity, label);
+                assert.match(actual.headers['set-cookie'], /^\.cratis-identity=[^;]+;\s*path=\/;\s*samesite=lax$/i, label);
+                const encoded = actual.headers['set-cookie'].split(';')[0].slice('.cratis-identity='.length);
+                assert.deepEqual(JSON.parse(Buffer.from(decodeURIComponent(encoded), 'base64').toString()), identity, label);
+            }
+        });
+        for (const [role, status, expected] of [['Reader', 403, { error: 'Forbidden' }], [undefined, 401, { error: 'Unauthorized' }]]) {
+            await t.test(`${role ?? 'anonymous'} identity denial: .NET empty, TypeScript JSON`, async context => {
+                const headers = role ? { 'X-Fixture-Role': role } : {};
+                const [net, ts] = await send('GET', '/.cratis/me', undefined, headers);
+                assert.equal(net.status, status);
+                assert.equal(net.body, '');
+                assert.equal(net.headers['content-type'], undefined);
+                assert.equal(net.headers[correlationHeader], correlationId);
+                assert.equal(net.headers['set-cookie'], undefined);
+                assert.equal(ts.status, status);
+                assert.deepEqual(ts.body, expected);
+                assert.equal(ts.headers['content-type'], 'application/json; charset=utf-8');
+                assert.equal(ts.headers[correlationHeader], correlationId);
+                assert.equal(ts.headers['set-cookie'], undefined);
+                context.diagnostic('UNSUPPORTED PARITY: identity denial body differs (empty vs JSON error)');
+            });
+        }
+        await t.test('unsigned identity cookie is never a credential in TypeScript', async context => {
+            const [authenticated] = await send('GET', '/.cratis/me', undefined, { 'X-Fixture-Role': 'Admin' });
+            const cookie = authenticated.headers['set-cookie'].split(';')[0];
+            const [net, ts] = await send('GET', '/.cratis/me', undefined, { Cookie: cookie });
+            assert.equal(net.status, 200);
+            assert.deepEqual(net.body, identity);
+            assert.equal(net.headers[correlationHeader], correlationId);
+            assert.equal(ts.status, 401);
+            assert.deepEqual(ts.body, { error: 'Unauthorized' });
+            assert.equal(ts.headers[correlationHeader], correlationId);
+            context.diagnostic('UNSUPPORTED PARITY: .NET trusts the display cookie before authentication; TypeScript never does');
+        });
+        await t.test('identity schema describes the required greeting on both runtimes', async () => {
+            const [net, ts] = await send('GET', '/.cratis/identity-details/schema');
+            for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
+                assert.equal(actual.status, 200, label);
+                assert.deepEqual(actual.body.required, ['greeting'], label);
+                assert.deepEqual(actual.body.properties.greeting.type, 'string', label);
+                assert.equal(actual.headers[correlationHeader], correlationId, label);
+            }
+        });
+        await parity('header selects the tenant for a scoped query', 'GET', '/api/tenant-echo', undefined,
+            { status: 200, body: query(200, { data: { tenantId: 'header-tenant' } }) },
+            { 'X-Cratis-Tenant-ID': 'header-tenant' });
+        await parity('another header selects another tenant', 'GET', '/api/tenant-echo', undefined,
+            { status: 200, body: query(200, { data: { tenantId: 'second-tenant' } }) },
+            { 'X-Cratis-Tenant-ID': 'second-tenant' });
+        for (const [mode, cases] of [
+            ['fixed', [
+                ['fixed tenant ignores a conflicting header', { 'X-Cratis-Tenant-ID': 'header-tenant' }, 'fixed-tenant']
+            ]],
+            ['claim', [
+                ['verified claim overrides a conflicting header',
+                    { 'X-Fixture-Role': 'Admin', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'claim-tenant'],
+                ['unverified claim header cannot select the tenant', { 'X-Cratis-Tenant-ID': 'claim-tenant' }, '[NotSet]']
+            ]],
+            ['subdomain', [
+                ['single-label subdomain overrides the header',
+                    { Host: 'acme.example.test', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'acme'],
+                ['unrelated host falls back to the header',
+                    { Host: 'other.test', 'X-Cratis-Tenant-ID': 'fallback-tenant' }, 'fallback-tenant']
+            ]]
+        ]) {
+            await t.test(`${mode} tenant resolution`, async subtest => {
+                const env = { ...process.env, ARC_FIXTURE_TENANCY: mode };
+                const net = await startServer('dotnet', ['ContractTests/DotNET/bin/Debug/net10.0/Arc.TypeScript.HttpFixture.dll'],
+                    { cwd: root, kind: 'typescript-dotnet-reference-ready', env });
+                let ts;
+                try {
+                    ts = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'],
+                        { cwd: root, kind: 'typescript-http-fixture-ready', env });
+                    for (const [name, headers, tenantId] of cases) {
+                        await subtest.test(name, async () => {
+                            const expected = { status: 200, body: query(200, { data: { tenantId } }),
+                                headers: { [correlationHeader]: correlationId, 'content-type': 'application/json; charset=utf-8' } };
+                            const options = { 'X-Correlation-ID': correlationId, ...headers };
+                            const [netResult, tsResult] = await Promise.all([
+                                headers.Host ? requestWithHost(net.url, '/api/tenant-echo', options) :
+                                    request(net.url, 'GET', '/api/tenant-echo', undefined, options),
+                                headers.Host ? requestWithHost(ts.url, '/api/tenant-echo', options) :
+                                    request(ts.url, 'GET', '/api/tenant-echo', undefined, options)
+                            ]);
+                            assert.deepEqual(check(tsResult, expected, 'TypeScript'), check(netResult, expected, '.NET'));
+                        });
+                    }
+                } finally { await Promise.all([ts?.stop(), net.stop()]); }
+            });
+        }
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });
@@ -128,6 +240,25 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('observable pending snapshot returns 202', 'GET', '/api/fixture-stream/pending', undefined, {
             status: 202, body: query(202, { isReady: false })
         });
+        await parity('observable first emission is pending without a wait', 'GET', '/api/fixture-stream/first', undefined, {
+            status: 202, body: query(202, { isReady: false })
+        });
+        await parity('observable wait receives the first emission', 'GET',
+            '/api/fixture-stream/first?waitForFirstResult=true&waitForFirstResultTimeout=1', undefined, {
+                status: 200, body: query(200, { data: { value: 'first' } })
+            });
+        await parity('observable short wait times out without a value', 'GET',
+            '/api/fixture-stream/pending?waitForFirstResult=true&waitForFirstResultTimeout=0.02', undefined, {
+                status: 408, body: query(408, { hasExceptions: true, exceptionMessages: [
+                    'Timed out waiting 0.02 seconds for the first observable query result.'
+                ] })
+            });
+        await parity('observable completion before the first value fails instead of reporting pending', 'GET',
+            '/api/fixture-stream/completed?waitForFirstResult=true&waitForFirstResultTimeout=1', undefined, {
+                status: 500, body: query(500, { exceptionMessages: [
+                    'Observable query completed before producing its first result.'
+                ] })
+            });
         await parity('conventional model-bound query binds GUID', 'GET',
             '/api/by-id?id=11111111-1111-4111-8111-111111111111', undefined, {
                 status: 200, body: query(200, { data: { value: correlationId } })
@@ -162,6 +293,45 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
         }
         await count('malformed and wrong-typed commands did not execute handler', 1);
+        const inputCount = (name, value) => parity(name, 'GET', '/api/input-case-count', undefined,
+            { status: 200, body: query(200, { data: { count: value } }) });
+        await inputCount('input handler has not run', 0);
+        for (const [name, body] of [
+            ['null input', null],
+            ['wrong-typed integer input', { count: 'not-an-integer', state: 1, rate: 1 }],
+            ['int32 overflow input', { count: 2147483648, state: 1, rate: 1 }],
+            ['wrong-typed concept input', { count: 1, state: 1, rate: 'wrong' }]
+        ]) {
+            await divergence(`${name} has different malformed input text`, 'POST', '/api/input-cases', body,
+                { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+            await inputCount(`${name} did not reach the handler`, 0);
+        }
+        await divergence('unknown enum value is rejected during input binding', 'POST', '/api/input-cases',
+            { count: 1, state: 99, rate: 1 },
+            { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+            { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+        await inputCount('unknown enum value did not reach the handler', 0);
+        await parity('invalid concept input is rejected before execution', 'POST', '/api/input-cases',
+            { count: 1, state: 1, rate: 0 }, { status: 400, body: command(400, { validationResults: [
+                { severity: 3, message: 'Rate must be positive', members: ['rate'], reason: 'rule' }
+            ] }) });
+        await inputCount('invalid concept input did not reach the handler', 0);
+        await parity('valid input executes once', 'POST', '/api/input-cases', { count: 5, state: 1, rate: 1 },
+            { status: 200, body: command(200, { response: 5 }) });
+        await inputCount('valid input reached the handler once', 1);
+        const queryCaseCount = (name, value) => parity(name, 'GET', '/api/query-case-count', undefined,
+            { status: 200, body: query(200, { data: { count: value } }) });
+        await queryCaseCount('query performer has not run', 0);
+        await parity('query validator returns a full rejection envelope', 'GET', '/api/query-case/find?value=', undefined,
+            { status: 400, body: query(400, { validationResults: [rule] }) });
+        await queryCaseCount('query validator did not execute the performer', 0);
+        await parity('valid query invokes the performer', 'GET', '/api/query-case/find?value=ok', undefined,
+            { status: 200, body: query(200, { data: { value: 'ok' } }) });
+        await queryCaseCount('valid query executed exactly once', 1);
+        await divergence('throwing query performer redacts different message text', 'GET', '/api/query-case/fail', undefined,
+            { status: 500, body: query(500, { exceptionMessages: netReaderFailure.exceptionMessages }) },
+            { status: 500, body: query(500, { exceptionMessages: tsReaderFailure.exceptionMessages }) });
         await parity('authenticated Reader denied before validation leaks', 'POST', '/api/admin-echo', { value: '' }, {
             status: 403, body: command(403)
         }, { 'X-Fixture-Role': 'Reader' });
@@ -323,6 +493,32 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             '/api/items?sortBy=name&sortDirection=sideways', undefined,
             { status: 200, body: query(200, { data: items }) },
             { status: 400, body: badDirection('sortDirection') });
+        await parity('anonymous override on authorized read model', 'GET', '/api/auth-override/public', undefined,
+            { status: 200, body: query(200, { data: { value: 'public' } }) });
+        await parity('authenticated caller reaches class-authorized method', 'GET', '/api/auth-override/private', undefined,
+            { status: 200, body: query(200, { data: { value: 'private' } }) }, { 'X-Fixture-Role': 'Reader' });
+        await divergence('class-authorized method denies anonymous: .NET 403, TypeScript 401', 'GET',
+            '/api/auth-override/private', undefined, { status: 403, body: query(403) }, { status: 401, body: query(401) });
+        for (const role of ['Admin', 'Reader']) {
+            await parity(`class-level OR role accepts ${role}`, 'GET', '/api/role-cases/either', undefined,
+                { status: 200, body: query(200, { data: { value: 'either' } }) }, { 'X-Fixture-Role': role });
+        }
+        await parity('method Admin replaces class Admin or Reader', 'GET', '/api/role-cases/both', undefined,
+            { status: 200, body: query(200, { data: { value: 'both' } }) }, { 'X-Fixture-Role': 'Admin' });
+        await parity('method Admin rejects Reader despite class OR', 'GET', '/api/role-cases/both', undefined,
+            { status: 403, body: query(403) }, { 'X-Fixture-Role': 'Reader' });
+        await divergence('class roles deny anonymous: .NET 403, TypeScript 401', 'GET',
+            '/api/role-cases/either', undefined, { status: 403, body: query(403) }, { status: 401, body: query(401) });
+        await parity('method Reader overrides anonymous class for Reader', 'GET', '/api/role-cases/anonymous-class', undefined,
+            { status: 200, body: query(200, { data: { value: 'reader' } }) }, { 'X-Fixture-Role': 'Reader' });
+        await parity('method Reader denies Admin despite anonymous class', 'GET', '/api/role-cases/anonymous-class', undefined,
+            { status: 403, body: query(403) }, { 'X-Fixture-Role': 'Admin' });
+        await parity('method Reader replaces class Admin for Reader', 'GET', '/api/role-cases/replacement', undefined,
+            { status: 200, body: query(200, { data: { value: 'reader' } }) }, { 'X-Fixture-Role': 'Reader' });
+        await parity('method Reader rejects class-only Admin', 'GET', '/api/role-cases/replacement', undefined,
+            { status: 403, body: query(403) }, { 'X-Fixture-Role': 'Admin' });
+        await divergence('method roles deny anonymous: .NET 403, TypeScript 401', 'GET',
+            '/api/role-cases/both', undefined, { status: 403, body: query(403) }, { status: 401, body: query(401) });
         await parity('authenticated Reader denied private query', 'GET', '/api/items/private', undefined, {
             status: 403, body: query(403)
         }, { 'X-Fixture-Role': 'Reader' });
@@ -371,6 +567,53 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 normalize(ts, { randomCorrelation: true, headers: [correlationHeader, 'content-type'] }));
         });
         await count('invalid correlation validation did not execute handler', 2);
+        const alternateId = '22222222-2222-4222-8222-222222222222';
+        for (const [name, method, path, body, netExpected, tsExpected, headers] of [
+            ['command 400', 'POST', '/api/input-cases', { count: 'bad', state: 1, rate: 1 },
+                command(400, { validationResults: [malformedDotNet] }, alternateId),
+                command(400, { validationResults: [malformedTypeScript] }, alternateId)],
+            ['query 400', 'GET', '/api/query-case/find?value=', undefined,
+                query(400, { validationResults: [rule] }, alternateId), query(400, { validationResults: [rule] }, alternateId)],
+            ['command 403', 'POST', '/api/admin-echo', { value: 'ok' },
+                command(403, {}, alternateId), command(403, {}, alternateId), { 'X-Fixture-Role': 'Reader' }],
+            ['query 403', 'GET', '/api/items/private', undefined,
+                query(403, {}, alternateId), query(403, {}, alternateId), { 'X-Fixture-Role': 'Reader' }],
+            ['command 500', 'POST', '/api/throw-failure', {},
+                command(500, { exceptionMessages: netReaderFailure.exceptionMessages }, alternateId),
+                command(500, { exceptionMessages: tsReaderFailure.exceptionMessages }, alternateId)],
+            ['query 500', 'GET', '/api/query-case/fail', undefined,
+                query(500, { exceptionMessages: netReaderFailure.exceptionMessages }, alternateId),
+                query(500, { exceptionMessages: tsReaderFailure.exceptionMessages }, alternateId)],
+            ['query 202', 'GET', '/api/fixture-stream/pending', undefined,
+                query(202, { isReady: false }, alternateId), query(202, { isReady: false }, alternateId)]
+        ]) {
+            await t.test(`supplied correlation ID echoes on ${name}`, async () => {
+                const [net, ts] = await send(method, path, body, { 'X-Correlation-ID': alternateId, ...headers });
+                for (const [label, actual, expected] of [['.NET', net, netExpected], ['TypeScript', ts, tsExpected]]) {
+                    assert.equal(actual.status, Number(name.split(' ')[1]), label);
+                    assert.deepEqual(actual.body, expected, label);
+                    assert.equal(actual.headers[correlationHeader], alternateId, label);
+                }
+            });
+        }
+        for (const [name, incoming] of [['zero UUID', '00000000-0000-0000-0000-000000000000'], ['missing header', undefined]]) {
+            for (const [status, method, path, body, envelope] of [
+                [400, 'POST', '/api/echo-value/validate', { value: '' }, command(400, { validationResults: [rule] }, '<generated UUID>')],
+                [202, 'GET', '/api/fixture-stream/pending', undefined, query(202, { isReady: false }, '<generated UUID>')]
+            ]) {
+                await t.test(`${name} generates correlated ${status} envelope`, async () => {
+                    const headers = incoming === undefined ? {} : { 'X-Correlation-ID': incoming };
+                    const [net, ts] = await Promise.all([
+                        request(dotnet.url, method, path, body, headers), request(typescript.url, method, path, body, headers)
+                    ]);
+                    for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
+                        const normalized = normalize(actual, { randomCorrelation: true, headers: [correlationHeader, 'content-type'] });
+                        assert.equal(actual.status, status, label);
+                        assert.deepEqual(normalized.body, envelope, label);
+                    }
+                });
+            }
+        }
         await divergence('QUERY oversized body hits the TypeScript-only hosting limit', 'QUERY', '/api/items',
             { extra: 'x'.repeat(1024 * 1024) },
             { status: 200, body: query(200, { data: items }), headers: { 'cache-control': 'no-store' } },

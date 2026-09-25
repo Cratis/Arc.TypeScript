@@ -101,7 +101,7 @@ By default the route is `/api/<discovery-namespace>/<method-name>`: `TaskItem.al
 
 ## Authorization
 
-`@roles`, `@authorize`, and `@allowAnonymous` work on the read-model class and on query methods. A method's declaration replaces the class declaration. A denied caller never reaches the method and gets `isAuthorized: false`. A role says who may call the query, not which rows they may see; see [Authorizing commands and queries](../../authorizing-commands-and-queries.md#queries-roles-and-ownership).
+`@roles`, `@authorize`, and `@allowAnonymous` work on the read-model class and on query methods. An explicit method declaration replaces the class declaration; without one, the method inherits it. For example, class `@allowAnonymous()` does not bypass method `@roles('Reader')`. A denied caller never reaches the method and gets `isAuthorized: false`. A role says who may call the query, not which rows they may see; see [Authorizing commands and queries](../../authorizing-commands-and-queries.md#queries-roles-and-ownership).
 
 ## Recap
 
