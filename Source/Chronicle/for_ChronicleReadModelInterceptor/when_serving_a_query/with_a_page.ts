@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { queryPage } from '@cratis/arc.core';
 import { given } from '../../given.js';
-import { a_projection } from '../given/a_projection.js';
+import { a_projection } from '../../given/a_projection.js';
 
 describe('when serving a Chronicle projection page', given(a_projection, context => {
     let result: Awaited<ReturnType<a_projection['query']>>;

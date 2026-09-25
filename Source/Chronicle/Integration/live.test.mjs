@@ -36,10 +36,12 @@ import { ReadPrivateLiveInCommand } from '../dist/Integration/ReadPrivateLiveInC
 const { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
     ReadLiveInCommand, AdvanceLiveWithConcurrentAppend, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView } = live;
 
-// Keep the test runner alive while an SDK reactor observation waits on an unreferenced gRPC stream.
-const observationKeepAlive = setInterval(() => {}, 1000);
 const connectionString = process.env.ARC_CHRONICLE_TEST_URL;
 if (!connectionString) throw new Error('ARC_CHRONICLE_TEST_URL is required; do not silently skip the kernel suite');
+const mongoUrl = process.env.ARC_CHRONICLE_TEST_MONGO_URL;
+if (!mongoUrl) throw new Error('ARC_CHRONICLE_TEST_MONGO_URL is required for raw PII storage checks; set it to the kernel MongoDB URL');
+// Keep the test runner alive while an SDK reactor observation waits on an unreferenced gRPC stream.
+const observationKeepAlive = setInterval(() => {}, 1000);
 const exporter = new InMemorySpanExporter();
 const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
 trace.setGlobalTracerProvider(provider);
@@ -50,8 +52,6 @@ for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLi
     CreatePrivateLive, PrivateLiveCreated, PrivateLiveView, ReadPrivateLiveInCommand]) artifacts.register(type);
 let application;
 const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
-const mongoUrl = process.env.ARC_CHRONICLE_TEST_MONGO_URL;
-if (!mongoUrl) throw new Error('ARC_CHRONICLE_TEST_MONGO_URL is required for raw PII storage checks');
 const mongo = new MongoClient(mongoUrl, { directConnection: true });
 await mongo.connect();
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
@@ -195,16 +195,25 @@ try {
                 });
                 assert.equal(observable.status, 200);
                 const reader = observable.body.getReader();
+                const decoder = new globalThis.TextDecoder();
+                let buffer = '';
+                const nextFrame = async () => {
+                    while (!buffer.includes('\n\n')) {
+                        const { value, done } = await reader.read();
+                        if (done) throw new Error('Observable stream ended before a complete SSE frame');
+                        buffer += decoder.decode(value, { stream: true });
+                    }
+                    const end = buffer.indexOf('\n\n');
+                    const frame = buffer.slice(0, end);
+                    buffer = buffer.slice(end + 2);
+                    return JSON.parse(frame.slice(frame.indexOf('data: ') + 6));
+                };
                 try {
-                    const first = new globalThis.TextDecoder().decode((await reader.read()).value);
-                    assert.equal(JSON.parse(first.slice(first.indexOf('data: ') + 6, first.indexOf('\n\n'))).data.name, privateName,
-                        'observable snapshot releases PII');
+                    assert.equal((await nextFrame()).data.name, privateName, 'observable snapshot releases PII');
                     const updatedName = `updated-${privateName}`;
                     const update = await call(listener.url, 'create-private-live', privateId, tenant, updatedName);
                     assert.equal(update.body.isSuccess, true, JSON.stringify(update));
-                    const next = new globalThis.TextDecoder().decode((await reader.read()).value);
-                    assert.equal(JSON.parse(next.slice(next.indexOf('data: ') + 6, next.indexOf('\n\n'))).data.name, updatedName,
-                        'observable update releases PII');
+                    assert.equal((await nextFrame()).data.name, updatedName, 'observable update releases PII');
                 } finally { await reader.cancel(); }
                 const batchId = randomUUID();
                 const batch = await call(listener.url, 'create-live-batch', batchId, tenant, adapter);

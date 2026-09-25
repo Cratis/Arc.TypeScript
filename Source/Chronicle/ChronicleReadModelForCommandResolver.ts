@@ -10,6 +10,6 @@ export class ChronicleReadModelForCommandResolver implements ReadModelForCommand
     supports(type: ClassType): boolean { return this.artifacts.readModels.includes(type as never); }
     async find<T>(type: ClassType<T>, key: string, context: CommandContext): Promise<T | null> {
         const store = await this.runtime.getStore(context);
-        return await store.readModels.findInstanceById(type as never, key) as T | null;
+        return store.readModels.findInstanceById(type as never, key) as Promise<T | null>;
     }
 }

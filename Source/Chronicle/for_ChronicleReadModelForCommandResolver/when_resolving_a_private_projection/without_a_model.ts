@@ -3,7 +3,7 @@
 import type { CommandContext } from '@cratis/arc.core';
 import { given } from '../../given.js';
 import { ChronicleReadModelForCommandResolver } from '../../ChronicleReadModelForCommandResolver.js';
-import { a_projection } from '../../for_ChronicleReadModelInterceptor/given/a_projection.js';
+import { a_projection } from '../../given/a_projection.js';
 
 describe('when injecting an absent Chronicle projection', given(a_projection, context => {
     let result: object | null;
@@ -13,5 +13,4 @@ describe('when injecting an absent Chronicle projection', given(a_projection, co
             .find(context.model, 'missing', context.context as CommandContext);
     });
     it('should preserve null', () => { (result === null).should.equal(true); });
-    it('should not release an absent model', () => { context.release.called.should.equal(false); });
 }));

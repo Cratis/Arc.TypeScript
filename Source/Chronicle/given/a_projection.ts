@@ -9,14 +9,15 @@ import { reducer } from '@cratis/chronicle/reducers';
 import { ArcApplication, CurrentValueSubject, defineObservableQuery, defineQuery, readModel, Severity } from '@cratis/arc.core';
 import type { QueryResult } from '@cratis/arc.core';
 import { z } from 'zod';
-import '../../index.js';
+import { Observable } from 'rxjs';
+import '../index.js';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import type { ExecutionContext } from '@cratis/arc.core';
 import sinon from 'sinon';
-import { ChronicleArtifacts } from '../../ChronicleArtifacts.js';
-import { ChronicleReadModelInterceptor } from '../../ChronicleReadModelInterceptor.js';
-import { ChronicleReadModels } from '../../ChronicleReadModels.js';
-import type { ChronicleRuntime } from '../../ChronicleRuntime.js';
+import { ChronicleArtifacts } from '../ChronicleArtifacts.js';
+import { ChronicleReadModelInterceptor } from '../ChronicleReadModelInterceptor.js';
+import { ChronicleReadModels } from '../ChronicleReadModels.js';
+import type { ChronicleRuntime } from '../ChronicleRuntime.js';
 
 @eventType() class Created { @field(String) name = ''; }
 @readModel() @fromEvent(Created)
@@ -80,10 +81,10 @@ export class a_projection {
         finally { await application.dispose(); }
     }
     models(): ChronicleReadModels { return new ChronicleReadModels(this.runtime, this.context); }
-    async observable(data: object): Promise<QueryResult> {
+    async observable(data: object | Observable<object>): Promise<QueryResult> {
         const builder = ArcApplication.createBuilder({
             observableQueries: [defineObservableQuery({ name: 'PrivateWatch', schema: z.object({}),
-                observe: () => CurrentValueSubject.of(data) })]
+                observe: () => data instanceof Observable ? data : CurrentValueSubject.of(data) })]
         });
         builder.withChronicle({ eventStore: 'Test', client: { getEventStore: this.getStore } as unknown as IChronicleClient });
         builder.add(PrivateView, Created);

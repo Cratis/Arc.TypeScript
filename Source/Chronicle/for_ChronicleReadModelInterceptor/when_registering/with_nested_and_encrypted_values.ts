@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { given } from '../../given.js';
 import { hasProtectedReadModel } from '../../hasProtectedReadModel.js';
-import { a_projection } from '../given/a_projection.js';
+import { a_projection } from '../../given/a_projection.js';
 
 describe('when detecting protected Chronicle read model types', given(a_projection, context => {
     let decisions: boolean[];

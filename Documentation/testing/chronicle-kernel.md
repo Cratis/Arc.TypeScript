@@ -13,7 +13,14 @@ From the repository root, with Docker available:
 yarn workspace @cratis/arc.sample.library test:kernel
 ```
 
-The script starts `cratis/chronicle:latest-development` on a free loopback port with a unique container name, then stops and removes **only that container** on exit. To use an already-running kernel instead, set `ARC_CHRONICLE_TEST_URL` to its `chronicle://host:port` connection string; the script does not stop that kernel. A missing Docker service or an unreachable kernel fails the opt-in check rather than skipping it.
+The script starts `cratis/chronicle:latest-development` on a free loopback port with a unique container name, then stops and removes
+**only that container** on exit. To use an already-running kernel instead, set `ARC_CHRONICLE_TEST_URL` to its `chronicle://host:port`
+connection string; the script does not stop that kernel. A missing Docker service or an unreachable kernel fails the opt-in check rather
+than skipping it.
+
+For `bash Source/Chronicle/run-integration.sh` against an already-running kernel, also set `ARC_CHRONICLE_TEST_MONGO_URL` to its MongoDB
+connection string (for example, `mongodb://localhost:27017/?directConnection=true`). The suite verifies ciphertext in raw storage and
+fails early if this URL is missing.
 
 The [Library suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/kernel-scenarios.test.mjs) registers the slice's artifacts, seeds a `BookAdded`, executes `AddBook` through Arc, and asserts the resulting `Book` projection. It also checks `UniqueAuthorName` rejection on a second `RegisterAuthor` in the same store. Each scenario chooses a new event-store name; dispose the scenario after the test. The helper owns and disposes its SDK client, but does not delete the kernel's persisted event store.
 
