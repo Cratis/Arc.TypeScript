@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.testing",
-  "version": "0.30.2",
+  "version": "0.30.3",
   "type": "module",
   "license": "MIT",
   "publishConfig": {

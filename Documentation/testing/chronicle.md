@@ -74,6 +74,9 @@ export class LendBookValidator extends CommandValidator<LendBook> {
 
 `LendBook` reads the `Book` projected for its key and returns two events. Arc appends both to the book's event source in one batch.
 
+For an application that loads this slice, [injecting an aggregate into a command](../chronicle/aggregates/injecting-into-commands.md)
+shows `useGeneratedMetadata` and `discover()` together.
+
 ## Pin the read model a command reads
 
 `givenReadModel(Type, sourceId, instance)` sets the instance the scenario's event store returns for that read model and ID. Pin it before `execute`:

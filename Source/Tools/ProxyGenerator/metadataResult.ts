@@ -4,8 +4,10 @@ import ts from 'typescript';
 import { MetadataImports } from './MetadataImports.js';
 
 /** Describe result cardinality and element type without executing the method. */
-export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: MetadataImports, location: ts.Node, paged = false, observable?: boolean, includeElement = true): string {
-    const parts = type.isUnion() ? type.types : [type];
+export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: MetadataImports, location: ts.Node,
+    paged = false, observable?: boolean, includeElement = true, selectedParts?: readonly ts.Type[]): string {
+    const parts = selectedParts ?? (type.isUnion() ? type.types : [type]);
+    if (!parts.length) return "{ cardinality: 'void', nullable: true }";
     const nullable = parts.some(part => !!(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)));
     const value = parts.find(part => !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined))) ?? type;
     const many = checker.isArrayType(value);
