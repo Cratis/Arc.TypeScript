@@ -8,7 +8,7 @@ import type { RequestBindings } from './handleRequest.js';
 import type { EndpointResponse } from './EndpointResponse.js';
 import { BadRequest } from './BadRequest.js';
 import { body } from './body.js';
-import { getQuery, structuredQuery } from './queryBinding.js';
+import { getQuery, QueryValidationError, structuredQuery } from './queryBinding.js';
 import { commandResult } from '../commands/createCommandResult.js';
 import { queryResult } from '../queries/createQueryResult.js';
 import { malformed } from './malformed.js';
@@ -72,6 +72,10 @@ export async function handleOperation(server: ArcServer, bindings: RequestBindin
         bound = await readInput(server, request, operation);
     } catch (error) {
         if (!(error instanceof BadRequest)) throw error;
+        if (error instanceof QueryValidationError) return response.send(queryResult(context, { validationResults: [error.result] }), 400);
+        if (operation.kind !== 'command' && request.method === 'QUERY') {
+            return response.send(queryResult(context, { exceptionMessages: ['An unexpected error occurred'] }), 400);
+        }
         const failure = operation.kind === 'command' ? commandResult(context, { validationResults: malformed(context) }) :
             queryResult(context, { validationResults: malformed(context) });
         return response.send(failure, 400);
