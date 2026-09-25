@@ -5,14 +5,14 @@ description: Return Arc commands from a Chronicle reactor so they run through va
 
 When a book is added to the catalog, the search index should follow. The indexing command already exists, with its validation and its role check. Instead of calling a service from the reactor and repeating those checks, return the command, and Arc runs it through the same pipeline an HTTP caller would use.
 
-This relies on the SDK's reactor result hook, available in the Chronicle SDK 6.7.0 the integration requires.
+This relies on the SDK's reactor result hook, available in the Chronicle SDK 6.7.0 and later.
 
 ## Return a command
 
 ```typescript title="Catalog.ts"
 import { field } from '@cratis/fundamentals';
 import { eventType, type EventContext } from '@cratis/chronicle/events';
-import { reactor } from '@cratis/chronicle/reactors';
+import { onceOnly, reactor } from '@cratis/chronicle/reactors';
 import { command, key, roles } from '@cratis/arc.core';
 import { executeCommandsAsSystem } from '@cratis/arc.chronicle';
 
@@ -39,6 +39,7 @@ export class IndexBook {
 }
 
 @executeCommandsAsSystem('CatalogWriter')
+@onceOnly()
 @reactor()
 export class CatalogIndexer {
     bookAdded(event: BookAdded, context: EventContext): IndexBook {
@@ -53,7 +54,7 @@ Register all four with `builder.add(...)` after `withChronicle`, or with `builde
 
 A reactor is not an HTTP request, so no caller is signed in. A returned command runs with **no principal** by default, as in Arc on .NET. A command without authorization rules runs normally; one with `@roles`, `@authorize`, or a policy is rejected.
 
-`@executeCommandsAsSystem('CatalogWriter')` on the reactor class gives the commands it returns an authenticated system principal with exactly the roles you list. Grant only the roles those commands need. The decorator covers returned commands only; a command you execute yourself inside the handler gets nothing from it.
+`@executeCommandsAsSystem('CatalogWriter')` on the reactor class gives the commands it returns an authenticated system principal with exactly the roles you list. Grant only the roles those commands need. The decorator covers returned commands only; a command you execute yourself inside the handler gets nothing from it. It does not prevent replay; `@onceOnly()` does that for this reactor on SDK 6.9.0 and later.
 
 | Value | Without the decorator | With the decorator |
 | --- | --- | --- |
@@ -82,7 +83,9 @@ Do not mix commands with events or other values in one array. Arc rejects the mi
 
 A returned command that fails, whether rejected by authorization or validation or by throwing, fails the handler with a message naming the command, the event store, and the namespace. Chronicle marks the observer partition as failed rather than acknowledging a partial side effect. When Chronicle delivers the event again, the handler returns the commands again, including any that succeeded the first time.
 
-Make the commands safe to repeat. Key them by the triggering event source, check current state in [`provide()` or a read model](../read-models/injecting-into-commands.md), or rely on a Chronicle constraint to reject the duplicate. The TypeScript SDK has no replay exclusion like .NET's `[OnceOnly]`.
+On SDK 6.9.0 and later, reactors accept explicit and kernel-initiated replays by default. Mark the class with `@onceOnly()` when all its handlers cause non-replayable effects, or mark individual handlers if only some do. Chronicle skips them during replay; `@replay()` can supply an alternate replay handler. See [Chronicle once-only reactors](/chronicle/reactors/once-only/). Marking a reactor once-only does **not** prevent re-delivery when a failed partition is recovered.
+
+Make the commands safe to repeat even with `@onceOnly()`. Key them by the triggering event source, check current state in [`provide()` or a read model](../read-models/injecting-into-commands.md), or rely on a Chronicle constraint to reject the duplicate. SDK 6.7.x and 6.8.x do not support replay exclusion.
 
 No transaction spans the triggering event and the commands. The triggering event is already committed when the reactor runs.
 

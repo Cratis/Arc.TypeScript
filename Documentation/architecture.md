@@ -91,7 +91,7 @@ The full list is in the [capability reference](reference/capabilities.md#deliber
 
 ## Integrations stay outside the core
 
-Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.7.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
+Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.10.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
 
 The integration covers the main Chronicle command paths. Events returned by a command and events applied to a keyed [aggregate](chronicle/aggregates/index.md) are staged, together with those of nested commands, and appended in one `appendMany` batch after the outer command succeeds. A Chronicle reactor can return Arc commands, which run through the full command pipeline. An opt-in live-kernel suite exercises returned events, batches, aggregates, reactor commands, and concurrency rejections through Express, Fastify, and Hono.
 
@@ -99,7 +99,7 @@ The integration stays experimental, and full parity with Arc on .NET is unverifi
 
 - The batch covers one event log. It is not a transaction across other stores or external calls, and an immediate SDK append inside `handle()` is outside it. See [Transactional commands](chronicle/commands/transactional-commands.md).
 - The aggregate loads only the event source named by the command key, and has no `Failed(...)` or `OnActivate`.
-- The TypeScript SDK has no reactor replay exclusion, so reactors that return commands must tolerate re-delivery.
+- The SDK replays reactors by default since 6.9.0. Mark non-replayable effects with `@onceOnly()`; returned commands still need to tolerate failed-partition re-delivery. See [Reactors](chronicle/reactors/index.md).
 - Reads through Chronicle return decrypted read models. Arc releases encrypted personal data at its query edge only for protected read models decoded into their exact class from a direct MongoDB read; raw documents, derived subtypes, and mapped objects need an explicit `readModels.release` call. See [Compliance](chronicle/compliance.md).
 - There are no `ARCCHR` analyzers.
 

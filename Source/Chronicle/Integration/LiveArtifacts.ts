@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
-import { reactor } from '@cratis/chronicle/reactors';
+import { onceOnly, reactor } from '@cratis/chronicle/reactors';
 import type { EventContext } from '@cratis/chronicle/events';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { command, key, readModel, query, argument, service, inject, commandReadModel, commandContext, CommandOperation, tuple } from '@cratis/arc.core';
@@ -28,6 +28,7 @@ export class FollowUpLive {
     handle(): LiveFollowedUp { return new LiveFollowedUp(this.name); }
 }
 
+@onceOnly()
 @reactor('ArcTypeScriptLiveCommandReactor')
 export class LiveCommandReactor {
     liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
