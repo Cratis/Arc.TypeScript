@@ -26,6 +26,8 @@ await test('Library author registration materializes a read model and enforces u
         const result = await scenario.execute({ id, name });
         result.shouldBeSuccessful();
         result.shouldHaveAppendedEvent(AuthorRegistered, id.toString(), event => event.name.value === name.value);
+        const commandCausation = result.appendedEvents[0].context.causation.find(entry => entry.type === 'Arc.Command');
+        assert.equal(commandCausation?.properties['Value.id'], id.toString(), 'Guid concept recorded in persisted causation');
         const model = await scenario.shouldHaveReadModel(Author, id.toString(), value => value.name.value === name.value);
         assert.equal(model.id.toString(), id.toString());
         const conflict = await scenario.execute({ id: AuthorId.create(), name });

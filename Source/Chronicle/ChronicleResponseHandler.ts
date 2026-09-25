@@ -1,7 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { randomUUID } from 'node:crypto';
-import { ConceptAs } from '@cratis/fundamentals';
 import { isRegisteredEvent, hasEventType } from '@cratis/chronicle/events';
 import { getSubjectPropertyName } from '@cratis/chronicle/compliance';
 import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
@@ -15,13 +14,9 @@ import { EventSourceIdResponse } from './eventSourceIdResponse.js';
 import { eventForEventSourceId, isRoutedEvent } from './eventForEventSourceId.js';
 import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
 import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
+import { chronicleIdentity } from './chronicleIdentity.js';
 function eventLike(value: unknown): boolean {
     return typeof value === 'object' && value !== null && (isRoutedEvent(value) || hasEventType(value.constructor));
-}
-function identifier(value: unknown): string | undefined {
-    if (typeof value === 'string') return value || undefined;
-    if (value instanceof ConceptAs && typeof value.value === 'string') return value.value || undefined;
-    return undefined;
 }
 /** Consume only registered Chronicle events, leaving ordinary DTOs in the Arc response pipeline. */
 export class ChronicleResponseHandler implements CommandResponseValueHandler {
@@ -45,12 +40,13 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         const sourceId = responseId ?? context.key ?? randomUUID();
         if (!sourceId.trim()) throw new Error('A Chronicle event source id must not be empty');
         const route = eventRoutingFor((context.command as object).constructor);
-        const command = context.command as { getEventSourceId?: () => unknown; getEventStreamId?: () => string; getSubject?: () => string };
+        const command = context.command as { getEventSourceId?: () => unknown; getEventStreamId?: () => string; getSubject?: () => unknown };
         const selectedId = sourceId;
         if (!selectedId?.trim()) throw new Error('The command provided an invalid event source id');
         const streamId = command.getEventStreamId?.() ?? route.eventStreamId;
         const subjectField = getSubjectPropertyName((context.command as object).constructor);
-        const subject = command.getSubject?.() ?? (subjectField ? identifier(Reflect.get(context.command as object, subjectField)) : undefined) ?? route.subject;
+        const subject = chronicleIdentity(command.getSubject?.(), 'subject') ??
+            (subjectField ? chronicleIdentity(Reflect.get(context.command as object, subjectField), 'subject') : undefined) ?? route.subject;
         const entries: EventForEventSourceId[] = values.map(item => {
             const original: EventForEventSourceId = isRoutedEvent(item) ? item : { eventSourceId: selectedId, event: item as object };
             if (typeof original.eventSourceId !== 'string' || !original.eventSourceId.trim())
