@@ -1,6 +1,6 @@
 {
   "name": "@cratis/eslint-plugin-arc-core",
-  "version": "0.30.4",
+  "version": "0.31.0",
   "type": "module",
   "license": "MIT",
   "description": "ESLint diagnostics for Arc for TypeScript server artifacts",
