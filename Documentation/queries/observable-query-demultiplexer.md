@@ -5,6 +5,8 @@ description: Carry many observable-query subscriptions over one WebSocket or ser
 
 A dashboard with ten live widgets should not open ten sockets. The multiplexed hub carries every subscription from one client over a single connection, and it is the default transport of the published `@cratis/arc` client.
 
+The plain `@cratis/arc` client uses the WebSocket hub by default. The `<Arc>` provider from `@cratis/arc.react` uses the SSE hub by default, which on this server requires an authenticated caller; set `<Arc queryTransportMethod={QueryTransportMethod.WebSocket}>` when your callers are anonymous.
+
 ## The WebSocket hub
 
 The hub lives at `/.cratis/queries/ws`. After `Connected`, the client subscribes by query name:
