@@ -1,5 +1,7 @@
 - name: Overview
   href: index.md
+- name: Why Arc for TypeScript
+  href: why-arc-for-typescript.md
 - name: Coming from Express and NestJS
   href: coming-from-express-and-nestjs.md
 - name: Getting Started
