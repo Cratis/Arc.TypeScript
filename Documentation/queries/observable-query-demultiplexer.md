@@ -80,8 +80,7 @@ With the defaults, one caller can take the whole global capacity. Lower both for
 
 Where the peer address comes from depends on the host:
 
-- **Express, Fastify, and Hono on the Node server** read it from the TCP socket, unless the adapter's native callback returns a `remoteAddress`.
-- **The standalone host** (`app.run()`, `runArc`, and `createArcNodeHandler`) does not read the socket for HTTP requests, so SSE streams and controls have no peer address unless its `native` option returns `remoteAddress`. Its WebSocket upgrades fall back to the socket address.
+- **Express, Fastify, and Hono on the Node server** and **the standalone host** (`app.run()`, `runArc`, and `createArcNodeHandler`) read it from the TCP socket, unless the native callback returns a `remoteAddress`.
 - **Fetch API hosts** (`app.fetch`, `app.handle`, and `server.handle`) have no socket. Pass `remoteAddress` in the native context.
 
 Arc never reads `X-Forwarded-For` or `Forwarded`. Behind a reverse proxy, the socket address is the proxy's, so all anonymous clients behind it share one budget, and the peer-address check only shows that a control request came through the same proxy. A low per-caller cap then throttles those clients together. To budget them one by one, validate the forwarding header against your trusted proxy chain in the native callback and return the client address as `remoteAddress`. [Native principal](../hosts/native-principal.md) describes the callback, and [WebSockets](../hosts/websockets.md) shows a trusted-proxy check for upgrades.
