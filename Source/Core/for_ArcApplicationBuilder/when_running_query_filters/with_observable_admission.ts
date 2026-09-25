@@ -19,12 +19,18 @@ describe('when admitting an observable query in a hub', () => {
     let application: FetchArcApplication;
     let outcome: HubSubscriptionOutcome;
     let calls: number;
+    let names: (string | undefined)[];
     let observations: number;
     beforeEach(async () => {
         calls = 0;
+        names = [];
         observations = 0;
         class Deny {
-            onPerform(context: QueryContext): QueryResult { calls++; return unauthorizedQueryResult(context); }
+            onPerform(context: QueryContext): QueryResult {
+                calls++;
+                names.push(context.operationName);
+                return unauthorizedQueryResult(context);
+            }
         }
         const builder = ArcApplication.createBuilder({ observableQueries: [defineObservableQuery({
             name: 'LiveFiltered', schema: z.object({}), authorization: { anonymous: true },
@@ -42,6 +48,10 @@ describe('when admitting an observable query in a hub', () => {
         connection.frames.some(frame => frame.type === HubFrameType.Unauthorized).should.equal(true);
     });
     it('should run admission once at subscribe', () => { calls.should.equal(1); });
+    it('should identify the observable operation at admission', () => {
+        names.should.deep.equal(['LiveFiltered']);
+        application.server.queries[0]!.fullyQualifiedName.should.equal(names[0]);
+    });
     it('should not construct the source', () => { observations.should.equal(0); });
 });
 

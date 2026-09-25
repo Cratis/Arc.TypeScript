@@ -69,7 +69,7 @@ export function createRouteTable(options: ArcOptions, observeHealth: (context: E
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },
                 observe: (_input, context) => observeHealth(context)
-            }, '/.cratis/queries/health'), internal: true }] : [])
+            }, '/.cratis/queries/health', options), internal: true }] : [])
         ];
         const routes = new Map<string, Operation>();
         const names = new Set<string>();
