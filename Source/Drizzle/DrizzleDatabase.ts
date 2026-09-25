@@ -1,4 +1,4 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-/** Runtime class of a decorated model-bound Arc artifact. */
-export type { ClassType } from '@cratis/arc.core';
+/** Minimal SQL execution surface supported by the PostgreSQL, MySQL, and SQLite Drizzle drivers. */
+export type DrizzleDatabase = object;

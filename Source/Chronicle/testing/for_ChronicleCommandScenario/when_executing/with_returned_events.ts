@@ -3,8 +3,8 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { command, key } from '@cratis/arc.core';
-import { ChronicleCommandScenario } from '../../testing/index.js';
-import { eventSourceType, eventForEventSourceId } from '../../index.js';
+import { ChronicleCommandScenario } from '../../index.js';
+import { eventSourceType, eventForEventSourceId } from '../../../index.js';
 
 @eventType() class Registered { @field(String) name: string; constructor(name = '') { this.name = name; } }
 @command() @eventSourceType('Task', { concurrency: true }) class Register {

@@ -14,6 +14,7 @@ const origin = 'http://arc.invalid';
 export function cratisArc(application: ArcServer | ArcApplication,
     native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): RequestHandler & {
         injectWebSocket(host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void>;
+        close(host: HttpServer): Promise<void>;
     } {
     const server = serverOf(application);
     const middleware = async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
@@ -55,8 +56,23 @@ export function cratisArc(application: ArcServer | ArcApplication,
             response.off('close', onClose);
         }
     };
+    const socketDisposers = new Map<HttpServer, () => Promise<void>>();
     return Object.assign(middleware, {
-        injectWebSocket: (host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>) =>
-            attachNodeWebSockets(host, server, upgradeNative)
+        injectWebSocket: (host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>) => {
+            if (socketDisposers.has(host)) throw new Error('Express observable WebSockets are already injected');
+            const dispose = attachNodeWebSockets(host, server, upgradeNative);
+            socketDisposers.set(host, dispose);
+            return async () => { socketDisposers.delete(host); await dispose(); };
+        },
+        async close(host: HttpServer) {
+            try { await socketDisposers.get(host)?.(); }
+            finally {
+                socketDisposers.delete(host);
+                const closed = new Promise<void>((resolve, reject) => host.close(error => error ? reject(error) : resolve()));
+                // SSE responses keep close() pending until their clients disconnect.
+                host.closeAllConnections();
+                await closed;
+            }
+        }
     });
 }

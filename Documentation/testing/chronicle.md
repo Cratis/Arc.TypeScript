@@ -11,7 +11,7 @@ The Chronicle integration is experimental. See [Chronicle](../chronicle/index.md
 
 ## Assert an appended event
 
-This excerpt is from the package's own [scenario spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/for_ChronicleCommandScenario/when_executing/with_returned_events.ts), with imports rewritten to the packages:
+This excerpt is from the package's own [scenario spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/testing/for_ChronicleCommandScenario/when_executing/with_returned_events.ts), with imports rewritten to the packages:
 
 ```typescript
 import { field } from '@cratis/fundamentals';

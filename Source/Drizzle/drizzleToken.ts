@@ -3,7 +3,7 @@
 import { serviceToken } from '@cratis/arc.core';
 import type { ServiceToken } from '@cratis/arc.core';
 import type { DrizzleHandle } from './DrizzleHandle.js';
-import type { DrizzleDatabase } from './DrizzleOptions.js';
+import type { DrizzleDatabase } from './DrizzleDatabase.js';
 import type { DrizzleReadModels } from './DrizzleReadModels.js';
 
 /** Writable tenant-specific database token; inject with `service(drizzleDatabase())` when writes are intended. */

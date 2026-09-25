@@ -18,16 +18,12 @@ app.use(middleware);
 app.use(express.json());
 app.get('/health', (_request, response) => { response.send('ok'); });
 const listener = app.listen(3000, '127.0.0.1');
-const disposeSockets = middleware.injectWebSocket(listener);
+middleware.injectWebSocket(listener);
 
 process.once('SIGTERM', () => {
     void (async () => {
         try {
-            await disposeSockets();
-            const closed = new Promise<void>((resolve, reject) =>
-                listener.close(error => error ? reject(error) : resolve()));
-            listener.closeAllConnections(); // Drain open SSE responses before awaiting close.
-            await closed;
+            await middleware.close(listener); // Drain WebSockets and SSE, then close the listener.
         } finally { await arc.dispose(); }
     })();
 });
@@ -53,7 +49,7 @@ An unexpected error inside the adapter is passed to Express with `next(error)`. 
 
 ## Observable queries over WebSockets
 
-Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `cratisArc(arc).injectWebSocket(listener, native?)`; the middleware cannot see upgrades. See [WebSockets](websockets.md#express).
+Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `middleware.injectWebSocket(listener, native?)`; the middleware cannot see upgrades. Call `middleware.close(listener)` during shutdown to drain WebSockets and SSE before closing the listener. Dispose the Arc application separately. See [WebSockets](websockets.md#express).
 
 ## Related
 
