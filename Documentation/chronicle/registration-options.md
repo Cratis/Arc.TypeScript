@@ -15,7 +15,7 @@ builder.withChronicle({ connectionString: 'chronicle://localhost:35000', eventSt
 
 Importing `@cratis/arc.chronicle` adds the `withChronicle` method to the Node builder and to the Fetch API builder from `@cratis/arc.core/fetch`. The package also exports the function `withChronicle(builder, options)`, which does the same; the [Library sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/main.ts) uses that form.
 
-Call it before or after `discover(...)`. The integration records the event types, projections, reducers, reactors, and constraints discovered by Arc, including artifacts discovered earlier. For Chronicle-only artifacts passed to `add(...)`, call `withChronicle` first: Arc otherwise rejects them without an Arc decorator.
+Call it before or after `discover(...)`. The integration records the event types, projections, reducers, reactors, and constraints discovered by Arc, including artifacts discovered earlier. For Chronicle-only artifacts passed to `add(...)`, call `withChronicle` first: Arc otherwise rejects them without an Arc decorator. Arc-owned clients pass the registered artifacts to the SDK and set `discoveryPatterns: []`, so they do not depend on SDK file scanning. For a caller-owned client, import and register your artifacts explicitly or configure its `discoveryPatterns`. Since SDK 6.10.0, compiled JavaScript entry points no longer scan `.ts` files by default; explicit patterns still apply.
 
 ## Options
 
@@ -31,7 +31,7 @@ Registration throws `Chronicle requires eventStore and exactly one of connection
 Every append and read uses the current execution's tenant as the Chronicle namespace, or the `Default` namespace when no tenant is resolved. Tenancy you configure for Arc therefore also isolates events and read models. See [Tenancy](../tenancy/index.md).
 
 :::caution[Development credentials]
-`chronicle://localhost:35000` without credentials uses the SDK's development client and accepts the kernel's self-signed certificate. In production, put real client credentials in the connection string and validate the kernel's certificate. [Chronicle connection strings](/chronicle/connection-strings/) lists the parameters.
+`chronicle://localhost:35000` without credentials uses the SDK's development client and accepts the kernel's self-signed certificate. In production, put real client credentials in the connection string and validate the kernel's certificate. With SDK 6.10.0, `getEventStore(...)` rejects after three consecutive credential rejections instead of waiting indefinitely. [Chronicle connection strings](/chronicle/connection-strings/) lists the parameters.
 :::
 
 ## Read the connection from configuration
