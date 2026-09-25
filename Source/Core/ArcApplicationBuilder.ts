@@ -1,41 +1,30 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { z } from 'zod';
 import type { ArcOptions } from './ArcOptions.js';
 import type { ArcBuilderExtensions } from './fetch.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
 import { ArcApplicationServices } from './dependencyInjection/ArcApplicationServices.js';
-import { FetchArcApplication } from './FetchArcApplication.js';
+import type { FetchArcApplication } from './FetchArcApplication.js';
 import { ArcServer } from './ArcServer.js';
-import type { CommandDefinition } from './commands/CommandDefinition.js';
-import type { QueryDefinition } from './queries/QueryDefinition.js';
-import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
-import { compileCommand } from './commands/modelBound/compileCommand.js';
-import { compileQueries } from './queries/modelBound/compileQueries.js';
+import { buildRegistered } from './build/buildRegistered.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
 import { registerGeneratedMetadata, withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
 import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
 import type { GeneratedMetadata } from './reflection/GeneratedArtifactMetadata.js';
 import type { ClassType } from './reflection/ClassType.js';
 import type { Artifact } from './reflection/Artifact.js';
-import { validateMetadata } from './reflection/validateMetadata.js';
 import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
-import { Severity } from './validation/Severity.js';
-import { BaseValidator } from './validation/BaseValidator.js';
-import { ModelGraphValidator } from './validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 import type { QueryRenderer } from './queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
-import { readModelArgument } from './commands/modelBound/commandReadModel.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
-import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
 // Interface merging exposes integration-owned methods without depending on optional packages in core.
@@ -185,150 +174,14 @@ export class ArcApplicationBuilder {
     build(): Promise<FetchArcApplication> {
         return withGeneratedMetadata(this.generatedMetadata, () => this.buildRegistered());
     }
-    private async buildRegistered(): Promise<FetchArcApplication> {
+    private buildRegistered(): Promise<FetchArcApplication> {
         if (this.#built) throw new Error('Arc application builder can be built only once');
         this.#built = true;
-        this.checkServiceOwnership();
-        const dependencies: ServiceIdentifier<unknown>[] = [];
-        const validatorTypes = this.registerValidators(dependencies);
-        const graph = new ModelGraphValidator(validatorTypes, this.options.logger);
-        const commands: CommandDefinition<z.ZodType, unknown>[] = [...this.options.commands ?? []];
-        const queries: QueryDefinition<z.ZodType, unknown>[] = [...this.options.queries ?? []];
-        const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...this.options.observableQueries ?? []];
-        this.compileArtifacts(graph, dependencies, commands, queries, observableQueries);
-        dependencies.push(...this.#responseHandlers, ...this.#valueProviders, ...this.#keyResolvers, ...this.#readModelResolvers,
-            ...this.options.readModelForCommandResolvers ?? [],
-            ...this.options.commandResponseValueHandlers ?? [], ...this.options.commandContextValuesProviders ?? [],
-            ...this.options.commandKeyResolvers ?? [], ...this.#queryRenderers, ...this.#readModelInterceptors,
-            ...this.options.queryRenderers ?? [], ...this.options.readModelInterceptors ?? []);
-        if (this.options.services && !Array.isArray(this.options.services) && this.services.registrations.length)
-            throw new Error('A supplied ServiceRegistry cannot be combined with builder service registrations');
-        const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
-        if (this.options.identityDetails && this.#identityProviders.length)
-            throw new Error('Explicit and discovered identity details providers cannot be combined');
-        if (!this.options.identityDetails && this.#identityProviders.length > 1)
-            throw new Error(`Multiple identity details providers found: ${this.#identityProviders.map(type => type.name).join(', ')}`);
-        const providerType = this.#identityProviders[0];
-        const instance = !this.options.identityDetails && providerType ? Reflect.construct(providerType, []) as IdentityDetailsProvider : undefined;
-        const discovered: IdentityDetailsProvider | undefined = instance && providerType ? {
-            schema: instance.schema, detailsType: instance.detailsType,
-            provide: (principal, context) => (Reflect.construct(providerType, []) as IdentityDetailsProvider).provide(principal, context)
-        } : undefined;
-        const runners = [...this.options.commandExecutionRunner ? [this.options.commandExecutionRunner] : [], ...this.#commandRunners];
-        const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
-            runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
-        const server = new ArcServer({ ...this.options, commands, queries, observableQueries, commandExecutionRunner,
-            commandExecutionScopes: [...this.options.commandExecutionScopes ?? [], ...this.#commandScopes],
-            identityDetails: this.options.identityDetails ?? discovered,
-            authorizationPolicies: { ...this.options.authorizationPolicies, ...Object.fromEntries(this.#policies) },
-            commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
-            commandContextValuesProviders: [...this.options.commandContextValuesProviders ?? [], ...this.#valueProviders],
-            commandKeyResolvers: [...this.options.commandKeyResolvers ?? [], ...this.#keyResolvers],
-            queryRenderers: [...this.options.queryRenderers ?? [], ...this.#queryRenderers],
-            readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
-            readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
-            services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations }, this.generatedMetadata);
-        try {
-            await this.preflight(server, dependencies, validatorTypes);
-            for (const observer of this.#builtObservers) observer(server);
-        }
-        catch (error) { await server.dispose(); throw error; }
-        return new FetchArcApplication(server);
-    }
-    private checkServiceOwnership(): void {
-        if (this.options.services && !Array.isArray(this.options.services) &&
-            (this.services.registrations.length || this.#artifacts.some(({ type }) => {
-                const metadata = ownMetadata(type);
-                return metadata.lifetime || metadata.validatorTarget || metadata.responseValueHandler ||
-                    metadata.queryRenderer || metadata.readModelInterceptor;
-            }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
-    }
-    private registerValidators(dependencies: ServiceIdentifier<unknown>[]): Map<ClassType, ClassType<BaseValidator<unknown>>> {
-        const validatorTypes = new Map<ClassType, ClassType<BaseValidator<unknown>>>();
-        for (const { type } of this.#artifacts) {
-            validateMetadata(type);
-            const target = ownMetadata(type).validatorTarget;
-            if (!target) continue;
-            if (validatorTypes.has(target)) throw new Error(`Duplicate validator target: ${target.name}`);
-            validatorTypes.set(target, type as ClassType<BaseValidator<unknown>>);
-            const lifetime = ownMetadata(type).lifetime;
-            if (lifetime === 'singleton') throw new Error(`Validator ${type.name} must not be singleton`);
-            const existing = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations]
-                .find(registration => registration.token === type);
-            if (existing?.lifetime === 'singleton') throw new Error(`Validator ${type.name} must not be singleton`);
-            if (!existing) this.services[lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
-            dependencies.push(type);
-        }
-        return validatorTypes;
-    }
-    private compileArtifacts(graph: ModelGraphValidator, dependencies: ServiceIdentifier<unknown>[],
-        commands: CommandDefinition<z.ZodType, unknown>[], queries: QueryDefinition<z.ZodType, unknown>[],
-        observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[]): void {
-        for (const { type, namespace } of this.#artifacts) {
-            const metadata = ownMetadata(type);
-            if (metadata.queryRenderer || metadata.readModelInterceptor) {
-                if (metadata.command || metadata.readModel || metadata.validatorTarget || metadata.responseValueHandler ||
-                    metadata.queryRenderer && metadata.readModelInterceptor || metadata.lifetime === 'singleton')
-                    throw new Error(`Conflicting Arc query extension artifact: ${type.name}`);
-                if (metadata.queryRenderer) {
-                    if (typeof type.prototype.canRender !== 'function' || typeof type.prototype.render !== 'function')
-                        throw new Error(`Query renderer ${type.name} requires canRender() and render()`);
-                    this.#queryRenderers.push(type as ServiceIdentifier<QueryRenderer>);
-                } else {
-                    if (typeof type.prototype.intercept !== 'function')
-                        throw new Error(`Read-model interceptor ${type.name} requires intercept()`);
-                    this.#readModelInterceptors.push(type as ServiceIdentifier<ReadModelInterceptor>);
-                }
-                if (!metadata.lifetime) this.services.addScoped(type);
-            }
-            if (metadata.responseValueHandler) {
-                if (metadata.command || metadata.readModel || metadata.validatorTarget)
-                    throw new Error(`Conflicting Arc response handler artifact: ${type.name}`);
-                if (typeof type.prototype.canHandle !== 'function' || typeof type.prototype.handle !== 'function')
-                    throw new Error(`Response handler ${type.name} requires canHandle() and handle()`);
-                this.#responseHandlers.push(type as ServiceIdentifier<CommandResponseValueHandler>);
-                if (!metadata.lifetime) this.services.addScoped(type);
-            }
-            if (metadata.lifetime && !metadata.validatorTarget) {
-                const registration = metadata.lifetime === 'singleton' ? 'addSingleton' :
-                    metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient';
-                this.services[registration](type);
-            }
-            if (metadata.command) {
-                const compiled = compileCommand(type, namespace, graph);
-                commands.push(compiled.definition);
-                dependencies.push(...compiled.dependencies);
-            }
-            if (metadata.readModel) for (const compiled of compileQueries(type, namespace, graph)) {
-                if (compiled.observable) observableQueries.push(compiled.definition as ObservableQueryDefinition<z.ZodType, unknown>);
-                else queries.push(compiled.definition as QueryDefinition<z.ZodType, unknown>);
-                dependencies.push(...compiled.dependencies);
-            }
-        }
-    }
-    private async preflight(server: ArcServer, dependencies: ServiceIdentifier<unknown>[],
-        validators: ReadonlyMap<ClassType, ClassType<BaseValidator<unknown>>>): Promise<void> {
-        server.services.preflight([...dependencies, ...[...this.#policies.values()].filter(
-            (policy): policy is (abstract new (...arguments_: never[]) => AuthorizationPolicy) =>
-                typeof policy.prototype?.authorize === 'function')]);
-        const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
-            signal: new AbortController().signal, allowedSeverity: Severity.Error });
-        try {
-            const resolvers = await Promise.all([...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers]
-                .map(token => scope.resolve(token)));
-            for (const { type } of this.#artifacts) {
-                const bindings = ownMetadata(type).injected;
-                for (const token of [...bindings?.get('provide') ?? [], ...bindings?.get('handle') ?? []]) {
-                    const model = readModelArgument(token);
-                    if (!model) continue;
-                    const matching = resolvers.filter(resolver => resolver.supports(model.type));
-                    if (matching.length !== 1) throw new Error(`Expected one read-model resolver for ${model.type.name}, found ${matching.length}`);
-                }
-            }
-            for (const type of validators.values()) {
-                const validator = await scope.resolve(type);
-                if (!(validator instanceof BaseValidator)) throw new Error(`Invalid validator: ${type.name}`);
-            }
-        } finally { await scope.dispose(); }
+        return buildRegistered({ options: this.options, services: this.services, artifacts: this.#artifacts,
+            responseHandlers: this.#responseHandlers, valueProviders: this.#valueProviders, keyResolvers: this.#keyResolvers,
+            queryRenderers: this.#queryRenderers, readModelInterceptors: this.#readModelInterceptors,
+            readModelResolvers: this.#readModelResolvers, commandRunners: this.#commandRunners, commandScopes: this.#commandScopes,
+            builtObservers: this.#builtObservers, policies: this.#policies, identityProviders: this.#identityProviders,
+            generatedMetadata: this.generatedMetadata });
     }
 }
