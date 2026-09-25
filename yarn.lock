@@ -45,7 +45,7 @@ __metadata:
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.18.0
+    "@cratis/arc.core": ^0.18.1
     "@cratis/arc.testing": ^0.18.0
     "@cratis/chronicle": ^6.6.0
     "@cratis/fundamentals": ^7.19.6
@@ -137,7 +137,7 @@ __metadata:
     postgres: "npm:^3.4.9"
     sql.js: "npm:^1.14.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.18.0
+    "@cratis/arc.core": ^0.18.1
     "@cratis/fundamentals": ^7.19.6
     drizzle-orm: ^0.45.0
   languageName: unknown
@@ -197,7 +197,7 @@ __metadata:
     mongodb: "npm:^6.21.0"
     rxjs: "npm:^7.8.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.18.0
+    "@cratis/arc.core": ^0.18.1
     "@cratis/fundamentals": ^7.19.6
     mongodb: ^6.21.0
     rxjs: ^7.8.2
