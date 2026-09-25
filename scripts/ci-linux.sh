@@ -13,8 +13,10 @@ branch=$(git branch --show-current)
 clone=$(mktemp -d /tmp/arc-ci-linux-XXXXXXXX)
 container="arc-ci-linux-$$"
 cleanup() {
-    if docker ps --format '{{.Names}}' | grep -Fxq "$container"; then
-        printf 'Container %s still holds %s; leaving the clone intact.\n' "$container" "$clone" >&2
+    if docker ps --format '{{.Names}}' | grep -Fxq "$container" ||
+        ! command -v lsof >/dev/null || lsof -t +D "$clone" >/dev/null 2>&1 ||
+        [[ -n "$(git -C "$clone" status --porcelain 2>/dev/null)" ]]; then
+        printf 'Container, process, or changes still hold %s; leaving the clone intact.\n' "$clone" >&2
     else
         rm -rf -- "$clone"
     fi
