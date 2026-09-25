@@ -22,7 +22,7 @@ export async function runCommandFilters(context: CommandContext, options: ArcOpt
         let fragment: CommandResult | void;
         try {
             fragment = await (await currentServices().resolve(token)).onExecution(context);
-            if (fragment) {
+            if (fragment !== undefined) {
                 const merged = mergeFilterFragment(result, fragment);
                 result = commandResult(context, { ...merged,
                     authorizationFailureReason: result.authorizationFailureReason || fragment.authorizationFailureReason,
