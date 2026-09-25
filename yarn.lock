@@ -96,10 +96,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@cratis/arc.core.sample.tasks@workspace:Samples/Tasks"
   dependencies:
+    "@cratis/arc": "npm:22.19.1"
     "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.react": "npm:22.19.1"
     "@cratis/arc.testing": "workspace:^"
     "@cratis/fundamentals": "npm:7.19.6"
+    "@types/react": "npm:^19.2.0"
+    react: "npm:^19.2.0"
+    reflect-metadata: "npm:0.2.2"
     rxjs: "npm:^7.8.2"
+    tsyringe: "npm:^4.10.0"
   languageName: unknown
   linkType: soft
 
