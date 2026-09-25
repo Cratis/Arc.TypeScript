@@ -46,6 +46,10 @@ There are no rules for the Chronicle integration; [Chronicle code analysis](../c
 | `Not an Arc artifact: <Type>` | A class passed to `add()` has no Arc or integration decorator |
 | `Conflicting namespaces for <Type>` | One class was registered under two different namespaces |
 | `Duplicate validator target: <Type>` | Two validators target one class |
+| `Unbound handle parameters on <Type>.handle; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding` | A command's `handle()` has parameters without generated metadata or `@inject(...)` tokens; see [Troubleshooting](../troubleshooting.md#build-fails-with-unbound-handle-parameters-or-missing-parameter-metadata) |
+| `Unbound provide parameters on <Type>.provide; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding` | The same for a command's `provide()` |
+| `Unbound parameters on <Type>.<method>` | A query's `@query(...)` descriptors do not cover every parameter of the method |
+| `Missing parameter metadata for <Type>.<method>; use explicit tokens` | A bare `@query()` or an empty `@inject()` on a method with parameters, without generated metadata, in standard decorator mode |
 | `Unbound constructor parameters on <Type>` | A service's constructor parameters have no tokens |
 | `Service <Token> requires an implementation` | A `serviceToken` was registered without a class or factory |
 | `Missing service: <Token>` | A declared dependency is not registered |

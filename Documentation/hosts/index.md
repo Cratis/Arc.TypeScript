@@ -6,7 +6,7 @@ description: Mount Arc in Express, Fastify, Hono, or a Fetch API host; know whic
 Your team already runs a web framework, with its middleware, health checks, and deployment story. You do not want a second server for Arc. A host adapter mounts the Arc application into the framework you have and leaves every route Arc does not own to that framework.
 
 :::note[Source preview]
-The adapters are not published to npm. Reference them the way `Samples/Tasks/package.json` references the core, with the `workspace:^` protocol, from a clone of this repository built with `yarn build`.
+The adapters are not published to npm. Build a clone of this repository with `yarn build`, then either put your application under `Samples/` in that clone and reference the adapters with the `workspace:^` protocol, as `Samples/Tasks/package.json` references the core, or install packed tarballs. See [Packages](../reference/packages.md).
 :::
 
 ## Before you start
@@ -16,13 +16,17 @@ The adapters are not published to npm. Reference them the way `Samples/Tasks/pac
 
 ```typescript title="arc.ts"
 import { ArcApplication } from '@cratis/arc.core';
+import { Tasks } from './Features/Tasks/Tasks.js';
+import { metadata } from './Features/generatedMetadata.js';
 
 const builder = ArcApplication.createBuilder();
+builder.useGeneratedMetadata(metadata);
+builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
 export const arc = await builder.build();
 ```
 
-`build()` checks the artifacts and options and throws when something is wrong, so a mistake shows up when the process starts rather than on the first request.
+This is the [Tasks sample's bootstrap](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) without `app.run()`, because the framework owns the listener. `metadata` is the module that `arc-proxygenerator --metadata` writes; see [Generate artifact metadata](../proxy-generation/generated-artifact-metadata.md). Register your own services the way the sample registers `Tasks`. `build()` checks the artifacts and options and throws when something is wrong, so a mistake shows up when the process starts rather than on the first request.
 
 | Package | Exports | Framework peer range |
 | --- | --- | --- |
@@ -31,14 +35,14 @@ export const arc = await builder.build();
 | `@cratis/arc.hono` | `app.use(cratisArc(arc))`; Node: `serveCratisArc` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` for Node hosting |
 | `@cratis/arc.core/hosting` | `attachNodeWebSockets` and adapter hosting primitives | None |
 
-Each adapter accepts a built `ArcApplication` or low-level `ArcServer`. The older `mount*` functions remain deprecated aliases.
+Each adapter accepts a built `ArcApplication` or low-level `ArcServer`.
 
 ## Pick your framework
 
 - [Express](express.md): one middleware, mounted before body parsers.
 - [Fastify](fastify.md): an encapsulated plugin with its own raw-body parser.
 - [Hono](hono.md): middleware on a Fetch API framework, with raw-path checks on Node.
-- [Fetch API runtimes](fetch-runtimes.md): explicitly registered artifacts over `app.fetch` for Bun, Deno, Cloudflare Workers with `nodejs_compat`, and Next.js Node route handlers. The published package is still a source preview; read the verification boundary before deployment.
+- [Fetch API runtimes](fetch-runtimes.md): explicitly registered artifacts over `app.fetch` for Bun, Deno, Cloudflare Workers with `nodejs_compat`, and Next.js Node route handlers. The package is an unpublished source preview; read the verification boundary before deployment.
 
 Express needs a listener attach step for WebSockets; Fastify's plugin and Hono's Node helper attach them in the setup call, described in [WebSockets](websockets.md). To use a principal your framework already verified, see [Native principal](native-principal.md).
 

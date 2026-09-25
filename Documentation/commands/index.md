@@ -25,7 +25,6 @@ export class RegisterTask {
     @field(TaskId) id!: TaskId;
     @field(TaskTitle) title!: TaskTitle;
 
-    @inject(Tasks)
     handle(tasks: Tasks): TaskId {
         tasks.register(this.id, this.title);
         return this.id;
@@ -33,7 +32,7 @@ export class RegisterTask {
 }
 ```
 
-This is the [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/Registration.ts); [Your first command](../getting-started/your-first-command.md) walks through it with its imports.
+This is the [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/Registration.ts). The sample's [generated metadata](../proxy-generation/generated-artifact-metadata.md) binds the `tasks` parameter to the `Tasks` service; without it, mark `handle()` with `@inject(Tasks)`. [Your first command](../getting-started/your-first-command.md) walks through it with its imports.
 
 ## Find your way
 

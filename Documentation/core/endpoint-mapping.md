@@ -46,7 +46,7 @@ const builder = ArcApplication.createBuilder({
 | `includeCommandNameInRoute` | `true` | Omit the command name when `false`, unless that would make two routes in one namespace collide |
 | `includeQueryNameInRoute` | `true` | The same for queries |
 
-The flat `prefix`, `segmentsToSkip`, `includeCommandNameInRoute`, and `includeQueryNameInRoute` options remain as deprecated aliases; nested `generatedApis` values take precedence. Keep the [proxy generator](../proxy-generation/configuration.md) route options in step with these, or generated clients call the wrong URL.
+Keep the [proxy generator](../proxy-generation/configuration.md) route options in step with these, or generated clients call the wrong URL.
 
 ## Pin one route with @path
 

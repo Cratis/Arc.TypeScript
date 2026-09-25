@@ -100,20 +100,12 @@ The integration stays experimental, and full parity with Arc on .NET is unverifi
 - The batch covers one event log. It is not a transaction across other stores or external calls, and an immediate SDK append inside `handle()` is outside it. See [Transactional commands](chronicle/commands/transactional-commands.md).
 - The aggregate loads only the event source named by the command key, and has no `Failed(...)` or `OnActivate`.
 - The TypeScript SDK has no reactor replay exclusion, so reactors that return commands must tolerate re-delivery.
-- Encrypted personal data is not released when a read model is served, and there are no `ARCCHR` analyzers.
+- Reads through Chronicle return decrypted read models. Arc releases encrypted personal data at its query edge only for protected read models decoded into their exact class from a direct MongoDB read; raw documents, derived subtypes, and mapped objects need an explicit `readModels.release` call. See [Compliance](chronicle/compliance.md).
+- There are no `ARCCHR` analyzers.
 
 See [Chronicle](chronicle/index.md).
 
 The MongoDB and Drizzle integrations follow the same rule: the application owns the client or database, the tenant mapping, and the filter or predicate. See [MongoDB](mongodb/index.md) and [SQL with Drizzle](sql/index.md).
-
-## Still open
-
-These questions do not have an answer yet. Each one affects behavior a client can observe:
-
-- Whether compiler-generated metadata replaces the ordered query descriptors and explicit injection tokens.
-- How far the source-based proxy generator grows toward the coverage of Arc's .NET proxy generator.
-- Whether validators take command read models as constructor parameters instead of calling `readModelForValidation` inside a rule, and whether the SQL integration resolves command read models by key.
-- Broader identity-provider integrations, and live observation for SQL read models.
 
 ## Related
 
