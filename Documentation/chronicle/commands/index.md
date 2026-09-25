@@ -15,7 +15,10 @@ import { eventType } from '@cratis/chronicle/events';
 import { command, key } from '@cratis/arc.core';
 
 @eventType()
-export class TaskCreated { @field(String) title = ''; }
+export class TaskCreated {
+    @field(String) title: string;
+    constructor(title: string) { this.title = title; }
+}
 
 @command()
 export class CreateTask {
@@ -23,7 +26,7 @@ export class CreateTask {
     @field(String) title = '';
 
     handle(): TaskCreated {
-        return Object.assign(new TaskCreated(), { title: this.title });
+        return new TaskCreated(this.title);
     }
 }
 ```

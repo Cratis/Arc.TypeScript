@@ -49,8 +49,12 @@ const interceptor = serviceToken('live read model interceptor');
 const builder = ArcApplication.createBuilder({ development: true,
     readModelInterceptors: [interceptor],
     resolveTenant: request => request.headers.get('x-test-tenant') ?? undefined });
-builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view =>
-    Object.assign(new LiveView(), view, { name: `public-${view.name}` }) }));
+builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view => {
+    const publicView = new LiveView();
+    Object.assign(publicView, view);
+    publicView.name = `public-${view.name}`;
+    return publicView;
+} }));
 builder.withChronicle({ client, eventStore: storeName });
 builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
     AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView);

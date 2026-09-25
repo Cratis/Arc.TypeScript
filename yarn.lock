@@ -40,14 +40,14 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.6.0"
+    "@cratis/chronicle": "npm:6.7.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
     "@cratis/arc.core": ^0.19.0
     "@cratis/arc.testing": ^0.19.0
-    "@cratis/chronicle": ^6.6.0
+    "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
     zod: ^4.1.0
@@ -250,12 +250,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@cratis/arc.sample.library@workspace:Samples/Library"
   dependencies:
+    "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
     "@cratis/arc.mongodb": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
+    "@cratis/chronicle": "npm:6.7.0"
     "@cratis/fundamentals": "npm:7.19.6"
     express: "npm:^5.1.0"
+    rxjs: "npm:^7.8.2"
     tsx: "npm:^4.20.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -290,9 +293,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.6.0":
-  version: 6.6.0
-  resolution: "@cratis/chronicle@npm:6.6.0"
+"@cratis/chronicle@npm:6.7.0":
+  version: 6.7.0
+  resolution: "@cratis/chronicle@npm:6.7.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
     "@cratis/chronicle.contracts": "npm:19.4.0"
@@ -304,7 +307,7 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/550964cdb550f06c70ec05d0e5671c296042df65cd079de76fa2970a3a16a3991d2ffb070490600f627c716dc65523a12b66e143ee17f8534037664b722d891c
+  checksum: 10c0/1e875d2427938bd3797b762b97d990ee182a51eb3c18b7b2d3caa0a6141903860a43c9206c0c0933223a9bb0729c42693c93c21384f4296cc2a52ab1c04ef780
   languageName: node
   linkType: hard
 
@@ -315,12 +318,14 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.6.0"
+    "@cratis/chronicle": "npm:6.7.0"
     "@cratis/fundamentals": "npm:7.19.6"
+    rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/chronicle": ^6.6.0
+    "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
+    rxjs: ^7.8.2
     zod: ^4.1.0
   languageName: unknown
   linkType: soft

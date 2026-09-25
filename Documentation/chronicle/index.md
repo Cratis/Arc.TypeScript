@@ -11,7 +11,7 @@ Arc does not require event sourcing: a command can do its work through any servi
 
 ## What is verified
 
-The integration uses the published Chronicle TypeScript SDK, `@cratis/chronicle` 6.5.1, with `@cratis/fundamentals` 7.19.6; both load in native Node ESM with NodeNext resolution. An opt-in suite runs against a real development kernel and checks:
+The integration uses the published Chronicle TypeScript SDK, `@cratis/chronicle` 6.7.0, with `@cratis/fundamentals` 7.19.6; both load in native Node ESM with NodeNext resolution. An opt-in suite runs against a real development kernel and checks:
 
 - returned-event batches, readback, and tenant isolation;
 - before-first concurrency rejection and aggregate rehydration, commit, and operation compensation;
