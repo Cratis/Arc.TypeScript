@@ -268,9 +268,8 @@ void [configureIntegrations, ChronicleCommandScenario];
     }
     // Only the two integration graphs have external declaration failures; their consumer source is still checked.
     console.log(`Upstream declaration errors (${external.length}); no Arc declaration or consumer errors:`);
-    console.log(external.filter(line => line.includes('@cratis/chronicle.contracts/') ||
-        line.includes('drizzle-orm/pg-core/query-builders/query.d.ts') ||
-        line.includes('drizzle-orm/gel-core/columns/date-duration.d.ts')).join('\n'));
+    console.log(strictIntegrations.stdout.trimEnd());
+    if (strictIntegrations.stderr) console.error(strictIntegrations.stderr.trimEnd());
     looseConfig.compilerOptions.skipLibCheck = true;
     writeFileSync(join(looseDirectory, 'tsconfig.json'), JSON.stringify(looseConfig));
     run(process.execPath, [compilerCommand, '-p', looseDirectory], consumer);
