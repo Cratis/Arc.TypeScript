@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,10 +16,10 @@ describe('when preflighting a command with missing cyclic or captive dependencie
         const cycleB = serviceToken<object>('cycle B'); const singleton = serviceToken<object>('singleton');
         const scoped = serviceToken<object>('scoped'); calls = [];
         const server = new ArcServer({ services: [
-            { token: cycleA, lifetime: 'scoped', dependencies: [cycleB], factory: () => ({}) },
-            { token: cycleB, lifetime: 'scoped', dependencies: [cycleA], factory: () => ({}) },
-            { token: singleton, lifetime: 'singleton', dependencies: [scoped], factory: () => ({}) },
-            { token: scoped, lifetime: 'scoped', factory: () => ({}) }
+            { token: cycleA, lifetime: ServiceLifetime.Scoped, dependencies: [cycleB], factory: () => ({}) },
+            { token: cycleB, lifetime: ServiceLifetime.Scoped, dependencies: [cycleA], factory: () => ({}) },
+            { token: singleton, lifetime: ServiceLifetime.Singleton, dependencies: [scoped], factory: () => ({}) },
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => ({}) }
         ], commands: [missing, cycleA, singleton].map((token, index) => defineCommand({ name: `Action${index}`, schema: z.object({}), handlerDependencies: [token],
             validate: () => { calls.push('validate'); return []; }, provide: () => { calls.push('provide'); }, handle: () => { calls.push('handle'); } })) });
         try {

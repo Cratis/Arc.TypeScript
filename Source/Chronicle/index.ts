@@ -9,7 +9,7 @@ export { executeCommandsAsSystem, reactorCommandResultHandler } from './reactorC
 export { eventSourceIdResponse, EventSourceIdResponse } from './eventSourceIdResponse.js';
 export { eventForEventSourceId } from './eventForEventSourceId.js';
 export { ChronicleReadModels } from './ChronicleReadModels.js';
-export type { ChronicleReadConsistency } from './ChronicleReadModels.js';
+export { ChronicleReadConsistency } from './ChronicleReadConsistency.js';
 export { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCommandResolver.js';
 export { ChronicleArtifacts } from './ChronicleArtifacts.js';
 export { eventSourceType, eventStreamType, eventStreamId, eventSubject } from './eventRouting.js';

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -12,12 +13,12 @@ describe('when resolving a live singleton with a manual scoped dependency', () =
         const origin = serviceToken<object>('live singleton');
         const scoped = serviceToken<object>('scoped child');
         const registry = new ServiceRegistry([
-            { token: origin, lifetime: 'singleton', factory: async () => {
+            { token: origin, lifetime: ServiceLifetime.Singleton, factory: async () => {
                 const manual = registry.createScope(serviceContext('beta'));
                 try { await manual.resolve(scoped); } finally { await manual.dispose(); }
                 return {};
             } },
-            { token: scoped, lifetime: 'scoped', factory: () => ({}) }
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => ({}) }
         ]);
         try {
             const alpha = registry.createScope(serviceContext('alpha'));

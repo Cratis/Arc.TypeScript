@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ChronicleReadConsistency } from './ChronicleReadConsistency.js';
 import type { IEventStore } from '@cratis/chronicle';
 import type { ReadModelChangeset } from '@cratis/chronicle/readModels';
 import { isPassive } from '@cratis/chronicle/projections';
@@ -9,31 +10,32 @@ import { from, map, Observable } from 'rxjs';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import { markKernelReleased } from './kernelReleasedReadModels.js';
 
-/** `immediate` is only valid for passive model-bound projections; active models remain eventual. */
-export type ChronicleReadConsistency = 'default' | 'immediate';
-
 /** Tenant-scoped access to Chronicle read models; use as a service in Arc queries. */
 export class ChronicleReadModels {
     constructor(private readonly runtime: ChronicleRuntime, private readonly context: ExecutionContext) {}
     /** Resolve the current tenant's event store. */
     getStore(): Promise<IEventStore> { return this.runtime.getStore(this.context); }
     /** Return null rather than fabricating a read model for an absent key. */
-    async findInstanceById<T>(type: Constructor<T>, id: string, consistency: ChronicleReadConsistency = 'default'): Promise<T | null> {
+    async findInstanceById<T>(type: Constructor<T>, id: string,
+        consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T | null> {
         this.checkConsistency(type, consistency);
         return markKernelReleased(await (await this.getStore()).readModels.findInstanceById(type, id));
     }
     /** Fetch all instances of a read model in the current tenant. */
-    async getAll<T extends object>(type: Constructor<T>, consistency: ChronicleReadConsistency = 'default'): Promise<T[]> {
+    async getAll<T extends object>(type: Constructor<T>,
+        consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T[]> {
         this.checkConsistency(type, consistency);
         return (await (await this.getStore()).readModels.getInstances(type)).map(markKernelReleased);
     }
     /** Fetch one read model by its event-source ID, or null if it does not exist. */
-    getById<T extends object>(type: Constructor<T>, id: string, consistency: ChronicleReadConsistency = 'default'): Promise<T | null> {
+    getById<T extends object>(type: Constructor<T>, id: string,
+        consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T | null> {
         return this.findInstanceById(type, id, consistency);
     }
     private checkConsistency<T>(type: Constructor<T>, consistency: ChronicleReadConsistency): void {
-        if (consistency !== 'default' && consistency !== 'immediate') throw new Error('Unknown Chronicle read consistency');
-        if (consistency === 'immediate' && !isPassive(type))
+        if (consistency !== ChronicleReadConsistency.Default &&
+            consistency !== ChronicleReadConsistency.Immediate) throw new Error('Unknown Chronicle read consistency');
+        if (consistency === ChronicleReadConsistency.Immediate && !isPassive(type))
             throw new Error('Immediate Chronicle reads require a passive model-bound projection');
     }
     /** Observe a snapshot and subsequent changes as a live list. Unsubscribe to stop watching. */

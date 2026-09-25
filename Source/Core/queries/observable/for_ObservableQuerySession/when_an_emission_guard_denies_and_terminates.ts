@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, serviceToken } from '../../../index.js';
@@ -20,7 +21,8 @@ describe('when an emission guard denies and terminates SSE', () => {
         const subject = new CurrentValueSubject<number>(1);
         const tracked = trackedSource(subject);
         const guard = serviceToken<ObservableEmissionGuard>('deny second');
-        const server = new ArcServer({ services: [{ token: guard, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+        const server = new ArcServer({ services: [{ token: guard, lifetime: ServiceLifetime.Scoped,
+            factory: (): ObservableEmissionGuard => ({
             check: emission => emission.data === 2 ? ObservableEmissionDecision.DenyAndTerminate : ObservableEmissionDecision.Allow
         }) }], query: { observableEmissionGuards: [guard] }, observableQueries: [defineObservableQuery({
             name: 'Value', schema: z.object({}), observe: () => tracked

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { TenantResolverType } from '../tenancy/TenantResolverType.js';
 
 const boolean = z.preprocess(value => typeof value === 'string' && /^(true|false)$/i.test(value) ? value.toLowerCase() === 'true' : value, z.boolean());
 const integer = (minimum: number) => z.preprocess(value => typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value, z.number().int().min(minimum));
@@ -16,7 +17,7 @@ const generatedApis = z.object({ routePrefix: z.string().optional(), segmentsToS
     includeCommandNameInRoute: boolean.optional(), includeQueryNameInRoute: boolean.optional(),
     enableQueryHttpMethod: boolean.optional(), openApiVersion: z.string().optional() });
 const tenancy = z.object({ httpHeader: z.string().min(1).optional(),
-    resolverType: z.enum(['header', 'query', 'claim', 'fixed', 'development', 'subdomain']).optional(),
+    resolverType: z.enum(TenantResolverType).optional(),
     baseDomain: z.string().optional(), queryParameter: z.string().optional(), claimType: z.string().optional(),
     fixedTenantId: z.string().optional(), required: boolean.optional(), membershipClaim: z.string().optional() });
 const query = z.object({ keepAliveIntervalMs: interval.optional(),

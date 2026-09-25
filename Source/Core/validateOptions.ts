@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from './dependencyInjection/ServiceLifetime.js';
 import { z } from 'zod';
 import type { ArcOptions } from './ArcOptions.js';
 import { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
@@ -51,7 +52,7 @@ export function validateOptions(options: ArcOptions): {
 /** Enforce scoped read-side extensions after the service registry has been created. */
 export function validateRegistryOptions(options: ArcOptions, services: ServiceRegistry): void {
     for (const token of [...options.queryRenderers ?? [], ...options.readModelInterceptors ?? []]) {
-        if (services.registration(token).lifetime === 'singleton')
+        if (services.registration(token).lifetime === ServiceLifetime.Singleton)
             throw new Error(`Query renderer or read-model interceptor ${services.registration(token).token.name} must not be singleton`);
     }
 }

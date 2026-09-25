@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ClientOperationKind } from '@cratis/arc.core';
 import { renderSource } from '../../renderSource.js';
 import type { SourceAnalysis } from '../../SourceAnalysis.js';
 
@@ -13,8 +14,8 @@ describe('when rendering models with equal names in different namespaces', () =>
             { kind: 'model', name: 'Item', namespace: 'Orders', fields: [] },
             { kind: 'model', name: 'Item', namespace: 'Invoices', fields: [] }
         ], operations: [
-            { kind: 'query', namespace: 'Orders', owner: 'Item', name: 'find', fields: [], roles: [], result: type('Orders.Item') },
-            { kind: 'query', namespace: 'Invoices', owner: 'Item', name: 'find', fields: [], roles: [], result: type('Invoices.Item') }
+            { kind: ClientOperationKind.Query, namespace: 'Orders', owner: 'Item', name: 'find', fields: [], roles: [], result: type('Orders.Item') },
+            { kind: ClientOperationKind.Query, namespace: 'Invoices', owner: 'Item', name: 'find', fields: [], roles: [], result: type('Invoices.Item') }
         ] };
         files = renderSource(analysis);
     });

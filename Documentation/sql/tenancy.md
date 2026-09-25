@@ -10,14 +10,14 @@ Two customers share your service, and neither may ever see the other's tasks. Th
 ```typescript
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import '@cratis/arc.drizzle';
+import { DrizzleDialect } from '@cratis/arc.drizzle';
 import { TaskRecord, tasks } from './Tasks.js';
 
 const databases = new Map<string, NodePgDatabase>();
 const allowedTenants = new Set(['acme', 'globex']);
 
 builder.withDrizzle({
-    dialect: 'postgresql',
+    dialect: DrizzleDialect.PostgreSQL,
     databaseFactory: tenant => {
         if (!allowedTenants.has(tenant)) throw new Error(`Unknown tenant ${tenant}`);
         let database = databases.get(tenant);

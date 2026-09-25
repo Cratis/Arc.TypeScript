@@ -1,13 +1,14 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from './TenantResolverType.js';
 import type { Principal } from '../identity/Principal.js';
 
 /** A header requests a tenant; it does not prove membership. Ordered sources are a TypeScript extension. */
 export interface TenancyOptions {
     /** Select one built-in source, as in .NET; defaults to header when sources is omitted. */
-    readonly resolverType?: 'header' | 'query' | 'claim' | 'fixed' | 'development' | 'subdomain';
+    readonly resolverType?: TenantResolverType;
     /** Ordered tenant sources; first matching source wins. Do not combine with resolverType. */
-    readonly sources?: readonly ('header' | 'query' | 'claim' | 'fixed' | 'development' | 'subdomain')[];
+    readonly sources?: readonly TenantResolverType[];
     /** Tenant header and subdomain fallback; defaults to x-cratis-tenant-id. */
     readonly httpHeader?: string;
     /** Trusted application resolver; its answer is final and is not normalized by Arc. */

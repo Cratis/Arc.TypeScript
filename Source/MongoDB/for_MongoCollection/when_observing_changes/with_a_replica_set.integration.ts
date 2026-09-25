@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '@cratis/arc.core';
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { ArcApplication } from '@cratis/arc.core';
 import { Guid } from '@cratis/fundamentals';
@@ -109,7 +110,7 @@ describe('when observing changes with a replica set', given(a_replica_set, conte
                 }))
             ]);
             const page = await application.server.performQuery('TaskQueries.page', {}, tenant,
-                { paging: { page: 0, pageSize: 1 }, sorting: { field: 'title', direction: 'asc' } });
+                { paging: { page: 0, pageSize: 1 }, sorting: { field: 'title', direction: SortDirection.Ascending } });
             page.isSuccess.should.equal(true);
             page.paging!.totalItems.should.equal(2);
             (page.data as { title: string }[])[0]!.title.should.equal('a');

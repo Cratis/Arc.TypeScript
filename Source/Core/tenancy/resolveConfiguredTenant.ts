@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from './TenantResolverType.js';
 import type { Principal } from '../identity/Principal.js';
 import type { TenancyOptions } from './TenancyOptions.js';
 import type { NativeRequestContext } from '../http/NativeRequestContext.js';
@@ -17,15 +18,16 @@ export function resolveConfiguredTenant(request: Request, principal: Principal |
     const url = new URL(request.url);
     let selected: string | undefined;
     for (const source of sourcesFor(options)) {
-        if (source === 'header') selected = request.headers.get(header) ?? undefined;
-        if (source === 'query') selected = url.searchParams.get(options.queryParameter ?? 'tenantId') ?? undefined;
-        if (source === 'fixed' || source === 'development') selected = options.fixedTenantId ?? 'development';
-        if (source === 'claim') {
+        if (source === TenantResolverType.Header) selected = request.headers.get(header) ?? undefined;
+        if (source === TenantResolverType.Query) selected = url.searchParams.get(options.queryParameter ?? 'tenantId') ?? undefined;
+        if (source === TenantResolverType.Fixed ||
+            source === TenantResolverType.Development) selected = options.fixedTenantId ?? 'development';
+        if (source === TenantResolverType.Claim) {
             const value = ownClaim(principal, options.claimType ?? 'tenant_id');
             if (value !== undefined && typeof value !== 'string') throw new TenantRequestError(400);
             selected = value;
         }
-        if (source === 'subdomain' && native?.authority) {
+        if (source === TenantResolverType.Subdomain && native?.authority) {
             const host = native.authority.toLowerCase();
             const suffix = `.${options.baseDomain}`;
             if (validDomain(host) && host.endsWith(suffix)) {

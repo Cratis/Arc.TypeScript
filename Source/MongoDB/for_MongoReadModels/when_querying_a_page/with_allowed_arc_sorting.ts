@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '@cratis/arc.core';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ArcServer, defineQuery } from '@cratis/arc.core';
 import { z } from 'zod';
@@ -18,7 +19,7 @@ describe('when querying a page with allowed Arc sorting', given(a_tenant_collect
         const server = new ArcServer({ queries: [defineQuery({ name: 'Tasks', schema: z.object({ owner: z.string() }),
             perform: (input, ctx, options) => models.queryPage(ctx, input.owner, options, { sort: { owner: 1 } }) })] });
         try { result = await server.performQuery('Tasks', { owner: 'alice' }, executionContext('a'), {
-            paging: { page: 1, pageSize: 1 }, sorting: { field: 'title', direction: 'desc' }
+            paging: { page: 1, pageSize: 1 }, sorting: { field: 'title', direction: SortDirection.Descending }
         }); } finally { await server.dispose(); }
     });
     it('should count and sort before skipping and limiting', () => {

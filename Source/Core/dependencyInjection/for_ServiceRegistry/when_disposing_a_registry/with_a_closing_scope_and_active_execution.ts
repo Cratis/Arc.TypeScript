@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -20,11 +21,12 @@ describe('when disposing a registry with a closing scope and active execution', 
         const insideDisposer = gate(); const releaseDisposer = gate();
         const events: string[] = [];
         const registry = new ServiceRegistry([
-            { token: scoped, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => {
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.asyncDispose]: async () => {
                 insideDisposer.release(); await releaseDisposer.promise;
                 events.push('scope failed'); throw new Error('captured cleanup failure');
             } }) },
-            { token: singleton, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { events.push('singleton disposed'); } }) }
+            { token: singleton, lifetime: ServiceLifetime.Singleton,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('singleton disposed'); } }) }
         ]);
         const scope = registry.createScope(serviceContext('alpha'));
         try {

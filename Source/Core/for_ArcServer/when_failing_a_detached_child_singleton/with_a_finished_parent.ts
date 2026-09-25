@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,8 +16,9 @@ describe('when failing a detached child singleton with a finished parent', () =>
         events = []; const started = gate(); const release = gate();
         let child: Promise<Awaited<ReturnType<ArcServer['performQuery']>>> | undefined;
         const server = new ArcServer({ services: [
-            { token: partial, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { events.push('partial disposed'); throw new Error('late cleanup failed'); } }) },
-            { token: broken, lifetime: 'singleton', dependencies: [partial], factory: async resolver => {
+            { token: partial, lifetime: ServiceLifetime.Singleton,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('partial disposed'); throw new Error('late cleanup failed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Singleton, dependencies: [partial], factory: async resolver => {
                 await resolver.resolve(partial); started.release(); await release.promise; throw new Error('late factory failed');
             } }
         ], queries: [

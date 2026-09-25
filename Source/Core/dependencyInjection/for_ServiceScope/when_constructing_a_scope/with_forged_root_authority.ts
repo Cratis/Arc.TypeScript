@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { expectTypeOf } from 'vitest';
 import * as publicApi from '../../../index.js';
@@ -17,7 +18,8 @@ describe('when constructing a scope with forged root authority', () => {
     let rejectedAfterClose: boolean;
     beforeEach(async () => {
         const singleton = serviceToken<object>('single root'); creations = 0;
-        const registry = new ServiceRegistry([{ token: singleton, lifetime: 'singleton', factory: () => { creations++; return {}; } }]);
+        const registry = new ServiceRegistry([{ token: singleton, lifetime: ServiceLifetime.Singleton,
+            factory: () => { creations++; return {}; } }]);
         try {
             bypasses = [
                 ...['disposeInternal', 'disposeCreated'].map(method => [Object.hasOwn(ServiceScope.prototype, method), (registry.singletonScope() as unknown as Record<string, unknown>)[method]]),

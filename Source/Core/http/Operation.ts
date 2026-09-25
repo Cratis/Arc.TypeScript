@@ -6,9 +6,10 @@ import type { DescriptorBase } from './DescriptorBase.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { QueryOptions } from '../queries/QueryOptions.js';
 import type { QueryResult } from '../queries/QueryResult.js';
+import { ClientOperationKind } from '../introspection/ClientOperationKind.js';
 
 export interface Operation extends DescriptorBase {
-    readonly kind: 'command' | 'query';
+    readonly kind: ClientOperationKind.Command | ClientOperationKind.Query;
     readonly route: string;
     /** Namespace-qualified name used by direct execution and observable subscriptions. */
     readonly fullyQualifiedName: string;

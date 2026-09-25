@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { z } from 'zod';
 import { should } from 'vitest';
 import { given } from '../../../given.js';
@@ -14,7 +15,7 @@ class an_in_memory_page {
     readonly seen: string[] = [];
     readonly token = serviceToken<ReadModelInterceptor>('page interceptor');
     readonly server = new ArcServer({
-        services: [{ token: this.token, lifetime: 'scoped', factory: () => ({
+        services: [{ token: this.token, lifetime: ServiceLifetime.Scoped, factory: () => ({
             model: Task, intercept: (item: object) => {
                 this.seen.push((item as Task).name);
                 return item;

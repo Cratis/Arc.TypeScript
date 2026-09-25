@@ -4,12 +4,13 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { an_operation_command } from '../given/an_operation_command.js';
 import { CommandOperation } from '../../commands/CommandOperation.js';
+import { CommandOperationFailureSource } from '../../commands/CommandOperationFailureSource.js';
 import type { CommandOperationFailure } from '../../commands/CommandOperationFailure.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 describe('when an execution failure precedes a scope completion failure', given(an_operation_command, context => {
     let result: CommandResult;
-    let source: string | undefined;
+    let source: CommandOperationFailureSource | undefined;
     beforeEach(async () => {
         class Failing extends CommandOperation {
             execute(signal: AbortSignal): void { void signal; throw new Error('execution failed'); }
@@ -20,7 +21,7 @@ describe('when an execution failure precedes a scope completion failure', given(
         result = await context.server.executeCommand('Run', context.command, context.context);
     });
     it('should preserve execution as the source of the first failure', () => {
-        source!.should.equal('execution');
+        source!.should.equal(CommandOperationFailureSource.Execution);
         result.isSuccess.should.equal(false);
     });
 }));

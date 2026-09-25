@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -16,7 +17,7 @@ describe('when resolving detached transients with a settled first attempt', () =
         const released = gate();
         let detached!: Promise<object>;
         constructions = disposals = 0;
-        const registry = new ServiceRegistry([{ token, lifetime: 'transient', factory: resolver => {
+        const registry = new ServiceRegistry([{ token, lifetime: ServiceLifetime.Transient, factory: resolver => {
             constructions++;
             if (constructions === 1) detached = (async () => { await released.promise; return resolver.resolve(token); })();
             return { [Symbol.dispose]: () => { disposals++; } };

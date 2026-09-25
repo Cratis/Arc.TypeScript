@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,8 +16,10 @@ describe('when resolving a singleton with ambient scoped tenant dependency', () 
         const scoped = serviceToken<{ tenant: string | undefined }>('tenant dependency');
         const singleton = serviceToken<{ tenant: string | undefined }>('tenant capture'); scopedCalls = 0;
         const server = new ArcServer({ services: [
-            { token: scoped, lifetime: 'scoped', factory: (_resolver, identity) => { scopedCalls++; return { tenant: identity.tenantId }; } },
-            { token: singleton, lifetime: 'singleton', factory: async () => ({ tenant: (await currentServices().resolve(scoped)).tenant }) }
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: (_resolver,
+                identity) => { scopedCalls++; return { tenant: identity.tenantId }; } },
+            { token: singleton, lifetime: ServiceLifetime.Singleton,
+                factory: async () => ({ tenant: (await currentServices().resolve(scoped)).tenant }) }
         ], queries: [defineQuery({ name: 'CapturedTenant', schema: z.object({}), handlerDependencies: [singleton],
             perform: async () => (await currentServices().resolve(singleton)).tenant })] });
         const alpha = await server.performQuery('CapturedTenant', {}, serviceContext('alpha'));

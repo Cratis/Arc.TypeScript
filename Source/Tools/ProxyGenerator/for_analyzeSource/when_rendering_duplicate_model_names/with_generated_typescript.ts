@@ -16,15 +16,19 @@ describe('when rendering duplicate model names with generated TypeScript', () =>
         const clientSource = resolve(clientRoot, 'src');
         const virtual = new Map([...files].map(([path, text]) => [resolve(clientSource, path), text]));
         const config = ts.readConfigFile(resolve(clientRoot, 'tsconfig.json'), ts.sys.readFile);
-        const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, clientRoot);
-        const host = ts.createCompilerHost(parsed.options);
+        const parsed = ts.convertCompilerOptionsFromJson(config.config.compilerOptions, clientRoot);
+        if (parsed.errors.length) throw new Error(ts.formatDiagnostics(parsed.errors, {
+            getCanonicalFileName: path => path, getCurrentDirectory: () => clientRoot, getNewLine: () => '\n'
+        }));
+        const options = { ...parsed.options, noEmit: true, skipLibCheck: true };
+        const host = ts.createCompilerHost(options);
         const read = host.readFile.bind(host);
         const exists = host.fileExists.bind(host);
         host.readFile = path => virtual.get(path) ?? read(path);
         host.fileExists = path => virtual.has(path) || exists(path);
         const directoryExists = host.directoryExists?.bind(host);
         host.directoryExists = path => path.startsWith(clientSource) || directoryExists?.(path) === true;
-        const program = ts.createProgram([...virtual.keys()], { ...parsed.options, noEmit: true }, host);
+        const program = ts.createProgram([...virtual.keys()], options, host);
         diagnostics = ts.getPreEmitDiagnostics(program);
     });
     it('should compile generated models and queries with tsc', () => {

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../../tenancy/TenantResolverType.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -10,7 +11,8 @@ describe('when resolving tenants with large identity claims', () => {
     let response: { status: number; tenant: string };
     let inherited: number;
     beforeEach(async () => {
-        const server = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['claim'], claimType: 'tenant', membershipClaim: 'memberships', required: true },
+        const server = new ArcServer({ nativePrincipal: true, tenancy: { sources: [TenantResolverType.Claim],
+            claimType: 'tenant', membershipClaim: 'memberships', required: true },
             queries: [defineQuery({ name: 'Tenant', schema: z.object({}), authorization: { roles: ['Reader'] }, perform: (_input, context) => context.tenantId })] });
         const roles = Array.from({ length: 70 }, (_, index) => `group-${index}`).concat('Reader');
         const identity = { id: 'u'.repeat(1000), name: '', isAuthenticated: true, roles,

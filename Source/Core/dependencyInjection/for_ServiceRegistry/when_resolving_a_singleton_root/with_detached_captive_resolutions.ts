@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { currentServices } from '../../ServiceScope.js';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
@@ -14,12 +15,14 @@ describe('when resolving a singleton root with detached captive resolutions', ()
     let creations: number;
     let manualSucceeded: boolean;
     beforeEach(async () => {
-        const scoped = serviceToken<object>('scoped'); const transient = serviceToken<object>('transient'); const root = serviceToken<object>('root');
+        const scoped = serviceToken<object>('scoped');
+        const transient = serviceToken<object>('transient');
+        const root = serviceToken<object>('root');
         const release = gate(); let detached!: Promise<void>; creations = 0; detachedFailures = [];
         const registry = new ServiceRegistry([
-            { token: scoped, lifetime: 'scoped', factory: () => ({}) },
-            { token: transient, lifetime: 'transient', factory: () => ({}) },
-            { token: root, lifetime: 'singleton', factory: resolver => {
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => ({}) },
+            { token: transient, lifetime: ServiceLifetime.Transient, factory: () => ({}) },
+            { token: root, lifetime: ServiceLifetime.Singleton, factory: resolver => {
                 creations++;
                 detached = (async () => {
                     await release.promise;

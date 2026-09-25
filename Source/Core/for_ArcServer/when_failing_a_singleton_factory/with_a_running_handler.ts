@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,8 +16,8 @@ describe('when failing a singleton factory with a running handler', () => {
         const active = serviceToken<object>('active'); const broken = serviceToken<object>('broken');
         events = []; const running = gate(); const release = gate(); const failed = gate();
         const server = new ArcServer({ services: [
-            { token: active, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { events.push('disposed'); } }) },
-            { token: broken, lifetime: 'singleton', factory: () => { throw new Error('failed'); } }
+            { token: active, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.dispose]: () => { events.push('disposed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Singleton, factory: () => { throw new Error('failed'); } }
         ], queries: [
             defineQuery({ name: 'Slow', schema: z.object({}), handlerDependencies: [active], perform: async () => {
                 running.release(); await release.promise; events.push('resumed'); return 'sensitive';

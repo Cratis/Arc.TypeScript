@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, currentContext } from '../../ArcServer.js';
@@ -18,7 +19,7 @@ describe('when handling identity requests with tenant-isolated services', () => 
         disposed = 0;
         ambientMatches = [];
         const token = serviceToken<{ tenant: string; [Symbol.asyncDispose](): Promise<void> }>('identity');
-        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: async (_resolver, identity) =>
+        const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped, factory: async (_resolver, identity) =>
             ({ tenant: identity.tenantId!, async [Symbol.asyncDispose]() { disposed++; } }) }],
             authentication: [() => ({ status: AuthenticationStatus.Authenticated, principal: identityPrincipal })],
             identityDetails: { schema: z.object({ tenant: z.string() }), provide: async (_principal, context) => {

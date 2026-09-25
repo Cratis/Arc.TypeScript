@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, currentContext } from '../../ArcServer.js';
@@ -15,12 +16,12 @@ describe('when entering nested executions with a service factory', () => {
         const outer = serviceToken<object>('outer tenant');
         const inner = serviceToken<{ tenant: string | undefined }>('inner tenant');
         const server = new ArcServer({ services: [
-            { token: outer, lifetime: 'scoped', factory: async () => {
+            { token: outer, lifetime: ServiceLifetime.Scoped, factory: async () => {
                 const nested = await server.performQuery('Inner', {}, serviceContext('beta'));
                 innerSuccess = nested.isSuccess; innerData = nested.data;
                 return {};
             } },
-            { token: inner, lifetime: 'scoped', factory: (_resolver, identity) => ({ tenant: identity.tenantId }) }
+            { token: inner, lifetime: ServiceLifetime.Scoped, factory: (_resolver, identity) => ({ tenant: identity.tenantId }) }
         ], queries: [
             defineQuery({ name: 'Outer', schema: z.object({}), handlerDependencies: [outer], perform: () => 'done' }),
             defineQuery({ name: 'Inner', schema: z.object({}), handlerDependencies: [inner], perform: async () => {

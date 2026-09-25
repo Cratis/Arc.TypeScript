@@ -18,7 +18,7 @@ Set `tenancy.resolverType` for one .NET-compatible source, or `tenancy.sources` 
 | `development` | `fixedTenantId` (default `development`) | The same fixed source as in .NET; it does **not** check your environment |
 | `subdomain` | Required `baseDomain` | The verified adapter `native.authority`, **not** the raw `Host` or `X-Forwarded-Host` header |
 
-For a single-tenant application, `resolverType: 'fixed', fixedTenantId: 'default'` gives every request the `default` tenant.
+Import `TenantResolverType` from `@cratis/arc.core`. For a single-tenant application, `resolverType: TenantResolverType.Fixed, fixedTenantId: 'default'` gives every request the `default` tenant.
 
 ## Options
 
@@ -34,7 +34,7 @@ For a single-tenant application, `resolverType: 'fixed', fixedTenantId: 'default
 - Nonempty IDs are lowercased and must be DNS labels: letters, digits, and hyphens, at most 63 characters. An invalid selected ID answers 400.
 - A nonstring selected tenant claim answers 400; a nonstring membership claim answers 403. Strategies read only own string values from the claim object.
 - `subdomain` requires an ASCII `baseDomain` of at least two labels and a host-verified `authority` from the adapter callback. Only a single subdomain label matches; IP addresses, unrelated or multi-label hosts, and raw `Host` or forwarded headers never do.
-- The header is the default source when `tenancy` is supplied; no development or fixed strategy is installed implicitly. Write `sources: ['subdomain', 'header']` to fall back explicitly.
+- The header is the default source when `tenancy` is supplied; no development or fixed strategy is installed implicitly. Write `sources: [TenantResolverType.Subdomain, TenantResolverType.Header]` to fall back explicitly.
 - Other strategy errors and unsafe startup options fail closed.
 
 Never use `development` or `fixed` to accept a browser-supplied tenant without validating access. `tenancy.resolve` overrides these sources, and the legacy header behavior applies when `tenancy` is absent; see [Tenancy](index.md).

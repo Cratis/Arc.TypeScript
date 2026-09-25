@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -13,8 +14,12 @@ describe('when preflighting a command with handler dependencies', () => {
     beforeEach(async () => {
         const calls: string[] = []; const dependency = serviceToken<object>('dependency'); const handler = serviceToken<object>('handler');
         const server = new ArcServer({ services: [
-            { token: dependency, lifetime: 'scoped', factory: () => { calls.push('dependency'); return { [Symbol.asyncDispose]: async () => { calls.push('dispose dependency'); } }; } },
-            { token: handler, lifetime: 'scoped', dependencies: [dependency], factory: async resolver => {
+            { token: dependency, lifetime: ServiceLifetime.Scoped,
+                factory: () => {
+                    calls.push('dependency');
+                    return { [Symbol.asyncDispose]: async () => { calls.push('dispose dependency'); } };
+                } },
+            { token: handler, lifetime: ServiceLifetime.Scoped, dependencies: [dependency], factory: async resolver => {
                 await resolver.resolve(dependency); calls.push('handler'); return { [Symbol.dispose]: () => { calls.push('dispose handler'); } };
             } }
         ], commands: [defineCommand({ name: 'Save', schema: z.object({}), handlerDependencies: [handler],

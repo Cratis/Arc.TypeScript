@@ -135,6 +135,7 @@ export class a_booking {
 ```
 
 ```typescript title="Samples/Tasks/Lessons/SeatBooking/for_BookSeat/when_booking_through_arc.ts"
+import { CommandRecoveryStatus } from '@cratis/arc.core';
 import { given, type ScenarioCommandResult } from '@cratis/arc.testing';
 import { ReserveSeat } from '../SeatBooking.js';
 import { a_booking } from './given/a_booking.js';
@@ -148,7 +149,7 @@ describe('when booking a seat through Arc', given(a_booking, context => {
     it('should succeed', () => { result.shouldBeSuccessful(); });
     it('should call the provider', () => { context.reservations.reserve.should.have.been.calledOnceWith('r-1', 'A-12'); });
     it('should observe the completed execution', () => { result.shouldHaveExecutedOperation(ReserveSeat); });
-    it('should not need recovery', () => { result.recovery!.status.should.equal('NotNeeded'); });
+    it('should not need recovery', () => { result.recovery!.status.should.equal(CommandRecoveryStatus.NotNeeded); });
     it('should return only the caller response', () => { (result.response as string).should.equal('r-1'); });
 }));
 ```
@@ -196,6 +197,7 @@ export class three_seat_requests {
 ```
 
 ```typescript title="Samples/Tasks/Lessons/SeatBooking/for_BookSeats/when_the_second_reservation_fails.ts"
+import { CommandRecoveryStatus } from '@cratis/arc.core';
 import { given, type ScenarioCommandResult } from '@cratis/arc.testing';
 import sinon from 'sinon';
 import { ReserveSeat } from '../SeatBooking.js';
@@ -227,7 +229,7 @@ describe('when the second reservation fails', given(three_seat_requests, context
         result.shouldHaveCompensatedOperation(ReserveSeat);
         result.recovery!.compensatedCount.should.equal(2);
     });
-    it('should report completed recovery', () => { result.recovery!.status.should.equal('Completed'); });
+    it('should report completed recovery', () => { result.recovery!.status.should.equal(CommandRecoveryStatus.Completed); });
 }));
 ```
 

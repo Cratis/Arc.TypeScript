@@ -23,7 +23,9 @@ Tenant names are normalized to lowercase before a database is chosen, including 
 Configure Arc tenancy with a fixed tenant of `default`:
 
 ```typescript
-const builder = ArcApplication.createBuilder({ tenancy: { resolverType: 'fixed', fixedTenantId: 'default' } });
+import { ArcApplication, TenantResolverType } from '@cratis/arc.core';
+
+const builder = ArcApplication.createBuilder({ tenancy: { resolverType: TenantResolverType.Fixed, fixedTenantId: 'default' } });
 ```
 
 With `database: 'tasks'`, every request then uses the bare `tasks` database.
