@@ -2,25 +2,20 @@
 title: Observe Arc requests
 description: Subscribe to Arc for TypeScript tracing and operation durations with an application-owned OpenTelemetry SDK.
 ---
-<!-- Copyright (c) Cratis. All rights reserved.
-Licensed under the MIT license. See LICENSE file in the project root for full license information. -->
 
-Arc for TypeScript emits spans and an operation-duration histogram through
-`@opentelemetry/api`. Install and start an SDK **in your application** before
-building the Arc server. Core does not install an exporter, context manager or
-SDK, so it remains usable without tracing infrastructure. Install the required
-`@opentelemetry/api` peer dependency alongside core; no exporter is required.
-Arc never sends raw exception messages to spans (including in development).
+A slow command in production is hard to explain from logs alone. Was the time spent in validation, in your handler, or in the HTTP layer? Arc for TypeScript emits spans for each pipeline stage and an operation-duration histogram through `@opentelemetry/api`, so the tracing backend you already run can answer that.
+
+Arc only emits. Core does not install an exporter, context manager, or SDK, so it stays usable without any tracing infrastructure. You install and start an SDK **in your application**, before you build the Arc server. Arc never sends raw exception messages to spans, including in development.
+
+## Before you start
+
+- `@opentelemetry/api`, the required peer dependency of `@cratis/arc.core`. No exporter is required.
+- For the example below, a clone of this repository after `yarn install && yarn build`. The workspace provides the SDK development dependencies.
+- In your own application, install `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `@opentelemetry/sdk-metrics`, and `zod` there instead of depending on the SDK from core. [Create an application](getting-started/create-an-application.md) shows how to install the unpublished Arc packages.
 
 ## Start a local console exporter
 
-These packages are not published yet. From this source checkout, run
-`yarn install && yarn build`; the workspace provides the SDK development
-dependencies. Save the following as `observability-example.mjs` at the root
-and run `node observability-example.mjs`. In a future application using a
-published package, install `@opentelemetry/sdk-node`,
-`@opentelemetry/sdk-trace-base`, `@opentelemetry/sdk-metrics`, and `zod` in that
-application instead of depending on the SDK from core.
+Save the following as `observability-example.mjs` at the repository root and run `node observability-example.mjs` with Node.js 22.19 or later:
 
 ```js
 import { NodeSDK } from '@opentelemetry/sdk-node';
@@ -49,11 +44,9 @@ try {
 }
 ```
 
-Run with Node 22 or newer. You should see a query result, then spans and a
-`cratis.arc.operation.duration` histogram from the `Cratis.Arc` source/meter.
-Replace the console exporters with exporters configured for your collector in
-the host. If the SDK is started after Arc is imported, Arc uses the API's
-proxy tracer; initialize before sending requests so nothing is missed.
+You see the query result, then spans and a `cratis.arc.operation.duration` histogram from the `Cratis.Arc` source and meter. In a real host, replace the console exporters with exporters configured for your collector.
+
+If the SDK starts after Arc is imported, Arc uses the API's proxy tracer. Initialize the SDK before sending requests so nothing is missed.
 
 ## Span names
 
@@ -69,17 +62,27 @@ proxy tracer; initialize before sending requests so nothing is missed.
 | `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `query_name`, `cratis.correlation_id` |
 | `cratis.arc.identity.resolve` | Identity details provider resolution | `cratis.correlation_id` |
 
-The first five and identity-resolution span names use the .NET pipeline names.
-The HTTP, emission and subscription spans are Node-specific: .NET uses ASP.NET
-request instrumentation and does not have a per-emission span. `command_type` and `query_name` are the registered qualified names,
-not payloads. The `cratis.arc.operation.duration` histogram records seconds under `Cratis.Arc`
-with `operation` and the applicable type/name or route tags;
-`cratis.arc.subscription.duration` measures open subscription lifetimes. .NET's core pipeline exposes a meter
-but does not record command/query durations. Arc does not instrument foreign
-routes; use your host's HTTP instrumentation for those. A valid configured
-[correlation header](reference/capabilities.md#security-identity-tenancy-and-correlation)
-is reflected in `cratis.correlation_id` and the response. It is not a W3C
-trace-context propagator; configure your host instrumentation for `traceparent`.
+`command_type` and `query_name` are the registered qualified names, not payloads.
 
-The Kotlin/JVM adapter uses Micrometer observations; it is not an OpenTelemetry
-SDK dependency of the TypeScript core.
+The first five span names and the identity-resolution span use the .NET pipeline names. The HTTP, emission, and subscription spans are Node-specific: .NET uses ASP.NET request instrumentation and does not have a per-emission span.
+
+## Metrics
+
+| Instrument | Unit | What it measures |
+| --- | --- | --- |
+| `cratis.arc.operation.duration` | Seconds | Each operation, tagged with `operation` and the applicable type, name, or route |
+| `cratis.arc.subscription.duration` | Seconds | How long each observable subscription stayed open |
+
+Both are recorded under the `Cratis.Arc` meter. .NET's core pipeline exposes a meter but does not record command or query durations.
+
+## What Arc does not instrument
+
+- **Foreign routes.** Routes your host serves outside Arc get no Arc spans. Use your host's HTTP instrumentation for those.
+- **W3C trace context.** A valid configured [correlation header](reference/capabilities.md#security-identity-tenancy-and-correlation) is reflected in `cratis.correlation_id` and in the response. It is not a W3C trace-context propagator; configure your host instrumentation for `traceparent`.
+
+The Kotlin/JVM adapter uses Micrometer observations; it is not an OpenTelemetry SDK dependency of the TypeScript core.
+
+## Next steps
+
+- [Configuration](configuration/index.md) sets the correlation header name with `correlationId.httpHeader`.
+- [Diagnostics](reference/diagnostics.md) lists the other signals Arc produces when something goes wrong.
