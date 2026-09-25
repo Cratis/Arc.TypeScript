@@ -31,6 +31,7 @@ function disposition(scopes: readonly CommandExecutionScope[], context: CommandC
     return value;
 }
 
+/** Preserve the failure and the preceding command result for scope cleanup. */
 export function commandFailure(context: CommandContext, error: unknown, previous?: CommandResult): CommandResult {
     const result = commandResult(context, { isAuthorized: previous?.isAuthorized,
         validationResults: [...previous?.validationResults ?? [],
