@@ -48,6 +48,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
             const filtered = await runCommandFilters(context, options, false);
             if (!filtered.result.isSuccess) return filtered.result;
         }
+        if (context.signal.aborted) return commandFailure(context, context.signal.reason ?? new Error('Command canceled'));
         const execute = () => executeCommandOperation(definition, parsed.data, context, options, mode === CommandOperationMode.Validate);
         return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
     };

@@ -16,19 +16,27 @@ export async function runQueryFilters(context: QueryContext, options: ArcOptions
     const tokens: readonly ServiceIdentifier<AuthorizationQueryFilter | QueryPipelineFilter>[] = authorization
         ? options.authorizationQueryFilters ?? [] : options.queryPipelineFilters ?? [];
     let result = queryResult(context);
-    for (const token of new Set(tokens)) {
-        try {
-            const fragment = await (await currentServices().resolve(token)).onPerform(context);
+    const checkCancellation = (): void => {
+        if (context.signal.aborted) throw context.signal.reason ?? new Error('Query canceled');
+    };
+    try {
+        checkCancellation();
+        for (const token of new Set(tokens)) {
+            checkCancellation();
+            const filter = await currentServices().resolve(token);
+            checkCancellation();
+            const fragment = await filter.onPerform(context);
+            checkCancellation();
             if (fragment !== undefined) {
                 const merged = mergeFilterFragment(result, fragment);
                 result = queryResult(context, { ...merged, isReady: result.isReady && fragment.isReady !== false });
             }
-        } catch (error) {
-            result = queryResult(context, { ...result, exceptionMessages: [...result.exceptionMessages, String(error)] });
-            recordFailure(result, error);
-            return result;
+            if (!result.isSuccess) break;
         }
-        if (!result.isSuccess) break;
+        checkCancellation();
+    } catch (error) {
+        result = queryResult(context, { ...result, exceptionMessages: [...result.exceptionMessages, String(error)] });
+        recordFailure(result, error);
     }
     return result;
 }

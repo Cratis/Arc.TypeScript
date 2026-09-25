@@ -17,11 +17,17 @@ export async function runCommandFilters(context: CommandContext, options: ArcOpt
     const tokens: readonly ServiceIdentifier<AuthorizationCommandFilter | CommandPipelineFilter>[] = authorization
         ? options.authorizationCommandFilters ?? [] : options.commandPipelineFilters ?? [];
     let result = commandResult(context);
-    let blocked = false;
-    for (const token of new Set(tokens)) {
-        let fragment: CommandResult | void;
-        try {
-            fragment = await (await currentServices().resolve(token)).onExecution(context);
+    const checkCancellation = (): void => {
+        if (context.signal.aborted) throw context.signal.reason ?? new Error('Command canceled');
+    };
+    try {
+        checkCancellation();
+        for (const token of new Set(tokens)) {
+            checkCancellation();
+            const filter = await currentServices().resolve(token);
+            checkCancellation();
+            const fragment = await filter.onExecution(context);
+            checkCancellation();
             if (fragment !== undefined) {
                 const merged = mergeFilterFragment(result, fragment);
                 result = commandResult(context, { ...merged,
@@ -29,13 +35,14 @@ export async function runCommandFilters(context: CommandContext, options: ArcOpt
                     validationResults: merged.validationResults.filter(item => item.severity > context.allowedSeverity)
                 });
             }
-        } catch (error) {
-            result = commandResult(context, { ...result, exceptionMessages: [...result.exceptionMessages, String(error)],
-                response: undefined });
-            recordFailure(result, error);
-            return { result, blocked: true };
+            if (!result.isSuccess) return { result, blocked: true };
         }
-        if (!result.isSuccess) { blocked = true; break; }
+        checkCancellation();
+    } catch (error) {
+        result = commandResult(context, { ...result, exceptionMessages: [...result.exceptionMessages, String(error)],
+            response: undefined });
+        recordFailure(result, error);
+        return { result, blocked: true };
     }
-    return { result, blocked };
+    return { result, blocked: false };
 }

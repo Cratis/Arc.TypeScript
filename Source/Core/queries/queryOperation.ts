@@ -47,6 +47,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 const value = parsed.data;
                 const filtered = await runQueryFilters(filterContext, serverOptions, false);
                 if (!filtered.isSuccess) return filtered;
+                if (context.signal.aborted) throw context.signal.reason ?? new Error('Query canceled');
                 let issues: ValidationResult[];
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);

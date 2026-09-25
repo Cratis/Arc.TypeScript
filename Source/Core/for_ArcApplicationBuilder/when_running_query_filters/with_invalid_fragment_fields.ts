@@ -1,6 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
+import { z } from 'zod';
+import { ArcApplication } from '../../ArcApplication.js';
+import { defineQuery } from '../../queries/defineQuery.js';
 import type { QueryResult } from '../../queries/QueryResult.js';
 import type { FetchArcApplication } from '../../FetchArcApplication.js';
 import { Severity } from '../../validation/Severity.js';
@@ -12,6 +15,7 @@ const invalid: [string, object][] = [
     ['numeric authorization', { isAuthorized: 0 }],
     ['null authorization', { isAuthorized: null }],
     ['null readiness', { isReady: null }],
+    ['numeric readiness', { isReady: 0 }],
     ['string readiness', { isReady: 'false' }],
     ['NaN severity', { validationResults: [{ severity: NaN, message: 'rule', members: [], reason: 'rule' }] }],
     ['infinite severity', { validationResults: [{ severity: Infinity, message: 'rule', members: [], reason: 'rule' }] }],
@@ -48,3 +52,33 @@ for (const [name, fragment] of invalid) {
         });
     });
 }
+
+describe('when malformed query authorization precedes validator dependencies', () => {
+    let application: FetchArcApplication;
+    let result: QueryResult;
+    let constructed: number;
+    let performed: number;
+    beforeEach(async () => {
+        constructed = 0;
+        performed = 0;
+        class Dependency {}
+        class Invalid { onPerform(): QueryResult { return { isReady: 0 } as unknown as QueryResult; } }
+        const builder = ArcApplication.createBuilder({ queries: [defineQuery({ name: 'Dependent',
+            schema: z.object({}), authorization: { anonymous: true }, validatorDependencies: [Dependency],
+            handlerDependencies: [Dependency], perform: () => { performed++; return 'visible'; }
+        })] });
+        builder.services.addScoped(Invalid).addScoped(Dependency, () => { constructed++; return new Dependency(); });
+        builder.addAuthorizationQueryFilter(Invalid);
+        application = await builder.build();
+        result = await application.server.performQuery('Dependent', {}, {
+            correlationId: 'invalid-dependency', principal: undefined, tenantId: undefined,
+            allowedSeverity: Severity.Warning, signal: new AbortController().signal
+        });
+    });
+    afterEach(async () => { await application.dispose(); });
+    it('should fail before constructing validators or the performer', () => {
+        result.isSuccess.should.equal(false);
+        constructed.should.equal(0);
+        performed.should.equal(0);
+    });
+});

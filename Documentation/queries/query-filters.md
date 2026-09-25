@@ -45,7 +45,7 @@ You can also register tokens using `ArcOptions.authorizationQueryFilters` and `.
 or transient services. Within each group the order is ArcOptions tokens, then explicit builder calls, then decorated
 classes in `add()` order. A token registered more than once runs once; a token in both groups fails at build.
 An unsuccessful fragment stops that group and skips subsequent stages. Invalid fragments and thrown filters fail closed
-with 500. The existing per-definition `QueryFilter<T>` callbacks remain separate and collect validation results
-at the validator stage.
+with 500. Omitted fragment fields retain their defaults; supplied authorization and readiness must be boolean, and validation severity must be a `Severity` value. The existing per-definition `QueryFilter<T>` callbacks remain separate and collect validation results
+at the validator stage. If cancellation occurs while a filter service resolves or a filter is pending, Arc waits for it to settle, fails the request without starting later filters or the query producer, and releases its operation scope.
 
 See [Query pipeline](query-pipeline.md) for the complete order and [Authorizing commands and queries](../authorizing-commands-and-queries.md) for declared authorization.

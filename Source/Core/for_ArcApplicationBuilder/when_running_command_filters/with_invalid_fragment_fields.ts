@@ -1,6 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
+import { z } from 'zod';
+import { ArcApplication } from '../../ArcApplication.js';
+import { defineCommand } from '../../commands/defineCommand.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 import type { FetchArcApplication } from '../../FetchArcApplication.js';
 import { Severity } from '../../validation/Severity.js';
@@ -48,3 +51,33 @@ for (const [name, fragment] of invalid) for (const mode of ['execute', 'validate
         });
     });
 }
+
+describe('when malformed command authorization precedes validator dependencies', () => {
+    let application: FetchArcApplication;
+    let result: CommandResult;
+    let constructed: number;
+    let handled: number;
+    beforeEach(async () => {
+        constructed = 0;
+        handled = 0;
+        class Dependency {}
+        class Invalid { onExecution(): CommandResult { return { isAuthorized: 'false' } as unknown as CommandResult; } }
+        const builder = ArcApplication.createBuilder({ commands: [defineCommand({ name: 'Dependent',
+            schema: z.object({}), authorization: { anonymous: true }, validatorDependencies: [Dependency],
+            handlerDependencies: [Dependency], handle: () => { handled++; }
+        })] });
+        builder.services.addScoped(Invalid).addScoped(Dependency, () => { constructed++; return new Dependency(); });
+        builder.addAuthorizationCommandFilter(Invalid);
+        application = await builder.build();
+        result = await application.server.executeCommand('Dependent', {}, {
+            correlationId: 'invalid-dependency', principal: undefined, tenantId: undefined,
+            allowedSeverity: Severity.Warning, signal: new AbortController().signal
+        });
+    });
+    afterEach(async () => { await application.dispose(); });
+    it('should fail before constructing validators or handlers', () => {
+        result.isSuccess.should.equal(false);
+        constructed.should.equal(0);
+        handled.should.equal(0);
+    });
+});
