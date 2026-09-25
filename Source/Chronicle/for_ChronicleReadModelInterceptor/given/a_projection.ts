@@ -26,6 +26,8 @@ class ReducedView { @field(String) id = ''; @field(String) @pii() name = ''; }
 
 export class a_projection {
     readonly artifacts = new ChronicleArtifacts();
+    readonly model = PrivateView;
+    readonly reducerModel = ReducedView;
     readonly privateView = new PrivateView();
     readonly publicView = new PublicView();
     readonly reducedView = new ReducedView();
@@ -34,8 +36,9 @@ export class a_projection {
         Object.assign(result, model, { name: 'plain' });
         return result;
     });
+    readonly find = sinon.stub().resolves(this.privateView);
     readonly getStore = sinon.stub().callsFake(async (): Promise<IEventStore> =>
-        ({ readModels: { release: this.release } }) as unknown as IEventStore);
+        ({ readModels: { release: this.release, findInstanceById: this.find } }) as unknown as IEventStore);
     readonly context = { tenantId: 'tenant-a' } as ExecutionContext;
     readonly runtime = { getStore: this.getStore } as unknown as ChronicleRuntime;
     constructor() {

@@ -3,6 +3,7 @@
 import type { ClassType, CommandContext, ReadModelForCommandResolver } from '@cratis/arc.core';
 import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
+import { hasProjectedCompliance } from './hasProjectedCompliance.js';
 
 /** Resolve only registered Chronicle read models in the command's trusted namespace. */
 export class ChronicleReadModelForCommandResolver implements ReadModelForCommandResolver {
@@ -10,6 +11,8 @@ export class ChronicleReadModelForCommandResolver implements ReadModelForCommand
     supports(type: ClassType): boolean { return this.artifacts.readModels.includes(type as never); }
     async find<T>(type: ClassType<T>, key: string, context: CommandContext): Promise<T | null> {
         const store = await this.runtime.getStore(context);
-        return store.readModels.findInstanceById(type as never, key) as Promise<T | null>;
+        const model = await store.readModels.findInstanceById(type as never, key) as T | null;
+        if (model === null || !hasProjectedCompliance(type as never, this.artifacts)) return model;
+        return store.readModels.release(type as never, model);
     }
 }
