@@ -47,7 +47,10 @@ The client's sort field is matched against the declared fields and never becomes
 
 ## Unpaged reads
 
-`find(filter, sorting?)` returns every match only when there are at most `maxPageSize` of them, and throws `Drizzle find exceeds maxPageSize` otherwise, instead of silently truncating. `findOne(filter)` returns the first match in primary-key order, or `undefined`.
+`find(filter, sorting?)` returns every match only when there are at most `maxPageSize` of them. Above that limit it
+rejects with a `QueryPagingRequired` error saying to use `queryPage`, rather than silently truncating. Use `queryPage`
+for paged endpoints: `find` does not accept paging options, even if the client sends `pageSize`. `findOne(filter)` returns
+the first match in primary-key order, or `undefined`.
 
 ## Consistency
 

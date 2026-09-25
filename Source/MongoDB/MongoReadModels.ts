@@ -51,13 +51,17 @@ export class MongoReadModels<T extends Document, I> {
         const sort = sorting ? { [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {})
                 .filter(([field]) => field !== sorting.field)) } : findOptions?.sort;
-        const page = await this.page(context, input, options.paging ?? { page: 0, pageSize: this.maxPageSize },
-            { ...findOptions, sort });
-        if (!options.paging && page.paging.totalItems > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
+        const page = await this.readPage(context, input, options.paging ?? { page: 0, pageSize: this.maxPageSize },
+            { ...findOptions, sort }, !options.paging);
         return createQueryPage(page.items, page.paging.totalItems, sorting);
     }
 
     async page(context: ExecutionContext, input: I, request: PageRequest, options?: MongoPageFindOptions<T>): Promise<MongoPage<T>> {
+        return this.readPage(context, input, request, options, false);
+    }
+
+    private async readPage(context: ExecutionContext, input: I, request: PageRequest, options: MongoPageFindOptions<T> | undefined,
+        rejectUnpaged: boolean): Promise<MongoPage<T>> {
         if (!Number.isSafeInteger(request.page) || request.page < 0 ||
             !Number.isSafeInteger(request.pageSize) || request.pageSize <= 0 ||
             !Number.isSafeInteger(request.page * request.pageSize))
@@ -77,6 +81,7 @@ export class MongoReadModels<T extends Document, I> {
             collation, hint, session, readPreference, readConcern, maxTimeMS, comment, signal: context.signal
         };
         const totalItems = await collection.countDocuments(filter, countOptions);
+        if (rejectUnpaged && totalItems > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
         const items = await collection.find(filter, { ...options, sort: orderedSort, signal: context.signal })
             .skip(request.page * request.pageSize).limit(request.pageSize).toArray();
         return { items, paging: { page: request.page, size: request.pageSize,

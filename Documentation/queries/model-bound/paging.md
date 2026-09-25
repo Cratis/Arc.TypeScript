@@ -64,6 +64,11 @@ Loading every row to page it in memory does not scale. Add `queryOptions()` to r
 - A request that asks for sorting answers 400 unless you pass the applied sort as the third argument, `queryPage(items, totalItems, sorting)`, confirming your data source sorted it. Arc never re-sorts a page it did not cut.
 - `queryPage` throws when `totalItems` is negative, not a safe integer, or smaller than the number of items; the query then fails with a 500.
 
+A provider can throw the public `QueryPagingRequired(maxPageSize, unpaged?, message?)` error to report its own limit.
+Arc maps its message to a 400 `rule` validation result on `Size`. Pass `true` for `unpaged` when a result without paging
+exceeds the limit; supply a message only when the default request-paging advice does not apply to the operation.
+Similarly, `InvalidQuerySort` maps to a 400 `rule` result on `sorting.field` for a provider-rejected sort field.
+
 The [MongoDB](../../mongodb/paging.md) and [Drizzle](../../sql/paging.md) integrations return such pages for you, with sorting pushed into the database. Without paging, their `queryPage` reads at most the configured maximum page size. If more rows exist, the provider answers 400 with a `rule` result on `Size` asking the caller to request paging, rather than returning a misleading partial list. A requested page size above the provider maximum also answers 400 with a `rule` result on `Size`.
 
 ## Related

@@ -40,7 +40,7 @@ describe('when restricting read-only SQL access', given(a_sqlite_database, conte
     });
     it('should cap unpaged reads and reject invalid pages', async () => {
         const models = new DrizzleReadModels(context.database, context.table, TaskRecord, 1);
-        await shouldRejectWithMessage(models.find(undefined), 'The result exceeds the maximum page size of 1; request paging');
+        await shouldRejectWithMessage(models.find(undefined), 'The result exceeds the maximum of 1 items; use queryPage for paged results');
         (await models.findOne(eq(context.table.title, 'a')))!.title.should.equal('a');
         should().equal(await models.findOne(eq(context.table.title, 'missing')), undefined);
         await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: -1, pageSize: 1 } }), 'Invalid Drizzle page');

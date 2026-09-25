@@ -59,7 +59,8 @@ export class DrizzleReadModels<T extends object> {
         this.order(sorting);
         const total = await this.db.$count(this.table, filter);
         if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
-        if (total > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
+        if (total > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true,
+            `The result exceeds the maximum of ${this.maxPageSize} items; use queryPage for paged results`);
         return this.select(filter, sorting, this.maxPageSize);
     }
 
