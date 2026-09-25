@@ -29,9 +29,61 @@ hub.onmessage = event => {
 
 ## The server-sent-events hub
 
-The SSE hub uses `GET /.cratis/queries/sse` for its `Connected` stream, plus `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. The stream can be opened anonymously. Its connection ID is crypto-random; a control request must match the opening caller's authentication state and tenant. Authenticated connections require the same authenticated identity on every control request, while anonymous callers cannot control authenticated connections (or vice versa). With anonymous connections, callers have no identity to distinguish them: when the host supplies a peer address, Arc for TypeScript additionally requires that address on control requests to match the opener. Without a peer address, other anonymous callers in the same tenant who learn the connection ID cannot be distinguished. This address check is deliberately stricter than Arc on .NET; do not treat it as user authentication, especially behind a shared proxy. Unknown or unowned connections return 404, and a query the caller may not access answers 401 with an `Unauthorized` frame.
+The SSE hub uses `GET /.cratis/queries/sse` for its stream, plus `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. The stream opens with a `Connected` frame whose payload is the connection ID; every control request names it. The stream can be opened anonymously.
 
-Browser `EventSource` sends same-origin cookies but cannot set an `Authorization` header. If your queries require sign-in, use your application's real session cookie on the stream and controls; the `.cratis-identity` display cookie is not a credential. SSE controls require `application/json` (optionally `charset=utf-8`) and reject an untrusted browser `Origin` with 403. Same-origin is allowed by default; configure `query.allowedOrigins` for trusted cross-origin frontends. Anonymous per-caller connection limits group requests by peer address, or by tenant when no address is available.
+Browser `EventSource` sends same-origin cookies but cannot set an `Authorization` header. If your queries require sign-in, use your application's real session cookie on the stream and controls; the `.cratis-identity` display cookie is not a credential. SSE controls require `application/json` (optionally `charset=utf-8`) and reject an untrusted browser `Origin` with 403. Same-origin is allowed by default; configure `query.allowedOrigins` for trusted cross-origin frontends.
+
+### Response headers
+
+The hub stream, and a direct SSE stream for one query (`GET` on the query route with `Accept: text/event-stream`), answer 200 with these headers:
+
+| Header | Value |
+| --- | --- |
+| `Content-Type` | `text/event-stream; charset=utf-8` |
+| `Cache-Control` | `no-cache` |
+| `Connection` | `keep-alive` |
+| `X-Accel-Buffering` | `no`, which asks a buffering reverse proxy to pass each frame through as it is written |
+| `X-Correlation-ID` | The request's correlation ID, under the header name set by `correlationId.httpHeader` |
+
+`no-cache` lets a cache store the response only if it revalidates before reuse. Arc sends `Cache-Control: no-store` on HTTP `QUERY` responses and `/.cratis/me`, not on SSE streams. If a proxy or CDN in front of Arc must never store a stream, configure that in the proxy.
+
+### Who can control a connection
+
+The connection ID is crypto-random. A control request must also come from the caller that opened the connection:
+
+- It must resolve to the same tenant and the same authentication state. Anonymous callers cannot control authenticated connections, and authenticated callers cannot control anonymous ones.
+- For an authenticated connection, it must carry the same principal ID.
+- For an anonymous connection, it must come from the same peer address as the stream. Arc for TypeScript adds this check; Arc on .NET does not have it. When neither request has a peer address, the check cannot tell anonymous callers in the same tenant apart, so anyone who learns the connection ID can control the connection.
+
+An unknown connection, or one the caller does not own, answers 404. A query the caller may not access answers 401 with an `Unauthorized` frame. The peer-address check is not authentication: behind a shared proxy, every client has the proxy's address.
+
+### Per-caller budgets
+
+Every hub connection and every live subscription counts against a per-caller budget. Arc decides who the caller is from the request:
+
+| Caller | Shares a budget with |
+| --- | --- |
+| Authenticated | Requests with the same principal ID in the same tenant |
+| Anonymous, with a peer address | Anonymous requests from the same address in the same tenant |
+| Anonymous, without a peer address | Every anonymous request without an address in the same tenant |
+
+Two options set the budgets:
+
+| Option | Default | Counts |
+| --- | --- | --- |
+| `query.maxObservableHubConnectionsPerCaller` | `512`, the same as `query.maxObservableHubConnections` | Open WebSocket and SSE hub connections |
+| `query.maxObservableSubscriptionsPerCaller` | `4096`, the same as `query.maxObservableSubscriptions` | Live subscriptions, direct or on a hub, including ones still opening |
+
+With the defaults, one caller can take the whole global capacity. Lower both for an internet-facing host. Opening an SSE stream or SSE hub over budget answers 503 with `Retry-After: 1`, and a WebSocket hub over budget is refused with 503 during the upgrade, or closed with code 1013 if the budget ran out while it connected. A hub subscription over budget receives an `Error` frame, and its SSE control request answers 503.
+
+### Peer addresses and proxies
+
+Where the peer address comes from depends on the host:
+
+- **Express, Fastify, and Hono on the Node server** and **the standalone host** (`app.run()`, `runArc`, and `createArcNodeHandler`) read it from the TCP socket, unless the native callback returns a `remoteAddress`.
+- **Fetch API hosts** (`app.fetch`, `app.handle`, and `server.handle`) have no socket. Pass `remoteAddress` in the native context.
+
+Arc never reads `X-Forwarded-For` or `Forwarded`. Behind a reverse proxy, the socket address is the proxy's, so all anonymous clients behind it share one budget, and the peer-address check only shows that a control request came through the same proxy. A low per-caller cap then throttles those clients together. To budget them one by one, validate the forwarding header against your trusted proxy chain in the native callback and return the client address as `remoteAddress`. [Native principal](../hosts/native-principal.md) describes the callback, and [WebSockets](../hosts/websockets.md) shows a trusted-proxy check for upgrades.
 
 ## Configure the installed client
 
@@ -62,7 +114,7 @@ Items are matched by an `id` property; the property name is matched case-insensi
 
 ## Limits
 
-By default the server allows 4096 subscriptions globally and per caller, 512 hub connections globally and per caller, 256 subscriptions per hub connection, and 256 queued inbound and outbound frames. Per-caller limits default to the global ones, so one caller can exhaust capacity: set lower `query.maxObservableSubscriptionsPerCaller` and `query.maxObservableHubConnectionsPerCaller` for internet-facing hosts. `query.observableShutdownTimeoutMs` (10 seconds) bounds hub and direct WebSocket cleanup at shutdown. All limits are listed in [Configuration](../configuration/index.md#observable-query-limits).
+By default the server allows 4096 subscriptions globally and per caller, 512 hub connections globally and per caller, 256 subscriptions per hub connection, and 256 queued inbound and outbound frames. Per-caller limits default to the global ones, so one caller can exhaust capacity: set lower `query.maxObservableSubscriptionsPerCaller` and `query.maxObservableHubConnectionsPerCaller` for internet-facing hosts. [Per-caller budgets](#per-caller-budgets) explains how Arc tells callers apart. `query.observableShutdownTimeoutMs` (10 seconds) bounds hub and direct WebSocket cleanup at shutdown. All limits are listed in [Configuration](../configuration/index.md#observable-query-limits).
 
 ## Related
 

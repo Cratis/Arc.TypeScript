@@ -17,7 +17,8 @@ A useful spec still answers one precise question. Is the decision right? Did Arc
 | A query's arguments, paging, sorting, and result shape | `QueryScenario` | The database's own query behavior |
 | A live query's emissions | `ObservableQueryScenario` | A transport or a browser client |
 | The route, the host, and authentication | `ArcScenario` with HTTP requests | Business edge cases you did not send |
-| Events a command returns for Chronicle | `ChronicleCommandScenario` | A running kernel and its projections |
+| Events a command appends for Chronicle, from pinned read models | `ChronicleCommandScenario` | Stored history, aggregates, projections, or constraints |
+| A command that depends on stored events or an aggregate | `ChronicleKernelScenario` against a running kernel | Replays or concurrent writers after the check |
 
 Combine boundaries rather than pushing every case through the widest one. Cover decision branches with fast direct specs, add scenario specs for the Arc contracts that matter, and keep a smaller set of HTTP or integration tests for real composition.
 
@@ -37,6 +38,7 @@ Two lessons build the habit step by step, each with runnable specs:
 | `ObservableQueryScenario` | A decorated observable query, collecting emissions with a deadline | [Observable queries](observable-queries.md) |
 | `ArcScenario` | Low-level definitions and full HTTP requests | [Low-level definitions](low-level-definitions.md) |
 | `ChronicleCommandScenario` | Commands that return Chronicle events, without a kernel | [Chronicle](chronicle.md) |
+| `ChronicleKernelScenario` | Chronicle commands with seeded events, aggregates, projections, and constraints | [Chronicle kernel scenarios](chronicle-kernel.md) |
 
 Every scenario builds its application lazily on the first call, lets you register fakes first, and must be disposed with `await scenario.dispose()`; disposal is idempotent.
 

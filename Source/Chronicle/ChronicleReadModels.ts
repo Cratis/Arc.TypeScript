@@ -8,6 +8,7 @@ import type { Constructor } from '@cratis/fundamentals';
 import type { ExecutionContext } from '@cratis/arc.core';
 import { from, map, Observable } from 'rxjs';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
+import { markKernelReleased } from './kernelReleasedReadModels.js';
 
 
 /** Tenant-scoped access to Chronicle read models; use as a service in Arc queries. */
@@ -19,13 +20,13 @@ export class ChronicleReadModels {
     async findInstanceById<T>(type: Constructor<T>, id: string,
         consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T | null> {
         this.checkConsistency(type, consistency);
-        return (await this.getStore()).readModels.findInstanceById(type, id);
+        return markKernelReleased(await (await this.getStore()).readModels.findInstanceById(type, id));
     }
     /** Fetch all instances of a read model in the current tenant. */
     async getAll<T extends object>(type: Constructor<T>,
         consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T[]> {
         this.checkConsistency(type, consistency);
-        return (await this.getStore()).readModels.getInstances(type);
+        return (await (await this.getStore()).readModels.getInstances(type)).map(markKernelReleased);
     }
     /** Fetch one read model by its event-source ID, or null if it does not exist. */
     getById<T extends object>(type: Constructor<T>, id: string,
@@ -83,6 +84,9 @@ export class ChronicleReadModels {
     }
     /** Iterate Chronicle changes without RxJS. */
     async *watchIterable<T>(type: Constructor<T>): AsyncIterable<ReadModelChangeset<T>> {
-        yield* (await this.getStore()).readModels.watch(type);
+        for await (const change of (await this.getStore()).readModels.watch(type)) {
+            markKernelReleased(change.readModel);
+            yield change;
+        }
     }
 }
