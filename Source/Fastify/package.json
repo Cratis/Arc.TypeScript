@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.fastify",
-  "version": "0.18.0",
+  "version": "0.18.1",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -23,7 +23,10 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "!dist/given.*",
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md"
   ],
   "dependencies": {
     "@cratis/arc.core": "workspace:^",
