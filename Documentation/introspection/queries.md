@@ -3,7 +3,7 @@ title: Query introspection
 description: The shape of GET /.cratis/queries, with one entry per registered query, its full name, and its arguments JSON Schema.
 ---
 
-`GET /.cratis/queries` returns a JSON array with one entry per registered query, observable queries included. For the Tasks sample's `taskById`:
+A developer tool that subscribes to an observable query needs its fully qualified name, and a client that calls a query needs its arguments. `GET /.cratis/queries` returns both, in a JSON array with one entry per registered query, observable queries included. For the Tasks sample's `taskById`:
 
 ```json
 {
@@ -30,7 +30,7 @@ description: The shape of GET /.cratis/queries, with one entry per registered qu
 | `namespace` | For a model-bound query, the discovery namespace plus the read-model class |
 | `route` | The GET route |
 | `type` | The query name |
-| `documentationSummary` | A low-level definition's `summary`, or `""` |
+| `documentationSummary` | A low-level definition's `summary`, or the JSDoc summary of a model-bound query method when generated artifact metadata is registered; otherwise `""`. The Tasks sample's query methods have no JSDoc |
 | `fullyQualifiedName` | The identity used by direct calls and hub subscriptions, such as `Tasks.Listing.TaskItem.taskById` |
 | `argumentsSchema` | JSON Schema 2020-12 of the arguments; `{ "properties": {} }` when there are none |
 

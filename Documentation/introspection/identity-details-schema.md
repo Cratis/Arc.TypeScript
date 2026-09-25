@@ -3,7 +3,7 @@ title: Identity details schema
 description: The shape of GET /.cratis/identity-details/schema, which describes the application details returned by /.cratis/me.
 ---
 
-`GET /.cratis/identity-details/schema` returns the JSON Schema of the `details` object that [`/.cratis/me`](../identity/index.md) returns. The schema comes from the identity details provider:
+A frontend or tool that shows identity details from another language cannot import your `detailsType` class. It can read its schema instead. `GET /.cratis/identity-details/schema` returns the JSON Schema of the `details` object that [`/.cratis/me`](../identity/index.md) returns. The schema comes from the identity details provider:
 
 | Configuration | Response |
 | --- | --- |
