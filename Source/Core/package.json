@@ -20,6 +20,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./fetch": {
+      "types": "./dist/fetch.d.ts",
+      "import": "./dist/fetch.js"
+    },
     "./hosting": {
       "types": "./dist/hosting.d.ts",
       "import": "./dist/hosting.js"

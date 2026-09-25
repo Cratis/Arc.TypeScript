@@ -32,7 +32,10 @@ export async function body(request: Request, limit: number): Promise<unknown> {
         }
     } finally { await reader.cancel(); }
     try {
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));
+        const combined = new Uint8Array(bytes);
+        let offset = 0;
+        for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.byteLength; }
+        const text = new TextDecoder('utf-8', { fatal: true }).decode(combined);
         return clean(JSON.parse(text) as unknown);
     } catch { throw new BadRequest(); }
 }

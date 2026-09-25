@@ -28,9 +28,11 @@
     "build": "tsc -b && yarn check:metadata",
     "check:metadata": "node Samples/Tasks/check-metadata.mjs",
     "check:consumers": "node scripts/check-consumers.mjs",
+    "check:fetch": "node scripts/check-fetch-runtime.mjs",
+    "check:fetch:deno": "node scripts/check-fetch-deno.mjs",
     "test": "vitest run",
     "specs": "yarn test",
-    "ci": "yarn tsc -b Source/Core Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn build && yarn check:consumers && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs"
+    "ci": "yarn tsc -b Source/Core Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs"
   },
   "devDependencies": {
     "@cratis/fundamentals": "7.19.6",

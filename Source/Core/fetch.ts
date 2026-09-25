@@ -2,11 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 (Symbol as unknown as { metadata: symbol }).metadata ??= Symbol.for('Symbol.metadata');
 export { ArcServer, currentContext } from './ArcServer.js';
-export { ArcApplication } from './ArcApplication.js';
-export { NodeArcApplicationBuilder as ArcApplicationBuilder } from './NodeArcApplicationBuilder.js';
+export { FetchArcApplication as ArcApplication } from './FetchArcApplication.js';
+export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
 export type { ArcBuilderIntegrationOptions } from './ArcBuilderIntegrationOptions.js';
-export type { ArcBuilderOptions } from './configuration/ArcBuilderOptions.js';
-export { discoveryFiles } from './reflection/discoveryFiles.js';
 export { canonicalMetadataSignature } from './reflection/generatedMetadataSignature.js';
 export { optionalService } from './reflection/optionalService.js';
 export type { GeneratedMetadata, GeneratedArtifactMetadata } from './reflection/GeneratedArtifactMetadata.js';
@@ -33,6 +31,8 @@ export * from './identity/index.js';
 export * from './tenancy/index.js';
 export * from './execution/index.js';
 export * from './dependencyInjection/index.js';
-export * from './http/index.js';
+export { routeFor, includeRouteName } from './http/createRouteTable.js';
+export type { NativeRequestContext } from './http/NativeRequestContext.js';
+export type { Operation } from './http/Operation.js';
 export * from './introspection/index.js';
 export * from './results/index.js';
