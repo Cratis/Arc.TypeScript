@@ -44,9 +44,20 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
 }
 
 declare module '@cratis/arc.core' {
-    interface ArcBuilderIntegrationOptions { chronicle: Partial<ChronicleRegistration>; }
+    interface ArcApplicationBuilder {
+        /** Attach Chronicle after importing @cratis/arc.chronicle. */
+        withChronicle(options: Partial<ChronicleRegistration>): this;
+        /** @deprecated Use withChronicle. */
+        addChronicle(options: Partial<ChronicleRegistration>): this;
+    }
 }
 
+ArcApplicationBuilder.registerExtension('chronicle', withChronicle);
+ArcApplicationBuilder.prototype.withChronicle = function (options: Partial<ChronicleRegistration>) {
+    return this.extend('chronicle', options);
+};
 /** @deprecated Use withChronicle. */
 export const addChronicle = withChronicle;
-ArcApplicationBuilder.registerExtension('chronicle', withChronicle);
+ArcApplicationBuilder.prototype.addChronicle = function (options: Partial<ChronicleRegistration>) {
+    return this.withChronicle(options);
+};

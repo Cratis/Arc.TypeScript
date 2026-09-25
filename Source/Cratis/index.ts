@@ -1,13 +1,23 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcApplication } from '@cratis/arc.core';
-import type { ArcBuilderOptions, ArcApplicationBuilder } from '@cratis/arc.core';
+import { ArcApplication, ArcApplicationBuilder } from '@cratis/arc.core';
+import type { ArcBuilderOptions } from '@cratis/arc.core';
 import { withChronicle } from '@cratis/arc.chronicle';
 import type { ChronicleRegistration } from '@cratis/arc.chronicle';
 
 export * from '@cratis/arc.core';
 export * from '@cratis/arc.chronicle';
 
+declare module '@cratis/arc.core' {
+    interface ArcApplicationBuilder {
+        /** Attach Chronicle as part of the Cratis composition. */
+        addCratis(options?: Partial<ChronicleRegistration>): this;
+    }
+}
+
+ArcApplicationBuilder.prototype.addCratis = function (options: Partial<ChronicleRegistration> = {}) {
+    return this.extend('chronicle', options);
+};
 /** Compose Arc and a tenant-scoped Chronicle client without selecting an authentication handler. */
 export function addCratis(builder: ArcApplicationBuilder, chronicle: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
     return withChronicle(builder, chronicle);
@@ -16,6 +26,6 @@ export function addCratis(builder: ArcApplicationBuilder, chronicle: Partial<Chr
 /** Node setup analog of AddCratis; Chronicle connection settings can come from appsettings.json. */
 export class CratisApplication {
     static createBuilder(options: ArcBuilderOptions = {}, chronicle: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
-        return addCratis(ArcApplication.createBuilder(options), chronicle);
+        return ArcApplication.createBuilder(options).addCratis(chronicle);
     }
 }

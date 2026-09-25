@@ -43,9 +43,20 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
 }
 
 declare module '@cratis/arc.core' {
-    interface ArcBuilderIntegrationOptions { drizzle: DrizzleOptions; }
+    interface ArcApplicationBuilder {
+        /** Attach Drizzle after importing @cratis/arc.drizzle. */
+        withDrizzle(options: DrizzleOptions): this;
+        /** @deprecated Use withDrizzle. */
+        addDrizzle(options: DrizzleOptions): this;
+    }
 }
 
+ArcApplicationBuilder.registerExtension('drizzle', withDrizzle);
+ArcApplicationBuilder.prototype.withDrizzle = function (options: DrizzleOptions) {
+    return this.extend('drizzle', options);
+};
 /** @deprecated Use withDrizzle. */
 export const addDrizzle = withDrizzle;
-ArcApplicationBuilder.registerExtension('drizzle', withDrizzle);
+ArcApplicationBuilder.prototype.addDrizzle = function (options: DrizzleOptions) {
+    return this.withDrizzle(options);
+};
