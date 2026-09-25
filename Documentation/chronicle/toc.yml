@@ -9,4 +9,10 @@
 - name: Read models
   href: read-models/toc.yml
 - name: Aggregates
-  href: aggregates/index.md
+  href: aggregates/toc.yml
+- name: Reactors
+  href: reactors/toc.yml
+- name: Compliance
+  href: compliance.md
+- name: Code analysis
+  href: code-analysis.md

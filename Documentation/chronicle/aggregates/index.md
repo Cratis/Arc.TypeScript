@@ -1,94 +1,35 @@
 ---
 title: Aggregates
-description: Rehydrate a keyed aggregate from Chronicle and enroll its applied events in an Arc command.
+description: Decide from one event source's full history with a keyed aggregate root that Arc rehydrates from Chronicle and whose applied events join the command's batch.
 ---
 
-Use an aggregate when a command needs to decide from one event source's history, rather than from an eventually consistent read model. This API is experimental. It is an optional Chronicle integration; ordinary Arc commands do not need an event store.
+An order may hold at most 100 items. To enforce that, the command needs the order's current total, and it needs it to be exact: a read model that lags one event behind could let the 101st item through. An **aggregate** replays the order's own events into memory, checks the rule, and applies the new event. Because it knows which revision it replayed, a concurrent change rejects the append instead of breaking the rule.
 
-## Define the event and aggregate
+The API is experimental and part of the optional Chronicle integration. Ordinary Arc commands do not need an event store.
 
-Register handlers by **event class**, not by a method-name convention. A handler runs both for stored events during replay and for events applied in the current command. Keep it free of external effects.
+## Aggregate or read model
 
-```typescript title="Order.ts"
-import { field } from '@cratis/fundamentals';
-import { eventType } from '@cratis/chronicle/events';
-import { AggregateRoot } from '@cratis/arc.chronicle';
+| | Aggregate | Read model in a command |
+| --- | --- | --- |
+| State comes from | Replaying the event source's events on every command | A projection Chronicle stored earlier |
+| Freshness | Every stored event of the handled types | Whatever the projection has processed |
+| Concurrency | The append is rejected when the stream moved after the replay | None; the read model does not lock anything |
+| Cost | Grows with the number of events in the stream | One lookup |
+| Use it when | A rule depends on exact history of one event source | The command needs context, or a rule can tolerate lag |
 
-@eventType('ItemAdded')
-export class ItemAdded {
-    @field(String) productId: string;
-    @field(Number) quantity: number;
+A command can take both. See [Read models in commands](../read-models/injecting-into-commands.md).
 
-    constructor(productId: string, quantity: number) {
-        this.productId = productId;
-        this.quantity = quantity;
-    }
-}
+## How Arc wires it
 
-export class Order extends AggregateRoot {
-    quantity = 0;
+1. You define a class that extends `AggregateRoot` and registers a handler per event type.
+2. A command binds it with `@inject(commandAggregate(Order))`.
+3. Before `handle()` runs, Arc loads the events for the command's key, replays them through the handlers, and records the tail it read.
+4. `handle()` calls methods on the aggregate, which `apply()` new events.
+5. When the command succeeds, the applied events join the command's [batch](../commands/transactional-commands.md), with the recorded tail as the expected revision.
 
-    constructor() {
-        super();
-        this.on(ItemAdded, event => { this.quantity += event.quantity; });
-    }
+## Topics
 
-    addItem(productId: string, quantity: number): void {
-        if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 100 - this.quantity) {
-            throw new Error('Quantity must be positive and the order total must not exceed 100');
-        }
-        this.apply(new ItemAdded(productId, quantity));
-    }
-}
-```
-
-`on(ItemAdded, handler)` takes an optional second `EventContext` argument in the handler when you need the stored event's context. During `apply()`, that context is unavailable, so handle it as optional. Replayed payloads are reconstructed as instances of `ItemAdded`. An aggregate with no handlers can still apply events; it does not read unrelated event types during rehydration.
-
-## Bind the command
-
-Call `withChronicle` before registering the artifacts, as shown in [Add event sourcing](../add-event-sourcing.md). Bind the aggregate to the command's `@key()` field and register both the command and event type:
-
-```typescript title="AddItemToOrder.ts"
-import { field } from '@cratis/fundamentals';
-import { command, inject, key } from '@cratis/arc.core';
-import { commandAggregate } from '@cratis/arc.chronicle';
-import { Order } from './Order.js';
-
-@command()
-export class AddItemToOrder {
-    @field(String) @key() id = '';
-    @field(String) productId = '';
-    @field(Number) quantity = 0;
-
-    @inject(commandAggregate(Order))
-    handle(order: Order): void {
-        order.addItem(this.productId, this.quantity);
-    }
-}
-```
-
-```typescript title="main.ts"
-import 'reflect-metadata';
-import { ArcApplication } from '@cratis/arc.core';
-import '@cratis/arc.chronicle';
-import { AddItemToOrder } from './AddItemToOrder.js';
-import { ItemAdded } from './Order.js';
-
-const builder = ArcApplication.createBuilder();
-builder.withChronicle({ eventStore: 'Orders', connectionString: 'chronicle://localhost:35000' });
-builder.add(AddItemToOrder, ItemAdded);
-const application = await builder.build();
-await application.run();
-```
-
-The development connection string requires a running local Chronicle kernel; see [development credentials](../add-event-sourcing.md#choose-who-owns-the-client) before using another environment. Executing `AddItemToOrder` with an empty order records one `ItemAdded`. A later execution replays that event, increments `quantity`, and checks the new total before appending. A rejected or failed command does not append its pending aggregate events.
-
-`apply()` enrolls events in the command unit of work even when `handle()` returns `void`, calls `commit()` without returning it, or applies again after `commit()`. You may return `order.commit()` explicitly; do **not** also return the same event separately. Unlike the .NET aggregate, this implementation does not have `Failed(...)`, `OnActivate`, or a factory for loading a second source id. Reject invalid input through Arc validation or a failed command result, not a hidden aggregate failure list.
-
-The command key must be present before the aggregate loads. For a second aggregate **type** on the same key, bind another `commandAggregate(Type)` parameter. Aggregate reads and writes use the current tenant namespace and the command's configured event source type, stream type, and stream id (including `getEventStreamId()`). The concurrency scope uses the unfiltered tail of that route, **including events without a handler**. A concurrent append on that route rejects the batch; an unhandled event does not permanently block the aggregate. `isNew` is true only when that route has no events at all.
-
-## Boundaries
-
-Applied events and returned events join one deferred [command batch](../commands/transactional-commands.md). This is not a transaction over other stores. Immediate SDK appends within `handle()` are outside the batch; compensation can run after such an append has already persisted. [Command operations](../../commands/operations/index.md) should not rely on immediate appends being rolled back.
-
-`commandReadModel(Type)` binds model-bound command parameters. `readModelForValidation(Type, { optional: true })` is available **only to validators of model-bound commands**; it uses the command key and tenant, returns `null` for a missing model, and reads a materialized projection snapshot, not aggregate replay state. Constructor-injected validator read models are not supported.
+| Topic | Description |
+| --- | --- |
+| [Defining an aggregate root](defining-an-aggregate-root.md) | Handlers, state, rules, and what the TypeScript aggregate does not have |
+| [Injecting into commands](injecting-into-commands.md) | Binding, identity and routing, commit, concurrency, and boundaries |

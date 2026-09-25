@@ -6,14 +6,14 @@ description: Serve model-bound queries from tenant-scoped MongoDB collections wi
 Your read models live in MongoDB, and every tenant has its own database. Wiring a client, choosing the database per request, mapping concepts and GUIDs to BSON, and turning a change stream into a live query is the same code in every service. `@cratis/arc.mongodb` supplies it: your model declares its fields once, and the collection maps them to BSON and returns instances of your model.
 
 :::note[Source preview]
-`@cratis/arc.mongodb` is optional and not published to npm. It uses the MongoDB 6 driver.
+`@cratis/arc.mongodb` is optional and not published to npm. It uses the MongoDB 6 driver. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
 :::
 
 ## What it provides
 
 | Capability | Page |
 | --- | --- |
-| Register collections with `builder.withMongoDB(...)` and inject them into queries | [Get started](getting-started.md) |
+| Register collections with `builder.withMongoDB(...)`, or from `Cratis:MongoDB` configuration, and inject them into queries | [Get started](getting-started.md) |
 | Choose a database, or a server, per tenant | [Tenancy](tenancy.md) |
 | Map decorated fields, concepts, GUIDs, and dates to BSON | [Serializers](serializers.md) |
 | Match Arc on .NET's property and collection naming | [Naming policies](naming-policies.md) |
@@ -21,7 +21,7 @@ Your read models live in MongoDB, and every tenant has its own database. Wiring 
 | Turn a change stream into an observable query | [Observing collections](observing-collections.md) |
 | Load a read model by command key | [Command context](../commands/command-context.md#load-a-read-model-by-key) |
 
-`withMongoDB` registers a read-model resolver for the models you list in `readModels`, so a command can declare `@inject(commandReadModel(TaskRecord))` and receive the document whose identity equals the command key. Do not also register another integration, such as Chronicle, as the owner of the same type.
+`withMongoDB` registers a read-model resolver for the models you list in `readModels`, so a command can declare `@inject(commandReadModel(TaskRecord))` and receive the document whose identity equals the command key. Do not also register another integration, such as Chronicle, as the owner of the same type; `build()` fails when two claim one type.
 
 :::caution[Storage does not authorize a caller]
 Arc selects a tenant from the execution context, and the collection selects that tenant's database. Your authentication and authorization still have to verify that the caller may use that tenant and read those documents. Never pass untrusted request JSON directly to a MongoDB filter.
@@ -31,10 +31,8 @@ Arc selects a tenant from the execution context, and the collection selects that
 
 The original `MongoReadModels<T, I>` remains for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`, and caps pages at 100 by default. It has no change streams or field codecs; use the model-bound collection for those.
 
-## Verify against a real replica set
-
-Run `bash Source/MongoDB/run-integration.sh` from the repository root. The script starts a task-owned MongoDB 7 replica set in Docker and removes it afterward. The [integration spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, dependency injection, and provider paging, and a [second spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/MongoDB/for_MongoCollection/when_serving_a_paged_query/with_each_http_adapter.integration.ts) serves sorted pages through Express, Fastify, and Hono. The script exits with 2 when Docker is not available, which means the check did not run.
-
 ## Current boundaries
 
 This integration does not supply transactions, a shared watcher or reconnect policy, joined observations, geospatial serializers, resilience middleware, or driver metrics. Do not infer any of those from Arc on .NET. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the parity details.
+
+Start with [Get started](getting-started.md).

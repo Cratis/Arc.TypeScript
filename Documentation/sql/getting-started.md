@@ -1,22 +1,142 @@
 ---
 title: Get started with SQL
-description: Register a Drizzle database and table with withDrizzle, serve a paged model-bound query, and verify it through Express, Fastify, and Hono.
+description: Declare a Drizzle table and an Arc read model, serve a paged query with withDrizzle, write from a command, and keep queries on the read-only handle.
 ---
 
-For a first SQL-backed Arc query, install `drizzle-orm` and a Drizzle-supported database driver alongside `@cratis/arc.core` and `@cratis/arc.drizzle` from this source workspace. The linked SQLite specs use `sql.js` (WebAssembly, no native build); PostgreSQL integration checks use `pg` and `postgres`. Packages are not published to npm. Run your schema migration before serving requests; `withDrizzle` never creates tables.
+This page serves a SQL table through an Arc query. It uses SQLite through `sql.js`, which runs in WebAssembly and needs no native build, so you can follow it on any machine. The code follows the package's [SQLite fixture](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/a_sqlite_database.ts). PostgreSQL works the same way with its own Drizzle driver.
 
-The executable SQLite spec defines a [`tasks` table and connection](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/a_sqlite_database.ts), a [`TaskRecord`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/TaskRecord.ts) with Fundamentals field metadata and a [model-bound query](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/TaskQueries.ts). The host [registers them with `withDrizzle`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_serving_a_sqlite_page/with_each_http_adapter.ts), and the spec calls the generated `/page` route through Express, Fastify, and Hono. Run `yarn vitest run --project @cratis/arc.drizzle`; each adapter returns one sorted task and `paging.totalItems: 2`, while an unknown sort field returns HTTP 400.
+Install `drizzle-orm` 0.45 and a Drizzle driver, here `sql.js`, next to `@cratis/arc.core` and `@cratis/arc.drizzle` from this source workspace. The Arc packages are not published to npm.
 
-Resolve the tenant in your Arc host before making SQL queries. For a single-tenant example, construct the builder with `ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } })`; without a tenant, SQL access fails with “A tenant is required for Drizzle access.” Registration then follows this shape:
+## Declare the table and the model
 
-```typescript
-builder.add(TaskQueries).withDrizzle({
-    dialect: 'sqlite',
-    database: db,
-    readModels: [{ type: TaskRecord, table: tasks }]
+The Drizzle table describes the storage. The Arc read model describes what a query returns.
+
+```typescript title="Tasks.ts"
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { field, Guid } from '@cratis/fundamentals';
+import { key } from '@cratis/arc.core';
+import { guidCodec, sqliteColumn } from '@cratis/arc.drizzle';
+
+export const tasks = sqliteTable('tasks', {
+    id: sqliteColumn(guidCodec('sqlite'))('id').primaryKey(),
+    title: text('title').notNull()
 });
+
+export class TaskRecord {
+    @field(Guid) @key() id!: Guid;
+    @field(String) title!: string;
+}
 ```
 
-Here `db` is your Drizzle database and `tasks` is its declared table. This fragment belongs in an existing Arc application builder; follow the linked spec for imports, connection creation and serving requests. The exported `withDrizzle(builder, options)` function is equivalent. The single `database` option accepts **only** the `default` tenant; configure `databaseFactory(tenant, context)` before serving other tenants. Arc scopes the handle but does not close your pool or connection. Close it after disposing the application.
+Every `@field` on the model needs a column with the same property name, and the table needs a primary-key column; registration fails otherwise. `sqliteColumn(guidCodec('sqlite'))` stores the `Guid` as text and reads it back as a `Guid`. [Column types](column-types.md) lists the other codecs.
 
-Commands can inject `service(drizzleDatabase<YourDatabaseType>())` and access the scoped handle's `.native`; query methods should use `service(drizzleReadModel(TaskRecord))` to avoid accidentally writing from a read model. The Drizzle integration does not register a [command read-model resolver](../commands/command-context.md#load-a-read-model-by-key), so `commandReadModel(TaskRecord)` does not resolve SQL models by command key. A command may explicitly inject `drizzleReadModel(TaskRecord)` for a read instead. [Tenant routing](tenancy.md) explains what you must own.
+## Serve a query
+
+```typescript title="TaskQueries.ts"
+import { query, queryOptions, readModel, service, type QueryOptions } from '@cratis/arc.core';
+import { drizzleReadModel, type DrizzleReadModels } from '@cratis/arc.drizzle';
+import { TaskRecord } from './Tasks.js';
+
+@readModel()
+export class TaskQueries {
+    @query(service(drizzleReadModel(TaskRecord)), queryOptions())
+    static page(tasks: DrizzleReadModels<TaskRecord>, options: QueryOptions) {
+        return tasks.queryPage(undefined, options);
+    }
+}
+```
+
+`drizzleReadModel(TaskRecord)` is a service token for a read-only handle on the current tenant's database. `queryPage` pushes the count, sort, limit, and offset into SQL; see [Paging and sorting](paging.md).
+
+## Register the database
+
+```typescript title="main.ts"
+import initSqlJs from 'sql.js';
+import { drizzle } from 'drizzle-orm/sql-js';
+import { ArcApplication } from '@cratis/arc.core';
+import '@cratis/arc.drizzle';
+import { TaskRecord, tasks } from './Tasks.js';
+import { TaskQueries } from './TaskQueries.js';
+
+const SQL = await initSqlJs();
+const native = new SQL.Database();
+native.run('create table tasks (id text primary key, title text not null)');
+const database = drizzle(native);
+
+const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } });
+builder.add(TaskQueries).withDrizzle({
+    dialect: 'sqlite',
+    database,
+    readModels: [{ type: TaskRecord, table: tasks }]
+});
+const app = await builder.build();
+await app.run();
+```
+
+Importing `@cratis/arc.drizzle` adds `withDrizzle` to the builder; the exported `withDrizzle(builder, options)` function is equivalent. A GET on the `page` query's route with `pageSize=10&sortBy=title` answers with up to ten tasks sorted by title, and `paging.totalItems` counted in SQL. An unknown sort field answers 400.
+
+`tenancy.resolve` makes every request use the `default` tenant, the only tenant the single `database` option serves. Without a tenant, SQL access fails with `A tenant is required for Drizzle access`. For more than one tenant, see [Tenancy](tenancy.md).
+
+The `create table` statement stands in for a migration so the example is self-contained. `withDrizzle` never creates or changes tables; see [Own the schema](#own-the-schema).
+
+## Write from a command
+
+A command that writes takes the writable database handle:
+
+```typescript title="AddTask.ts"
+import type { SQLJsDatabase } from 'drizzle-orm/sql-js';
+import { field, Guid } from '@cratis/fundamentals';
+import { command, inject, key } from '@cratis/arc.core';
+import { drizzleDatabase, type DrizzleHandle } from '@cratis/arc.drizzle';
+import { tasks } from './Tasks.js';
+
+@command()
+export class AddTask {
+    @field(Guid) @key() id!: Guid;
+    @field(String) title!: string;
+
+    @inject(drizzleDatabase<SQLJsDatabase>())
+    handle(database: DrizzleHandle<SQLJsDatabase>): void {
+        database.native.insert(tasks).values({ id: this.id, title: this.title }).run();
+    }
+}
+```
+
+`drizzleDatabase<T>()` resolves to a `DrizzleHandle` whose `native` property is the tenant's Drizzle database, typed as you declare it. Register `AddTask` with `builder.add(...)` like the query.
+
+## Keep queries read-only
+
+Queries take `drizzleReadModel(Model)`, commands take `drizzleDatabase()`. The read handle, `DrizzleReadModels<Model>`, exposes:
+
+| Member | Returns |
+| --- | --- |
+| `queryPage(filter, options)` | One page with the total, counted and cut in SQL |
+| `find(filter, sorting?)` | Every match, or throws when there are more than `maxPageSize` |
+| `findOne(filter)` | The first match in primary-key order, or `undefined` |
+| `table` | The Drizzle table |
+
+It has no write methods and does not expose the writable database. A filter is a Drizzle `SQL` expression such as `eq(tasks.title, 'a')`, built with bound parameters; never interpolate request input into SQL text.
+
+This is an API boundary, **not** a database permission. Any code can still inject the writable token, and JavaScript can reach past TypeScript visibility. When queries must not be able to write, give them a connection with read-only database credentials.
+
+None of these methods accept a cancellation signal, and Arc does not pass the request's signal to the driver. Set timeouts in the driver or the database.
+
+## Own the schema
+
+Your application owns the schema and its migrations; Arc has no migration engine. Use [drizzle-kit](https://orm.drizzle.team/docs/drizzle-kit-overview) to generate SQL migrations from the table declarations, review the generated SQL, and apply it in your deployment **before** Arc starts serving requests.
+
+- A new non-nullable column on a populated table needs a default or a staged backfill.
+- With a database per tenant, migrate **every** tenant's database. A migration that succeeded on one tenant proves nothing about the others.
+- Do not run schema changes from `databaseFactory`; it runs on requests.
+
+There is no TypeScript counterpart of .NET's `AddStringColumn` and `AddJsonColumn` EF migration helpers. Declare column types with the [column codecs](column-types.md) and let drizzle-kit generate the SQL.
+
+## Own the connection
+
+Arc wraps the database you register in a scoped handle for each request, and never closes it. Close the connection or pool yourself, after `await app.dispose()`.
+
+## Related
+
+- [Column types](column-types.md)
+- [Paging and sorting](paging.md)
+- [Tenancy](tenancy.md)
