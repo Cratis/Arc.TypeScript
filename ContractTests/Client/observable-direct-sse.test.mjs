@@ -97,9 +97,10 @@ for (const kind of ['express', 'fastify', 'hono']) test(`generated installed cli
         assert.equal(timedOut.status, 408);
         assert.equal((await timedOut.json()).hasExceptions, true);
         const encoded = new WebSocket(`${listening.origin.replace('http:', 'ws:')}/api/%6eumbers`);
-        encoded.onerror = () => {};
-        await within(new Promise(resolve => encoded.addEventListener('close', resolve, { once: true })),
-            'Encoded query upgrade rejection');
+        await within(new Promise((resolve, reject) => {
+            encoded.addEventListener('error', resolve, { once: true });
+            encoded.addEventListener('open', () => reject(new Error('Encoded query unexpectedly upgraded')), { once: true });
+        }), 'Encoded query upgrade rejection');
         Globals.queryTransportMethod = QueryTransportMethod.WebSocket;
         const live = new Numbers();
         live.setOrigin(listening.origin);
