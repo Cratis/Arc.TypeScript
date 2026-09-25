@@ -3,7 +3,11 @@ title: Command filters
 description: Validate low-level defineCommand and defineQuery definitions with validate callbacks and shared filters, and keep Zod schemas for shape only.
 ---
 
-Low-level definitions made with `defineCommand` and `defineQuery` do not use validator classes. They take a `validate` callback and a list of `filters`, which run in the same pipeline stage as model-bound validators. Use a filter when one rule applies to many operations.
+Low-level definitions made with `defineCommand` and `defineQuery` do not use validator classes. They take a `validate` callback and a list of `filters`, which run in the same pipeline stage as model-bound validators. Use a filter when one rule applies to many low-level operations: you write it once and list it on each definition that needs it.
+
+:::caution[Filters apply only to low-level definitions]
+A filter runs only for the `defineCommand` or `defineQuery` definitions that list it. There is no global filter that runs for every command, and `@command()` classes cannot take filters at all. This differs from Arc on .NET, where an `ICommandFilter` runs for every model-bound command. See [Cross-cutting rules for model-bound commands](#cross-cutting-rules-for-model-bound-commands) for what to use instead.
+:::
 
 ## Validate and share a filter
 
@@ -39,6 +43,19 @@ Arc converts every schema to JSON Schema at startup. Types without a JSON repres
 ## When a filter throws
 
 The caller gets 400 with one result: reason `validatorFailed`, message `Validation failed`, and no members. The exception text is never sent; the original error goes to the `logger` option. When the request was already cancelled, the failure is reported as an exception instead.
+
+## Cross-cutting rules for model-bound commands
+
+When a rule should apply to many `@command()` classes, pick the mechanism by what the rule is about:
+
+| The rule is about | Use | Runs on `/validate` |
+| --- | --- | --- |
+| Who may call a group of commands | A named policy with `builder.addAuthorizationPolicy(name, policy)` and `@authorize({ policy: name })` on each command; see [Authorization policies](../core/authorization.md) | Yes |
+| A value that appears in many commands | A [concept validator](../concepts.md#validate-a-concept-everywhere), which runs wherever the concept is a field | Yes |
+| One command's input | A [`CommandValidator`](command-validation.md) per command | Yes |
+| Wrapping every command's execution, such as ambient state or timing | `builder.addCommandExecutionRunner(...)`; see [Command execution scopes](command-execution-scopes.md) | No; it runs only after validation passes |
+
+Each of these is opted into per command or per value, except the execution runner, which runs for every validated command. Nothing runs a validation rule for every command automatically, so a new command is not covered by a rule you wrote for the others until you declare it.
 
 ## Related
 
