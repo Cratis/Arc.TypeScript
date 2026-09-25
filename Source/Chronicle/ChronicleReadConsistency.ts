@@ -4,6 +4,6 @@
 export enum ChronicleReadConsistency {
     /** Read the stored model. */
     Default = 'default',
-    /** Compute a passive model from the event log immediately. */
+    /** Compute from the event log immediately; only valid for passive model-bound projections. Active models are rejected. */
     Immediate = 'immediate'
 }

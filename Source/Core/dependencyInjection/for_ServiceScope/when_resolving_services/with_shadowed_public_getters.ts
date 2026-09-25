@@ -23,7 +23,7 @@ describe('when resolving services with shadowed public getters', () => {
         const events: string[] = []; scopedCreations = 0; rootCreations = 0; let firstScoped!: object;
         const registry = new ServiceRegistry([
             { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => {
-                scopedCreations++; return { [Symbol.dispose]: () => { events.push(ServiceLifetime.Scoped); } };
+                scopedCreations++; return { [Symbol.dispose]: () => { events.push('scoped'); } };
             } },
             { token: root, lifetime: ServiceLifetime.Singleton, factory: () => {
                 rootCreations++; return { [Symbol.dispose]: () => { events.push('root'); } };
@@ -63,7 +63,7 @@ describe('when resolving services with shadowed public getters', () => {
         rootCreations.should.equal(1);
     });
     it('should dispose each owned instance in its owning scope', () => {
-        beforeShutdown.should.deep.equal([ServiceLifetime.Scoped]);
-        afterShutdown.should.deep.equal([ServiceLifetime.Scoped, 'root']);
+        beforeShutdown.should.deep.equal(['scoped']);
+        afterShutdown.should.deep.equal(['scoped', 'root']);
     });
 });

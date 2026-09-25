@@ -1,6 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { IEventStore } from '@cratis/chronicle';
 import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';

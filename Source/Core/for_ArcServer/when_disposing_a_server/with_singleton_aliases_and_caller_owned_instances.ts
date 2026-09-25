@@ -18,7 +18,7 @@ describe('when disposing a server with singleton aliases and caller owned instan
         const provided = { [Symbol.dispose]: () => { calls.push('caller'); } };
         const server = new ArcServer({ services: [
             { token: original, lifetime: ServiceLifetime.Singleton,
-                factory: () => ({ [Symbol.dispose]: () => { calls.push(ServiceLifetime.Singleton); } }) },
+                factory: () => ({ [Symbol.dispose]: () => { calls.push('singleton'); } }) },
             { token: alias, lifetime: ServiceLifetime.Scoped, dependencies: [original], factory: resolver => resolver.resolve(original) },
             { token: supplied, lifetime: ServiceLifetime.Singleton, instance: provided },
             { token: suppliedAlias, lifetime: ServiceLifetime.Scoped, dependencies: [supplied],
@@ -30,6 +30,6 @@ describe('when disposing a server with singleton aliases and caller owned instan
     });
     it('should not dispose aliases or caller supplied instances', () => {
         success.should.equal(true); beforeShutdown.should.deep.equal([]);
-        afterShutdown.should.deep.equal([ServiceLifetime.Singleton]);
+        afterShutdown.should.deep.equal(['singleton']);
     });
 });

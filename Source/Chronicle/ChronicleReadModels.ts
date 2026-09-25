@@ -10,7 +10,6 @@ import { from, map, Observable } from 'rxjs';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import { markKernelReleased } from './kernelReleasedReadModels.js';
 
-
 /** Tenant-scoped access to Chronicle read models; use as a service in Arc queries. */
 export class ChronicleReadModels {
     constructor(private readonly runtime: ChronicleRuntime, private readonly context: ExecutionContext) {}
