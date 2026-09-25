@@ -10,6 +10,8 @@ import type { QueryResult } from '../queries/QueryResult.js';
 export interface Operation extends DescriptorBase {
     readonly kind: 'command' | 'query';
     readonly route: string;
+    /** Namespace-qualified name used by direct execution and observable subscriptions. */
+    readonly fullyQualifiedName: string;
     readonly inputSchema: Record<string, unknown>;
     readonly dynamicAuthorization?: boolean;
     /** Built-in endpoints are served and documented, but not emitted as application client proxies. */

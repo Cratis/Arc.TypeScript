@@ -11,6 +11,7 @@ import { malformed } from '../results/malformed.js';
 import { renderQuery } from './renderQuery.js';
 import { observe } from '../observability.js';
 import type { Operation } from '../http/Operation.js';
+import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { recordFailure } from '../results/failureTracking.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
 import { prepareDependencies, dependencyFailure, validate, validatorFailure } from '../commands/OperationValidation.js';
@@ -26,7 +27,9 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
     observable = false, serverOptions: ArcServerOptions = {}): Operation {
     return {
-        ...definition, kind: 'query', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
+        ...definition, kind: 'query', route, fullyQualifiedName: fullyQualifiedName(definition),
+        dynamicAuthorization: typeof definition.authorize === 'function',
+        inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
             if (!await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
@@ -38,7 +41,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
                     issues = await observe('cratis.arc.query.filter', context.correlationId,
-                        { query_name: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
+                        { query_name: fullyQualifiedName(definition) }, () =>
                             validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;

@@ -35,7 +35,7 @@ export class ObservableQuerySession {
             signal: AbortSignal.any([config.context.signal, this.#controller.signal]) });
         this.#scope = config.services.createScope(this.#context);
         this.#subscription = beginSubscription(
-            [config.operation.namespace, config.operation.name].filter(Boolean).join('.'), this.#context.correlationId);
+            config.operation.fullyQualifiedName, this.#context.correlationId);
     }
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
@@ -45,7 +45,7 @@ export class ObservableQuerySession {
             const start = (): Promise<QueryResult<ObservableSource<unknown>>> =>
                 config.operation.run(config.input, session.#context, config.options) as Promise<QueryResult<ObservableSource<unknown>>>;
             const result = await session.run(() => observe('cratis.arc.query.perform', session.#context.correlationId,
-                { query_name: [config.operation.namespace, config.operation.name].filter(Boolean).join('.') }, start, undefined, result => result.hasExceptions));
+                { query_name: config.operation.fullyQualifiedName }, start, undefined, result => result.hasExceptions));
             session.#result = result;
             await session.reportResult(result);
             if (result.isSuccess) session.#source = result.data;
@@ -79,7 +79,7 @@ export class ObservableQuerySession {
         }
         if (!present) return undefined;
         const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
-            { query_name: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
+            { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
                 this.#context, this.config.options, value), undefined, result => result.hasExceptions));
         await this.reportResult(result);
         return this.guarded(result);
@@ -122,7 +122,7 @@ export class ObservableQuerySession {
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions)) {
                 const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
-                    { query_name: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.') }, () => this.config.operation.render(this.config.input,
+                    { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
                         this.#context, this.config.options, value), undefined, result => result.hasExceptions));
                 await this.reportResult(result);
                 const guarded = await this.guarded(result);
@@ -178,7 +178,7 @@ export class ObservableQuerySession {
                 const identity = Object.freeze({ ...this.#context,
                     principal: clonePrincipal(this.#context.principal) });
                 const emission: ObservableEmissionContext = Object.freeze({
-                    queryName: [this.config.operation.namespace, this.config.operation.name].filter(Boolean).join('.'),
+                    queryName: this.config.operation.fullyQualifiedName,
                     input: structuredClone(this.config.input), data: structuredClone(result.data),
                     context: identity, isFirstEmission: !this.#firstEmissionDelivered, signal: this.#context.signal
                 });

@@ -165,7 +165,7 @@ export function inspectClientQueryInput(schema: z.ZodType, id: string): void {
 /** No handler, validator, authorization callback, service factory or Zod default is invoked by export. */
 export function exportClientManifest(server: ArcServer): ClientManifest {
     const operations = [...server.commands, ...server.queries].filter(operation => !operation.internal).map(operation => {
-        const id = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const id = operation.fullyQualifiedName;
         if (!operation.clientOutput) fail(id, 'missing explicit client output metadata');
         const input = inspectClientInput(operation.schema, id);
         return {

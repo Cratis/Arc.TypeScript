@@ -78,7 +78,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             return send((path === '/.cratis/commands' ? server.commands : server.queries).map(item => ({
                 name: item.name, namespace: item.namespace ?? '', route: item.route, type: item.name,
                 documentationSummary: item.summary ?? '', ...(item.kind === 'command' ? { payloadSchema: item.inputSchema } : {
-                    fullyQualifiedName: [item.namespace, item.name].filter(Boolean).join('.'), argumentsSchema: item.inputSchema
+                    fullyQualifiedName: item.fullyQualifiedName, argumentsSchema: item.inputSchema
                 })
             })), 200);
         }
@@ -162,7 +162,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         return send(failure, 400);
                     }
                     if (isObservableOperation(operation)) {
-                        const name = [operation.namespace, operation.name].filter(Boolean).join('.');
+                        const name = operation.fullyQualifiedName;
                         const streaming = request.method === 'GET' &&
                             request.headers.get('accept')?.toLowerCase().includes('text/event-stream') === true;
                         const session = await bindings.openSession(name, input, context, options,

@@ -23,7 +23,7 @@ export class ObservableSessions {
     #disposed = false;
 
     constructor(private readonly options: ArcServerOptions, private readonly services: ServiceRegistry,
-        private readonly observableLimits: ObservableLimits, private readonly queries: () => readonly Operation[]) {}
+        private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>) {}
 
     get sessions(): readonly ObservableQuerySession[] {
         return [...new Set([...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
@@ -57,7 +57,7 @@ export class ObservableSessions {
         admission: 'subscription' | 'snapshot'): Promise<ObservableQuerySession> {
         if (this.#disposed) throw new Error('Arc server is disposed');
         if (context.signal.aborted) throw new Error('Observable subscription was canceled');
-        const operation = this.queries().find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        const operation = this.queries().get(name);
         if (!operation || !isObservableOperation(operation)) throw new Error(`Unknown observable query: ${name}`);
         const key = this.callerKey(context);
         let releaseOwner = (): void => {};

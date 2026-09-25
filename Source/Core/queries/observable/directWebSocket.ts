@@ -38,7 +38,7 @@ export async function directWebSocket(server: ArcServer, request: Request, trans
             await transport.send({ type: 'Data', data: queryResult(context, { validationResults: malformed(context) }) });
             return;
         }
-        const name = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const name = operation.fullyQualifiedName;
         const session = await server.openObservableQuery(name, input, context, options);
         try {
             const outgoing = (async (): Promise<void> => {

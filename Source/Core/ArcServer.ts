@@ -38,6 +38,8 @@ export class ArcServer {
     readonly commands: readonly Operation[];
     readonly queries: readonly Operation[];
     readonly routes: ReadonlyMap<string, Operation>;
+    readonly #commandsByName: ReadonlyMap<string, Operation>;
+    readonly #queriesByName: ReadonlyMap<string, Operation>;
     /** All root-owned endpoints and their allowed methods. Adapters use this for raw path dispatch. */
     readonly endpoints: ReadonlyMap<string, string>;
     readonly options: ArcServerOptions;
@@ -97,10 +99,12 @@ export class ArcServer {
         const table = createRouteTable(options, context => this.#hub.observeHealth(context));
         this.commands = table.commands;
         this.queries = table.queries;
+        this.#commandsByName = new Map(this.commands.map(operation => [operation.fullyQualifiedName, operation]));
+        this.#queriesByName = new Map(this.queries.map(operation => [operation.fullyQualifiedName, operation]));
         this.routes = table.routes;
         this.endpoints = table.endpoints;
         this.#hub = new ObservableQueryHub(this);
-        this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.queries);
+        this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
         registerObservableCleanup(this, this.#sessions);
     }
 
@@ -164,7 +168,7 @@ export class ArcServer {
             return result;
         });
         const name = operation.kind === 'command' ? validateOnly ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute' : 'cratis.arc.query.perform';
-        const qualified = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const qualified = operation.fullyQualifiedName;
         const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
         const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
@@ -199,6 +203,9 @@ export class ArcServer {
         if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     }
 
+    /** @internal Look up a query by its namespace-qualified name for hosting transports. */
+    queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }
+
     /** Open one query pipeline and service scope until its subscription ends. Caller must close it. */
     openObservableQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<ObservableQuerySession> {
         return this.#sessions.openSession(name, input, context, options, 'subscription');
@@ -220,15 +227,15 @@ export class ArcServer {
         const matches = this.commands.filter(item => item.name === type.name);
         if (matches.length !== 1) throw new Error(`Ambiguous or unregistered Arc command: ${type.name}`);
         const operation = matches[0]!;
-        return this.executeCommand([operation.namespace, operation.name].filter(Boolean).join('.'), encode(command), context, validateOnly);
+        return this.executeCommand(operation.fullyQualifiedName, encode(command), context, validateOnly);
     }
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
-        const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        const operation = this.#commandsByName.get(name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
         return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, validateOnly) as Promise<CommandResult>;
     }
     async performQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<QueryResult> {
-        const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        const operation = this.#queriesByName.get(name);
         if (!operation) throw new Error(`Unknown query: ${name}`);
         const execution = Object.freeze({ ...context, allowedSeverity: Severity.Warning });
         if (!isObservableOperation(operation)) return this.runScoped(operation, input, execution, options) as Promise<QueryResult>;

@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import type { ArcServerOptions } from '../ArcServerOptions.js';
 import type { Operation } from './Operation.js';
+import { fullyQualifiedName } from './fullyQualifiedName.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ObservableSource } from '../queries/observable/ObservableSource.js';
 import type { QueryHealthSnapshot } from '../queries/observable/QueryHealthSnapshot.js';
@@ -39,7 +40,7 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid namespace segments to skip');
         for (const item of [...options.commands ?? [], ...options.queries ?? [], ...options.observableQueries ?? []]) {
             if (item.clientOutput) {
-                const id = [item.namespace, item.name].filter(Boolean).join('.');
+                const id = fullyQualifiedName(item);
                 if (options.queries?.some(query => query === item) || options.observableQueries?.some(query => query === item))
                     inspectClientQueryInput(item.schema, id);
                 inspectClientInput(item.schema, id);

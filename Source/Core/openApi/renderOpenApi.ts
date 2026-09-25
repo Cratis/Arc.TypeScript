@@ -42,7 +42,7 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
                     ['waitForFirstResultTimeout', { type: 'number', exclusiveMinimum: 0, maximum: 120 }]] as const : [])
             ].filter(([name]) => !reserved.has(name.toLowerCase())).map(([name, schema]) => ({ name, in: 'query', required: false, schema }))
         ] : undefined;
-        const operationId = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const operationId = operation.fullyQualifiedName;
         paths[operation.route] ??= {};
         paths[operation.route]![method] = {
             operationId, tags: [operation.routeNamespace ?? operation.namespace ?? operation.name],

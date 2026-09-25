@@ -10,6 +10,7 @@ import { authorized } from '../authorization/authorized.js';
 import { commandResult } from '../results/commandResult.js';
 import { malformed } from '../results/malformed.js';
 import type { Operation } from '../http/Operation.js';
+import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { recordFailure } from '../results/failureTracking.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
@@ -48,7 +49,9 @@ function failure(context: CommandContext, error: unknown, previous?: CommandResu
 /** Compile a command into the shared direct and HTTP execution pipeline. */
 export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string, options: ArcServerOptions = {}): Operation {
     return {
-        ...definition, kind: 'command', route, dynamicAuthorization: typeof definition.authorize === 'function', inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
+        ...definition, kind: 'command', route, fullyQualifiedName: fullyQualifiedName(definition),
+        dynamicAuthorization: typeof definition.authorize === 'function',
+        inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
         async run(input, execution, _options, validateOnly): Promise<CommandResult> {
             if (!await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input)) return commandResult(execution, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
@@ -66,7 +69,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
                     issues = await observe('cratis.arc.command.filter',
-                        context.correlationId, { command_type: [definition.namespace, definition.name].filter(Boolean).join('.') }, () =>
+                        context.correlationId, { command_type: fullyQualifiedName(definition) }, () =>
                             validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;
