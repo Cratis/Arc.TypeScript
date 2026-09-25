@@ -1,7 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { field } from '@cratis/fundamentals';
 import { command, CommandOperation, CommandOperations, denied, rejected, response, tuple, validation } from '@cratis/arc.core';
-import type { Outcome } from '@cratis/arc.core';
+import type { ArcTuple, Outcome } from '@cratis/arc.core';
 import { eventType as chronicleEvent } from '@cratis/chronicle/events';
 import {
     eventForEventSourceId, eventSourceIdResponse, eventsWithConcurrencyScopes, AggregateRootCommitResult
@@ -41,3 +42,20 @@ class Save extends CommandOperation { execute(): void {} }
     async handle(): Promise<Outcome<string>> { return response('visible'); }
 }
 @command() export class WrappedEvent { handle(): Outcome<Registered> { return response(new Registered()); } }
+@command() export class EventOrDenial { handle(): Registered | Outcome<never> { return denied('Not allowed'); } }
+@command() export class VoidOutcome { handle(): Outcome<void> { return response(undefined); } }
+@command() export class NestedOutcome { handle(): Outcome<Outcome<string>> { return response(response('visible')); } }
+@command() export class TupleOutcome { handle(): Outcome<ArcTuple<readonly [Registered, string]>> {
+    return response(tuple(new Registered(), 'visible'));
+} }
+@command() export class PlainArrayOrRejection {
+    @field(Boolean) reject = false;
+    handle(): Plain[] | Outcome<never> { return this.reject ? rejected(validation('Invalid')) : [new Plain(), new Plain()]; }
+}
+@command() export class AsyncPlainArrayOrRejection {
+    @field(Boolean) reject = false;
+    async handle(): Promise<Plain[] | Outcome<never>> { return this.reject ? rejected(validation('Invalid')) : [new Plain()]; }
+}
+@command() export class EventArrayOrRejection {
+    handle(): Registered[] | Outcome<never> { return rejected(validation('Invalid')); }
+}

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import ts from 'typescript';
 import { isPackageSymbol, isTypeFrom } from './sourceSymbols.js';
+import { isOutcomeType } from './isOutcomeType.js';
 
 /** Select the one value that survives command response handlers, without resolving handled server types as client models. */
 export function commandResponseType(type: ts.Type, checker: ts.TypeChecker, location: ts.Node): ts.Type | undefined {
@@ -13,10 +14,7 @@ export function commandResponseType(type: ts.Type, checker: ts.TypeChecker, loca
         const awaited = checker.getAwaitedType(candidate) ?? candidate;
         if (awaited !== candidate) return select(awaited);
         // The compiler expands Outcome<T> in mixed unions, so recognize its branded branches rather than only its alias.
-        const branded = candidate.getProperties().some(property => property.declarations?.some(declaration =>
-            ts.isPropertySignature(declaration) && ts.isComputedPropertyName(declaration.name) &&
-            isPackageSymbol(checker, declaration.name.expression, 'outcomeBrand', '@cratis/arc.core')));
-        if (branded) {
+        if (isOutcomeType(candidate, checker)) {
             const kind = candidate.getProperty('kind');
             const kindType = kind && checker.getTypeOfSymbolAtLocation(kind, location);
             if (kindType?.isStringLiteral() && kindType.value === 'response') {
@@ -53,6 +51,8 @@ export function commandResponseType(type: ts.Type, checker: ts.TypeChecker, loca
             if (element && (isTypeFrom(checker, element, 'CommandOperation', '@cratis/arc.core') ||
                 element.getBaseTypes()?.some(base => isTypeFrom(checker, base, 'CommandOperation', '@cratis/arc.core'))))
                 return fail('Use CommandOperations instead of returning an ordinary collection of operation declarations');
+            if (element && (element.isUnion() ? element.types : [element]).some(part => isOutcomeType(part, checker)))
+                return fail('Return an Outcome for the entire command response, not an array of Outcome values');
             if (element && select(element) === undefined) return undefined;
         }
         if (isTypeFrom(checker, candidate, 'ArcTuple', '@cratis/arc.core')) {

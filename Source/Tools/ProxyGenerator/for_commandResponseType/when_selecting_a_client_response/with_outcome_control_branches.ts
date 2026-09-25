@@ -41,6 +41,30 @@ describe('when selecting a command client response with outcome control branches
         analysis.operations.find(item => item.name === 'WrappedEvent')!.result.void.should.equal(true);
     });
 
+    it('should omit a denial alongside an event', () => {
+        analysis.operations.find(item => item.name === 'EventOrDenial')!.result.void.should.equal(true);
+    });
+
+    it('should omit a void outcome', () => {
+        analysis.operations.find(item => item.name === 'VoidOutcome')!.result.void.should.equal(true);
+    });
+
+    it('should unwrap nested outcomes', () => {
+        analysis.operations.find(item => item.name === 'NestedOutcome')!.result.text.should.equal('string');
+    });
+
+    it('should unwrap a tuple inside an outcome', () => {
+        analysis.operations.find(item => item.name === 'TupleOutcome')!.result.text.should.equal('string');
+    });
+
+    it('should preserve the visible array alongside a rejection', () => {
+        analysis.operations.find(item => item.name === 'PlainArrayOrRejection')!.result.text.should.equal('Plain[]');
+    });
+
+    it('should preserve an async visible array alongside a rejection', () => {
+        analysis.operations.find(item => item.name === 'AsyncPlainArrayOrRejection')!.result.text.should.equal('Plain[]');
+    });
+
     it('should not create client models for handled events', () => {
         analysis.models.map(item => item.name).should.not.include('Registered');
     });
