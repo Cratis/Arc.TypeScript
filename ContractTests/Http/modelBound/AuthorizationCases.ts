@@ -45,7 +45,7 @@ export class AnonymousClassCases {
     @roles('Reader')
     @path('/api/role-cases/anonymous-class')
     @query()
-    static Reader(): AnonymousClassCases { return Object.assign(new AnonymousClassCases(), { value: 'reader' }); }
+    static AnonymousReader(): AnonymousClassCases { return Object.assign(new AnonymousClassCases(), { value: 'reader' }); }
 }
 
 /** A method role that replaces a different class role. */
@@ -57,5 +57,5 @@ export class MethodRoleCases {
     @roles('Reader')
     @path('/api/role-cases/replacement')
     @query()
-    static Reader(): MethodRoleCases { return Object.assign(new MethodRoleCases(), { value: 'reader' }); }
+    static ReplacementReader(): MethodRoleCases { return Object.assign(new MethodRoleCases(), { value: 'reader' }); }
 }

@@ -53,7 +53,7 @@ public record AnonymousClassCases(string Value)
     /// <returns>The reader role value.</returns>
     [Roles(nameof(FixtureRole.Reader))]
     [Cratis.Arc.Queries.ModelBound.Path("/api/role-cases/anonymous-class")]
-    public static AnonymousClassCases Reader() => new("reader");
+    public static AnonymousClassCases AnonymousReader() => new("reader");
 }
 
 /// <summary>Replaces the class Admin role with a method Reader role.</summary>
@@ -66,5 +66,5 @@ public record MethodRoleCases(string Value)
     /// <returns>The reader role value.</returns>
     [Roles(nameof(FixtureRole.Reader))]
     [Cratis.Arc.Queries.ModelBound.Path("/api/role-cases/replacement")]
-    public static MethodRoleCases Reader() => new("reader");
+    public static MethodRoleCases ReplacementReader() => new("reader");
 }
