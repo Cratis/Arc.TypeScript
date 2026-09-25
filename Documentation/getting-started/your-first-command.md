@@ -3,7 +3,9 @@ title: Your first command
 description: Walk through the Tasks sample's concepts, command, validators, read model, bootstrap, and spec, and see what Arc does with each decorator.
 ---
 
-The [Get started](index.md) page ran the Tasks sample from the outside. This page opens it up. You follow one task from the value types, through the command that registers it and the rules that guard it, to the read model that serves it and the spec that proves it. Every snippet is the sample's real code; the file links take you to the full source.
+The [Get started](index.md) page ran the Tasks sample from the outside: a command stored a task, a rule refused an empty title, and a query served the result. None of that needed a route, a body parser, or an error mapper. This page opens the sample up so you can see which few lines produced each behavior.
+
+You follow one task from its value types, through the command that registers it and the rules that guard it, to the read model that serves it and the spec that proves it. Every snippet is the sample's real code; the file links take you to the full source.
 
 ## Name the values first
 
@@ -24,7 +26,9 @@ import { ConceptAs } from '@cratis/fundamentals';
 export class TaskTitle extends ConceptAs<string> { static readonly valueType = String; }
 ```
 
-TypeScript erases the generic argument of `ConceptAs<T>` at runtime, so `static readonly valueType` tells Arc what the wire value is. On the wire, a `TaskId` is a UUID string; inside your handler it is a `TaskId`. [Concepts](../concepts.md) covers the supported value types.
+Why bother? A handler that takes `(id: string, title: string)` accepts the arguments in either order and compiles. A handler that takes a `TaskId` and a `TaskTitle` does not.
+
+TypeScript erases the generic argument of `ConceptAs<T>` at runtime, so `static readonly valueType` tells Arc what the wire value is. On the wire, a `TaskId` is a UUID string; inside your handler it is a `TaskId`. Arc converts in both directions, and a string that is not a UUID is rejected as a malformed request before your code sees it. [Concepts](../concepts.md) covers the supported value types.
 
 ## Declare the command
 
@@ -147,14 +151,20 @@ The sample tests the command through the real pipeline without starting a server
 import { CommandScenario } from '@cratis/arc.testing';
 import { Tasks } from '../../../Tasks.js';
 import { RegisterTask, RegisterTaskValidator } from '../../Registration.js';
+import { metadata } from '../../../../generatedMetadata.js';
 
 export class a_task_registration {
     tasks = new Tasks();
     scenario = CommandScenario.for(RegisterTask, RegisterTaskValidator);
 
-    constructor() { this.scenario.services.addSingleton(Tasks, this.tasks); }
+    constructor() {
+        this.scenario.extend(builder => builder.useGeneratedMetadata(metadata));
+        this.scenario.services.addSingleton(Tasks, this.tasks);
+    }
 }
 ```
+
+The context builds the same kind of application `main.ts` builds, minus the listener: the generated metadata, the command and its validator, and a `Tasks` instance the spec can inspect afterward.
 
 ```typescript title="Features/Tasks/Registration/for_RegisterTask/when_validating/with_an_empty_title.ts"
 import { given, type ScenarioCommandResult } from '@cratis/arc.testing';
@@ -169,19 +179,35 @@ describe('when validating a task with an empty title', given(a_task_registration
     });
     afterAll(async () => { await context.scenario.dispose(); });
     it('should report the authored rule for title', () => {
-        result.shouldHaveValidationErrors().shouldHaveValidationErrorFor('title');
+        result.shouldHaveValidationErrors().shouldHaveValidationErrorForMember('title');
     });
     it('should not invoke the handler', () => { context.tasks.all().should.have.lengthOf(0); });
 }));
 ```
 
-Run the sample's specs from the repository root with `yarn vitest run Samples/Tasks`. [Testing](../testing/index.md) covers commands, queries, and observable queries.
+`validate()` sends the values through the same authorization and validation the `/validate` route runs, then stops. The first assertion proves that an authored rule failed for the `title` member; the second proves that `handle()` never stored anything. Together they pin the behavior you saw with `curl`: the rule, the field, and the untouched store.
+
+:::caution[Assert on the member, not a word in the message]
+`shouldHaveValidationErrorFor(text)` matches a *message fragment*. `shouldHaveValidationErrorFor('title')` passes only because "A title is required" happens to contain the word, and it keeps passing if a different rule with "title" in its message fails instead. Use `shouldHaveValidationErrorForMember('title')` to assert the field, and pass the full message to `shouldHaveValidationErrorFor` when the wording matters.
+:::
+
+Run the sample's specs from the repository root:
+
+```bash
+yarn vitest run Samples/Tasks
+```
+
+Vitest runs the sample's command and query specs, and every test passes. [Testing](../testing/index.md) covers commands, queries, and observable queries.
 
 ## Recap
 
 A concept names a value, a command class carries the input and the work, validators hold the rules, a read model serves the data, and the builder wires them by convention. Arc owns the HTTP, the binding, the rule order, and the result envelope.
 
-## Next steps
+## Next step
+
+The server works; now give it a user interface. [Continue in the browser](continue-in-the-browser.md) generates a typed client from these same classes and calls the server from a small React page.
+
+When you want to go deeper:
 
 - [Commands](../commands/index.md) for command context, outcomes, and operations.
 - [Queries](../queries/index.md) for arguments, paging, and live queries.

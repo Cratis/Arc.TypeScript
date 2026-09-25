@@ -97,9 +97,21 @@ The full order of stages is on [Command pipeline](commands/command-pipeline.md);
 - 403 answers a known caller who does not meet a declaration, a per-request `authorize` that returned `false`, or `denied(...)`.
 - Unparseable JSON is rejected with 400 before the role check, so an authenticated caller without the role gets 400 for a malformed body and 403 for a well-formed one.
 
+## Queries: roles and ownership
+
+A model-bound query takes the same decorators on its read-model class or on a `@query()` method, and a method's declaration replaces the class's. A denied caller never reaches the query method and gets `isAuthorized: false`.
+
+A role answers "may this caller use the query at all", not "which rows may they see". `@roles('Planner')` on `allTasks` lets every planner read every task. When a read is owner-scoped, make ownership part of the query itself: read the caller's identity with `currentContext()` from `@cratis/arc.core` and put it in the data source's filter, next to the requested ID. When the caller has no identity, deny the query; never drop the owner filter to make it work. [Observable queries](queries/observable-queries.md#authorize-a-live-query) shows an owner-filtered live query.
+
+For a live query, authorization runs once, when the subscription opens. A role removed later does not close a running subscription; use an [emission guard](queries/observable-query-emission-guards.md) when access must be re-checked on every emission.
+
 ## Keep security out of validators
 
 Put every security and tenant check in authorization, never in a validator: a trusted direct caller can lower the blocking severity, but nothing lowers authorization.
+
+## Test who may call
+
+Authorization is easy to break silently: a moved decorator or a new command without one leaves an operation open, and nothing fails. Specify it like any other behavior. A scenario's `withContext({ principal })` sets the caller, and `shouldNotBeAuthorized()` and `shouldBeAuthorized()` assert the verdict. [Testing commands](testing/commands.md#test-authorization) shows the specs for an anonymous caller, a caller without the role, and a caller with it.
 
 ## Related
 

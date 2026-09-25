@@ -12,7 +12,7 @@ describe('when validating a task with an empty title', given(a_task_registration
     });
     afterAll(async () => { await context.scenario.dispose(); });
     it('should report the authored rule for title', () => {
-        result.shouldHaveValidationErrors().shouldHaveValidationErrorFor('title');
+        result.shouldHaveValidationErrors().shouldHaveValidationErrorForMember('title');
     });
     it('should not invoke the handler', () => { context.tasks.all().should.have.lengthOf(0); });
 }));
