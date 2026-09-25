@@ -14,6 +14,7 @@ import { GuidCommand } from './modelBound/dist/GuidCommand.js';
 import { GuidCommandValidator } from './modelBound/dist/GuidCommandValidator.js';
 import { HttpMetric } from './modelBound/dist/HttpMetric.js';
 import { PolicyItems, RateLookup } from './modelBound/dist/PolicyAndObservable.js';
+import { AuthorizationOverride, PublicOverrideCommand, RoleCases } from './modelBound/dist/AuthorizationCases.js';
 import { cratisArc } from '@cratis/arc.express';
 
 let executions = 0;
@@ -105,7 +106,7 @@ const builder = ArcApplication.createBuilder({
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
-    PolicyItems, RateLookup);
+    PolicyItems, RateLookup, AuthorizationOverride, PublicOverrideCommand, RoleCases);
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));
 const arc = await builder.build();
 const app = express();
