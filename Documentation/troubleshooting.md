@@ -19,9 +19,23 @@ Node.js type stripping removes types but does not transform decorators, so `node
 
 The test transformer must lower standard decorators with `useDefineForClassFields: true`. This repository adds an esbuild pre-transform plugin for `.ts` files in its [`vite.base.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/vite.base.ts), with `target: 'es2022'` and `experimentalDecorators: false`. Use the same approach in your own Vitest configuration.
 
-### A token list is required even though the parameter types are classes
+### build() fails with "Unbound handle parameters" or "Missing parameter metadata"
 
-TypeScript erases parameter types at runtime. In standard decorator mode, always list tokens. Inference from `design:paramtypes` works only in legacy `experimentalDecorators` mode with `emitDecoratorMetadata`, and only for class-valued parameters. See [Dependency injection](dependency-injection.md#decorator-modes).
+This is the usual first-run failure of a new application. TypeScript erases parameter types at runtime, so without help Arc cannot tell that `handle(tasks: Tasks)` needs the `Tasks` service. `build()` stops with one of these messages:
+
+| Message | Cause |
+| --- | --- |
+| `Unbound handle parameters on <Type>.handle; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding` | A command's `handle()` has parameters and no tokens |
+| `Unbound provide parameters on <Type>.provide; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding` | The same for `provide()` |
+| `Missing parameter metadata for <Type>.<method>; use explicit tokens` | A bare `@query()` or an empty `@inject()` on a method with parameters, in standard decorator mode |
+| `Unbound parameters on <Type>.<method>` | The `@query(...)` descriptors do not cover every parameter of the method |
+
+Fix it one of two ways:
+
+- Generate artifact metadata with `arc-proxygenerator --metadata <file>` and call `builder.useGeneratedMetadata(metadata)` before `discover()` or `add()`, as the Tasks sample does. See [Generate artifact metadata](proxy-generation/generated-artifact-metadata.md).
+- List the tokens yourself: `@inject(Tasks)` on `handle()`, and `@query(argument('id', TaskId), service(Tasks))` in parameter order on a query.
+
+Default and rest parameters always need explicit tokens. In legacy `experimentalDecorators` mode with `emitDecoratorMetadata`, an empty `@inject()` or a bare `@query()` infers class-valued parameters from `design:paramtypes`; a parameter it cannot infer fails with `Unresolvable parameter on <Type>.<method>; use explicit tokens`. See [Dependency injection](dependency-injection.md#decorator-modes).
 
 ## Module resolution
 
@@ -85,7 +99,7 @@ The generator's route options do not match the server's `generatedApis` settings
 
 ### "Ambiguous model name"
 
-Two reachable models share a class name in different namespaces. Rename one; namespace-qualified model keys are not supported yet.
+The proxy generator fails with `Ambiguous model name: <Namespace>.<Name>` when two different model declarations have the same namespace and class name. The generator derives a model's namespace from its folder below the artifacts root, so this happens when two files in one folder declare the same model name. Models with the same class name in different folders are supported. Rename one of the two, or move it to another folder.
 
 ## Chronicle
 

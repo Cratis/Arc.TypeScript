@@ -76,7 +76,6 @@ export class RegisterTask {
     @field(TaskId) id!: TaskId;
     @field(TaskTitle) title!: TaskTitle;
 
-    @inject(Tasks)
     handle(tasks: Tasks): TaskId {
         tasks.register(this.id, this.title);
         return this.id;
@@ -102,7 +101,7 @@ export class TaskItem {
 }
 ```
 
-The imports and the `TaskId`, `TaskTitle`, and `Tasks` types are in the linked sample; [Your first command](getting-started/your-first-command.md) shows every file.
+The imports and the `TaskId`, `TaskTitle`, and `Tasks` types are in the linked sample. The sample's [generated metadata](proxy-generation/generated-artifact-metadata.md) binds `handle(tasks: Tasks)` to the `Tasks` service; without it, add `@inject(Tasks)`. [Your first command](getting-started/your-first-command.md) shows every file.
 
 ## What changed and why
 
@@ -114,7 +113,7 @@ The imports and the `TaskId`, `TaskTitle`, and `Tasks` types are in the linked s
 | `class-validator` decorators on the DTO | A `CommandValidator` beside the command, plus `ConceptValidator` rules that follow a value everywhere |
 | A separate "validate only" endpoint, if any | `POST <route>/validate` for every command |
 | NestJS guards | [`@roles`, `@authorize`, policies](authorizing-commands-and-queries.md), checked before validation so denied callers never see rule messages |
-| NestJS providers and constructor injection | [Arc services](dependency-injection.md) with explicit tokens, and a build that rejects missing registrations and captive lifetimes |
+| NestJS providers and constructor injection | [Arc services](dependency-injection.md) bound by generated metadata or explicit tokens, and a build that rejects missing registrations and captive lifetimes |
 | Hand-written frontend `fetch` calls and types | [Generated proxies](proxy-generation/index.md) with the same routes and the client-safe validation rules |
 | Polling or a custom WebSocket for live lists | [Observable queries](queries/observable-queries.md) on the same route |
 

@@ -69,7 +69,7 @@ Run a single step while you work, and the whole gate before you push. Add or upd
 
 Two checks need more than Node.js and are not part of `yarn ci`. Run them when you change what they cover:
 
-- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the 57 paired HTTP checks against `Cratis.Arc` 22.23.0. It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
+- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the paired HTTP checks against `Cratis.Arc` 22.23.0, described in [How parity is checked](Documentation/reference/capabilities.md#how-parity-is-checked). It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
 - `bash Source/MongoDB/run-integration.sh` runs the live MongoDB spec in a disposable Docker container. It exits with 2 when Docker is not available, which means the check did not run.
 
 A hosted run does not replace local verification. The hosted CI workflow also supports manual runs.

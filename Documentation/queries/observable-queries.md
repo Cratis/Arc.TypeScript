@@ -157,7 +157,7 @@ Generated proxies carry the exact query name. The [proxy generator](../proxy-gen
 
 ## Without decorators
 
-`defineObservableQuery` takes an `observe` callback instead of a decorated method. This complete low-level example needs no build step on Node.js 26, which strips types by default; run it with `node observable.ts` inside the workspace:
+`defineObservableQuery` takes an `observe` callback instead of a decorated method. This complete low-level example needs no build step on Node.js 22.19 or later, which strips types by default; run it with `node observable.ts` inside the workspace:
 
 ```typescript title="observable.ts"
 import express from 'express';

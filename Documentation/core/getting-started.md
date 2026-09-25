@@ -12,13 +12,17 @@ The [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Sampl
 ```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
+import { metadata } from './Features/generatedMetadata.js';
 
 const builder = ArcApplication.createBuilder();
+builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
 export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
+
+`useGeneratedMetadata(metadata)` installs the parameter bindings that `arc-proxygenerator --metadata` extracted from the source, so `handle(tasks: Tasks)` and a bare `@query()` need no token lists. Call it before `discover()` or `add()`. Without it, the sample's artifacts would need explicit `@inject(...)` and `@query(...)` tokens, and `build()` rejects them as written. See [Generate artifact metadata](../proxy-generation/generated-artifact-metadata.md).
 
 The Tasks sample sets `Development` in `Samples/Tasks/appsettings.json`; run the workspace command from its package directory (Yarn does this). `createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`. This TypeScript setup corresponds to C#'s standalone `ArcApplication.CreateBuilder(args)`, `builder.AddCratisArc()`, `builder.Build()`, `app.UseCratisArc()`, `app.RunAsync()`. On Node, `app.run()` performs the standalone host step. For an Arc + Chronicle comparison, see [Add event sourcing](../chronicle/add-event-sourcing.md).
 
@@ -62,7 +66,7 @@ The builder also registers services that change pipeline behavior:
 | `addQueryRenderer(token)` | A renderer for provider-owned query results; see [Query renderers](../queries/renderers.md) |
 | `addReadModelInterceptor(token)` | A read-model transform; see [Read-model interception](../queries/read-model-interception.md) |
 
-After importing their packages, call `withMongoDB`, `withDrizzle`, or `withChronicle`. The old `add*` methods and standalone functions remain as deprecated aliases. Each integration adds its typed method to the portable builder prototype and registers its installer in a `Symbol.for`-keyed registry. The shared registry lets a builder loaded from another copy of core find the installer. A missing integration fails at the call site. Configuration from `appsettings.json` is available to Chronicle and MongoDB, but model classes, clients, and authentication must be provided explicitly.
+After importing their packages, call `builder.withMongoDB(...)`, `builder.withDrizzle(...)`, or `builder.withChronicle(...)`. Importing the package adds its method to the builder. Each package also exports a function form, `withX(builder, options)`. Configuration from `appsettings.json` is available to Chronicle and MongoDB, but model classes, clients, and authentication must be provided explicitly.
 
 ## Run it, or mount it
 

@@ -78,7 +78,7 @@ The subject never comes from the signed-in user. Authentication tells you who ma
 
 ## What the subject does not do
 
-Setting a subject does not mark anything as personal data. Values are marked with the SDK's `@pii` decorator, and Chronicle's compliance handling keys them to the subject; the [Chronicle compliance](/chronicle/compliance/) documentation covers that side. Arc does not release encrypted values when it serves a read model. See [Compliance](../compliance.md) for what the integration does and does not handle.
+Setting a subject does not mark anything as personal data. Values are marked with the SDK's `@pii` decorator, and Chronicle's compliance handling keys them to the subject; the [Chronicle compliance](/chronicle/compliance/) documentation covers that side. Read models read through Chronicle arrive decrypted, and Arc releases encrypted values at its query edge only for protected read models read directly from MongoDB into their exact class. See [Compliance](../compliance.md) for what the integration does and does not handle.
 
 ## Related
 
