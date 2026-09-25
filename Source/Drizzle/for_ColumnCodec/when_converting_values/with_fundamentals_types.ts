@@ -29,6 +29,10 @@ describe('when converting SQL column values', () => {
         conceptCodec(TaskName, ConceptCodecKind.String, DrizzleDialect.MySQL, 120).sqlType.should.equal('varchar(120)');
         (() => conceptCodec(TaskName, ConceptCodecKind.String, DrizzleDialect.MySQL, 0)).should.throw('varcharLength');
     });
+    it('should reject Date objects from drivers for date-only values', () => {
+        (() => dateOnlyCodec.fromDriver(new Date('2026-03-02T00:00:00Z') as unknown as string))
+            .should.throw('Invalid DateOnly format');
+    });
     it('should round-trip temporal and validated JSON data', () => {
         dateOnlyCodec.fromDriver(dateOnlyCodec.toDriver(DateOnly.parse('2026-03-02'))).toString().should.equal('2026-03-02');
         timeOnlyCodec.fromDriver(timeOnlyCodec.toDriver(TimeOnly.parse('12:34:56'))).toString().should.equal('12:34:56');

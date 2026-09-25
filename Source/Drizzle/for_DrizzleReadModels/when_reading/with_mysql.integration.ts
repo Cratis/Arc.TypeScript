@@ -49,7 +49,7 @@ const firstId = Guid.parse('00112233-4455-6677-8899-aabbccddeeff');
 const secondId = Guid.parse('11112233-4455-6677-8899-aabbccddeeff');
 const thirdId = Guid.parse('22112233-4455-6677-8899-aabbccddeeff');
 
-/** Live MySQL 8.4 fixture with two physically separate tenant databases. */
+/** Live MySQL 8.4 fixture with two tenant databases on one MySQL server. */
 describe('when reading MySQL', () => {
     let firstPool: Pool;
     let secondPool: Pool;
@@ -61,16 +61,17 @@ describe('when reading MySQL', () => {
         secondPool = createPool({ uri: uri.replace(/\/arc_test$/, '/arc_other'), dateStrings: true });
         const schema = `create table tasks (id char(36) primary key, title text not null, name varchar(120) not null,
             date date not null, time time not null, details json not null)`;
+        await firstPool.query('drop table if exists tasks');
+        await secondPool.query('drop table if exists tasks');
         await firstPool.query(schema);
         await secondPool.query(schema);
     }
     async function close() {
         try {
-            await firstPool.query('drop table tasks');
-            await secondPool.query('drop table tasks');
+            if (firstPool) await firstPool.query('drop table if exists tasks');
+            if (secondPool) await secondPool.query('drop table if exists tasks');
         } finally {
-            await firstPool.end();
-            await secondPool.end();
+            await Promise.all([firstPool?.end(), secondPool?.end()]);
         }
     }
     beforeEach(async () => { await establish(); });
@@ -105,9 +106,15 @@ describe('when reading MySQL', () => {
         first.items[0]!.date.toString().should.equal('2026-03-03');
         first.items[0]!.time.toString().should.equal('13:34:56');
         first.items[0]!.details.should.deep.equal({ label: 'two' });
-        const descending = await models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
+        const descendingFirst = await models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
             sorting: { field: 'title', direction: SortDirection.Descending } });
-        descending.items[0]!.id.toString().should.equal(firstId.toString());
+        const descendingSecond = await models.queryPage(undefined, { paging: { page: 1, pageSize: 1 },
+            sorting: { field: 'title', direction: SortDirection.Descending } });
+        const descendingThird = await models.queryPage(undefined, { paging: { page: 2, pageSize: 1 },
+            sorting: { field: 'title', direction: SortDirection.Descending } });
+        descendingFirst.items[0]!.id.toString().should.equal(firstId.toString());
+        descendingSecond.items[0]!.id.toString().should.equal(secondId.toString());
+        descendingThird.items[0]!.id.toString().should.equal(thirdId.toString());
     });
 
     it('should route reads to the current tenant database with databaseFactory', async () => {
@@ -164,6 +171,8 @@ describe('when reading MySQL', () => {
             (found.response as string).should.equal('tenant b');
             const missing = await app.server.executeCommand('LookUpTask', { id: firstId.toString() }, identity('a'));
             missing.isSuccess.should.equal(false);
+            missing.validationResults[0]!.message.should.equal('RichRecord was not found for the command key');
+            missing.hasExceptions.should.equal(false);
         } finally { await app.dispose(); }
     });
 });
