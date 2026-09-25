@@ -37,7 +37,7 @@ export class HubConnection {
         readonly onClose: () => void,
         readonly onChange: () => void
     ) {
-        this.ownerKey = observableCallerKey(context, false);
+        this.ownerKey = observableCallerKey(context);
         this.#context = Object.freeze({ ...context, connectionId: this.id,
             principal: clonePrincipal(context.principal), signal: AbortSignal.any([context.signal, output.signal]) });
         this.#states = new SubscriptionRevisions(server.observableLimits.tombstones);

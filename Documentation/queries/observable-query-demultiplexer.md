@@ -5,6 +5,8 @@ description: Carry many observable-query subscriptions over one WebSocket or ser
 
 A dashboard with ten live widgets should not open ten sockets. The multiplexed hub carries every subscription from one client over a single connection, and it is the default transport of the published `@cratis/arc` client.
 
+The plain `@cratis/arc` client uses the WebSocket hub by default. The `<Arc>` provider from `@cratis/arc.react` uses the SSE hub by default. Both work with anonymous callers; every subscription still runs through query authorization.
+
 ## The WebSocket hub
 
 The hub lives at `/.cratis/queries/ws`. After `Connected`, the client subscribes by query name:
@@ -27,7 +29,9 @@ hub.onmessage = event => {
 
 ## The server-sent-events hub
 
-The SSE hub uses `GET /.cratis/queries/sse` for its `Connected` stream, plus `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. It requires a **trusted authenticated principal** on the stream and on every control request; anonymous callers cannot use it, which differs from Arc on .NET. Browser `EventSource` sends same-origin cookies but cannot set an `Authorization` header, so authenticate the stream with your application's real session cookie and send the same cookie with the control requests. A control request from a different principal or tenant returns the same 404 as an unknown connection ID; subscribing to an unauthorized query answers 401. The `.cratis-identity` display cookie is not a credential.
+The SSE hub uses `GET /.cratis/queries/sse` for its `Connected` stream, plus `POST /.cratis/queries/sse/subscribe` and `/unsubscribe` controls. The stream can be opened anonymously. Its connection ID is crypto-random; a control request must match the opening caller's authentication state and tenant. Authenticated connections require the same authenticated identity on every control request, while anonymous callers cannot control authenticated connections (or vice versa). With anonymous connections, callers have no identity to distinguish them: when the host supplies a peer address, Arc for TypeScript additionally requires that address on control requests to match the opener. Without a peer address, other anonymous callers in the same tenant who learn the connection ID cannot be distinguished. This address check is deliberately stricter than Arc on .NET; do not treat it as user authentication, especially behind a shared proxy. Unknown or unowned connections return 404, and a query the caller may not access answers 401 with an `Unauthorized` frame.
+
+Browser `EventSource` sends same-origin cookies but cannot set an `Authorization` header. If your queries require sign-in, use your application's real session cookie on the stream and controls; the `.cratis-identity` display cookie is not a credential. SSE controls require `application/json` (optionally `charset=utf-8`) and reject an untrusted browser `Origin` with 403. Same-origin is allowed by default; configure `query.allowedOrigins` for trusted cross-origin frontends. Anonymous per-caller connection limits group requests by peer address, or by tenant when no address is available.
 
 ## Configure the installed client
 

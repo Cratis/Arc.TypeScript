@@ -3,6 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
+import React from 'react';
+import { Arc, ArcContext } from '@cratis/arc.react';
 import { ArcServer, AuthenticationStatus, CurrentValueSubject, ObservableEmissionDecision,
     defineObservableQuery, serviceToken } from '@cratis/arc.core';
 import { Globals } from '@cratis/arc';
@@ -254,6 +256,64 @@ class Numbers extends ObservableQueryFor {
     parameterDescriptors = [];
     get requiredRequestParameters() { return []; }
 }
+
+for (const kind of ['express', 'fastify', 'hono']) test(`anonymous published React default SSE hub on ${kind}`, async () => {
+    const subject = new CurrentValueSubject([{ id: '1', name: 'first' }]);
+    const server = new ArcServer({ observableQueries: [defineObservableQuery({ name: 'Numbers',
+        schema: z.object({}), observe: () => subject })] });
+    const listening = await observableHost(kind, server);
+    const previous = { method: Globals.queryTransportMethod, direct: Globals.queryDirectMode,
+        mode: Globals.observableQueryTransferMode, factory: Globals.eventSourceFactory,
+        headers: Globals.httpHeadersCallback, eventSource: globalThis.EventSource, fetch: globalThis.fetch };
+    let subscription;
+    let unsubscribeFinished;
+    try {
+        const provider = React.createElement(Arc, { origin: listening.origin });
+        assert.equal(provider.props.queryTransportMethod, undefined);
+        assert.equal(ArcContext._currentValue.queryTransportMethod, QueryTransportMethod.ServerSentEvents);
+        resetSharedMultiplexer();
+        Globals.queryTransportMethod = ArcContext._currentValue.queryTransportMethod;
+        Globals.queryDirectMode = ArcContext._currentValue.queryDirectMode;
+        Globals.observableQueryTransferMode = 'full';
+        Globals.httpHeadersCallback = () => ({});
+        globalThis.EventSource = FetchEventSource;
+        Globals.eventSourceFactory = url => new FetchEventSource(url);
+        unsubscribeFinished = new Promise(resolve => {
+            globalThis.fetch = (url, options) => {
+                const response = previous.fetch(url, options);
+                if (String(url).endsWith('/sse/unsubscribe')) void response.then(resolve, resolve);
+                return response;
+            };
+        });
+        const query = new Numbers();
+        query.setOrigin(provider.props.origin);
+        let firstReceived;
+        let updateReceived;
+        const initial = new Promise(resolve => { firstReceived = resolve; });
+        const updated = new Promise(resolve => { updateReceived = resolve; });
+        subscription = query.subscribe(result => {
+            if (result.data?.[0]?.name === 'first') firstReceived(result);
+            if (result.data?.[0]?.name === 'second') updateReceived(result);
+        });
+        assert.equal((await within(initial, 'anonymous SSE initial')).isAuthorized, true);
+        subject.next([{ id: '1', name: 'second' }]);
+        assert.equal((await within(updated, 'anonymous SSE update')).data[0].name, 'second');
+    } finally {
+        subscription?.unsubscribe();
+        if (subscription) await within(unsubscribeFinished, 'anonymous SSE unsubscribe');
+        resetSharedMultiplexer();
+        Globals.queryTransportMethod = previous.method;
+        Globals.queryDirectMode = previous.direct;
+        Globals.observableQueryTransferMode = previous.mode;
+        Globals.eventSourceFactory = previous.factory;
+        Globals.httpHeadersCallback = previous.headers;
+        globalThis.fetch = previous.fetch;
+        if (previous.eventSource === undefined) delete globalThis.EventSource;
+        else globalThis.EventSource = previous.eventSource;
+        await server.dispose();
+        await listening.close();
+    }
+});
 
 for (const kind of ['express', 'fastify', 'hono']) {
     for (const [method, mode] of [
