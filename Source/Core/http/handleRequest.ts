@@ -12,8 +12,7 @@ import type { QueryOptions } from '../queries/QueryOptions.js';
 import type { QueryResult } from '../queries/QueryResult.js';
 import type { ObservableQuerySession } from '../queries/observable/ObservableQuerySession.js';
 import { TenantRequestError } from '../tenancy/TenantRequestError.js';
-import { resolveConfiguredTenant } from '../tenancy/resolveConfiguredTenant.js';
-import { tenantId } from '../tenancy/tenantId.js';
+import { resolveTenant } from '../tenancy/resolveTenant.js';
 import { BadRequest } from './BadRequest.js';
 import { body } from './body.js';
 import { utf8Bytes } from './utf8Bytes.js';
@@ -112,12 +111,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                 return send(result, 401);
             }
             if (isIdentity && !authentication.principal) return send({ error: 'Unauthorized' }, 401);
-            const resolved = server.options.resolveTenant
-                ? await server.options.resolveTenant(request, authentication.principal)
-                : server.options.tenancy
-                    ? resolveConfiguredTenant(request, authentication.principal, trustedNative, server.options.tenancy, server.options.tenantHeader ?? 'x-cratis-tenant-id')
-                    : request.headers.get(server.options.tenantHeader ?? 'x-cratis-tenant-id') ?? undefined;
-            const tenant = server.options.tenancy && !server.options.resolveTenant && resolved !== undefined ? tenantId(resolved) : resolved;
+            const tenant = await resolveTenant(server.options, request, authentication.principal, trustedNative);
             context = Object.freeze({ ...context, principal: authentication.principal,
                 tenantId: tenant, remoteAddress: trustedNative?.remoteAddress });
             return await requestContext.run(context, async () => {

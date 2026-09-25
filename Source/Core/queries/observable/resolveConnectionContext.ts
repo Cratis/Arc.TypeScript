@@ -6,8 +6,7 @@ import type { NativeRequestContext } from '../../http/NativeRequestContext.js';
 import { Severity } from '../../validation/Severity.js';
 import { authenticate, verifiedPrincipal } from '../../authentication/authenticate.js';
 import { correlation } from '../../execution/correlation.js';
-import { resolveConfiguredTenant } from '../../tenancy/resolveConfiguredTenant.js';
-import { tenantId } from '../../tenancy/tenantId.js';
+import { resolveTenant } from '../../tenancy/resolveTenant.js';
 import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 
 /** Match HTTP authentication, tenancy and correlation for an upgraded or hub connection. */
@@ -22,12 +21,6 @@ export async function resolveConnectionContext(server: ArcServer, request: Reque
         ? { failed: false, principal: native?.principal === undefined ? undefined : verifiedPrincipal(native.principal) }
         : await authenticate(request, server.options.authentication ?? []);
     if (authentication.failed) return { context: initial, authenticationFailed: true };
-    const resolved = server.options.resolveTenant
-        ? await server.options.resolveTenant(request, authentication.principal)
-        : server.options.tenancy
-            ? resolveConfiguredTenant(request, authentication.principal, native, server.options.tenancy,
-                server.options.tenantHeader ?? 'x-cratis-tenant-id')
-            : request.headers.get(server.options.tenantHeader ?? 'x-cratis-tenant-id') ?? undefined;
-    const tenant = server.options.tenancy && !server.options.resolveTenant && resolved !== undefined ? tenantId(resolved) : resolved;
+    const tenant = await resolveTenant(server.options, request, authentication.principal, native);
     return { context: Object.freeze({ ...initial, principal: authentication.principal, tenantId: tenant }), authenticationFailed: false };
 }
