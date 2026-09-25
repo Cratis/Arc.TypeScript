@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import assert from 'node:assert/strict';
 import process from 'node:process';
+import console from 'node:console';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { setInterval, clearInterval } from 'node:timers';
@@ -169,18 +170,18 @@ try {
                 assert.equal(privateCommand.body.isSuccess, true, JSON.stringify(privateCommand));
                 assert.equal(privateCommand.body.response, privateName, 'command injection releases projected PII');
                 const observable = await globalThis.fetch(`${listener.url}/api/watch-private-id?id=${privateId}`, {
-                    headers: { 'x-test-tenant': tenant, accept: 'text/event-stream' }, signal: AbortSignal.timeout(15000)
+                    headers: { 'x-test-tenant': tenant, accept: 'text/event-stream' }, signal: globalThis.AbortSignal.timeout(15000)
                 });
                 assert.equal(observable.status, 200);
                 const reader = observable.body.getReader();
                 try {
-                    const first = new TextDecoder().decode((await reader.read()).value);
+                    const first = new globalThis.TextDecoder().decode((await reader.read()).value);
                     assert.equal(JSON.parse(first.slice(first.indexOf('data: ') + 6, first.indexOf('\n\n'))).data.name, privateName,
                         'observable snapshot releases PII');
                     const updatedName = `updated-${privateName}`;
                     const update = await call(listener.url, 'create-private-live', privateId, tenant, updatedName);
                     assert.equal(update.body.isSuccess, true, JSON.stringify(update));
-                    const next = new TextDecoder().decode((await reader.read()).value);
+                    const next = new globalThis.TextDecoder().decode((await reader.read()).value);
                     assert.equal(JSON.parse(next.slice(next.indexOf('data: ') + 6, next.indexOf('\n\n'))).data.name, updatedName,
                         'observable update releases PII');
                 } finally { await reader.cancel(); }
