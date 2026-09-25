@@ -7,7 +7,7 @@ Put related read operations on a `@readModel()` class as static methods. Each `@
 
 ## Declare a read model and its queries
 
-The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) exposes a list, a lookup, and a live list:
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/Listing.ts) exposes a list, a lookup, and a live list:
 
 ```typescript
 import { field } from '@cratis/fundamentals';

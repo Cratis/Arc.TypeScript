@@ -4,7 +4,7 @@ import { QueryScenario } from '@cratis/arc.testing';
 import { TaskId } from '../../../TaskId.js';
 import { TaskTitle } from '../../../TaskTitle.js';
 import { Tasks } from '../../../Tasks.js';
-import { TaskItem } from '../../TaskItem.js';
+import { TaskItem } from '../../Listing.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
 describe('when performing a query with a concept argument', () => {

@@ -7,11 +7,10 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ArcApplication } from '@cratis/arc.core';
 import { renderGeneratedMetadata } from '../../../Tools/ProxyGenerator/renderGeneratedMetadata.js';
-import { RegisterTask } from '../../../../Samples/Tasks/Features/Tasks/Registration/RegisterTask.js';
-import { RegisterTaskValidator } from '../../../../Samples/Tasks/Features/Tasks/Registration/RegisterTaskValidator.js';
+import { RegisterTask, RegisterTaskValidator } from '../../../../Samples/Tasks/Features/Tasks/Registration/Registration.js';
 import { TaskId } from '../../../../Samples/Tasks/Features/Tasks/TaskId.js';
 import { Tasks } from '../../../../Samples/Tasks/Features/Tasks/Tasks.js';
-import { TaskItem } from '../../../../Samples/Tasks/Features/Tasks/Listing/TaskItem.js';
+import { TaskItem } from '../../../../Samples/Tasks/Features/Tasks/Listing/Listing.js';
 import { metadata } from '../../../../Samples/Tasks/Features/generatedMetadata.js';
 import { mountExpress } from '../../index.js';
 

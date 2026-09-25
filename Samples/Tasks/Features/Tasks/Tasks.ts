@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { BehaviorSubject } from 'rxjs';
-import type { TaskItem } from './Listing/TaskItem.js';
+import type { TaskItem } from './Listing/Listing.js';
 import { TaskId } from './TaskId.js';
 import { TaskTitle } from './TaskTitle.js';
 
