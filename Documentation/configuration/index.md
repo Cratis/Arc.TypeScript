@@ -112,7 +112,7 @@ All of these TypeScript transport settings belong under `query`; positive numeri
 | `query.observableHandshakeTimeoutMs` | `10000` | WebSocket upgrade handshake deadline. |
 | `query.observableShutdownTimeoutMs` | `10000` | Hub and direct WebSocket cleanup deadline. |
 
-Per-caller defaults equal global limits: set smaller per-caller budgets for internet-facing hosts. Exhausted admission answers 503 with `Retry-After: 1`; an exhausted handshake answers HTTP 503 or WebSocket close 1013. The keep-alive interval alone accepts zero. `query.allowedOrigins` accepts a string array in code; the configuration binder does not accept Origin lists or predicates.
+Per-caller defaults equal global limits: set smaller per-caller budgets for internet-facing hosts. A caller is an authenticated principal in its tenant. An anonymous caller is its peer address in its tenant, and all anonymous callers without a peer address in a tenant share one budget; behind a reverse proxy, that address is the proxy's unless the adapter's native callback supplies a verified client address. See [Per-caller budgets](../queries/observable-query-demultiplexer.md#per-caller-budgets). Exhausted admission answers 503 with `Retry-After: 1`; an exhausted handshake answers HTTP 503 or WebSocket close 1013. The keep-alive interval alone accepts zero. `query.allowedOrigins` accepts a string array in code; the configuration binder does not accept Origin lists or predicates.
 
 ## Artifacts and services
 

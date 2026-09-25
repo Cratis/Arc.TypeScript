@@ -91,7 +91,18 @@ The full list is in the [capability reference](reference/capabilities.md#deliber
 
 ## Integrations stay outside the core
 
-Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.7.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request. Returned events from nested commands join one event-log batch, which is not a .NET transaction. An opt-in live-kernel suite passes across Express, Fastify, and Hono; the integration stays experimental, with no .NET transaction, aggregate, or reactor-command parity. See [Chronicle](chronicle/index.md).
+Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.7.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
+
+The integration covers the main Chronicle command paths. Events returned by a command and events applied to a keyed [aggregate](chronicle/aggregates/index.md) are staged, together with those of nested commands, and appended in one `appendMany` batch after the outer command succeeds. A Chronicle reactor can return Arc commands, which run through the full command pipeline. An opt-in live-kernel suite exercises returned events, batches, aggregates, reactor commands, and concurrency rejections through Express, Fastify, and Hono.
+
+The integration stays experimental, and full parity with Arc on .NET is unverified. The known gaps:
+
+- The batch covers one event log. It is not a transaction across other stores or external calls, and an immediate SDK append inside `handle()` is outside it. See [Transactional commands](chronicle/commands/transactional-commands.md).
+- The aggregate loads only the event source named by the command key, and has no `Failed(...)` or `OnActivate`.
+- The TypeScript SDK has no reactor replay exclusion, so reactors that return commands must tolerate re-delivery.
+- Encrypted personal data is not released when a read model is served, and there are no `ARCCHR` analyzers.
+
+See [Chronicle](chronicle/index.md).
 
 The MongoDB and Drizzle integrations follow the same rule: the application owns the client or database, the tenant mapping, and the filter or predicate. See [MongoDB](mongodb/index.md) and [SQL with Drizzle](sql/index.md).
 
@@ -101,7 +112,7 @@ These questions do not have an answer yet. Each one affects behavior a client ca
 
 - Whether compiler-generated metadata replaces the ordered query descriptors and explicit injection tokens.
 - How far the source-based proxy generator grows toward the coverage of Arc's .NET proxy generator.
-- Whether command read models are injected into validators, and whether the SQL integration resolves them by key.
+- Whether validators take command read models as constructor parameters instead of calling `readModelForValidation` inside a rule, and whether the SQL integration resolves command read models by key.
 - Broader identity-provider integrations, and live observation for SQL read models.
 
 ## Related
