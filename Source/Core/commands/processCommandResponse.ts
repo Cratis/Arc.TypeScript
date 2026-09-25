@@ -25,6 +25,7 @@ function control(value: unknown): value is Outcome<unknown> {
 export async function processCommandResponse(context: CommandContext, leaves: readonly unknown[],
     handlers: readonly CommandResponseValueHandler[], operationsPresent: boolean): Promise<CommandResult> {
     const ordinary = leaves.filter(value => !isCommandOperation(value) && !isCommandOperations(value));
+    const classificationOnly = handlers.length === 0 && !operationsPresent;
     if (leaves.some(value => Array.isArray(value) && value.some(isCommandOperation)))
         throw new Error('Use CommandOperations instead of returning an ordinary collection of operation declarations');
     const matching = new Map<unknown, CommandResponseValueHandler[]>();
@@ -42,7 +43,7 @@ export async function processCommandResponse(context: CommandContext, leaves: re
     // Control signals precede effectful handlers when operations participate.
     const values = operationsPresent ? [...ordinary.filter(control), ...ordinary.filter(value => !control(value))] : ordinary;
     for (const value of values) {
-        throwIfCanceled(context, 'Command canceled');
+        if (!classificationOnly) throwIfCanceled(context, 'Command canceled');
         if (control(value)) continue;
         if (!matching.get(value)?.length) {
             if (context.response !== undefined) throw new Error('Multiple unhandled command response values');
@@ -54,7 +55,7 @@ export async function processCommandResponse(context: CommandContext, leaves: re
     let reason = '';
     const validation = [];
     for (const value of values) {
-        throwIfCanceled(context, 'Command canceled');
+        if (!classificationOnly) throwIfCanceled(context, 'Command canceled');
         if (!control(value)) continue;
         if (value.kind === 'denied') { authorized = false; reason = value.reason ?? ''; }
         else if (value.kind === 'validation') validation.push(...value.results.filter(item => item.severity > context.allowedSeverity));
@@ -78,7 +79,7 @@ export async function processCommandResponse(context: CommandContext, leaves: re
             }
         }
     }
-    throwIfCanceled(context, 'Command canceled');
+    if (!classificationOnly) throwIfCanceled(context, 'Command canceled');
     return commandResult(context, { response: context.response, isAuthorized: authorized,
         authorizationFailureReason: reason, validationResults: validation, exceptionMessages: failures });
 }
