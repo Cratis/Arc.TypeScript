@@ -14,11 +14,15 @@ export function buildSourceFiles(analysis: SourceAnalysis, options: SourceGenera
     const sources = new Map([
         ...analysis.models.map(model => [filename(model.name, model.namespace, options),
             [model.namespace, model.name].filter(Boolean).join('.')] as const),
-        ...analysis.operations.map(operation => [filename(operation.kind === 'command' ? operation.name : queryClassName(operation.name),
-            operation.namespace, options),
-            [operation.namespace, operation.owner, ...(operation.kind === 'command' ? [] : [operation.name])].filter(Boolean).join('.')] as const)
+        ...analysis.operations.map(operation => [
+            filename(operation.kind === 'command' ? operation.name : queryClassName(operation.name),
+                operation.namespace, options),
+            [operation.namespace, operation.owner, ...(operation.kind === 'command' ? [] : [operation.name])]
+                .filter(Boolean).join('.')
+        ] as const)
     ]);
-    const files = new Map<string, SourceFileEntry>([...rendered].map(([path, text]) => [path, { source: sources.get(path) ?? path, text }]));
+    const files = new Map<string, SourceFileEntry>([...rendered].map(([path, text]) =>
+        [path, { source: sources.get(path) ?? path, text }]));
     const directories = new Set([...files.keys()].map(dirname));
     if (!options.skipIndexGeneration) for (const directory of directories) {
         const names = [...files.keys()].filter(path => dirname(path) === directory)

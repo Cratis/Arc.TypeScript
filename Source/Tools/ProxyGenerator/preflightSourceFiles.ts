@@ -20,7 +20,8 @@ async function readExisting(output: string): Promise<Map<string, string>> {
     return existing;
 }
 
-function verifyOwnership(existing: ReadonlyMap<string, string>, files: ReadonlyMap<string, SourceFileEntry>, options: SourceGeneratorOptions): void {
+function verifyOwnership(existing: ReadonlyMap<string, string>, files: ReadonlyMap<string, SourceFileEntry>,
+    options: SourceGeneratorOptions): void {
     for (const [path, text] of existing) {
         if (basename(path) === 'index.ts' && text.startsWith(marker) && !owned(text))
             throw new Error(`Refusing to overwrite edited generated barrel: ${path}`);

@@ -3,10 +3,12 @@
 import type { SourceGeneratorOptions } from './generateFromSource.js';
 
 /** Parse the source-generation CLI options without changing its accepted switches. */
-export function parseSourceOptions(values: readonly string[], usage: string): { configuration: SourceGeneratorOptions; watch: boolean; checkMetadata: boolean } {
+export function parseSourceOptions(values: readonly string[], usage: string):
+    { configuration: SourceGeneratorOptions; watch: boolean; checkMetadata: boolean } {
     const options: Record<string, string | boolean> = {};
     const flags = ['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers',
-        '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces', '--watch', '--check-metadata', '--use-generated-metadata'];
+        '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces', '--watch', '--check-metadata',
+        '--use-generated-metadata'];
     const arguments_ = ['--project', '--artifacts', '--output', '--metadata', '--segments-to-skip', '--api-prefix', '--root-namespace'];
     for (let index = 0; index < values.length; index++) {
         const [key, attached] = values[index]!.split(/=(.*)/s, 2);

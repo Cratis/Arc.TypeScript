@@ -5,18 +5,21 @@ import { dirname, resolve, sep } from 'node:path';
 import { sourceProgram } from './sourceProgram.js';
 import type { SourceGeneratorOptions } from './generateFromSource.js';
 
+function externalFiles(configuration: SourceGeneratorOptions, root: string, outputRoot: string): string[] {
+    const metadata = configuration.metadata && resolve(configuration.metadata);
+    return sourceProgram(configuration.project).getSourceFiles()
+        .filter(file => !file.isDeclarationFile && !file.fileName.includes(`${sep}node_modules${sep}`))
+        .map(file => resolve(file.fileName)).filter(file => file !== metadata &&
+            !file.startsWith(root + sep) && !file.startsWith(outputRoot + sep));
+}
+
 /** Regenerate on changes in artifacts or in external source dependencies. */
 export async function watchSource(configuration: SourceGeneratorOptions, generate: () => Promise<void>): Promise<void> {
     const root = resolve(configuration.artifacts);
     const metadata = configuration.metadata && resolve(configuration.metadata);
     const outputRoot = resolve(configuration.output);
-    const external = sourceProgram(configuration.project).getSourceFiles()
-        .filter(file => !file.isDeclarationFile && !file.fileName.includes(`${sep}node_modules${sep}`))
-        .map(file => resolve(file.fileName)).filter(file => file !== metadata &&
-            !file.startsWith(root + sep) && !file.startsWith(outputRoot + sep));
-    const watched = new Set(external);
-    let timer: NodeJS.Timeout | undefined;
-    let pending: Promise<void> = Promise.resolve();
+    const watched = new Set(externalFiles(configuration, root, outputRoot));
+    let timer: NodeJS.Timeout | undefined, pending: Promise<void> = Promise.resolve();
     const schedule = () => {
         if (timer) clearTimeout(timer);
         else process.stdout.write('Watch change detected\n');
@@ -30,13 +33,13 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
         const file = resolve(root, filename);
         if (file !== metadata && !file.startsWith(outputRoot + sep) && file.endsWith('.ts') && !file.endsWith('.d.ts') &&
             file.startsWith(root + sep)) schedule();
-    }), ...[...new Set(external.map(dirname))].map(directory => watch(directory, (_, filename) => {
+    }), ...[...new Set([...watched].map(dirname))].map(directory => watch(directory, (_, filename) => {
         if (filename && watched.has(resolve(directory, filename))) schedule();
     }))];
     // Directory notifications may be coalesced or missed on macOS; stat watched external files as a fallback.
     const fileChanges = new Map([...watched].map(file => [file, (current: import('node:fs').Stats, previous: import('node:fs').Stats) => {
-        if (current.mtimeMs !== previous.mtimeMs || current.ctimeMs !== previous.ctimeMs || current.size !== previous.size || current.ino !== previous.ino)
-            schedule();
+        if (current.mtimeMs !== previous.mtimeMs || current.ctimeMs !== previous.ctimeMs ||
+            current.size !== previous.size || current.ino !== previous.ino) schedule();
     }]));
     for (const [file, listener] of fileChanges) watchFile(file, { interval: 250 }, listener);
     const watchFailure = new Promise<void>((_, reject) => {

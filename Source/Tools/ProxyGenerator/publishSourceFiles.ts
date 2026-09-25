@@ -7,8 +7,10 @@ import type { SourceFileEntry } from './buildSourceFiles.js';
 import { bodyHash, content, digest, owned } from './generatedSourceOwnership.js';
 import { publishGeneratedMetadata } from './publishGeneratedMetadata.js';
 
-async function publishFile(output: string, path: string, entry: SourceFileEntry, previous: string | undefined): Promise<string | undefined> {
-    const text = entry.handwritten ? entry.text : previous && bodyHash(previous) === digest(entry.text) ? previous : content(entry.source, entry.text);
+async function publishFile(output: string, path: string, entry: SourceFileEntry,
+    previous: string | undefined): Promise<string | undefined> {
+    const text = entry.handwritten ? entry.text : previous && bodyHash(previous) === digest(entry.text) ?
+        previous : content(entry.source, entry.text);
     if (previous === text) return undefined;
     const destination = join(output, path);
     if (!destination.startsWith(output + sep) || path.includes('..')) throw new Error(`Unsafe output: ${path}`);
@@ -19,7 +21,9 @@ async function publishFile(output: string, path: string, entry: SourceFileEntry,
     });
     if (previous !== actual) throw new Error(`Output changed during generation: ${path}`);
     const temporary = join(dirname(destination), `.arc-${randomUUID()}.tmp`);
-    await writeFile(temporary, text, { flag: 'wx', mode: previous === undefined ? 0o666 & ~process.umask() : (await lstat(destination)).mode & 0o777 });
+    await writeFile(temporary, text, {
+        flag: 'wx', mode: previous === undefined ? 0o666 & ~process.umask() : (await lstat(destination)).mode & 0o777
+    });
     try {
         if (previous === undefined) await link(temporary, destination);
         else { await chmod(temporary, (await lstat(destination)).mode & 0o777); await rename(temporary, destination); }
@@ -39,14 +43,16 @@ export async function publishSourceFiles(output: string, files: Map<string, Sour
         for (const [path, text] of existing) {
             if (!skipOutputDeletion && !files.has(path) && owned(text)) {
                 const destination = join(output, path);
-                if (await readFile(destination, 'utf8') !== text) throw new Error(`Output changed during cleanup: ${path}`);
+                if (await readFile(destination, 'utf8') !== text)
+                    throw new Error(`Output changed during cleanup: ${path}`);
                 await unlink(destination);
                 changed.push(destination);
             }
         }
         if (metadataPath && metadata && await publishGeneratedMetadata(metadataPath, metadata)) changed.push(metadataPath);
     } catch (error) {
-        if (changed.length) throw new AggregateError([error], `Source generation partially committed: ${changed.join(', ')}`, { cause: error });
+        if (changed.length)
+            throw new AggregateError([error], `Source generation partially committed: ${changed.join(', ')}`, { cause: error });
         throw error;
     }
     return changed;

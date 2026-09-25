@@ -10,7 +10,10 @@ import { checkGeneratedMetadata } from './publishGeneratedMetadata.js';
 import { parseSourceOptions } from './parseSourceOptions.js';
 import { watchSource } from './watchSource.js';
 
-const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <folder> [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch] [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces]';
+const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <folder>' +
+    ' [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch]' +
+    ' [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>]' +
+    ' [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces]';
 
 async function generateManifest(): Promise<void> {
     const [manifestPath, outputRoot, extra] = process.argv.slice(2);
