@@ -37,6 +37,7 @@
     "fastify": "^5.0.0"
   },
   "devDependencies": {
+    "@cratis/arc.testing": "workspace:^",
     "fastify": "^5.6.0",
     "zod": "^4.1.0"
   }

@@ -42,6 +42,7 @@
     }
   },
   "devDependencies": {
+    "@cratis/arc.testing": "workspace:^",
     "@hono/node-server": "^1.19.11",
     "hono": "^4.10.0",
     "zod": "^4.1.0"
