@@ -88,6 +88,58 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 400, body: netReaderFailure, headers: { 'cache-control': 'no-store' } },
             { status: 400, body: tsReaderFailure, headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
 
+        const identity = { id: 'fixture-user', name: 'fixture-user', isAuthenticated: true, isAuthorized: true,
+            roles: ['Admin'], details: { greeting: 'Hello fixture-user' } };
+        await parity('authenticated identity returns verified principal details', 'GET', '/.cratis/me', undefined,
+            { status: 200, body: identity }, { 'X-Fixture-Role': 'Admin' });
+        await t.test('authenticated identity issues a display-only cookie matching its response', async () => {
+            const [net, ts] = await send('GET', '/.cratis/me', undefined, { 'X-Fixture-Role': 'Admin' });
+            for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
+                assert.equal(actual.status, 200, label);
+                assert.deepEqual(actual.body, identity, label);
+                assert.match(actual.headers['set-cookie'], /^\.cratis-identity=[^;]+;\s*path=\/;\s*samesite=lax$/i, label);
+                const encoded = actual.headers['set-cookie'].split(';')[0].slice('.cratis-identity='.length);
+                assert.deepEqual(JSON.parse(Buffer.from(decodeURIComponent(encoded), 'base64').toString()), identity, label);
+            }
+        });
+        for (const [role, status, expected] of [['Reader', 403, { error: 'Forbidden' }], [undefined, 401, { error: 'Unauthorized' }]]) {
+            await t.test(`${role ?? 'anonymous'} identity denial: .NET empty, TypeScript JSON`, async context => {
+                const headers = role ? { 'X-Fixture-Role': role } : {};
+                const [net, ts] = await send('GET', '/.cratis/me', undefined, headers);
+                assert.equal(net.status, status);
+                assert.equal(net.body, '');
+                assert.equal(net.headers['content-type'], undefined);
+                assert.equal(net.headers[correlationHeader], correlationId);
+                assert.equal(net.headers['set-cookie'], undefined);
+                assert.equal(ts.status, status);
+                assert.deepEqual(ts.body, expected);
+                assert.equal(ts.headers['content-type'], 'application/json; charset=utf-8');
+                assert.equal(ts.headers[correlationHeader], correlationId);
+                assert.equal(ts.headers['set-cookie'], undefined);
+                context.diagnostic('UNSUPPORTED PARITY: identity denial body differs (empty vs JSON error)');
+            });
+        }
+        await t.test('unsigned identity cookie is never a credential in TypeScript', async context => {
+            const [authenticated] = await send('GET', '/.cratis/me', undefined, { 'X-Fixture-Role': 'Admin' });
+            const cookie = authenticated.headers['set-cookie'].split(';')[0];
+            const [net, ts] = await send('GET', '/.cratis/me', undefined, { Cookie: cookie });
+            assert.equal(net.status, 200);
+            assert.deepEqual(net.body, identity);
+            assert.equal(net.headers[correlationHeader], correlationId);
+            assert.equal(ts.status, 401);
+            assert.deepEqual(ts.body, { error: 'Unauthorized' });
+            assert.equal(ts.headers[correlationHeader], correlationId);
+            context.diagnostic('UNSUPPORTED PARITY: .NET trusts the display cookie before authentication; TypeScript never does');
+        });
+        await t.test('identity schema describes the required greeting on both runtimes', async () => {
+            const [net, ts] = await send('GET', '/.cratis/identity-details/schema');
+            for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
+                assert.equal(actual.status, 200, label);
+                assert.deepEqual(actual.body.required, ['greeting'], label);
+                assert.deepEqual(actual.body.properties.greeting.type, 'string', label);
+                assert.equal(actual.headers[correlationHeader], correlationId, label);
+            }
+        });
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });

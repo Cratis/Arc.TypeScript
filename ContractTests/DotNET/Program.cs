@@ -32,7 +32,7 @@ builder.Services.AddAuthentication("Fixture")
     .AddScheme<AuthenticationSchemeOptions, HttpFixture.FixtureAuthentication>("Fixture", _ => { });
 builder.AddCratisArc(configureOptions: options =>
 {
-    options.IdentityDetailsProvider = typeof(DefaultIdentityDetailsProvider);
+    options.IdentityDetailsProvider = typeof(HttpFixture.FixtureIdentityProvider);
     options.ExposeExceptionDetails = false;
     options.GeneratedApis.RoutePrefix = "api";
     options.GeneratedApis.SegmentsToSkipForRoute = 1;
@@ -82,7 +82,8 @@ namespace HttpFixture
             {
                 return Task.FromResult(AuthenticateResult.Fail("Invalid fixture credential"));
             }
-            var claims = new[] { new Claim(ClaimTypes.NameIdentifier, "fixture-user"), new Claim(ClaimTypes.Role, parsed.ToString()) };
+            var claims = new[] { new Claim("sub", "fixture-user"), new Claim(ClaimTypes.Name, "fixture-user"),
+                new Claim(ClaimTypes.Role, parsed.ToString()) };
             var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
 
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));

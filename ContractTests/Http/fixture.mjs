@@ -85,12 +85,15 @@ const authentication = request => {
     if (role === null) return { status: AuthenticationStatus.Anonymous };
     if (role !== 'Reader' && role !== 'Admin') return { status: AuthenticationStatus.Failed };
     return { status: AuthenticationStatus.Authenticated, principal: {
-        id: 'fixture-user', roles: [role], isAuthenticated: true
+        id: 'fixture-user', name: 'fixture-user', roles: [role], isAuthenticated: true, claims: { sub: 'fixture-user' }
     } };
 };
 const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, queryCount, byId, all, privateItems],
-    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, generatedApis: { segmentsToSkipForRoute: 1 }
+    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false,
+    identityDetails: { schema: z.object({ greeting: z.string() }), provide: principal =>
+        principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
+    generatedApis: { segmentsToSkipForRoute: 1 }
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
