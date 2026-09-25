@@ -5,7 +5,7 @@ description: Serve model-bound queries from application-owned Drizzle databases 
 
 Your read models live in SQL tables. Every query needs the right database for the tenant, a page and a total count computed in SQL rather than in memory, sorting that a client cannot turn into SQL injection, and conversions for GUIDs, concepts, and dates. `@cratis/arc.drizzle` does that on top of [Drizzle](https://orm.drizzle.team), while your application keeps its schema, its migrations, and its connections.
 
-:::note[Source preview]
+:::caution[Source preview]
 `@cratis/arc.drizzle` is not published to npm. SQLite and PostgreSQL are exercised against real databases. MySQL uses the same query path but has **not** been run against a live MySQL server. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the status and the checks behind it.
 :::
 

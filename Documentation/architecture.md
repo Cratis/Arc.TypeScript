@@ -5,7 +5,7 @@ description: How Arc for TypeScript separates a framework-independent CQRS core 
 
 Arc for TypeScript is built so the same command and query code can run behind Express, Fastify, or Hono, with or without a database or an event store. This page explains the boundaries that make that possible and the places where TypeScript forces a different design from Arc on .NET.
 
-:::note[Unpublished source]
+:::caution[Source preview]
 Package names are working names, and APIs are not final. For what is supported today, see the [capability reference](reference/capabilities.md).
 :::
 

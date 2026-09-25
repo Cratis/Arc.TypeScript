@@ -3,8 +3,6 @@ title: Why Arc for TypeScript
 description: The endpoint plumbing Arc removes from a Node.js backend, who it is built for, what you get in return, and when a different approach fits better.
 ---
 
-## Every endpoint repeats the same plumbing
-
 A Node.js backend for a rich frontend writes the same shape for every operation: a route, a body parser, input checks that produce some error format, a call into a service, a status code, a response shape, an authorization check, a tenant lookup, and a typed client in the frontend that someone keeps in step by hand. Add live data and each list also needs its own server-sent events or WebSocket endpoint. None of that is the behavior you set out to write. It is the cost of getting a TypeScript class across HTTP.
 
 ## What Arc does instead

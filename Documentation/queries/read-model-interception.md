@@ -2,14 +2,12 @@
 title: Intercept read models
 description: Transform a read-model instance in each scoped snapshot and observable emission before it reaches the wire.
 ---
-<!-- Copyright (c) Cratis. All rights reserved.
-Licensed under the MIT license. See LICENSE file in the project root for full license information. -->
 
-When a query returns a read-model instance, register a scoped interceptor to
-transform its presentation once, rather than repeating the logic in each
-query. Arc runs it on ordinary query results, observable HTTP snapshots and
-**each** stream emission before encoding the model. This includes provider-owned
-`queryPage` items; totals and paging remain provider-owned.
+Several queries return the same read model, and each one has to trim or reshape it the same way before it leaves the server. Copying that logic into every query method means the next query forgets it. A read-model interceptor transforms the model once, for every query that returns it.
+
+Arc runs the interceptor on ordinary query results, on observable HTTP snapshots, and on **each** stream emission, before encoding the model. That includes the items of a provider-owned `queryPage`; totals and paging stay with the provider.
+
+## Write an interceptor
 
 ```ts
 import { ArcApplication, readModelInterceptor, type ReadModelInterceptor } from '@cratis/arc.core';
@@ -33,18 +31,23 @@ builder.add(PublicAccountName); // Or register a service and call addReadModelIn
 // Add your decorated read model and other services, then call builder.build().
 ```
 
-`@readModelInterceptor()` classes can also be loaded by `builder.discover()`;
-they default to a scoped service lifetime. Interceptors run in registration
-order and match the **exact runtime class**
-of each item. Return a replacement; do not mutate a model shared by another
-subscriber. The same scoped instance serves all emissions in one subscription
-and is disposed when that subscription closes. Failed interception fails the
-query/emission; it cannot silently return the original data.
+Return a replacement. Do not mutate a model that another subscriber may share.
 
-**Do not use this as authorization.** Check access before producing the model;
-interceptors do not apply to unrelated scalar values or plain objects of a
-different class. Unlike the current .NET `ObservableQueryHttp` path, TypeScript
-also intercepts observable HTTP snapshots to avoid a bypass through GET.
-For provider-owned paging see [query renderers](renderers.md).
+## How interceptors run
 
-See the [query pipeline](query-pipeline.md#result-stages) for where interceptors run relative to renderers, paging, and emission guards.
+- `builder.discover()` also loads `@readModelInterceptor()` classes. They default to a scoped service lifetime.
+- Interceptors run in registration order and match the **exact runtime class** of each item. They do not apply to unrelated scalar values or to plain objects of a different class.
+- The same scoped instance serves every emission in one subscription and is disposed when that subscription closes.
+- A failed interception fails the query or the emission. It cannot silently return the original data.
+- Unlike the current .NET `ObservableQueryHttp` path, TypeScript also intercepts observable HTTP snapshots, so a GET cannot bypass the interceptor.
+
+The [query pipeline](query-pipeline.md#result-stages) shows where interceptors run relative to renderers, paging, and emission guards.
+
+:::caution[Not authorization]
+An interceptor shapes data a caller is already allowed to see. Check access before the model is produced, in the query's authorization or inside the query method.
+:::
+
+## Next steps
+
+- [Render provider-backed queries](renderers.md) covers provider-owned paging, which runs before interceptors.
+- [Authorizing commands and queries](../authorizing-commands-and-queries.md#queries-roles-and-ownership) shows how to restrict which rows a caller receives.

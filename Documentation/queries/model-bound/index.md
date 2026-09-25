@@ -93,7 +93,7 @@ With generated metadata, Arc also checks the value against the declared return t
 
 A query that returns a live source serves a snapshot on GET and streams changes to subscribers. With generated metadata, Arc infers this from the declared return type, as it does for `observeAllTasks`. Without it, add `{ observable: true }`: `@query({ observable: true }, service(Tasks))`. Arc needs to know before registration so snapshots, server-sent events, WebSocket admission, introspection, and generated clients agree on the contract. A snapshot query that returns a live source anyway fails at run time.
 
-Use an RxJS `BehaviorSubject` when there is always a current value, and `Subject` or `Observable` when there may not be one yet. [Observable queries](../observable-queries.md) covers sources, transports, paging, and authorization.
+Use an RxJS `BehaviorSubject` when there is always a current value, and `Subject` or `Observable` when there may not be one yet. [Observable queries](../observable-queries.md) covers sources, paging, and authorization, and [Subscribe to an observable query](../subscribing-to-observable-queries.md) covers the transports.
 
 ## Routes and identity
 

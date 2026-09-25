@@ -5,7 +5,7 @@ description: Serve model-bound queries from tenant-scoped MongoDB collections wi
 
 Your read models live in MongoDB, and every tenant has its own database. Wiring a client, choosing the database per request, mapping concepts and GUIDs to BSON, and turning a change stream into a live query is the same code in every service. `@cratis/arc.mongodb` supplies it: your model declares its fields once, and the collection maps them to BSON and returns instances of your model.
 
-:::note[Source preview]
+:::caution[Source preview]
 `@cratis/arc.mongodb` is optional and not published to npm. It uses the MongoDB 6 driver. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
 :::
 
