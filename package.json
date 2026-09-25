@@ -40,6 +40,7 @@
     "ci": "yarn tsc -b Source/Core Source/Testing Source/Chronicle Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
   },
   "devDependencies": {
+    "@cratis/arc.react": "22.19.1",
     "@cratis/fundamentals": "7.19.6",
     "@eslint/js": "^10.0.1",
     "@opentelemetry/api": "^1.9.0",
@@ -65,6 +66,7 @@
     "eslint": "^10.11.0",
     "markdownlint-cli2": "^0.20.0",
     "mocha": "^11.7.5",
+    "react": "18.3.1",
     "sinon": "^21.0.0",
     "sinon-chai": "^4.0.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",

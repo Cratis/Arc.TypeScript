@@ -2442,6 +2442,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "arc-typescript-workspace@workspace:."
   dependencies:
+    "@cratis/arc.react": "npm:22.19.1"
     "@cratis/fundamentals": "npm:7.19.6"
     "@eslint/js": "npm:^10.0.1"
     "@opentelemetry/api": "npm:^1.9.0"
@@ -2467,6 +2468,7 @@ __metadata:
     eslint: "npm:^10.11.0"
     markdownlint-cli2: "npm:^0.20.0"
     mocha: "npm:^11.7.5"
+    react: "npm:18.3.1"
     sinon: "npm:^21.0.0"
     sinon-chai: "npm:^4.0.1"
     typescript: "npm:@typescript/typescript6@^6.0.2"
