@@ -7,11 +7,13 @@ With the aggregate defined, a command asks Arc for it by type. Arc loads it for 
 
 ## Bind the aggregate
 
-```typescript title="Features/AddItemToOrder.ts"
-import { field } from '@cratis/fundamentals';
+Add the command to the slice file that holds `Order` and `ItemAdded`, and extend its imports:
+
+```typescript title="Features/Orders/Adding/Adding.ts (excerpt)"
 import { command, inject, key, rejected, validation } from '@cratis/arc.core';
-import { commandAggregate } from '@cratis/arc.chronicle';
-import { Order } from './Order.js';
+import { AggregateRoot, commandAggregate } from '@cratis/arc.chronicle';
+
+// ItemAdded, OrderLimitExceeded, and Order as defined before.
 
 @command()
 export class AddItemToOrder {
@@ -29,8 +31,9 @@ export class AddItemToOrder {
 }
 ```
 
+Register the command and the event type:
+
 ```typescript title="main.ts"
-import 'reflect-metadata';
 import { ArcApplication } from '@cratis/arc.core';
 import '@cratis/arc.chronicle';
 import { metadata } from './Features/generatedMetadata.js';
@@ -43,7 +46,7 @@ const application = await builder.build();
 await application.run();
 ```
 
-`Order` and `ItemAdded` come from [Defining an aggregate root](defining-an-aggregate-root.md). Keep those exports and `AddItemToOrder` in `Features/`. Generate `Features/generatedMetadata.ts` and client proxies with the [proxy generator](../../proxy-generation/getting-started.md) before running the application. Point `--artifacts` at `Features/` and `--metadata` at `Features/generatedMetadata.ts`, using absolute paths as in the linked generator script. `discover()` registers the exported command and event type after `withChronicle`. The aggregate class itself is not registered; `commandAggregate(Order)` is enough. The development connection string needs a running local Chronicle kernel; see [Add event sourcing](../add-event-sourcing.md) for other environments.
+`Order` and `ItemAdded` come from [Defining an aggregate root](defining-an-aggregate-root.md). Keep those exports and `AddItemToOrder` in `Features/`. Generate `Features/generatedMetadata.ts` and client proxies with the [proxy generator](../../proxy-generation/getting-started.md) before running the application. Point `--artifacts` at `Features/` and `--metadata` at `Features/generatedMetadata.ts`, using absolute paths as in the linked generator script. `discover()` registers the exported command and event type after `withChronicle`. The aggregate class itself is not registered; `commandAggregate(Order)` is enough. The development connection string needs a running local Chronicle kernel; [Add event sourcing](../add-event-sourcing.md) starts one, and [Registration options](../registration-options.md) covers other environments.
 
 Executing `AddItemToOrder` for an empty order appends one `ItemAdded`. The next execution for the same `id` replays that event, so `quantity` starts from the stored total, and the rule is checked against it.
 

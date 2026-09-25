@@ -388,6 +388,7 @@ yarn workspace my-arc-app dev
 
 ## Next steps
 
+- [Add event sourcing](../chronicle/add-event-sourcing.md) continues with this project: it starts a local Chronicle kernel and records a first event from a command.
 - [Your first command](your-first-command.md) explains concept validators, read models, and a spec, using the Tasks sample.
 - [Set up proxy generation](../proxy-generation/getting-started.md) points the generator at a React frontend and installs the client packages the proxies import.
 - [Testing](../testing/index.md) runs commands and queries through Arc's pipelines in a spec, without a listener. It needs `@cratis/arc.testing`, packed like the core.

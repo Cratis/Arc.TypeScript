@@ -7,7 +7,9 @@ An aggregate root holds the state one event source's history implies, and the me
 
 ## Define the events and the aggregate
 
-```typescript title="Features/Order.ts"
+The aggregate belongs to the slice whose command uses it. Put it in that slice file, next to the event it applies; [Injecting into commands](injecting-into-commands.md) adds the command to the same file:
+
+```typescript title="Features/Orders/Adding/Adding.ts"
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { AggregateRoot } from '@cratis/arc.chronicle';
@@ -47,6 +49,8 @@ export class Order extends AggregateRoot {
 ```
 
 `Order` keeps one piece of state, the total quantity. `canAdd` answers the rule against that state, `addItem` guards it, and `apply()` records the change. The explicit `'ItemAdded'` ID keeps the stored event type stable even if a bundler renames the class; without it, the SDK uses the class name.
+
+When a second slice needs the same aggregate, for example `Features/Orders/Removing/` with a `RemoveItemFromOrder` command, move `Order` and the events it handles one level up, to `Features/Orders/Order.ts`, and import them from both slice files. That is where [vertical slices](../../vertical-slices.md) keep what several slices share.
 
 ## Register handlers by event class
 

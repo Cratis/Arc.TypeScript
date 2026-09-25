@@ -37,7 +37,7 @@ For a low-level `defineCommand` or `defineQuery`, write `authorization: { policy
 
 ## How declarations combine
 
-One declaration's roles are alternatives (OR). Stacked `@authorize` or `@roles` decorators are separate requirements that must all pass (AND). A declaration on a `@query()` method replaces the read-model class declaration. `@allowAnonymous()` cannot share a declaration with an authenticated requirement. [Authorizing commands and queries](../authorizing-commands-and-queries.md) covers the decorators and the order of checks.
+One declaration's roles are alternatives (OR). Stacked `@authorize` or `@roles` decorators on the same class or method are separate requirements that must all pass (AND). An explicit declaration on a `@query()` method replaces, rather than combines with, the read-model class declaration; otherwise the method inherits the class's. Command authorization is class-only: decorating `handle()`, `provide()`, or another command method fails at build. `@allowAnonymous()` cannot share a declaration with an authenticated requirement. [Authorizing commands and queries](../authorizing-commands-and-queries.md) covers the decorators and the order of checks.
 
 ## Work with claims
 

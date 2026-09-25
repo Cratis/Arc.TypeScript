@@ -84,7 +84,8 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     if (declaration.result?.cardinality === 'paged' && declaration.observable)
         throw new Error(`Query ${type.name}.${name} cannot return an observable page`);
     const { shape, services } = inputFor(type, name, parameters);
-    const authorization = metadata.methodAuthorization?.get(name) ?? metadata.authorization;
+    const methodAuthorization = metadata.methodAuthorization?.get(name);
+    const authorization = methodAuthorization ?? metadata.authorization;
     if (authorization?.anonymous && (authorization.authenticated || authorization.roles?.length))
         throw new Error(`Conflicting Arc authorization: ${type.name}.${name}`);
     const perform = async (input: unknown, options: QueryOptions): Promise<unknown> => {
