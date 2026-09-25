@@ -55,7 +55,7 @@ It runs, in order:
 1. ESLint (`yarn lint`).
 2. The type check (`yarn typecheck`): `tsc -b` for every package, then `tsc -p tsconfig.specs.json` for the specs.
 3. The build (`yarn build`).
-4. The installed-package check (`yarn check:consumers`): packs all ten non-private workspaces, installs them with lockfile-pinned peers outside the workspace, checks tarball contents and dependencies, type-checks NodeNext and Bundler consumers, and runs native ESM HTTP and CLI probes. Run `yarn check:consumers --self-test` to confirm it rejects a planted forbidden file. No package is published.
+4. The installed-package check (`yarn check:consumers`): packs all ten non-private workspaces, installs them with lockfile-pinned peers outside the workspace, checks tarball contents and dependencies, type-checks NodeNext and Bundler consumers, and runs native ESM HTTP and CLI probes. Core is also checked without optional RxJS. Chronicle and Drizzle use a separate type-check with `skipLibCheck: true` for documented upstream declaration errors; all other consumer files use `skipLibCheck: false`. Run `yarn check:consumers --self-test` to confirm it rejects a planted forbidden file. No package is published.
 5. The client generation checks (`yarn test:client-generation:verify`): a strict `Bundler` compile of the proxy fixtures with `skipLibCheck: false`, then the generation tests with Node.js. Run `yarn test:client-generation` on its own to build first.
 6. The Vitest specs (`yarn test`), including the MongoDB unit specs and the Chronicle specs, which use typed substitutes and never start a Chronicle kernel.
 7. The legacy-decorator and decorator-type contract checks (`yarn test:legacy-decorators`, `yarn test:decorator-types`).

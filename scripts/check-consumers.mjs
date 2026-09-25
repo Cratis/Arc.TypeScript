@@ -158,7 +158,7 @@ try {
     writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
     const peers = new Set(['@types/node', 'typescript', 'rxjs', '@cratis/fundamentals', '@cratis/chronicle',
         'express', 'fastify', 'hono', '@hono/node-server', 'mongodb', 'drizzle-orm', '@opentelemetry/api',
-        'zod', 'eslint', '@typescript-eslint/parser', '@types/express']);
+        'zod', 'eslint', '@typescript-eslint/parser', '@types/express', '@types/ws']);
     for (const { manifest } of packages) for (const name of Object.keys(manifest.peerDependencies ?? {})) {
         if (!packages.some(entry => entry.manifest.name === name)) peers.add(name);
     }
@@ -174,26 +174,13 @@ try {
     }
     const imports = packages.flatMap(({ manifest }) => Object.keys(manifest.exports).map(entry =>
         entry === '.' ? manifest.name : `${manifest.name}/${entry.slice(2)}`));
-    const source = `
+    const smoke = `
 import { ArcApplication, command, readModel, query, runArc } from '@cratis/arc.core';
-import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
 import { field } from '@cratis/fundamentals';
-import { mountExpress } from '@cratis/arc.express';
-import { mountFastify } from '@cratis/arc.fastify';
-import { mountHono } from '@cratis/arc.hono';
-import { addMongoDB } from '@cratis/arc.mongodb';
-import { addDrizzle } from '@cratis/arc.drizzle';
-import { addChronicle } from '@cratis/arc.chronicle';
-import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
-import { CommandScenario, QueryScenario } from '@cratis/arc.testing';
-import { analyzeSource } from '@cratis/arc.proxygenerator';
-import plugin from '@cratis/eslint-plugin-arc-core';
-void [attachNodeWebSockets, mountExpress, mountFastify, mountHono, addMongoDB, addDrizzle,
-    addChronicle, ChronicleCommandScenario, CommandScenario, QueryScenario, analyzeSource, plugin];
 @command()
 class Echo { @field(String) message!: string; handle(): string { return this.message; } }
 @readModel()
-class Greeting { @query() static all(): string { return 'hello'; } }
+class Greeting { @query() static all(): { message: string } { return { message: 'hello' }; } }
 const builder = ArcApplication.createBuilder({ development: true });
 builder.add(Echo, Greeting);
 const app = await builder.build();
@@ -207,17 +194,53 @@ try {
     const commandResult = await response.json() as { response: string };
     if (!response.ok || commandResult.response !== 'packed') throw new Error('Packed command HTTP failed: ' + JSON.stringify(commandResult));
     const queryResponse = await fetch(url + '/api/all');
-    const queryResult = await queryResponse.json() as { data: string };
-    if (!queryResponse.ok || queryResult.data !== 'hello') throw new Error('Packed query HTTP failed: ' + JSON.stringify(queryResult));
+    const queryResult = await queryResponse.json() as { data: { message: string } };
+    if (!queryResponse.ok || queryResult.data?.message !== 'hello') throw new Error('Packed query HTTP failed: ' + JSON.stringify(queryResult));
     console.log('Native ESM command and query HTTP passed');
 } finally { await listener.close(); await app.dispose(); }
+`;
+    const strictImports = `
+import type { ArcApplicationBuilder } from '@cratis/arc.core';
+import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
+import express from 'express';
+import fastify from 'fastify';
+import { Hono } from 'hono';
+import { mountExpress } from '@cratis/arc.express';
+import { mountFastify } from '@cratis/arc.fastify';
+import { mountHono } from '@cratis/arc.hono';
+import { addMongoDB, type MongoDBOptions } from '@cratis/arc.mongodb';
+import { CommandScenario, QueryScenario } from '@cratis/arc.testing';
+import { analyzeSource } from '@cratis/arc.proxygenerator';
+import plugin from '@cratis/eslint-plugin-arc-core';
+void [attachNodeWebSockets, CommandScenario, QueryScenario, analyzeSource, plugin];
+function configureMongo(builder: ArcApplicationBuilder, options: MongoDBOptions) { addMongoDB(builder, options); }
+void configureMongo;
+const adapterApp = await ArcApplication.createBuilder().build();
+try {
+    mountExpress(express(), adapterApp);
+    const fastifyHost = fastify();
+    mountFastify(fastifyHost, adapterApp);
+    await fastifyHost.close();
+    mountHono(new Hono(), adapterApp);
+} finally { await adapterApp.dispose(); }
+`;
+    const looseSource = `
+import type { ArcApplicationBuilder } from '@cratis/arc.core';
+import { addDrizzle, type DrizzleOptions } from '@cratis/arc.drizzle';
+import { addChronicle, type ChronicleRegistration } from '@cratis/arc.chronicle';
+import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
+function configureIntegrations(builder: ArcApplicationBuilder, sql: DrizzleOptions, events: ChronicleRegistration) {
+    addDrizzle(builder, sql);
+    addChronicle(builder, events);
+}
+void [configureIntegrations, ChronicleCommandScenario];
 `;
     const compiler = JSON.parse(readFileSync(join(consumer, 'node_modules', 'typescript', 'package.json'), 'utf8'));
     const compilerBin = Object.values(compiler.bin)[0];
     for (const [mode, filename, module] of [['NodeNext', 'consumer.mts', 'NodeNext'], ['Bundler', 'consumer.ts', 'ESNext']]) {
         const directory = join(consumer, mode);
         mkdirSync(directory);
-        writeFileSync(join(directory, filename), source);
+        writeFileSync(join(directory, filename), strictImports + smoke);
         writeFileSync(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
             module, moduleResolution: mode === 'NodeNext' ? 'NodeNext' : 'Bundler', target: 'ES2022', strict: true,
             skipLibCheck: false, types: ['node'], outDir: 'out', noEmit: mode === 'Bundler'
@@ -225,11 +248,65 @@ try {
         run(process.execPath, [join(consumer, 'node_modules', 'typescript', compilerBin), '-p', directory], consumer);
         console.log(`${mode} installed-package consumer type-check passed`);
     }
+    const looseDirectory = join(consumer, 'integrations');
+    mkdirSync(looseDirectory);
+    writeFileSync(join(looseDirectory, 'integrations.mts'), looseSource);
+    const looseConfig = { compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext', target: 'ES2022',
+        strict: true, skipLibCheck: false, noEmit: true, types: ['node'] }, files: ['integrations.mts'] };
+    writeFileSync(join(looseDirectory, 'tsconfig.json'), JSON.stringify(looseConfig));
+    const compilerCommand = join(consumer, 'node_modules', 'typescript', compilerBin);
+    const strictIntegrations = spawnSync(process.execPath, [compilerCommand, '-p', looseDirectory, '--pretty', 'false'],
+        { cwd: consumer, encoding: 'utf8' });
+    if (strictIntegrations.error) throw strictIntegrations.error;
+    const diagnostics = `${strictIntegrations.stdout}${strictIntegrations.stderr}`.split('\n').filter(line => /error TS\d+:/.test(line));
+    const external = diagnostics.filter(line => /^node_modules\/(?:@cratis\/chronicle(?:\.contracts)?|drizzle-orm)\//.test(line));
+    const unexpected = diagnostics.filter(line => !external.includes(line));
+    if (strictIntegrations.status !== 2 || unexpected.length ||
+        !external.some(line => line.includes('@cratis/chronicle.contracts/') && line.includes('TS2834')) ||
+        !external.some(line => line.includes('drizzle-orm/') && line.includes('TS2420'))) {
+        throw new Error(`Unrecognized installed declaration diagnostics (status ${strictIntegrations.status}):\n${strictIntegrations.stdout}${strictIntegrations.stderr}`);
+    }
+    // Only the two integration graphs have external declaration failures; their consumer source is still checked.
+    console.log(`Upstream declaration errors (${external.length}); no Arc declaration or consumer errors:`);
+    console.log(external.filter(line => line.includes('@cratis/chronicle.contracts/') ||
+        line.includes('drizzle-orm/pg-core/query-builders/query.d.ts') ||
+        line.includes('drizzle-orm/gel-core/columns/date-duration.d.ts')).join('\n'));
+    looseConfig.compilerOptions.skipLibCheck = true;
+    writeFileSync(join(looseDirectory, 'tsconfig.json'), JSON.stringify(looseConfig));
+    run(process.execPath, [compilerCommand, '-p', looseDirectory], consumer);
+    console.log('NodeNext Chronicle and Drizzle consumer type-check passed with skipLibCheck: true');
+    const looseBundler = join(consumer, 'integrations-bundler');
+    mkdirSync(looseBundler);
+    writeFileSync(join(looseBundler, 'integrations.ts'), looseSource);
+    writeFileSync(join(looseBundler, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+        module: 'ESNext', moduleResolution: 'Bundler', target: 'ES2022', strict: true,
+        skipLibCheck: true, noEmit: true, types: ['node']
+    }, files: ['integrations.ts'] }));
+    run(process.execPath, [compilerCommand, '-p', looseBundler], consumer);
+    console.log('Bundler Chronicle and Drizzle consumer type-check passed with skipLibCheck: true');
     run(process.execPath, [join(consumer, 'NodeNext', 'out', 'consumer.mjs')], consumer);
     run(process.execPath, [join(consumer, 'node_modules', '@cratis', 'arc.proxygenerator', 'dist', 'cli.js'), '--help'], consumer);
     run(process.execPath, ['--input-type=module', '-e', `
         for (const entry of ${JSON.stringify(imports)}) await import(entry);
         console.log('Native ESM imports passed: ${imports.length} entries');
     `], consumer);
+    const noRx = join(temporary, 'without-rxjs');
+    mkdirSync(noRx);
+    writeFileSync(join(noRx, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
+    const core = packages.find(entry => entry.manifest.name === '@cratis/arc.core');
+    if (!core) throw new Error('Missing core package');
+    run('npm', ['install', '--ignore-scripts', '--omit=optional', '--no-audit', '--no-fund', '--no-package-lock',
+        tarballs[packages.indexOf(core)], ...['@cratis/fundamentals', '@opentelemetry/api', '@types/node', 'typescript']
+            .map(name => `${name}@${lockedVersion(name)}`)], noRx);
+    if (existsSync(join(noRx, 'node_modules', 'rxjs'))) throw new Error('No-rxjs consumer unexpectedly installed rxjs');
+    writeFileSync(join(noRx, 'consumer.mts'), smoke);
+    writeFileSync(join(noRx, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+        module: 'NodeNext', moduleResolution: 'NodeNext', target: 'ES2022', strict: true,
+        skipLibCheck: false, types: ['node'], outDir: 'out'
+    }, files: ['consumer.mts'] }));
+    const noRxCompiler = JSON.parse(readFileSync(join(noRx, 'node_modules', 'typescript', 'package.json'), 'utf8'));
+    run(process.execPath, [join(noRx, 'node_modules', 'typescript', Object.values(noRxCompiler.bin)[0]), '-p', noRx], noRx);
+    run(process.execPath, [join(noRx, 'out', 'consumer.mjs')], noRx);
+    console.log('Core installed without optional rxjs: strict NodeNext and native HTTP passed');
     }
 } finally { rmSync(temporary, { recursive: true, force: true }); }
