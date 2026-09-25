@@ -3,7 +3,7 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { fromEvent } from '@cratis/chronicle/projections';
-import { command, key, query, readModel, service } from '@cratis/arc.core';
+import { command, commandReadModel, inject, key, query, readModel, service } from '@cratis/arc.core';
 import { ChronicleReadModels } from '../../../ChronicleReadModels.js';
 
 @eventType()
@@ -23,4 +23,10 @@ export class Item {
 
     @query(service(ChronicleReadModels))
     static all(models: ChronicleReadModels): Promise<Item[]> { return models.getAll(Item); }
+}
+
+@command()
+export class ReadItem {
+    @field(String) @key() id = '';
+    @inject(commandReadModel(Item)) handle(item: Item): string { return item.name; }
 }

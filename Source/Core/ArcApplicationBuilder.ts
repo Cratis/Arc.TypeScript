@@ -106,7 +106,9 @@ export class ArcApplicationBuilder {
     /** Admit and observe integration-owned artifacts, including types discovered before the observer was added. */
     addArtifactObserver(observer: (type: ClassType) => boolean): this {
         this.#artifactObservers.push(observer);
-        for (const type of this.#observedTypes) observer(type);
+        withGeneratedMetadata(this.generatedMetadata, () => {
+            for (const type of this.#observedTypes) observer(type);
+        });
         return this;
     }
     /** Wrap validated command execution in an ordered asynchronous context. */
@@ -150,23 +152,31 @@ export class ArcApplicationBuilder {
         });
     }
     protected register(type: ClassType, namespace: string): boolean {
-        this.#observedTypes.add(type);
         let external = false;
         for (const observer of this.#artifactObservers) if (observer(type)) external = true;
         const metadata = ownMetadata(type);
         if (isIdentityDetailsProvider(type)) {
             if (!this.#identityProviders.includes(type)) this.#identityProviders.push(type);
+            this.#observedTypes.add(type);
             return true;
         }
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget && !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor) return external;
+        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget &&
+            !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor) {
+            if (external) this.#observedTypes.add(type);
+            return external;
+        }
         const effective = metadata.namespace ?? namespace;
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
             throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
         }
-        if (previous !== undefined) return true;
+        if (previous !== undefined) {
+            this.#observedTypes.add(type);
+            return true;
+        }
         this.#namespaces.set(type, effective);
         this.#artifacts.push({ type, namespace: effective });
+        this.#observedTypes.add(type);
         return true;
     }
     /** File discovery is supported only by the Node entry. */
