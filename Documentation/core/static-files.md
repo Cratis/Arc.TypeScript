@@ -7,7 +7,7 @@ A single-page application and its API often ship together. The standalone Node h
 
 ## Serve a public directory
 
-```typescript title="main.ts"
+```typescript title="main.ts (excerpt)"
 await app.run({
     port: 3000,
     host: '127.0.0.1',

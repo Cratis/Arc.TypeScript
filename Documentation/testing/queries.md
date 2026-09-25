@@ -36,7 +36,7 @@ describe('when performing the tasks query with sorting and paging', given(a_task
 
 Its context creates the scenarios:
 
-```typescript title="for_TaskItem/given/a_task_listing.ts"
+```typescript title="Features/Tasks/Listing/for_TaskItem/given/a_task_listing.ts"
 import { ObservableQueryScenario, QueryScenario } from '@cratis/arc.testing';
 import { Tasks } from '../../../Tasks.js';
 import { TaskItem } from '../../Listing.js';

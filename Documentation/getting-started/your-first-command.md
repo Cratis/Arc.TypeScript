@@ -1,6 +1,6 @@
 ---
 title: Your first command
-description: Walk through the Tasks sample's concepts, command, validators, read model, bootstrap, and spec, and see what Arc does with each decorator.
+description: Walk through the Tasks sample's concepts, command, validators, read model, entry point, and spec, and see what Arc does with each decorator.
 ---
 
 The [Get started](index.md) page ran the Tasks sample from the outside: a command stored a task, a rule refused an empty title, and a query served the result. None of that needed a route, a body parser, or an error mapper. This page opens the sample up so you can see which few lines produced each behavior.
@@ -122,7 +122,7 @@ Generated metadata binds `id` from the query string and `Tasks` from the service
 
 ## Wire it together
 
-The [Tasks entry point](index.md#see-what-started-the-server) registers the service, installs generated metadata, discovers the decorated classes, and starts the host. Keep that single bootstrap alongside the sample instead of copying it into another application.
+The [Tasks entry point](index.md#see-what-started-the-server) registers the service, installs generated metadata, discovers the decorated classes, and starts the host. Get started shows the complete `main.ts`; use it to see how the sample starts.
 
 `discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` to enable development discovery. Exception details instead follow `Cratis:Arc:ExposeExceptionDetails`, which defaults on only in a Development environment; keep it off on public hosts.
 

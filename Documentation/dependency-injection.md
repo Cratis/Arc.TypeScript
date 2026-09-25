@@ -9,7 +9,14 @@ Arc for TypeScript does not integrate with another dependency injection containe
 
 ## Register services
 
-The [Tasks bootstrap](getting-started/index.md#see-what-started-the-server) registers `Tasks` as a singleton shared by its command and queries. It installs generated metadata before discovering the artifacts, then builds the application.
+The [Tasks bootstrap](getting-started/index.md#see-what-started-the-server) registers `Tasks` as a singleton shared by its command and queries. It installs generated metadata before discovering the artifacts, then builds the application:
+
+```typescript title="main.ts (excerpt)"
+import { ArcApplication } from '@cratis/arc.core';
+import { Tasks } from './Features/Tasks/Tasks.js';
+const builder = ArcApplication.createBuilder();
+builder.services.addSingleton(Tasks);
+```
 
 | Registration | Lifetime |
 | --- | --- |
