@@ -6,7 +6,6 @@ import type { QueryOptions } from './queries/QueryOptions.js';
 import type { QueryResult } from './queries/QueryResult.js';
 import type { ArcOptions } from './ArcOptions.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
-import { withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
 import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
 import type { ClassType } from './reflection/ClassType.js';
 import { encode } from './reflection/wireSchema.js';
@@ -21,10 +20,11 @@ import { queryResult } from './queries/createQueryResult.js';
 import { recordFailure } from './execution/failureTracking.js';
 import { Severity } from './validation/Severity.js';
 import { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
-import { withServices } from './dependencyInjection/ServiceScope.js';
 import { requestContext } from './execution/RequestContextStore.js';
 import { isObservableOperation } from './queries/observable/ObservableOperation.js';
 import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
+import { runOwned } from './execution/runOwned.js';
+import { disposeObservableServer } from './queries/observable/disposeObservableServer.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { ObservableSessions } from './queries/observable/ObservableSessions.js';
 import { ObservableLimits } from './queries/observable/ObservableLimits.js';
@@ -77,38 +77,9 @@ export class ArcServer {
         registerObservableCleanup(this, this.#sessions);
     }
 
-    /** Complete both provider and operation executions through the same scope and registry shutdown boundary. */
-    private async runOwned<T>(context: ExecutionContext, callback: () => T | Promise<T>,
-        isSuccess: (value: T) => boolean, fail: (error: unknown, previous?: T) => T): Promise<T> {
-        const scope = this.services.createScope(context);
-        return withGeneratedMetadata(this.#generatedMetadata, () => this.services.runExecution(() => requestContext.run(context, () => withServices(scope, async () => {
-            let result: T;
-            try { result = await callback(); }
-            catch (error) { result = fail(error); }
-            try { await scope.dispose(); }
-            catch (error) { result = fail(error, result); }
-            if (isSuccess(result) && this.services.singletonFailed)
-                result = fail(new Error('Service registry is disposed'), result);
-            return result;
-        })), async (initial, hasLivingAncestor) => {
-            let result = initial;
-            const checkAvailability = (): void => {
-                if (isSuccess(result) && this.services.singletonFailed)
-                    result = fail(new Error('Service registry is disposed'), result);
-            };
-            checkAvailability();
-            if (this.services.singletonFailed && !hasLivingAncestor) {
-                try { await this.services.dispose(); }
-                catch (error) { result = fail(error, result); }
-            }
-            checkAvailability();
-            return result;
-        }));
-    }
-
     private async runProvider<T>(context: ExecutionContext, callback: () => T | Promise<T>): Promise<T> {
         type Outcome = { failed: false; value: T } | { failed: true; error: unknown };
-        const outcome = await this.runOwned<Outcome>(context, async () => {
+        const outcome = await runOwned<Outcome>(this.services, this.#generatedMetadata, context, async () => {
             try { return { failed: false, value: await callback() }; }
             catch (error) { return { failed: true, error }; }
         }, value => !value.failed, (error, previous) => ({ failed: true, error: previous?.failed
@@ -121,7 +92,7 @@ export class ArcServer {
         mode = OperationMode.Execute): Promise<CommandResult | QueryResult> {
         if (operation.kind === 'command' && CommandOperationBoundary.attempt(this))
             return Promise.resolve(commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
-        const run = () => this.runOwned(context, async () => {
+        const run = () => runOwned(this.services, this.#generatedMetadata, context, async () => {
             try {
                 if (mode === OperationMode.Validate) return await operation.validateCommand!(input, context);
                 return await operation.run(input, context, options);
@@ -148,33 +119,9 @@ export class ArcServer {
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
     }
 
+    /** Close observable sessions and owned services. */
     async dispose(): Promise<void> {
-        this.#sessions.markDisposed();
-        const activeHubConnections = this.#hub.connections.length;
-        const hubClosing = this.#hub.dispose();
-        const closing = this.closeWebSockets?.();
-        const sessions = this.#sessions.sessions;
-        if (!sessions.length && !closing && !activeHubConnections) {
-            if (this.#ownsServices) await this.services.dispose();
-            return;
-        }
-        const failures: unknown[] = [];
-        if (activeHubConnections) {
-            try { await hubClosing; }
-            catch (error) { failures.push(error); }
-        }
-        if (closing) {
-            try { await closing; }
-            catch (error) { failures.push(error); }
-        }
-        const outcomes = await Promise.allSettled(sessions.map(session => session.close()));
-        failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown));
-        if (this.#ownsServices) {
-            try { await this.services.dispose(); }
-            catch (error) { failures.push(error); }
-        }
-        if (failures.length === 1) throw failures[0];
-        if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
+        return disposeObservableServer(this.#hub, this.#sessions, this.closeWebSockets, this.services, this.#ownsServices);
     }
 
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */
