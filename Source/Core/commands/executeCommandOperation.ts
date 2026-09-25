@@ -72,7 +72,7 @@ async function preflight<S extends z.ZodType, T>(definition: CommandDefinition<S
 
 async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, value: z.output<S>, context: CommandContext,
     scopes: CommandExecutionScope[], options: ArcOptions): Promise<{
-        result: CommandResult; journal?: CommandOperationExecution; prepared: boolean
+        result: CommandResult; journal?: CommandOperationExecution; prepared: boolean; failure?: { error: unknown }
     }> {
     throwIfCanceled(context, 'Command canceled');
     await prepareDependencies(definition.handlerDependencies);
@@ -105,9 +105,8 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
     throwIfCanceled(context, 'Command canceled');
     const handled = await definition.handle(value, context, provided);
     throwIfCanceled(context, 'Command canceled');
-    const { result: response, journal } = await prepareCommandResponse(handled, context, scopes, options);
-    throwIfCanceled(context, 'Command canceled');
-    return { result: response, journal, prepared: true };
+    const { result: response, journal, failure } = await prepareCommandResponse(handled, context, scopes, options);
+    return { result: response, journal, prepared: true, failure };
 }
 
 async function completeScopes<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, context: CommandContext,
@@ -159,6 +158,8 @@ export async function executeCommandOperation<S extends z.ZodType, T>(definition
         try {
             const handled = await handle(definition, value, context, scopes, options);
             ({ result, journal } = handled);
+            if (handled.failure) throw handled.failure.error;
+            throwIfCanceled(context, 'Command canceled');
             if (handled.prepared) {
                 if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
                 if (definition.clientOutput && result.isSuccess)
