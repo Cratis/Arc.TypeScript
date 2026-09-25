@@ -1,7 +1,10 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export { mongoCollection } from './collectionToken.js';
-export { withMongoDB, mongoClientFactory } from './withMongoDB.js';
+export { withMongoDB, mongoClientFactory, mongoDBWatcher } from './withMongoDB.js';
+export { MongoDBWatcher, MongoDBObserveBuilder, MongoDBJoinedObserveBuilder, MongoDBThreeWayObserveBuilder } from './MongoDBWatcher.js';
+export { encodeGeometry, decodeGeometry } from './MongoGeoJSON.js';
+export type { MongoGeometry } from './MongoGeoJSON.js';
 export { defaultMongoNamingPolicy, camelCaseMongoNamingPolicy } from './MongoNamingPolicy.js';
 export type { MongoNamingPolicy } from './MongoNamingPolicy.js';
 export { MongoClientFactory } from './MongoClientFactory.js';
