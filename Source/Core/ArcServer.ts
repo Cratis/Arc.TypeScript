@@ -24,6 +24,7 @@ import { requestContext } from './execution/RequestContextStore.js';
 import { isObservableOperation } from './queries/observable/ObservableOperation.js';
 import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import { runOwned } from './execution/runOwned.js';
+import { runProvider } from './execution/runProvider.js';
 import { disposeObservableServer } from './queries/observable/disposeObservableServer.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { ObservableSessions } from './queries/observable/ObservableSessions.js';
@@ -33,17 +34,24 @@ import type { ObservableSocket } from './queries/observable/ObservableSocket.js'
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
 import { observe } from './execution/observability.js';
+/** Get the execution context for the current request, if one exists. */
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 enum OperationMode { Execute, Validate }
+/** Arc command, query, and HTTP execution server. */
 export class ArcServer {
+    /** Registered command operations. */
     readonly commands: readonly Operation[];
+    /** Registered query operations. */
     readonly queries: readonly Operation[];
+    /** Operations keyed by HTTP route. */
     readonly routes: ReadonlyMap<string, Operation>;
     readonly #commandsByName: ReadonlyMap<string, Operation>;
     readonly #queriesByName: ReadonlyMap<string, Operation>;
     /** All root-owned endpoints and their allowed methods. Adapters use this for raw path dispatch. */
     readonly endpoints: ReadonlyMap<string, string>;
+    /** Server configuration. */
     readonly options: ArcOptions;
+    /** Root service registry. */
     readonly services: ServiceRegistry;
     /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
@@ -55,6 +63,7 @@ export class ArcServer {
     readonly #sessions: ObservableSessions;
     readonly #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
 
+    /** Initialize the server and its command, query, and observable pipelines. */
     constructor(options: ArcOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
         this.#generatedMetadata = generatedMetadata;
         const validated = validateOptions(options);
@@ -77,21 +86,11 @@ export class ArcServer {
         registerObservableCleanup(this, this.#sessions);
     }
 
-    private async runProvider<T>(context: ExecutionContext, callback: () => T | Promise<T>): Promise<T> {
-        type Outcome = { failed: false; value: T } | { failed: true; error: unknown };
-        const outcome = await runOwned<Outcome>(this.services, this.#generatedMetadata, context, async () => {
-            try { return { failed: false, value: await callback() }; }
-            catch (error) { return { failed: true, error }; }
-        }, value => !value.failed, (error, previous) => ({ failed: true, error: previous?.failed
-            ? new AggregateError([previous.error, error], 'Provider and cleanup failed') : error }));
-        if (outcome.failed) throw outcome.error;
-        return outcome.value;
-    }
-
     private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions,
         mode = OperationMode.Execute): Promise<CommandResult | QueryResult> {
         if (operation.kind === 'command' && CommandOperationBoundary.attempt(this))
-            return Promise.resolve(commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
+            return Promise.resolve(commandResult(context,
+                { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
         const run = () => runOwned(this.services, this.#generatedMetadata, context, async () => {
             try {
                 if (mode === OperationMode.Validate) return await operation.validateCommand!(input, context);
@@ -106,8 +105,10 @@ export class ArcServer {
             }
         }, result => result.isSuccess, (error, previous) => {
             const result = operation.kind === 'command'
-                ? commandResult(context, { ...previous, response: undefined, exceptionMessages: [...previous?.exceptionMessages ?? [], String(error)] })
-                : queryResult(context, { ...previous, data: undefined, exceptionMessages: [...previous?.exceptionMessages ?? [], String(error)] });
+                ? commandResult(context, { ...previous, response: undefined,
+                    exceptionMessages: [...previous?.exceptionMessages ?? [], String(error)] })
+                : queryResult(context, { ...previous, data: undefined,
+                    exceptionMessages: [...previous?.exceptionMessages ?? [], String(error)] });
             recordFailure(result, error, previous);
             return result;
         });
@@ -123,7 +124,6 @@ export class ArcServer {
     async dispose(): Promise<void> {
         return disposeObservableServer(this.#hub, this.#sessions, this.closeWebSockets, this.services, this.#ownsServices);
     }
-
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */
     queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }
 
@@ -169,6 +169,7 @@ export class ArcServer {
         if (!operation) throw new Error(`Unknown command: ${name}`);
         return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, OperationMode.Validate) as Promise<CommandResult>;
     }
+    /** Perform a registered query by its fully qualified name. */
     async performQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<QueryResult> {
         const operation = this.#queriesByName.get(name);
         if (!operation) throw new Error(`Unknown query: ${name}`);
@@ -179,11 +180,13 @@ export class ArcServer {
         finally { await session.close(); }
     }
 
-    async handle(request: Request, native?: NativeRequestContext | (() => NativeRequestContext | Promise<NativeRequestContext>)): Promise<Response | null> {
+    /** Dispatch a request through the shared HTTP pipeline. */
+    async handle(request: Request,
+        native?: NativeRequestContext | (() => NativeRequestContext | Promise<NativeRequestContext>)): Promise<Response | null> {
         return handleRequest(this, {
             identitySchema: this.#identitySchema,
             hubHttp: (incoming, context) => this.#hub.http(incoming, context),
-            runProvider: (context, callback) => this.runProvider(context, callback),
+            runProvider: (context, callback) => runProvider(this.services, this.#generatedMetadata, context, callback),
             runScoped: (operation, input, context, options) => this.runScoped(operation, input, context, options),
             validateCommand: (operation, input, context) => this.runScoped(operation, input, context, undefined,
                 OperationMode.Validate) as Promise<CommandResult>,
@@ -191,5 +194,6 @@ export class ArcServer {
             reserveSession: (session, context) => this.#sessions.reserveSession(session, context)
         }, request, native);
     }
+    /** Render the OpenAPI document for registered commands and queries. */
     openApi(): Record<string, unknown> { return renderOpenApi(this.commands, this.queries, this.options); }
 }

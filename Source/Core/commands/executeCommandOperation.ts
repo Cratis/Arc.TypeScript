@@ -33,24 +33,31 @@ function disposition(scopes: readonly CommandExecutionScope[], context: CommandC
 
 export function commandFailure(context: CommandContext, error: unknown, previous?: CommandResult): CommandResult {
     const result = commandResult(context, { isAuthorized: previous?.isAuthorized,
-        validationResults: [...previous?.validationResults ?? [], ...(error instanceof ServiceDependencyError ? dependencyFailure(error) : []),
-            ...(error instanceof ReadModelForCommandError ? [{ severity: 3, message: error.message, members: [], reason: 'rule' as const }] : [])],
+        validationResults: [...previous?.validationResults ?? [],
+            ...(error instanceof ServiceDependencyError ? dependencyFailure(error) : []),
+            ...(error instanceof ReadModelForCommandError ?
+                [{ severity: 3, message: error.message, members: [], reason: 'rule' as const }] : [])],
         authorizationFailureReason: previous?.authorizationFailureReason,
-        exceptionMessages: [...previous?.exceptionMessages ?? [], ...(error instanceof ReadModelForCommandError ? [] : [String(error)])],
+        exceptionMessages: [...previous?.exceptionMessages ?? [],
+            ...(error instanceof ReadModelForCommandError ? [] : [String(error)])],
         exceptionStackTrace: error instanceof Error ? error.stack ?? '' : previous?.exceptionStackTrace });
     recordFailure(result, error, previous);
     return result;
 }
 
-async function preflight<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, value: z.output<S>, context: CommandContext): Promise<CommandResult | undefined> {
+async function preflight<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, value: z.output<S>,
+    context: CommandContext): Promise<CommandResult | undefined> {
     try {
         await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
         const issues = await observe('cratis.arc.command.filter', context.correlationId,
-            { command_type: fullyQualifiedName(definition) }, () => validate([definition.validate, ...(definition.filters ?? [])], value, context));
+            { command_type: fullyQualifiedName(definition) }, () =>
+                validate([definition.validate, ...(definition.filters ?? [])], value, context));
         if (issues.length) return commandResult(context, { validationResults: issues });
     } catch (error) {
         if (context.signal.aborted) throw error;
-        const result = commandResult(context, { validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure() });
+        const result = commandResult(context, {
+            validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure()
+        });
         recordFailure(result, error);
         return result;
     }
@@ -69,16 +76,20 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
     if (definition.provide) {
         provided = await definition.provide(value, context);
         if (isOutcome(provided)) {
-            if (provided.kind === 'denied') result = commandResult(context, { isAuthorized: false, authorizationFailureReason: provided.reason });
+            if (provided.kind === 'denied') result = commandResult(context,
+                { isAuthorized: false, authorizationFailureReason: provided.reason });
             else if (provided.kind === 'validation') {
-                result = commandResult(context, { validationResults: provided.results.filter(item => item.severity > context.allowedSeverity) });
+                result = commandResult(context, {
+                    validationResults: provided.results.filter(item => item.severity > context.allowedSeverity)
+                });
                 provided = undefined;
             } else provided = provided.value;
         }
     }
     if (!result.isSuccess) return { result };
-    let journal: CommandOperationExecution | undefined;
-    ({ result, journal } = await prepareCommandResponse(await definition.handle(value, context, provided), context, scopes, options));
+    const prepared = await prepareCommandResponse(await definition.handle(value, context, provided), context, scopes, options);
+    ({ result } = prepared);
+    const journal = prepared.journal;
     if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
     if (definition.clientOutput && result.isSuccess) result.response = assertClientOutput(definition.clientOutput.output, result.response);
     return { result, journal };

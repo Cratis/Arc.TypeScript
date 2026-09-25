@@ -13,7 +13,8 @@ export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<Cla
     context: ExecutionContext, callback: () => T | Promise<T>, isSuccess: (value: T) => boolean,
     fail: (error: unknown, previous?: T) => T): Promise<T> {
     const scope = services.createScope(context);
-    return withGeneratedMetadata(metadata, () => services.runExecution(() => requestContext.run(context, () => withServices(scope, async () => {
+    return withGeneratedMetadata(metadata, () => services.runExecution(() =>
+        requestContext.run(context, () => withServices(scope, async () => {
         let result: T;
         try { result = await callback(); }
         catch (error) { result = fail(error); }
@@ -22,7 +23,7 @@ export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<Cla
         if (isSuccess(result) && services.singletonFailed)
             result = fail(new Error('Service registry is disposed'), result);
         return result;
-    })), async (initial, hasLivingAncestor) => {
+        })), async (initial, hasLivingAncestor) => {
         let result = initial;
         const checkAvailability = (): void => {
             if (isSuccess(result) && services.singletonFailed)

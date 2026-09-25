@@ -17,7 +17,8 @@ import { commandFailure, executeCommandOperation } from './executeCommandOperati
 enum CommandOperationMode { Execute, Validate }
 
 /** Compile a command into the shared direct and HTTP execution pipeline. */
-export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string, options: ArcOptions = {}): Operation {
+export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string,
+    options: ArcOptions = {}): Operation {
     const invoke = async (input: unknown, execution: ExecutionContext, mode: CommandOperationMode): Promise<CommandResult> => {
         if (!await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input))
             return commandResult(execution, { isAuthorized: false });
@@ -25,11 +26,16 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         if (!parsed.success) return commandResult(execution, { validationResults: malformed(execution) });
         const value = parsed.data;
         try {
-            if (definition.authorize && !await definition.authorize(value, execution)) return commandResult(execution, { isAuthorized: false });
-        } catch (error) { return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error); }
+            if (definition.authorize && !await definition.authorize(value, execution))
+                return commandResult(execution, { isAuthorized: false });
+        } catch (error) {
+            return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error);
+        }
         let context;
         try { context = await createCommandContext(definition.commandFactory?.(value) ?? value, execution, options); }
-        catch (error) { return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error); }
+        catch (error) {
+            return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error);
+        }
         const execute = () => executeCommandOperation(definition, value, context, options, mode === CommandOperationMode.Validate);
         return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
     };
