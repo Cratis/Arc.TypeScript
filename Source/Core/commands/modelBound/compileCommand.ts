@@ -11,7 +11,6 @@ import { commandServiceTokens, resolveCommandArguments } from './commandContextA
 import { encodeCommandResponse } from './encodeCommandResponse.js';
 import { providedType } from './provided.js';
 import { ownMetadata } from '../../reflection/ownMetadata.js';
-import { combineAuthorization } from '../../authorization/combineAuthorization.js';
 import { validateGeneratedReturn } from '../../reflection/validateGeneratedReturn.js';
 import type { ClassType } from '../../reflection/ClassType.js';
 import type { WireType } from '../../reflection/WireType.js';
@@ -46,14 +45,11 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     if (provideTokens.length !== provideCount)
         throw new Error(`Unbound provide parameters on ${type.name}.provide; use builder.useGeneratedMetadata(metadata) or @inject(...); default and rest parameters require explicit binding`);
     const schema = objectSchema(type as WireType);
-    const methodAuthorization = metadata.methodAuthorization?.get('handle');
-    const authorization = methodAuthorization?.anonymous ? methodAuthorization :
-        methodAuthorization ? combineAuthorization(metadata.authorization, methodAuthorization) : metadata.authorization;
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
         summary: metadata.summary, generatedReturn: metadata.handleResult,
         commandFactory: input => decode(type as WireType, input),
-        authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
+        authorization: metadata.authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
         handlerDependencies: commandServiceTokens([...tokens, ...provideTokens]),
         validate: graph ? async (input, context) =>
             withCommandValidationContext(context as CommandContext, () =>

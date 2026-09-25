@@ -495,11 +495,6 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 400, body: badDirection('sortDirection') });
         await parity('anonymous override on authorized read model', 'GET', '/api/auth-override/public', undefined,
             { status: 200, body: query(200, { data: { value: 'public' } }) });
-        await divergence('method-level anonymous override on command: .NET 22.23.0 ignores it',
-            'POST', '/api/public-override-command', {},
-            { status: 403, body: command(403) }, { status: 200, body: command(200, { response: { value: 'public' } }) });
-        await parity('authenticated caller reaches overridden command', 'POST', '/api/public-override-command', {},
-            { status: 200, body: command(200, { response: { value: 'public' } }) }, { 'X-Fixture-Role': 'Admin' });
         await parity('authenticated caller reaches class-authorized method', 'GET', '/api/auth-override/private', undefined,
             { status: 200, body: query(200, { data: { value: 'private' } }) }, { 'X-Fixture-Role': 'Reader' });
         await divergence('class-authorized method denies anonymous: .NET 403, TypeScript 401', 'GET',
@@ -508,13 +503,21 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             await parity(`class-level OR role accepts ${role}`, 'GET', '/api/role-cases/either', undefined,
                 { status: 200, body: query(200, { data: { value: 'either' } }) }, { 'X-Fixture-Role': role });
         }
-        await parity('class and method roles both accept Admin', 'GET', '/api/role-cases/both', undefined,
+        await parity('method Admin replaces class Admin or Reader', 'GET', '/api/role-cases/both', undefined,
             { status: 200, body: query(200, { data: { value: 'both' } }) }, { 'X-Fixture-Role': 'Admin' });
-        await parity('class OR accepts Reader but method AND rejects it', 'GET', '/api/role-cases/both', undefined,
+        await parity('method Admin rejects Reader despite class OR', 'GET', '/api/role-cases/both', undefined,
             { status: 403, body: query(403) }, { 'X-Fixture-Role': 'Reader' });
         await divergence('class roles deny anonymous: .NET 403, TypeScript 401', 'GET',
             '/api/role-cases/either', undefined, { status: 403, body: query(403) }, { status: 401, body: query(401) });
-        await divergence('stacked roles deny anonymous: .NET 403, TypeScript 401', 'GET',
+        await parity('method Reader overrides anonymous class for Reader', 'GET', '/api/role-cases/anonymous-class', undefined,
+            { status: 200, body: query(200, { data: { value: 'reader' } }) }, { 'X-Fixture-Role': 'Reader' });
+        await parity('method Reader denies Admin despite anonymous class', 'GET', '/api/role-cases/anonymous-class', undefined,
+            { status: 403, body: query(403) }, { 'X-Fixture-Role': 'Admin' });
+        await parity('method Reader replaces class Admin for Reader', 'GET', '/api/role-cases/replacement', undefined,
+            { status: 200, body: query(200, { data: { value: 'reader' } }) }, { 'X-Fixture-Role': 'Reader' });
+        await parity('method Reader rejects class-only Admin', 'GET', '/api/role-cases/replacement', undefined,
+            { status: 403, body: query(403) }, { 'X-Fixture-Role': 'Admin' });
+        await divergence('method roles deny anonymous: .NET 403, TypeScript 401', 'GET',
             '/api/role-cases/both', undefined, { status: 403, body: query(403) }, { status: 401, body: query(401) });
         await parity('authenticated Reader denied private query', 'GET', '/api/items/private', undefined, {
             status: 403, body: query(403)

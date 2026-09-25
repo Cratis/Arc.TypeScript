@@ -19,9 +19,9 @@ On model-bound artifacts, use decorators. On low-level definitions, use the `aut
 | `@allowAnonymous()` | `{ anonymous: true }` | Everyone; a per-request `authorize` callback still runs |
 
 - Roles in one declaration are alternatives; stacked declarations must **all** pass.
-- On a read model, a `@query()` method's declaration replaces the class declaration.
+- On a read model, an explicit `@query()` method declaration replaces the class declaration; without one, the method inherits the class declaration.
 - Combining anonymous access with an authenticated requirement is a contradiction, and startup throws.
-- Authorization on a command's `handle()`, or on a static method without `@query()`, fails at build instead of silently leaving the endpoint open.
+- Declare command authorization on the class. Any authorization decorator on a command method (`handle()`, `provide()`, or a helper), or on a static method without `@query()`, fails at build instead of silently having no effect.
 
 See [Command authorization](commands/model-bound/authorization.md) for command examples.
 
@@ -99,7 +99,7 @@ The full order of stages is on [Command pipeline](commands/command-pipeline.md);
 
 ## Queries: roles and ownership
 
-A model-bound query takes the same decorators on its read-model class or on a `@query()` method, and a method's declaration replaces the class's. A denied caller never reaches the query method and gets `isAuthorized: false`.
+A model-bound query takes the same decorators on its read-model class or on a `@query()` method. An explicit method declaration replaces the class's entirely: `@roles('Reader')` on a method of an `@roles('Admin')` class permits Reader, not Admin. Without method decorators, the class declaration applies. A denied caller never reaches the query method and gets `isAuthorized: false`.
 
 A role answers "may this caller use the query at all", not "which rows may they see". `@roles('Planner')` on `allTasks` lets every planner read every task. When a read is owner-scoped, make ownership part of the query itself: read the caller's identity with `currentContext()` from `@cratis/arc.core` and put it in the data source's filter, next to the requested ID. When the caller has no identity, deny the query; never drop the owner filter to make it work. [Observable queries](queries/observable-queries.md#authorize-a-live-query) shows an owner-filtered live query.
 

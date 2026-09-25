@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
 import type { ArcServer } from '../ArcServer.js';
+import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
 import type { ClientField } from './ClientField.js';
 import type { ClientType } from './ClientType.js';
 import type { ClientOperation } from './ClientOperation.js';
@@ -172,8 +173,7 @@ export function exportClientManifest(server: ArcServer): ClientManifest {
             id, kind: 'observable' in operation && operation.observable === true ? 'observable' : operation.kind, route: operation.route,
             methods: server.endpoints.get(operation.route)?.split(', ') ?? [],
             ...(operation.kind === 'query' ? { queryName: id } : {}),
-            roles: [...new Set((operation.authorization?.requirements ?? [operation.authorization])
-                .flatMap(requirement => requirement?.roles ?? []))],
+            roles: [...new Set(authorizationRequirements(operation.authorization).flatMap(requirement => requirement.roles ?? []))],
             authentication: operation.authorization?.anonymous ? 'anonymous' :
                 operation.authorization?.authenticated || operation.authorization?.requirements?.some(requirement => requirement.authenticated || requirement.roles?.length || requirement.policy || requirement.schemes?.length) ||
                     operation.authorization?.roles?.length || operation.authorization?.policy || operation.authorization?.schemes?.length ? 'authenticated' : 'default',

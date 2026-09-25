@@ -43,7 +43,7 @@ There is no equivalent of `[QueryHttpMethod]` or `[FromRequest]`: queries accept
 | `@roles('A', 'B')` | class, `@query()` method | Requires at least one of the roles | `[Roles]` |
 | `@allowAnonymous()` | class, `@query()` method | Allows everyone | `[AllowAnonymous]` |
 
-Stacked declarations must all pass; a method declaration replaces its class declaration. Authorization on `handle()`, `provide()`, or a non-query static method fails at build.
+Stacked declarations on the same target must all pass; an explicit query method declaration replaces its read-model class declaration. Without method decorators, the class declaration applies. Command authorization belongs on its class: decorators on `handle()`, `provide()`, any other command method, or a non-query static method fail at build.
 
 ## Services
 

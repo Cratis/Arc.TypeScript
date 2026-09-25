@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import { field } from '@cratis/fundamentals';
-import { allowAnonymous, authorize, command, path, query, readModel, roles } from '@cratis/arc.core';
+import { allowAnonymous, authorize, path, query, readModel, roles } from '@cratis/arc.core';
 
 /** A class-protected read model with an anonymous method override. */
 @readModel({ namespace: 'HttpFixture' })
@@ -20,15 +20,7 @@ export class AuthorizationOverride {
     static Private(): AuthorizationOverride { return Object.assign(new AuthorizationOverride(), { value: 'private' }); }
 }
 
-/** A class-protected command whose handler accepts anonymous callers. */
-@command({ namespace: 'HttpFixture' })
-@authorize()
-export class PublicOverrideCommand {
-    @allowAnonymous()
-    handle(): { value: string } { return { value: 'public' }; }
-}
-
-/** Roles in one declaration are OR; the class and method requirements are AND. */
+/** Roles in one declaration are OR; an explicit method declaration replaces the class declaration. */
 @readModel({ namespace: 'HttpFixture' })
 @roles('Admin', 'Reader')
 export class RoleCases {
@@ -42,4 +34,28 @@ export class RoleCases {
     @path('/api/role-cases/both')
     @query()
     static Both(): RoleCases { return Object.assign(new RoleCases(), { value: 'both' }); }
+}
+
+/** A method role that replaces anonymous access on the class. */
+@readModel({ namespace: 'HttpFixture' })
+@allowAnonymous()
+export class AnonymousClassCases {
+    @field(String) value!: string;
+
+    @roles('Reader')
+    @path('/api/role-cases/anonymous-class')
+    @query()
+    static Reader(): AnonymousClassCases { return Object.assign(new AnonymousClassCases(), { value: 'reader' }); }
+}
+
+/** A method role that replaces a different class role. */
+@readModel({ namespace: 'HttpFixture' })
+@roles('Admin')
+export class MethodRoleCases {
+    @field(String) value!: string;
+
+    @roles('Reader')
+    @path('/api/role-cases/replacement')
+    @query()
+    static Reader(): MethodRoleCases { return Object.assign(new MethodRoleCases(), { value: 'reader' }); }
 }

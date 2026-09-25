@@ -6,7 +6,6 @@ import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentif
 import { reflectedParameters } from '../../reflection/reflectedParameters.js';
 import { currentServices } from '../../dependencyInjection/ServiceScope.js';
 import { ownMetadata } from '../../reflection/ownMetadata.js';
-import { combineAuthorization } from '../../authorization/combineAuthorization.js';
 import { validateGeneratedReturn } from '../../reflection/validateGeneratedReturn.js';
 import type { ClassType } from '../../reflection/ClassType.js';
 import type { Parameter } from './Parameter.js';
@@ -86,8 +85,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
         throw new Error(`Query ${type.name}.${name} cannot return an observable page`);
     const { shape, services } = inputFor(type, name, parameters);
     const methodAuthorization = metadata.methodAuthorization?.get(name);
-    const authorization = methodAuthorization && metadata.authorization?.roles?.length && methodAuthorization.roles?.length
-        ? combineAuthorization(metadata.authorization, methodAuthorization) : methodAuthorization ?? metadata.authorization;
+    const authorization = methodAuthorization ?? metadata.authorization;
     if (authorization?.anonymous && (authorization.authenticated || authorization.roles?.length))
         throw new Error(`Conflicting Arc authorization: ${type.name}.${name}`);
     const perform = async (input: unknown, options: QueryOptions): Promise<unknown> => {

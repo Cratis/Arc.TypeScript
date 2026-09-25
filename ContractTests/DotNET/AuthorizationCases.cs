@@ -25,18 +25,7 @@ public record AuthorizationOverride(string Value)
     public static AuthorizationOverride Private() => new("private");
 }
 
-/// <summary>A command protected on its class but open on its handler.</summary>
-[Command]
-[Authorize]
-public record PublicOverrideCommand()
-{
-    /// <summary>Handles the command for anonymous callers.</summary>
-    /// <returns>The public value.</returns>
-    [AllowAnonymous]
-    public EchoReply Handle() => new("public");
-}
-
-/// <summary>Accepts either fixture role at class level but requires Admin at method level.</summary>
+/// <summary>Accepts either fixture role at class level, with a method-specific replacement.</summary>
 /// <param name="Value">The returned value.</param>
 [ReadModel]
 [Roles(nameof(FixtureRole.Admin), nameof(FixtureRole.Reader))]
@@ -47,9 +36,35 @@ public record RoleCases(string Value)
     [Cratis.Arc.Queries.ModelBound.Path("/api/role-cases/either")]
     public static RoleCases Either() => new("either");
 
-    /// <summary>Requires Admin in addition to the class-level role choice.</summary>
+    /// <summary>Requires Admin instead of the class-level role choice.</summary>
     /// <returns>The method role value.</returns>
     [Roles(nameof(FixtureRole.Admin))]
     [Cratis.Arc.Queries.ModelBound.Path("/api/role-cases/both")]
     public static RoleCases Both() => new("both");
+}
+
+/// <summary>Requires a method role despite anonymous access on the class.</summary>
+/// <param name="Value">The returned value.</param>
+[ReadModel]
+[AllowAnonymous]
+public record AnonymousClassCases(string Value)
+{
+    /// <summary>Requires Reader on this method.</summary>
+    /// <returns>The reader role value.</returns>
+    [Roles(nameof(FixtureRole.Reader))]
+    [Cratis.Arc.Queries.ModelBound.Path("/api/role-cases/anonymous-class")]
+    public static AnonymousClassCases Reader() => new("reader");
+}
+
+/// <summary>Replaces the class Admin role with a method Reader role.</summary>
+/// <param name="Value">The returned value.</param>
+[ReadModel]
+[Roles(nameof(FixtureRole.Admin))]
+public record MethodRoleCases(string Value)
+{
+    /// <summary>Accepts Reader instead of Admin.</summary>
+    /// <returns>The reader role value.</returns>
+    [Roles(nameof(FixtureRole.Reader))]
+    [Cratis.Arc.Queries.ModelBound.Path("/api/role-cases/replacement")]
+    public static MethodRoleCases Reader() => new("reader");
 }

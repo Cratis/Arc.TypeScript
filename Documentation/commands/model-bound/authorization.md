@@ -41,7 +41,7 @@ export class ApproveBudget {
 
 ## Where decorators may go
 
-Authorization belongs on the command class. On `handle()` or `provide()`, it would protect nothing, so the build fails instead of leaving the endpoint open.
+Authorization belongs on the command class. `@authorize`, `@roles`, and `@allowAnonymous` on `handle()`, `provide()`, or any other command method fail the build instead of being ignored. Arc on .NET 22.23.0 evaluates only the command type and ignores authorization attributes on command methods; this build-time rejection is a deliberate TypeScript difference.
 
 ## When the answer depends on the input
 
