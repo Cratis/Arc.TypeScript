@@ -12,6 +12,7 @@ using Cratis.Arc.Commands;
 using Cratis.Arc.Commands.ModelBound;
 using Cratis.Arc.Identity;
 using Cratis.Arc.Queries.ModelBound;
+using Cratis.Arc.Tenancy;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -32,6 +33,12 @@ builder.Services.AddAuthentication("Fixture")
     .AddScheme<AuthenticationSchemeOptions, HttpFixture.FixtureAuthentication>("Fixture", _ => { });
 builder.AddCratisArc(configureOptions: options =>
 {
+    switch (Environment.GetEnvironmentVariable("ARC_FIXTURE_TENANCY"))
+    {
+        case "fixed": options.UseFixedTenancy("fixed-tenant"); break;
+        case "claim": options.UseClaimTenancy(); break;
+        case "subdomain": options.UseSubdomainTenancy("example.test"); break;
+    }
     options.IdentityDetailsProvider = typeof(HttpFixture.FixtureIdentityProvider);
     options.ExposeExceptionDetails = false;
     options.GeneratedApis.RoutePrefix = "api";
@@ -83,7 +90,7 @@ namespace HttpFixture
                 return Task.FromResult(AuthenticateResult.Fail("Invalid fixture credential"));
             }
             var claims = new[] { new Claim("sub", "fixture-user"), new Claim(ClaimTypes.Name, "fixture-user"),
-                new Claim(ClaimTypes.Role, parsed.ToString()) };
+                new Claim(ClaimTypes.Role, parsed.ToString()), new Claim("tenant_id", "claim-tenant") };
             var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
 
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));

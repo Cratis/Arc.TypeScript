@@ -3,6 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { request as httpRequest } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { normalize, request, startServer } from './harness.mjs';
@@ -32,6 +33,18 @@ const tsReaderFailure = query(400, { isValid: true, hasExceptions: true, excepti
 const pagingRule = (message, member) => query(400, { validationResults: [{ severity: 3, message, members: [member], reason: 'rule' }] });
 const badDirection = member => query(400, { validationResults: [{ severity: 3,
     message: 'The sort direction is not a recognized value.', members: [member], reason: 'malformedRequest' }] });
+// fetch overrides Host with the dialed loopback address. Exercise the explicit authority with a raw HTTP request.
+const requestWithHost = (baseUrl, path, headers) => new Promise((resolveResponse, reject) => {
+    const connection = httpRequest(new URL(path, baseUrl), { headers }, response => {
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', chunk => { text += chunk; });
+        response.on('end', () => resolveResponse({ status: response.statusCode,
+            headers: response.headers, body: JSON.parse(text) }));
+    });
+    connection.on('error', reject);
+    connection.end();
+});
 
 // Every pair first checks each server against independent, explicit expectations.
 // The final equality check then detects any unanticipated protocol difference.
@@ -140,6 +153,50 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 assert.equal(actual.headers[correlationHeader], correlationId, label);
             }
         });
+        await parity('header selects the tenant for a scoped query', 'GET', '/api/tenant-echo', undefined,
+            { status: 200, body: query(200, { data: { tenantId: 'header-tenant' } }) },
+            { 'X-Cratis-Tenant-ID': 'header-tenant' });
+        await parity('another header selects another tenant', 'GET', '/api/tenant-echo', undefined,
+            { status: 200, body: query(200, { data: { tenantId: 'second-tenant' } }) },
+            { 'X-Cratis-Tenant-ID': 'second-tenant' });
+        for (const [mode, cases] of [
+            ['fixed', [
+                ['fixed tenant ignores a conflicting header', { 'X-Cratis-Tenant-ID': 'header-tenant' }, 'fixed-tenant']
+            ]],
+            ['claim', [
+                ['verified claim overrides a conflicting header', { 'X-Fixture-Role': 'Admin', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'claim-tenant'],
+                ['unverified claim header cannot select the tenant', { 'X-Cratis-Tenant-ID': 'claim-tenant' }, '[NotSet]']
+            ]],
+            ['subdomain', [
+                ['single-label subdomain overrides the header', { Host: 'acme.example.test', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'acme'],
+                ['unrelated host falls back to the header', { Host: 'other.test', 'X-Cratis-Tenant-ID': 'fallback-tenant' }, 'fallback-tenant']
+            ]]
+        ]) {
+            await t.test(`${mode} tenant resolution`, async subtest => {
+                const env = { ...process.env, ARC_FIXTURE_TENANCY: mode };
+                const net = await startServer('dotnet', ['ContractTests/DotNET/bin/Debug/net10.0/Arc.TypeScript.HttpFixture.dll'],
+                    { cwd: root, kind: 'typescript-dotnet-reference-ready', env });
+                let ts;
+                try {
+                    ts = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'],
+                        { cwd: root, kind: 'typescript-http-fixture-ready', env });
+                    for (const [name, headers, tenantId] of cases) {
+                        await subtest.test(name, async () => {
+                            const expected = { status: 200, body: query(200, { data: { tenantId } }),
+                                headers: { [correlationHeader]: correlationId, 'content-type': 'application/json; charset=utf-8' } };
+                            const options = { 'X-Correlation-ID': correlationId, ...headers };
+                            const [netResult, tsResult] = await Promise.all([
+                                headers.Host ? requestWithHost(net.url, '/api/tenant-echo', options) :
+                                    request(net.url, 'GET', '/api/tenant-echo', undefined, options),
+                                headers.Host ? requestWithHost(ts.url, '/api/tenant-echo', options) :
+                                    request(ts.url, 'GET', '/api/tenant-echo', undefined, options)
+                            ]);
+                            assert.deepEqual(check(tsResult, expected, 'TypeScript'), check(netResult, expected, '.NET'));
+                        });
+                    }
+                } finally { await Promise.all([ts?.stop(), net.stop()]); }
+            });
+        }
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });

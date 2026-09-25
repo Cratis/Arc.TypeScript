@@ -3,7 +3,7 @@
 
 import express from 'express';
 import { z } from 'zod';
-import { ArcApplication, AuthenticationStatus, CurrentValueSubject, defineCommand, defineObservableQuery, defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
+import { ArcApplication, AuthenticationStatus, CurrentValueSubject, defineCommand, defineObservableQuery, defineQuery, currentContext, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
 import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
 import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
@@ -64,6 +64,10 @@ const all = defineQuery({
     name: 'All', namespace: 'FixtureItem', path: '/api/items', schema: z.object({}), authorization: anonymous,
     perform: () => { queryExecutions++; return [...items]; }
 });
+const tenantEcho = defineQuery({
+    name: 'Current', namespace: 'TenantEcho', path: '/api/tenant-echo', schema: z.object({}), authorization: anonymous,
+    perform: () => ({ tenantId: currentContext()?.tenantId ?? '[NotSet]' })
+});
 const queryCount = defineQuery({
     name: 'Current', namespace: 'QueryCount', path: '/api/query-count', schema: z.object({}), authorization: anonymous,
     perform: () => ({ count: queryExecutions })
@@ -80,16 +84,20 @@ const pendingStream = defineObservableQuery({
     name: 'Pending', namespace: 'FixtureStream', path: '/api/fixture-stream/pending', schema: z.object({}), authorization: anonymous,
     observe: () => new CurrentValueSubject()
 });
+const tenancyMode = process.env.ARC_FIXTURE_TENANCY;
+const tenancy = tenancyMode === 'fixed' ? { resolverType: 'fixed', fixedTenantId: 'fixed-tenant' } :
+    tenancyMode === 'claim' ? { resolverType: 'claim' } :
+        tenancyMode === 'subdomain' ? { resolverType: 'subdomain', baseDomain: 'example.test' } : undefined;
 const authentication = request => {
     const role = request.headers.get('X-Fixture-Role');
     if (role === null) return { status: AuthenticationStatus.Anonymous };
     if (role !== 'Reader' && role !== 'Admin') return { status: AuthenticationStatus.Failed };
     return { status: AuthenticationStatus.Authenticated, principal: {
-        id: 'fixture-user', name: 'fixture-user', roles: [role], isAuthenticated: true, claims: { sub: 'fixture-user' }
+        id: 'fixture-user', name: 'fixture-user', roles: [role], isAuthenticated: true, claims: { sub: 'fixture-user', tenant_id: 'claim-tenant' }
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, queryCount, byId, all, privateItems],
+    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, queryCount, tenantEcho, byId, all, privateItems], tenancy,
     observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false,
     identityDetails: { schema: z.object({ greeting: z.string() }), provide: principal =>
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
@@ -101,7 +109,9 @@ builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, Mode
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));
 const arc = await builder.build();
 const app = express();
-app.use(cratisArc(arc));
+// The loopback fixture explicitly trusts only this test authority; ordinary request Host headers are not tenant credentials.
+app.use(cratisArc(arc, request => ({ authority: tenancyMode === 'subdomain' && request.headers.host === 'acme.example.test'
+    ? 'acme.example.test' : undefined })));
 const server = app.listen(0, '127.0.0.1', () => {
     const address = server.address();
     console.log(JSON.stringify({ kind: 'typescript-http-fixture-ready', baseUrl: `http://127.0.0.1:${address.port}` }));
