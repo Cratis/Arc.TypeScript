@@ -36,6 +36,14 @@ export class DrizzleModelCodec<T extends object> {
         }
         return model;
     }
+    /** Convert the command's string key to the declared field type before Drizzle encodes its column. */
+    keyValue(name: string, key: string): unknown {
+        const field = this.fields.find(candidate => candidate.name === name);
+        if (!field) throw new Error(`Drizzle model ${this.type.name} requires @field metadata for primary key: ${name}`);
+        const primitive = field.type === Number || field.type.prototype instanceof ConceptAs && field.type.valueType === Number ?
+            Number(key) : field.type === Date ? new Date(key) : key;
+        return this.convert(field, primitive);
+    }
     private convert(field: WireField, value: unknown): unknown {
         if (field.type === String || field.type === Number || field.type === Boolean || field.type === Date) {
             const matches = field.type === String ? typeof value === 'string' :

@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { asc, desc, getTableColumns } from 'drizzle-orm';
+import { asc, desc, eq, getTableColumns } from 'drizzle-orm';
 import type { Column, SQL, Table } from 'drizzle-orm';
 import { InvalidQuerySort, queryPage } from '@cratis/arc.core';
 import type { QueryOptions, QueryPage } from '@cratis/arc.core';
@@ -66,6 +66,14 @@ export class DrizzleReadModels<T extends object> {
     /** Return the first match in stable primary-key order. */
     async findOne(filter: DrizzleFilter): Promise<T | undefined> {
         return (await this.select(filter, undefined, 1))[0];
+    }
+
+    /** Find by the single declared primary key, converting the command key through the model and column codecs. */
+    async findById(key: string): Promise<T | null> {
+        if (this.keys.length !== 1) throw new Error('Drizzle command read models require a single primary key');
+        const column = this.keys[0]!;
+        const name = Object.entries(this.columns).find(([, candidate]) => candidate === column)![0];
+        return await this.findOne(eq(column, this.codec.keyValue(name, key))) ?? null;
     }
 
     /** Push a typed predicate, count, sort and page into SQL; never load the unbounded result before paging. */

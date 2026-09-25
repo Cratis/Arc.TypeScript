@@ -8,7 +8,14 @@ import { DrizzleReadModels } from './DrizzleReadModels.js';
 import { DrizzleHandle } from './DrizzleHandle.js';
 import { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
+import { DrizzleReadModelForCommandResolver } from './DrizzleReadModelForCommandResolver.js';
 import { getTableColumns } from 'drizzle-orm';
+import { getTableConfig as getSqliteTableConfig } from 'drizzle-orm/sqlite-core';
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import { getTableConfig as getPgTableConfig } from 'drizzle-orm/pg-core';
+import type { PgTable } from 'drizzle-orm/pg-core';
+import { getTableConfig as getMySqlTableConfig } from 'drizzle-orm/mysql-core';
+import type { MySqlTable } from 'drizzle-orm/mysql-core';
 
 /** An application retains ownership of its connections, pools, and migrations. */
 export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptions): ArcApplicationBuilder {
@@ -23,10 +30,23 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
     for (const { type, table } of options.readModels ?? []) {
         if (registered.has(type)) throw new Error(`Duplicate Drizzle read model: ${type.name}`);
         registered.add(type);
-        const codec = new DrizzleModelCodec(type, getTableColumns(table));
+        const columns = getTableColumns(table);
+        const primaryKeys = options.dialect === 'sqlite' ? getSqliteTableConfig(table as SQLiteTable).primaryKeys :
+            options.dialect === 'postgresql' ? getPgTableConfig(table as PgTable).primaryKeys :
+                getMySqlTableConfig(table as MySqlTable).primaryKeys;
+        if (Object.values(columns).filter(column => column.primary).length > 1 ||
+            primaryKeys.some(primaryKey => primaryKey.columns.length > 1))
+            throw new Error(`Drizzle command read model ${type.name} requires a single primary key; ` +
+                'compound keys cannot be resolved by command key');
+        const codec = new DrizzleModelCodec(type, columns);
+        const primaryKey = Object.entries(columns).find(([, column]) => column.primary)?.[0];
+        if (primaryKey && !codec.sortableFields.has(primaryKey))
+            throw new Error(`Drizzle command read model ${type.name} requires @field metadata for primary key: ${primaryKey}`);
         new DrizzleReadModels({}, table, type, options.maxPageSize, codec);
         codecs.set(type, codec);
     }
+    builder.services.addScoped(DrizzleReadModelForCommandResolver, () => new DrizzleReadModelForCommandResolver(options));
+    builder.addReadModelForCommandResolver(DrizzleReadModelForCommandResolver);
     builder.services.addScoped(drizzleDatabase(), async scope => {
         const context: ExecutionContext | undefined = scope.identity;
         if (!context?.tenantId) throw new Error('A tenant is required for Drizzle access');
