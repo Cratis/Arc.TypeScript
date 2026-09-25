@@ -20,7 +20,7 @@ function equal(left: unknown, right: unknown): boolean {
 /** Evaluate one registered rule against its decoded (and concept-unwrapped) value. */
 export async function evaluateRule(rule: Rule, value: unknown, model: unknown, signal: AbortSignal): Promise<boolean> {
     const [first, second] = rule.args;
-    if (signal.aborted) throw signal.reason ?? new Error('Validation cancelled');
+    if (signal.aborted) throw signal.reason ?? new Error('Validation canceled');
     switch (rule.kind) {
         case 'notNull': return value != null;
         case 'null': return value == null;
