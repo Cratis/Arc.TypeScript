@@ -20,6 +20,8 @@ import type { CommandResponseValueHandler } from '../commands/CommandResponseVal
 import type { AuthorizationCommandFilter } from '../commands/AuthorizationCommandFilter.js';
 import type { CommandPipelineFilter } from '../commands/CommandPipelineFilter.js';
 import type { QueryRenderer } from '../queries/QueryRenderer.js';
+import type { AuthorizationQueryFilter } from '../queries/AuthorizationQueryFilter.js';
+import type { QueryPipelineFilter } from '../queries/QueryPipelineFilter.js';
 import type { ReadModelInterceptor } from '../queries/ReadModelInterceptor.js';
 
 /** Mutable artifact registration lists shared with the application builder. */
@@ -28,6 +30,8 @@ export interface ArtifactRegistrations {
     responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[];
     authorizationCommandFilters: ServiceIdentifier<AuthorizationCommandFilter>[];
     commandPipelineFilters: ServiceIdentifier<CommandPipelineFilter>[];
+    authorizationQueryFilters: ServiceIdentifier<AuthorizationQueryFilter>[];
+    queryPipelineFilters: ServiceIdentifier<QueryPipelineFilter>[];
     queryRenderers: ServiceIdentifier<QueryRenderer>[];
     readModelInterceptors: ServiceIdentifier<ReadModelInterceptor>[];
 }
@@ -83,7 +87,7 @@ function registerResponseHandler(type: ClassType, metadata: ReturnType<typeof ow
 function registerCommandFilter(type: ClassType, metadata: ReturnType<typeof ownMetadata>, registrations: ArtifactRegistrations): void {
     if (!metadata.authorizationCommandFilter && !metadata.commandPipelineFilter) return;
     if (metadata.command || metadata.readModel || metadata.validatorTarget || metadata.responseValueHandler ||
-        metadata.queryRenderer || metadata.readModelInterceptor ||
+        metadata.queryRenderer || metadata.readModelInterceptor || metadata.authorizationQueryFilter || metadata.queryPipelineFilter ||
         metadata.authorizationCommandFilter && metadata.commandPipelineFilter || metadata.lifetime === ServiceLifetime.Singleton)
         throw new Error(`Conflicting Arc command filter artifact: ${type.name}`);
     if (typeof type.prototype.onExecution !== 'function')
@@ -91,6 +95,19 @@ function registerCommandFilter(type: ClassType, metadata: ReturnType<typeof ownM
     if (metadata.authorizationCommandFilter)
         registrations.authorizationCommandFilters.push(type as ServiceIdentifier<AuthorizationCommandFilter>);
     else registrations.commandPipelineFilters.push(type as ServiceIdentifier<CommandPipelineFilter>);
+    if (!metadata.lifetime) registrations.services.addScoped(type);
+}
+
+function registerQueryFilter(type: ClassType, metadata: ReturnType<typeof ownMetadata>, registrations: ArtifactRegistrations): void {
+    if (!metadata.authorizationQueryFilter && !metadata.queryPipelineFilter) return;
+    if (metadata.command || metadata.readModel || metadata.validatorTarget || metadata.responseValueHandler ||
+        metadata.queryRenderer || metadata.readModelInterceptor || metadata.authorizationCommandFilter || metadata.commandPipelineFilter ||
+        metadata.authorizationQueryFilter && metadata.queryPipelineFilter || metadata.lifetime === ServiceLifetime.Singleton)
+        throw new Error(`Conflicting Arc query filter artifact: ${type.name}`);
+    if (typeof type.prototype.onPerform !== 'function') throw new Error(`Query filter ${type.name} requires onPerform()`);
+    if (metadata.authorizationQueryFilter)
+        registrations.authorizationQueryFilters.push(type as ServiceIdentifier<AuthorizationQueryFilter>);
+    else registrations.queryPipelineFilters.push(type as ServiceIdentifier<QueryPipelineFilter>);
     if (!metadata.lifetime) registrations.services.addScoped(type);
 }
 
@@ -103,6 +120,7 @@ export function compileArtifacts(artifacts: readonly Artifact[], graph: ModelGra
         registerQueryExtension(type, metadata, registrations);
         registerResponseHandler(type, metadata, registrations);
         registerCommandFilter(type, metadata, registrations);
+        registerQueryFilter(type, metadata, registrations);
         if (metadata.lifetime && !metadata.validatorTarget) {
             const registration = metadata.lifetime === ServiceLifetime.Singleton ? 'addSingleton' :
                 metadata.lifetime === ServiceLifetime.Scoped ? 'addScoped' : 'addTransient';

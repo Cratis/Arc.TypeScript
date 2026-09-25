@@ -19,6 +19,8 @@ import { prepareDependencies, dependencyFailure, validate, validatorFailure } fr
 import { InvalidQuerySort } from './InvalidQuerySort.js';
 import { QueryPagingRequired } from './QueryPagingRequired.js';
 import { validation } from '../validation/ValidationResult.js';
+import { runQueryFilters } from './runQueryFilters.js';
+import type { QueryContext } from './QueryContext.js';
 
 function querySchema(schema: z.ZodType): Record<string, unknown> {
     const json = z.toJSONSchema(schema);
@@ -35,10 +37,16 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
         async run(input, context, options = {}): Promise<QueryResult> {
             if (!await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input)) return queryResult(context, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
-            if (!parsed.success) return queryResult(context, { validationResults: malformed(context) });
             try {
+                if (parsed.success && definition.authorize && !await definition.authorize(parsed.data, context))
+                    return queryResult(context, { isAuthorized: false });
+                const filterContext: QueryContext = { ...context, query: parsed.success ? parsed.data : input, options };
+                const admission = await runQueryFilters(filterContext, serverOptions, true);
+                if (!admission.isSuccess) return admission;
+                if (!parsed.success) return queryResult(context, { validationResults: malformed(context) });
                 const value = parsed.data;
-                if (definition.authorize && !await definition.authorize(value, context)) return queryResult(context, { isAuthorized: false });
+                const filtered = await runQueryFilters(filterContext, serverOptions, false);
+                if (!filtered.isSuccess) return filtered;
                 let issues: ValidationResult[];
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);

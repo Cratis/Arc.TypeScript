@@ -24,6 +24,8 @@ import type { CommandExecutionScope } from '../commands/CommandExecutionScope.js
 import type { CommandContext } from '../commands/CommandContext.js';
 import type { CommandResult } from '../commands/CommandResult.js';
 import type { QueryRenderer } from '../queries/QueryRenderer.js';
+import type { AuthorizationQueryFilter } from '../queries/AuthorizationQueryFilter.js';
+import type { QueryPipelineFilter } from '../queries/QueryPipelineFilter.js';
 import type { ReadModelInterceptor } from '../queries/ReadModelInterceptor.js';
 import type { AuthorizationPolicyRegistration } from '../authorization/AuthorizationPolicy.js';
 import type { IdentityDetailsProvider } from '../identity/IdentityDetailsProvider.js';
@@ -38,6 +40,8 @@ export interface BuildRegistrations {
     responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[];
     authorizationCommandFilters: ServiceIdentifier<AuthorizationCommandFilter>[];
     commandPipelineFilters: ServiceIdentifier<CommandPipelineFilter>[];
+    authorizationQueryFilters: ServiceIdentifier<AuthorizationQueryFilter>[];
+    queryPipelineFilters: ServiceIdentifier<QueryPipelineFilter>[];
     valueProviders: ServiceIdentifier<CommandContextValuesProvider>[];
     keyResolvers: ServiceIdentifier<CommandKeyResolver>[];
     queryRenderers: ServiceIdentifier<QueryRenderer>[];
@@ -72,15 +76,23 @@ function serverOptions(registrations: BuildRegistrations, commands: CommandDefin
     const runners = [...options.commandExecutionRunner ? [options.commandExecutionRunner] : [], ...registrations.commandRunners];
     const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
         runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
-    const authorizationCommandFilters = [...new Set([...options.authorizationCommandFilters ?? [], ...registrations.authorizationCommandFilters])];
+    const authorizationCommandFilters = [...new Set([
+        ...options.authorizationCommandFilters ?? [], ...registrations.authorizationCommandFilters
+    ])];
     const commandPipelineFilters = [...new Set([...options.commandPipelineFilters ?? [], ...registrations.commandPipelineFilters])];
     for (const token of authorizationCommandFilters) if (commandPipelineFilters.includes(token))
         throw new Error(`Command filter registered in both groups: ${String(token)}`);
+    const authorizationQueryFilters = [...new Set([
+        ...options.authorizationQueryFilters ?? [], ...registrations.authorizationQueryFilters
+    ])];
+    const queryPipelineFilters = [...new Set([...options.queryPipelineFilters ?? [], ...registrations.queryPipelineFilters])];
+    for (const token of authorizationQueryFilters) if (queryPipelineFilters.includes(token))
+        throw new Error(`Query filter registered in both groups: ${String(token)}`);
     return { ...options, commands, queries, observableQueries, commandExecutionRunner,
         commandExecutionScopes: [...options.commandExecutionScopes ?? [], ...registrations.commandScopes],
         identityDetails: options.identityDetails ?? discovered,
         authorizationPolicies: { ...options.authorizationPolicies, ...Object.fromEntries(registrations.policies) },
-        authorizationCommandFilters, commandPipelineFilters,
+        authorizationCommandFilters, commandPipelineFilters, authorizationQueryFilters, queryPipelineFilters,
         commandResponseValueHandlers: [...options.commandResponseValueHandlers ?? [], ...registrations.responseHandlers],
         commandContextValuesProviders: [...options.commandContextValuesProviders ?? [], ...registrations.valueProviders],
         commandKeyResolvers: [...options.commandKeyResolvers ?? [], ...registrations.keyResolvers],
@@ -99,7 +111,8 @@ export async function buildRegistered(registrations: BuildRegistrations): Promis
             const metadata = ownMetadata(type);
             return metadata.lifetime || metadata.validatorTarget || metadata.responseValueHandler ||
                 metadata.queryRenderer || metadata.readModelInterceptor ||
-                metadata.authorizationCommandFilter || metadata.commandPipelineFilter;
+                metadata.authorizationCommandFilter || metadata.commandPipelineFilter ||
+                metadata.authorizationQueryFilter || metadata.queryPipelineFilter;
         }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
     const dependencies: ServiceIdentifier<unknown>[] = [];
     const validatorTypes = registerValidators(artifacts, options, services, dependencies);
@@ -110,6 +123,8 @@ export async function buildRegistered(registrations: BuildRegistrations): Promis
     compileArtifacts(artifacts, graph, registrations, dependencies, commands, queries, observableQueries);
     dependencies.push(...registrations.authorizationCommandFilters, ...registrations.commandPipelineFilters,
         ...options.authorizationCommandFilters ?? [], ...options.commandPipelineFilters ?? [],
+        ...registrations.authorizationQueryFilters, ...registrations.queryPipelineFilters,
+        ...options.authorizationQueryFilters ?? [], ...options.queryPipelineFilters ?? [],
         ...registrations.responseHandlers, ...registrations.valueProviders, ...registrations.keyResolvers,
         ...registrations.readModelResolvers, ...options.readModelForCommandResolvers ?? [],
         ...options.commandResponseValueHandlers ?? [], ...options.commandContextValuesProviders ?? [],

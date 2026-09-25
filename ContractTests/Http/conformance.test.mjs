@@ -223,6 +223,28 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 { value: ['allow'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
                 { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
         }
+        for (const [name, value, expected] of [
+            ['denies invalid arguments before validation', 'deny-invalid', { status: 403, body: query(403, { isAuthorized: false }) }],
+            ['denies valid arguments', 'deny-valid', { status: 403, body: query(403, { isAuthorized: false }) }],
+            ['allows invalid arguments to reach validation', 'allow-invalid', { status: 400, body: query(400, {
+                validationResults: [{ severity: 3, message: 'Value is invalid', members: ['value'], reason: 'rule' }] }) }],
+            ['allows valid arguments', 'allow-valid', { status: 200, body: query(200, { data: { value: 'allow-valid' } }) }]
+        ]) {
+            await parity(`query filter ${name}`, 'GET', `/api/filter-parity-query?value=${value}`, undefined, expected);
+        }
+        await parity('QUERY filter denies before validation', 'QUERY', '/api/filter-parity-query',
+            { arguments: { value: 'deny-invalid' } }, { status: 403, body: query(403, { isAuthorized: false }),
+                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
+        await parity('QUERY filter allows a valid query', 'QUERY', '/api/filter-parity-query',
+            { arguments: { value: 'allow-valid' } }, { status: 200, body: query(200, { data: { value: 'allow-valid' } }),
+                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
+        await parity('observable query filter denies at snapshot admission', 'GET', '/api/filter-parity-stream?value=deny-valid',
+            undefined, { status: 403, body: query(403, { isAuthorized: false }) });
+        await parity('observable query filter denies direct SSE admission', 'GET',
+            '/api/filter-parity-stream?value=deny-valid', undefined,
+            { status: 403, body: query(403, { isAuthorized: false }) }, { Accept: 'text/event-stream' });
+        await parity('observable query filter allows snapshot admission', 'GET', '/api/filter-parity-stream?value=allow-valid',
+            undefined, { status: 200, body: query(200, { data: { value: 'allow-valid' } }) });
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });

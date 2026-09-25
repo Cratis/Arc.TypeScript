@@ -1,0 +1,51 @@
+---
+title: Query filters
+description: Admit every query before validation with scoped authorization filters, or reject a query with ordinary pipeline filters.
+---
+
+Global query filters run for snapshot GET and `QUERY` requests and at admission for observable subscriptions
+(direct SSE, WebSocket, and multiplexed hubs). They do **not** run for every emission. Use an
+[emission guard](observable-query-emission-guards.md) if access needs to be checked throughout a live subscription.
+
+`AuthorizationQueryFilter` runs first, before validator or performer dependencies are constructed.
+`QueryPipelineFilter` runs next, before validation and the performer. Both expose `onPerform(context: QueryContext)`,
+which may return a `QueryResult` fragment or nothing. The context carries the bound `query` arguments, request identity,
+and query `options`; when schema parsing fails, authorization filters see raw input and ordinary filters do not run.
+Transport argument coercion errors are rejected before the filter pipeline.
+A denial answers 403 with no data or validation results. Query denials have no reason field.
+
+```typescript title="query-gates.ts"
+import { ArcApplication, authorizationQueryFilter, queryPipelineFilter, queryFilterResult,
+    unauthorizedQueryResult, validation, type AuthorizationQueryFilter, type QueryPipelineFilter,
+    type QueryContext, type QueryResult } from '@cratis/arc.core';
+
+@authorizationQueryFilter()
+class TenantGate implements AuthorizationQueryFilter {
+    onPerform(context: QueryContext): QueryResult | void {
+        if (!context.tenantId) return unauthorizedQueryResult(context);
+    }
+}
+
+@queryPipelineFilter()
+class QueryGate implements QueryPipelineFilter {
+    onPerform(context: QueryContext): QueryResult | void {
+        if (typeof context.query === 'object' && context.query !== null &&
+            'value' in context.query && context.query.value === '') {
+            return queryFilterResult(context, { validationResults: [validation('Value is required', ['value'])] });
+        }
+    }
+}
+
+export const builder = ArcApplication.createBuilder();
+builder.add(TenantGate, QueryGate);
+```
+
+You can also register tokens using `ArcOptions.authorizationQueryFilters` and `.queryPipelineFilters`, or
+`builder.addAuthorizationQueryFilter(token)` and `.addQueryPipelineFilter(token)`. Register explicit tokens as scoped
+or transient services. Within each group the order is ArcOptions tokens, then explicit builder calls, then decorated
+classes in `add()` order. A token registered more than once runs once; a token in both groups fails at build.
+An unsuccessful fragment stops that group and skips subsequent stages. Invalid fragments and thrown filters fail closed
+with 500. The existing per-definition `QueryFilter<T>` callbacks remain separate and collect validation results
+at the validator stage.
+
+See [Query pipeline](query-pipeline.md) for the complete order and [Authorizing commands and queries](../authorizing-commands-and-queries.md) for declared authorization.

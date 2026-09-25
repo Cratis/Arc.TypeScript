@@ -3,6 +3,13 @@
 export { readModel, query, queryOptions, argument, path, QueryHttpMethod } from './modelBound/index.js';
 export type { QueryDefinition } from './QueryDefinition.js';
 export type { QueryFilter } from './QueryFilter.js';
+export type { QueryContext } from './QueryContext.js';
+export type { AuthorizationQueryFilter } from './AuthorizationQueryFilter.js';
+export type { QueryPipelineFilter } from './QueryPipelineFilter.js';
+export { authorizationQueryFilter } from './authorizationQueryFilterDecorator.js';
+export { queryPipelineFilter } from './queryPipelineFilterDecorator.js';
+export { queryFilterResult } from './queryFilterResult.js';
+export { unauthorizedQueryResult } from './unauthorizedQueryResult.js';
 export type { QueryRenderer } from './QueryRenderer.js';
 export type { ReadModelInterceptor } from './ReadModelInterceptor.js';
 export { queryRenderer } from './queryRendererDecorator.js';

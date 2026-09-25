@@ -57,6 +57,12 @@ export function validateRegistryOptions(options: ArcOptions, services: ServiceRe
         if (services.registration(token).lifetime === ServiceLifetime.Singleton)
             throw new Error(`Command filter ${services.registration(token).token.name} must not be singleton`);
     }
+    for (const token of options.authorizationQueryFilters ?? []) if (options.queryPipelineFilters?.includes(token))
+        throw new Error(`Query filter registered in both groups: ${String(token)}`);
+    for (const token of [...options.authorizationQueryFilters ?? [], ...options.queryPipelineFilters ?? []]) {
+        if (services.registration(token).lifetime === ServiceLifetime.Singleton)
+            throw new Error(`Query filter ${services.registration(token).token.name} must not be singleton`);
+    }
     for (const token of [...options.queryRenderers ?? [], ...options.readModelInterceptors ?? []]) {
         if (services.registration(token).lifetime === ServiceLifetime.Singleton)
             throw new Error(`Query renderer or read-model interceptor ${services.registration(token).token.name} must not be singleton`);
