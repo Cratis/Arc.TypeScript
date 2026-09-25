@@ -3,7 +3,7 @@ title: Test Chronicle commands against a kernel
 description: Seed events, run Arc commands, and assert projections and constraints in an isolated Chronicle event store.
 ---
 
-Use `ChronicleKernelScenario` when a command depends on kernel behavior that the fast [in-memory command scenario](chronicle.md) does not enforce: constraints, observer completion, or projected read models. This experimental testing API requires a running Chronicle kernel and is **not** part of the default `yarn ci` check.
+Use `ChronicleKernelScenario` when a command depends on kernel behavior that the fast [in-memory command scenario](chronicle.md) does not provide: stored events, aggregates, constraints, observer completion, or projected read models. [Seed an event source's history](chronicle.md#seed-an-event-sources-history) tests an aggregate this way. This experimental testing API requires a running Chronicle kernel and is **not** part of the default `yarn ci` check.
 
 ## Run the Library kernel scenarios
 

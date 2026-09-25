@@ -115,7 +115,7 @@ Evidence paths are relative to the repository root. Spec folders follow `for_<Su
 
 | Capability | Status | TypeScript contract | Evidence |
 | --- | --- | --- | --- |
-| [Pipeline scenarios](../testing/index.md) | Bounded | `CommandScenario`, `QueryScenario`, and `ObservableQueryScenario` run decorated artifacts through real pipelines with wire encoding and fakes; `ArcScenario` covers low-level definitions and HTTP; `ChronicleCommandScenario` records returned events in memory without enforcing concurrency. | `Source/Testing/for_CommandScenario`, `.../for_QueryScenario`, `.../for_ObservableQueryScenario`, `.../for_ArcScenario`, `.../for_withCommandAssertions` |
+| [Pipeline scenarios](../testing/index.md) | Bounded | `CommandScenario`, `QueryScenario`, and `ObservableQueryScenario` run decorated artifacts through real pipelines with wire encoding and fakes; `ArcScenario` covers low-level definitions and HTTP; `ChronicleCommandScenario` records appended events in memory and serves pinned read models, without enforcing concurrency or loading aggregates; `ChronicleKernelScenario` seeds events and runs against a live kernel. | `Source/Testing/for_CommandScenario`, `.../for_QueryScenario`, `.../for_ObservableQueryScenario`, `.../for_ArcScenario`, `.../for_withCommandAssertions`, `Source/Chronicle/testing/for_ChronicleCommandScenario`, `Samples/Library/kernel-scenarios.test.mjs` (live kernel, Docker) |
 
 ## Hosting and observability
 
