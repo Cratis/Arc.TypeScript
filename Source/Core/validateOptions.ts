@@ -51,6 +51,10 @@ export function validateOptions(options: ArcOptions): {
 
 /** Enforce scoped read-side extensions after the service registry has been created. */
 export function validateRegistryOptions(options: ArcOptions, services: ServiceRegistry): void {
+    for (const token of [...options.authorizationCommandFilters ?? [], ...options.commandPipelineFilters ?? []]) {
+        if (services.registration(token).lifetime === ServiceLifetime.Singleton)
+            throw new Error(`Command filter ${services.registration(token).token.name} must not be singleton`);
+    }
     for (const token of [...options.queryRenderers ?? [], ...options.readModelInterceptors ?? []]) {
         if (services.registration(token).lifetime === ServiceLifetime.Singleton)
             throw new Error(`Query renderer or read-model interceptor ${services.registration(token).token.name} must not be singleton`);

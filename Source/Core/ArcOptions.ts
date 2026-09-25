@@ -6,6 +6,8 @@ import type { AuthenticationHandler } from './authentication/AuthenticationHandl
 import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import type { CommandDefinition } from './commands/CommandDefinition.js';
 import type { CommandContext } from './commands/CommandContext.js';
+import type { AuthorizationCommandFilter } from './commands/AuthorizationCommandFilter.js';
+import type { CommandPipelineFilter } from './commands/CommandPipelineFilter.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
@@ -46,6 +48,10 @@ export interface ArcOptions {
     development?: boolean;
     /** Low-level command definitions. */
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
+    /** Ordered authorization filters; always run before ordinary command filters and validator dependencies. */
+    authorizationCommandFilters?: readonly ServiceIdentifier<AuthorizationCommandFilter>[];
+    /** Ordered ordinary result-fragment filters, distinct from per-definition CommandFilter<T> callbacks. */
+    commandPipelineFilters?: readonly ServiceIdentifier<CommandPipelineFilter>[];
     /** Ordered, scoped server-only response value handlers. */
     commandResponseValueHandlers?: readonly ServiceIdentifier<CommandResponseValueHandler>[];
     /** Ordered, scoped command value providers. */

@@ -14,6 +14,7 @@ import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { createCommandContext } from './createCommandContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
 import { commandFailure, executeCommandOperation } from './executeCommandOperation.js';
+import { runCommandFilters } from './runCommandFilters.js';
 import type { CommandContext } from './CommandContext.js';
 
 enum CommandOperationMode { Execute, Validate }
@@ -25,21 +26,30 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         if (!await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input))
             return commandResult(execution, { isAuthorized: false });
         const parsed = definition.schema.safeParse(input);
-        if (!parsed.success) return commandResult(execution, { validationResults: malformed(execution) });
-        const value = parsed.data;
-        try {
-            if (definition.authorize && !await definition.authorize(value, execution))
-                return commandResult(execution, { isAuthorized: false });
-        } catch (error) {
-            return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error);
+        if (parsed.success) {
+            try {
+                if (definition.authorize && !await definition.authorize(parsed.data, execution))
+                    return commandResult(execution, { isAuthorized: false });
+            } catch (error) {
+                return commandFailure({ ...execution, command: parsed.data, key: undefined, values: new CommandContextValues() }, error);
+            }
         }
         let context: CommandContext;
-        try { context = await createCommandContext(definition.commandFactory?.(value) ?? value, execution, options); }
+        try { context = await createCommandContext(parsed.success ? definition.commandFactory?.(parsed.data) ?? parsed.data : input,
+            execution, options); }
         catch (error) {
-            return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error);
+            return commandFailure({ ...execution, command: input, key: undefined, values: new CommandContextValues() }, error);
         }
-        const execute = () => executeCommandOperation(definition, value, context, options, mode === CommandOperationMode.Validate);
-        return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
+        const authorization = await runCommandFilters(context, options, true);
+        if (!authorization.result.isSuccess) return authorization.result;
+        if (!parsed.success) return commandResult(execution, { validationResults: malformed(execution) });
+        if (!authorization.blocked) {
+            const filtered = await runCommandFilters(context, options, false);
+            if (!filtered.result.isSuccess) return filtered.result;
+        }
+        const execute = () => executeCommandOperation(definition, parsed.data, context, options, mode === CommandOperationMode.Validate);
+        return mode === CommandOperationMode.Execute && options.commandExecutionRunner
+            ? options.commandExecutionRunner(context, execute) : execute();
     };
     return {
         ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: fullyQualifiedName(definition),

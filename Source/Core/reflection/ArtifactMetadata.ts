@@ -14,6 +14,8 @@ export interface ArtifactMetadata {
     /** Declared handle value before response handlers consume it; used for return validation. */
     handleValueResult?: GeneratedReturn;
     responseValueHandler?: boolean;
+    authorizationCommandFilter?: boolean;
+    commandPipelineFilter?: boolean;
     queryRenderer?: boolean;
     readModelInterceptor?: boolean;
     readModel?: boolean;

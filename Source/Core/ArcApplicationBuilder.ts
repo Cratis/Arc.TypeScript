@@ -22,6 +22,8 @@ import type { QueryRenderer } from './queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
 import type { CommandContext } from './commands/CommandContext.js';
+import type { AuthorizationCommandFilter } from './commands/AuthorizationCommandFilter.js';
+import type { CommandPipelineFilter } from './commands/CommandPipelineFilter.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
@@ -35,6 +37,8 @@ export interface ArcApplicationBuilder extends ArcBuilderExtensions {}
 export class ArcApplicationBuilder {
     readonly services = new ArcApplicationServices();
     readonly #artifacts: Artifact[] = [];
+    readonly #authorizationCommandFilters: ServiceIdentifier<AuthorizationCommandFilter>[] = [];
+    readonly #commandPipelineFilters: ServiceIdentifier<CommandPipelineFilter>[] = [];
     readonly #responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[] = [];
     readonly #valueProviders: ServiceIdentifier<CommandContextValuesProvider>[] = [];
     readonly #keyResolvers: ServiceIdentifier<CommandKeyResolver>[] = [];
@@ -77,6 +81,16 @@ export class ArcApplicationBuilder {
     useGeneratedMetadata(metadata: GeneratedMetadata): this {
         if (this.#built || this.#artifacts.length) throw new Error('Register generated metadata before artifacts');
         this.generatedMetadata = registerGeneratedMetadata(metadata);
+        return this;
+    }
+    /** Add a command authorization filter resolved from each operation scope. */
+    addAuthorizationCommandFilter(token: ServiceIdentifier<AuthorizationCommandFilter>): this {
+        this.#authorizationCommandFilters.push(token);
+        return this;
+    }
+    /** Add an ordinary command result-fragment filter resolved from each operation scope. */
+    addCommandPipelineFilter(token: ServiceIdentifier<CommandPipelineFilter>): this {
+        this.#commandPipelineFilters.push(token);
         return this;
     }
     /** Add an ordered scoped response handler registered in services. */
@@ -161,7 +175,8 @@ export class ArcApplicationBuilder {
             return true;
         }
         if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget &&
-            !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor) {
+            !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor &&
+            !metadata.authorizationCommandFilter && !metadata.commandPipelineFilter) {
             if (external) this.#observedTypes.add(type);
             return external;
         }
@@ -192,6 +207,7 @@ export class ArcApplicationBuilder {
         if (this.#built) throw new Error('Arc application builder can be built only once');
         this.#built = true;
         return buildRegistered({ options: this.options, services: this.services, artifacts: this.#artifacts,
+            authorizationCommandFilters: this.#authorizationCommandFilters, commandPipelineFilters: this.#commandPipelineFilters,
             responseHandlers: this.#responseHandlers, valueProviders: this.#valueProviders, keyResolvers: this.#keyResolvers,
             queryRenderers: this.#queryRenderers, readModelInterceptors: this.#readModelInterceptors,
             readModelResolvers: this.#readModelResolvers, commandRunners: this.#commandRunners, commandScopes: this.#commandScopes,

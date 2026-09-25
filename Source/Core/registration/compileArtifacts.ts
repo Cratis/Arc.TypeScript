@@ -17,6 +17,8 @@ import type { ArcApplicationServices } from '../dependencyInjection/ArcApplicati
 import { BaseValidator } from '../validation/BaseValidator.js';
 import { ModelGraphValidator } from '../validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from '../commands/CommandResponseValueHandler.js';
+import type { AuthorizationCommandFilter } from '../commands/AuthorizationCommandFilter.js';
+import type { CommandPipelineFilter } from '../commands/CommandPipelineFilter.js';
 import type { QueryRenderer } from '../queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from '../queries/ReadModelInterceptor.js';
 
@@ -24,6 +26,8 @@ import type { ReadModelInterceptor } from '../queries/ReadModelInterceptor.js';
 export interface ArtifactRegistrations {
     services: ArcApplicationServices;
     responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[];
+    authorizationCommandFilters: ServiceIdentifier<AuthorizationCommandFilter>[];
+    commandPipelineFilters: ServiceIdentifier<CommandPipelineFilter>[];
     queryRenderers: ServiceIdentifier<QueryRenderer>[];
     readModelInterceptors: ServiceIdentifier<ReadModelInterceptor>[];
 }
@@ -76,6 +80,20 @@ function registerResponseHandler(type: ClassType, metadata: ReturnType<typeof ow
     if (!metadata.lifetime) registrations.services.addScoped(type);
 }
 
+function registerCommandFilter(type: ClassType, metadata: ReturnType<typeof ownMetadata>, registrations: ArtifactRegistrations): void {
+    if (!metadata.authorizationCommandFilter && !metadata.commandPipelineFilter) return;
+    if (metadata.command || metadata.readModel || metadata.validatorTarget || metadata.responseValueHandler ||
+        metadata.queryRenderer || metadata.readModelInterceptor ||
+        metadata.authorizationCommandFilter && metadata.commandPipelineFilter || metadata.lifetime === ServiceLifetime.Singleton)
+        throw new Error(`Conflicting Arc command filter artifact: ${type.name}`);
+    if (typeof type.prototype.onExecution !== 'function')
+        throw new Error(`Command filter ${type.name} requires onExecution()`);
+    if (metadata.authorizationCommandFilter)
+        registrations.authorizationCommandFilters.push(type as ServiceIdentifier<AuthorizationCommandFilter>);
+    else registrations.commandPipelineFilters.push(type as ServiceIdentifier<CommandPipelineFilter>);
+    if (!metadata.lifetime) registrations.services.addScoped(type);
+}
+
 /** Compile decorated commands and read models after registering their services. */
 export function compileArtifacts(artifacts: readonly Artifact[], graph: ModelGraphValidator, registrations: ArtifactRegistrations,
     dependencies: ServiceIdentifier<unknown>[], commands: CommandDefinition<z.ZodType, unknown>[],
@@ -84,6 +102,7 @@ export function compileArtifacts(artifacts: readonly Artifact[], graph: ModelGra
         const metadata = ownMetadata(type);
         registerQueryExtension(type, metadata, registrations);
         registerResponseHandler(type, metadata, registrations);
+        registerCommandFilter(type, metadata, registrations);
         if (metadata.lifetime && !metadata.validatorTarget) {
             const registration = metadata.lifetime === ServiceLifetime.Singleton ? 'addSingleton' :
                 metadata.lifetime === ServiceLifetime.Scoped ? 'addScoped' : 'addTransient';

@@ -15,6 +15,8 @@ import type { QueryDefinition } from '../queries/QueryDefinition.js';
 import type { ObservableQueryDefinition } from '../queries/observable/ObservableQueryDefinition.js';
 import { ModelGraphValidator } from '../validation/ModelGraphValidator.js';
 import type { CommandResponseValueHandler } from '../commands/CommandResponseValueHandler.js';
+import type { AuthorizationCommandFilter } from '../commands/AuthorizationCommandFilter.js';
+import type { CommandPipelineFilter } from '../commands/CommandPipelineFilter.js';
 import type { CommandContextValuesProvider } from '../commands/CommandContextValuesProvider.js';
 import type { CommandKeyResolver } from '../commands/CommandKeyResolver.js';
 import type { ReadModelForCommandResolver } from '../commands/ReadModelForCommandResolver.js';
@@ -34,6 +36,8 @@ export interface BuildRegistrations {
     services: ArcApplicationServices;
     artifacts: readonly Artifact[];
     responseHandlers: ServiceIdentifier<CommandResponseValueHandler>[];
+    authorizationCommandFilters: ServiceIdentifier<AuthorizationCommandFilter>[];
+    commandPipelineFilters: ServiceIdentifier<CommandPipelineFilter>[];
     valueProviders: ServiceIdentifier<CommandContextValuesProvider>[];
     keyResolvers: ServiceIdentifier<CommandKeyResolver>[];
     queryRenderers: ServiceIdentifier<QueryRenderer>[];
@@ -72,6 +76,8 @@ function serverOptions(registrations: BuildRegistrations, commands: CommandDefin
         commandExecutionScopes: [...options.commandExecutionScopes ?? [], ...registrations.commandScopes],
         identityDetails: options.identityDetails ?? discovered,
         authorizationPolicies: { ...options.authorizationPolicies, ...Object.fromEntries(registrations.policies) },
+        authorizationCommandFilters: [...options.authorizationCommandFilters ?? [], ...registrations.authorizationCommandFilters],
+        commandPipelineFilters: [...options.commandPipelineFilters ?? [], ...registrations.commandPipelineFilters],
         commandResponseValueHandlers: [...options.commandResponseValueHandlers ?? [], ...registrations.responseHandlers],
         commandContextValuesProviders: [...options.commandContextValuesProviders ?? [], ...registrations.valueProviders],
         commandKeyResolvers: [...options.commandKeyResolvers ?? [], ...registrations.keyResolvers],
@@ -89,7 +95,8 @@ export async function buildRegistered(registrations: BuildRegistrations): Promis
         (services.registrations.length || artifacts.some(({ type }) => {
             const metadata = ownMetadata(type);
             return metadata.lifetime || metadata.validatorTarget || metadata.responseValueHandler ||
-                metadata.queryRenderer || metadata.readModelInterceptor;
+                metadata.queryRenderer || metadata.readModelInterceptor ||
+                metadata.authorizationCommandFilter || metadata.commandPipelineFilter;
         }))) throw new Error('Decorated lifetimes and builder registrations require builder-owned services');
     const dependencies: ServiceIdentifier<unknown>[] = [];
     const validatorTypes = registerValidators(artifacts, options, services, dependencies);
@@ -98,7 +105,9 @@ export async function buildRegistered(registrations: BuildRegistrations): Promis
     const queries: QueryDefinition<z.ZodType, unknown>[] = [...options.queries ?? []];
     const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...options.observableQueries ?? []];
     compileArtifacts(artifacts, graph, registrations, dependencies, commands, queries, observableQueries);
-    dependencies.push(...registrations.responseHandlers, ...registrations.valueProviders, ...registrations.keyResolvers,
+    dependencies.push(...registrations.authorizationCommandFilters, ...registrations.commandPipelineFilters,
+        ...options.authorizationCommandFilters ?? [], ...options.commandPipelineFilters ?? [],
+        ...registrations.responseHandlers, ...registrations.valueProviders, ...registrations.keyResolvers,
         ...registrations.readModelResolvers, ...options.readModelForCommandResolvers ?? [],
         ...options.commandResponseValueHandlers ?? [], ...options.commandContextValuesProviders ?? [],
         ...options.commandKeyResolvers ?? [], ...registrations.queryRenderers, ...registrations.readModelInterceptors,

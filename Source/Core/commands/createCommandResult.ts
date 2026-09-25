@@ -3,6 +3,7 @@
 import type { CommandResult } from './CommandResult.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 
+/** Create a command result or filter fragment for the current correlation ID. */
 export function commandResult<T>(context: ExecutionContext, values: Partial<CommandResult<T>> = {}): CommandResult<T> {
     const validationResults = values.validationResults ?? [];
     const exceptionMessages = values.exceptionMessages ?? [];
