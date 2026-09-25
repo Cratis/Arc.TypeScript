@@ -1,4 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export type { TenancyOptions } from './TenancyOptions.js';
+export { TenantResolverType } from './TenantResolverType.js';
 export type { DevelopmentTenant } from './DevelopmentTenant.js';

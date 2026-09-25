@@ -35,9 +35,11 @@ Each decision depends on the one before it, and none replaces another. A separat
 `tenancy.resolve` overrides built-in sources; `tenancy.httpHeader` customizes the header when using the built-in header source.
 
 ```typescript
+import { ArcApplication, TenantResolverType } from '@cratis/arc.core';
+
 const builder = ArcApplication.createBuilder({
     authentication: [/* verified handlers */],
-    tenancy: { sources: ['claim', 'header'], claimType: 'tenant', membershipClaim: 'tenants', required: true }
+    tenancy: { sources: [TenantResolverType.Claim, TenantResolverType.Header], claimType: 'tenant', membershipClaim: 'tenants', required: true }
 });
 ```
 

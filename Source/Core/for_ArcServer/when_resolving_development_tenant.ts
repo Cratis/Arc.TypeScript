@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../tenancy/TenantResolverType.js';
 import { z } from 'zod';
 import { ArcServer, defineQuery } from '../index.js';
 
@@ -9,7 +10,7 @@ describe('when resolving a development tenant', () => {
     let tenants: Response;
     beforeEach(async () => {
         const server = new ArcServer({ development: true,
-            tenancy: { sources: ['development'], fixedTenantId: 'local' },
+            tenancy: { sources: [TenantResolverType.Development], fixedTenantId: 'local' },
             developmentUsers: [() => [{ microsoftIdentity: { identityProvider: 'fixture', userId: 'alice', userDetails: 'Alice',
                 userRoles: [], claims: [] } }], () => []],
             developmentTenants: [() => [{ id: 'one', name: 'One' }], () => [{ id: 'two', name: 'Two' }]],
