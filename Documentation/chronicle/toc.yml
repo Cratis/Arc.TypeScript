@@ -2,6 +2,10 @@
   href: index.md
 - name: Add event sourcing
   href: add-event-sourcing.md
+- name: Registration options
+  href: registration-options.md
+- name: Cratis package
+  href: cratis-package.md
 - name: Commands
   href: commands/toc.yml
 - name: Resolving the event source ID
