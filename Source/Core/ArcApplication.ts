@@ -2,33 +2,25 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Server as HttpServer } from 'node:http';
 import type { Server as HttpsServer } from 'node:https';
-import { ArcServer } from './ArcServer.js';
-import type { NativeRequestContext } from './http/NativeRequestContext.js';
+import { FetchArcApplication } from './FetchArcApplication.js';
 import type { ArcBuilderOptions } from './configuration/ArcBuilderOptions.js';
 import { loadConfiguration } from './configuration/loadConfiguration.js';
-import { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
+import { NodeArcApplicationBuilder } from './NodeArcApplicationBuilder.js';
 import { runArc } from './http/runArc.js';
 import type { ArcNodeRunOptions } from './http/ArcNodeRunOptions.js';
 
 /** A built Arc server with optional ownership of a standalone Node listener. */
-export class ArcApplication {
+export class ArcApplication extends FetchArcApplication {
     /** Begin registering artifacts and services for an Arc application. */
-    static createBuilder(options: ArcBuilderOptions = {}): ArcApplicationBuilder {
+    static createBuilder(options: ArcBuilderOptions = {}): NodeArcApplicationBuilder {
         const { configuration, ...code } = options;
         const settings = configuration === false ? {} : loadConfiguration(configuration?.file, configuration?.env, code.logger);
-        return new ArcApplicationBuilder({ ...settings.Cratis?.Arc, ...code,
+        return new NodeArcApplicationBuilder({ ...settings.Cratis?.Arc, ...code,
             generatedApis: { ...settings.Cratis?.Arc?.generatedApis, ...code.generatedApis } }, settings);
     }
     #listener?: { server: HttpServer | HttpsServer; close(): Promise<void> };
     #disposed = false;
     #onStopped?: (error?: unknown) => void;
-    constructor(readonly server: ArcServer) {}
-    /** Dispatch a Fetch request; non-Arc paths produce a 404 Response. */
-    readonly fetch = async (request: Request, native?: NativeRequestContext): Promise<Response> =>
-        await this.server.handle(request, native) ?? new Response(null, { status: 404 });
-    /** Dispatch a Fetch request while preserving fall-through for other routes. */
-    readonly handle = (request: Request, native?: NativeRequestContext): Promise<Response | null> =>
-        this.server.handle(request, native);
     /** Start listening without waiting for the application's lifetime to end. */
     async start(options?: ArcNodeRunOptions): Promise<void> {
         if (this.#disposed) throw new Error('Arc application is disposed');
@@ -74,5 +66,5 @@ export class ArcApplication {
         if (failure) throw failure;
     }
     /** Dispose the application, whether or not it started a listener. */
-    async dispose(): Promise<void> { await this.stop(); }
+    override async dispose(): Promise<void> { await this.stop(); }
 }

@@ -6,6 +6,8 @@
   href: fastify.md
 - name: Hono
   href: hono.md
+- name: Fetch API runtimes
+  href: fetch-runtimes.md
 - name: WebSockets
   href: websockets.md
 - name: Native principal
