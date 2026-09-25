@@ -8,6 +8,7 @@ import { DrizzleReadModels } from './DrizzleReadModels.js';
 import { DrizzleHandle } from './DrizzleHandle.js';
 import { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
+import { DrizzleReadModelForCommandResolver } from './DrizzleReadModelForCommandResolver.js';
 import { getTableColumns } from 'drizzle-orm';
 
 /** An application retains ownership of its connections, pools, and migrations. */
@@ -20,13 +21,19 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
     const registered = new Set<new () => object>();
     // Check registrations before a request opens a tenant scope; reuse one codec per type.
     const codecs = new Map<new () => object, DrizzleModelCodec<object>>();
+    const commandModels = new Set<new () => object>();
     for (const { type, table } of options.readModels ?? []) {
         if (registered.has(type)) throw new Error(`Duplicate Drizzle read model: ${type.name}`);
         registered.add(type);
-        const codec = new DrizzleModelCodec(type, getTableColumns(table));
+        const columns = getTableColumns(table);
+        const codec = new DrizzleModelCodec(type, columns);
+        const keys = Object.entries(columns).filter(([, column]) => column.primary);
+        if (keys.length === 1 && codec.sortableFields.has(keys[0]![0])) commandModels.add(type);
         new DrizzleReadModels({}, table, type, options.maxPageSize, codec);
         codecs.set(type, codec);
     }
+    builder.services.addScoped(DrizzleReadModelForCommandResolver, () => new DrizzleReadModelForCommandResolver(commandModels));
+    builder.addReadModelForCommandResolver(DrizzleReadModelForCommandResolver);
     builder.services.addScoped(drizzleDatabase(), async scope => {
         const context: ExecutionContext | undefined = scope.identity;
         if (!context?.tenantId) throw new Error('A tenant is required for Drizzle access');

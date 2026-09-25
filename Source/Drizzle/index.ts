@@ -4,6 +4,7 @@ export { withDrizzle } from './withDrizzle.js';
 export { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 export { DrizzleHandle } from './DrizzleHandle.js';
 export { DrizzleReadModels } from './DrizzleReadModels.js';
+export { DrizzleReadModelForCommandResolver } from './DrizzleReadModelForCommandResolver.js';
 export type { DrizzleOptions } from './DrizzleOptions.js';
 export type { DrizzleDatabase } from './DrizzleDatabase.js';
 export type { DrizzleFilter } from './DrizzleFilter.js';
