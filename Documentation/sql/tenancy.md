@@ -61,7 +61,7 @@ Set exactly one of `database` and `databaseFactory`; both, or neither, fails `wi
 
 ## Verify the boundary
 
-Test cross-tenant reads and writes with your real pool configuration and authorization: read as one tenant, write as another, and check that nothing crosses. The package's [SQLite tenant-isolation spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_paging_across_tenants/with_sqlite.ts) shows the shape of such a check.
+Test cross-tenant reads and writes with your real pool configuration and authorization: read as one tenant, write as another, and check that nothing crosses. The package's [SQLite tenant-isolation spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_paging_across_tenants/with_sqlite.ts) shows the shape of such a check. The [MySQL 8.4 integration spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_reading/with_mysql.integration.ts) uses two physical databases and verifies that `databaseFactory` routes reads to the current tenant; it does not test authorization or cross-tenant writes.
 
 .NET EF pooled contexts do not infer a database per tenant either. This integration makes the choice explicit, like the MongoDB integration's per-tenant resolvers, rather than reusing one pool across tenants.
 

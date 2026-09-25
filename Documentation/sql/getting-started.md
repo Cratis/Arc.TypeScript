@@ -3,7 +3,7 @@ title: Get started with SQL
 description: Declare a Drizzle table and an Arc read model, serve a paged query with withDrizzle, write from a command, and keep queries on the read-only handle.
 ---
 
-This page serves a SQL table through an Arc query. It uses SQLite through `sql.js`, which runs in WebAssembly and needs no native build, so you can follow it on any machine. The code follows the package's [SQLite fixture](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/a_sqlite_database.ts). PostgreSQL works the same way with its own Drizzle driver.
+This page serves a SQL table through an Arc query. It uses SQLite through `sql.js`, which runs in WebAssembly and needs no native build, so you can follow it on any machine. The code follows the package's [SQLite fixture](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/a_sqlite_database.ts). PostgreSQL and MySQL use their respective Drizzle drivers; the live integration runs PostgreSQL 16 and MySQL 8.4 with `mysql2`.
 
 Install `drizzle-orm` 0.45 and a Drizzle driver, here `sql.js`, next to `@cratis/arc.core` and `@cratis/arc.drizzle`. The Arc packages are not published to npm: install tarballs packed from a clone, or work inside the clone's workspace, as [Create an application](../getting-started/create-an-application.md) shows.
 
@@ -133,7 +133,7 @@ Register `RenameTask` with `builder.add(...)` before `build()`, alongside the SQ
 
 To record the rename as an event instead of writing the row, return an event from `handle()` and register [Chronicle](../chronicle/add-event-sourcing.md), which appends it; see [Returning events](../chronicle/commands/index.md). Drizzle never appends events. Do not register `TaskRecord` as a Chronicle read model as well: injecting it with `commandReadModel` fails at build because two resolvers claim it.
 
-Command read-model injection needs exactly one column with `.primaryKey()`, and that column must be declared as an Arc `@field` on the model. Without either, the model can still serve queries, but a command injecting it fails at build with "Expected one read-model resolver for ModelName, found 0". A table-level `primaryKey({ columns })` is not recognized for this purpose; several column-level primary keys can serve queries but cannot resolve a command's single key. Command read models are tested against SQLite only; PostgreSQL integration tests cover queries, not command injection.
+Command read-model injection needs exactly one column with `.primaryKey()`, and that column must be declared as an Arc `@field` on the model. Without either, the model can still serve queries, but a command injecting it fails at build with "Expected one read-model resolver for ModelName, found 0". A table-level `primaryKey({ columns })` is not recognized for this purpose; several column-level primary keys can serve queries but cannot resolve a command's single key. Command read models are tested against SQLite and live MySQL 8.4; PostgreSQL integration tests cover queries, not command injection.
 
 ## Keep queries read-only
 
