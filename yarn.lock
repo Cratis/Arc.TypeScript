@@ -46,7 +46,7 @@ __metadata:
     zod: "npm:^4.1.0"
   peerDependencies:
     "@cratis/arc.core": ^0.19.0
-    "@cratis/arc.testing": ^0.18.0
+    "@cratis/arc.testing": ^0.19.0
     "@cratis/chronicle": ^6.6.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
