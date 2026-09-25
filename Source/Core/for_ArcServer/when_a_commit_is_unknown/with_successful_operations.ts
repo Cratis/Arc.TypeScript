@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { an_operation_command, ProbeOperation } from '../given/an_operation_command.js';
@@ -9,7 +10,7 @@ describe('when a commit is unknown with successful operations', given(an_operati
     let result: CommandResult;
     beforeEach(async () => {
         context.value = new ProbeOperation('first', context.events);
-        context.afterCompletion = 'Unknown';
+        context.afterCompletion = CommandCommitDisposition.Unknown;
         result = await context.server.executeCommand('Run', context.command, context.context);
     });
     it('should report an indeterminate failure without compensating', () => {

@@ -15,7 +15,9 @@ export type { CommandResponseValueHandler } from './CommandResponseValueHandler.
 export { commandResponseValueHandler } from './responseValueHandler.js';
 export { CommandOperation } from './CommandOperation.js';
 export { CommandOperations, operations } from './CommandOperations.js';
-export type { CommandCommitDisposition } from './CommandCommitDisposition.js';
+export { CommandCommitDisposition } from './CommandCommitDisposition.js';
+export { CommandOperationCompensation } from './CommandOperationCompensation.js';
+export { CommandRecoveryStatus } from './CommandRecoveryStatus.js';
 export type { CommandOperationExecutionScope } from './CommandExecutionScope.js';
 export type { CommandOperationFailure } from './CommandOperationFailure.js';
 export type { CommandOperationOutcome } from './CommandOperationOutcome.js';

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
@@ -25,7 +26,7 @@ export class a_command_with_invalid_client_output {
         this.server = new ArcServer({ commands: [defineCommand({ name: 'Run', schema: z.object({}),
             clientOutput: { output: { kind: 'number' } },
             handle: () => tuple('not a number', new Probe()),
-            scopes: [() => ({ isCommitParticipant: true, getCommitDisposition: () => 'NoCommit' as const,
+            scopes: [() => ({ isCommitParticipant: true, getCommitDisposition: () => CommandCommitDisposition.NoCommit as const,
                 begin: () => { events.push('begin'); },
                 complete: (context: unknown, result: CommandResult) => {
                     void context; void result;

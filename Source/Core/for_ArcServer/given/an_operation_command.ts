@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
 import { CommandOperation } from '../../commands/CommandOperation.js';
-import type { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
+import { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
 import type { CommandContext } from '../../commands/CommandContext.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 import { tuple } from '../../commands/tuple.js';
@@ -27,7 +27,7 @@ export class an_operation_command {
         signal: new AbortController().signal, principal: undefined, tenantId: undefined };
     readonly server: ArcServer;
     value: unknown;
-    disposition: CommandCommitDisposition = 'NoCommit';
+    disposition: CommandCommitDisposition = CommandCommitDisposition.NoCommit;
     afterCompletion?: CommandCommitDisposition;
     eraseFailure = false;
     failCompletion = false;

@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { CommandContext, CommandOperationExecutionScope, CommandCommitDisposition, CommandResult } from '@cratis/arc.core';
-import { currentServices } from '@cratis/arc.core';
+import type { CommandContext, CommandOperationExecutionScope, CommandResult } from '@cratis/arc.core';
+import { CommandCommitDisposition, currentServices } from '@cratis/arc.core';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { ChronicleResponseHandler } from './ChronicleResponseHandler.js';
 
@@ -18,7 +18,8 @@ export class ChronicleCommandScope implements CommandOperationExecutionScope {
     }
     getCommitDisposition(context: CommandContext): CommandCommitDisposition {
         return this.#unit && (context === this.#unit.context || context.correlationId === this.#unit.context.correlationId)
-            ? this.#unit.disposition === 'NoCommit' && this.#unit.hasStagedEvents ? 'NotCommitted' : this.#unit.disposition : 'Unknown';
+            ? this.#unit.disposition === CommandCommitDisposition.NoCommit && this.#unit.hasStagedEvents
+                ? CommandCommitDisposition.NotCommitted : this.#unit.disposition : CommandCommitDisposition.Unknown;
     }
     async complete(context: CommandContext, result: CommandResult): Promise<void> {
         if (this.#unit?.context !== context) return;

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { CommandOperationCompensation, CommandRecoveryStatus } from '@cratis/arc.core';
 import { AssertionError } from 'node:assert';
 import type { CommandResult } from '@cratis/arc.core';
 import type { ScenarioCommandResult } from './ScenarioCommandResult.js';
@@ -34,11 +35,11 @@ export function withCommandAssertions<T>(result: CommandResult<T>): ScenarioComm
             item.operationType === type.name && item.executionCompleted) ?? false,
         `Expected a completed Execute for '${type.name}'`),
         shouldHaveCompensatedOperation: (type: { name: string }) => assert(result.operationOutcomes?.some(item =>
-            item.operationType === type.name && item.compensation === 'Completed') ?? false,
+            item.operationType === type.name && item.compensation === CommandOperationCompensation.Completed) ?? false,
         `Expected a completed Compensate for '${type.name}'`),
         shouldHaveNoOperationInvocations: () => assert(!result.operationOutcomes?.length,
             'Expected no operation invocations'),
-        shouldHaveIndeterminateRecovery: () => assert(result.recovery?.status === 'Indeterminate',
+        shouldHaveIndeterminateRecovery: () => assert(result.recovery?.status === CommandRecoveryStatus.Indeterminate,
             'Expected indeterminate command recovery')
     });
     return decorated;
