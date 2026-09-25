@@ -29,7 +29,10 @@ export async function serveCratisArc<E extends Env>(app: Hono<E>, arc: ArcServer
         server,
         async dispose() {
             await bridge.dispose();
-            await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+            const closed = new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+            // Active SSE responses keep server.close() pending until their clients leave.
+            server.closeAllConnections();
+            await closed;
         }
     };
 }

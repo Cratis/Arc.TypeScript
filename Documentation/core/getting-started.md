@@ -67,7 +67,7 @@ After importing their packages, call `withMongoDB`, `withDrizzle`, or `withChron
 ## Run it, or mount it
 
 - `await app.run(...)` or `await app.start(...)` use the [standalone Node host](index.md).
-- `expressApp.use(cratisArc(app))`, `await fastifyApp.register(cratisArc, { arc: app, webSockets: true })`, and `honoApp.route('/', cratisArc(app))` hand the application to a web framework. Import `cratisArc` from the matching adapter package. The host keeps listener ownership; call `await app.dispose()` at shutdown. See [Host adapters](../hosts/index.md).
+- `expressApp.use(cratisArc(app))`, `await fastifyApp.register(cratisArc, { arc: app })`, and `honoApp.use(cratisArc(app))` hand the application to a web framework. Import `cratisArc` from the matching adapter package. The host keeps listener ownership; call `await app.dispose()` at shutdown. See [Host adapters](../hosts/index.md).
 - `app.fetch(request)` returns an Arc response or 404 for foreign paths; `app.handle(request)` returns `null` for fall-through. These Fetch methods alone do not establish edge-runtime compatibility: the core still imports Node runtime modules.
 
 A caller-owned `ServiceRegistry` passed in the options cannot be combined with builder service registrations.

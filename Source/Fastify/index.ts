@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
@@ -9,17 +9,20 @@ export { mountFastifyWebSockets } from './WebSocketMount.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
-/** One encapsulated Fastify registration for Arc HTTP and observable upgrades. */
-export async function cratisArc(app: FastifyInstance, options: {
+export interface CratisArcOptions {
     arc: ArcServer | ArcApplication;
     prefix?: string;
     webSockets?: boolean;
     native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>;
-}): Promise<void> {
-    const server = 'server' in options.arc ? options.arc.server : options.arc;
-    if (options.webSockets !== false) mountFastifyWebSockets(app, server, options.native, options.prefix);
-    mountFastify(app, options.arc, options.native, options.prefix);
 }
+/** One encapsulated Fastify registration for Arc HTTP and observable upgrades. */
+export const cratisArc: FastifyPluginAsync<CratisArcOptions> = async (app, options) => {
+    const server = 'server' in options.arc ? options.arc.server : options.arc;
+    const prefix = app.prefix || options.prefix || '';
+    if (options.webSockets !== false) mountFastifyWebSockets(app, server, options.native, prefix);
+    mountFastify(app, options.arc, options.native, prefix);
+};
+export default cratisArc;
 
 /** @deprecated Use app.register(cratisArc, { arc, webSockets: true }). */
 export function mountFastify(app: FastifyInstance, application: ArcServer | ArcApplication,

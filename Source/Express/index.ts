@@ -10,10 +10,10 @@ import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
-/** Return ordinary Express middleware; attach() separately bridges listener upgrades. */
+/** Return ordinary Express middleware; injectWebSocket() separately bridges listener upgrades. */
 export function cratisArc(application: ArcServer | ArcApplication,
     native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): RequestHandler & {
-        attach(host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void>;
+        injectWebSocket(host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void>;
     } {
     const server = 'server' in application ? application.server : application;
     const middleware = async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
@@ -56,7 +56,7 @@ export function cratisArc(application: ArcServer | ArcApplication,
         }
     };
     return Object.assign(middleware, {
-        attach: (host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>) =>
+        injectWebSocket: (host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>) =>
             attachNodeWebSockets(host, server, upgradeNative)
     });
 }
@@ -67,7 +67,7 @@ export function mountExpress(app: Express, application: ArcServer | ArcApplicati
     app.use(cratisArc(application, native));
 }
 
-/** @deprecated Use cratisArc(application).attach(listener). */
+/** @deprecated Use cratisArc(application).injectWebSocket(listener). */
 export function mountExpressWebSockets(host: HttpServer, application: ArcServer | ArcApplication,
     native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
     return attachNodeWebSockets(host, 'server' in application ? application.server : application, native);

@@ -9,11 +9,11 @@ description: Mount an Arc application in Fastify 5 as an encapsulated plugin, an
 
 ```typescript title="server.ts"
 import Fastify from 'fastify';
-import { cratisArc } from '@cratis/arc.fastify';
+import cratisArc from '@cratis/arc.fastify';
 import { arc } from './arc.js';
 
 const app = Fastify();
-await app.register(cratisArc, { arc, webSockets: true });
+await app.register(cratisArc, { arc });
 app.get('/health', async () => 'ok');
 await app.listen({ port: 3000, host: '127.0.0.1' });
 
@@ -44,7 +44,7 @@ Fastify enforces its own `bodyLimit`, 1 MiB by default, before Arc reads the bod
 
 ## Observable queries over WebSockets
 
-`app.register(cratisArc, { arc, webSockets: true })` registers HTTP and observable upgrades together. When using a shared `@fastify/websocket`, register it first. `mountFastify` and `mountFastifyWebSockets` remain deprecated aliases. See [WebSockets](websockets.md#fastify).
+`app.register(cratisArc, { arc })` registers HTTP and observable upgrades together (`webSockets` defaults to `true`). Set `webSockets: false` to disable upgrades. A shared `@fastify/websocket` can be registered before or after Arc; both orders are covered by real upgrade checks. The plugin also supports a Fastify registration prefix, including one inherited from a parent plugin. `mountFastify` and `mountFastifyWebSockets` remain deprecated aliases. See [WebSockets](websockets.md#fastify).
 
 ## Related
 

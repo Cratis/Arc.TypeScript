@@ -24,13 +24,11 @@ export class ArcApplication {
     #onStopped?: (error?: unknown) => void;
     constructor(readonly server: ArcServer) {}
     /** Dispatch a Fetch request; non-Arc paths produce a 404 Response. */
-    async fetch(request: Request, native?: NativeRequestContext): Promise<Response> {
-        return await this.server.handle(request, native) ?? new Response(null, { status: 404 });
-    }
+    readonly fetch = async (request: Request, native?: NativeRequestContext): Promise<Response> =>
+        await this.server.handle(request, native) ?? new Response(null, { status: 404 });
     /** Dispatch a Fetch request while preserving fall-through for other routes. */
-    handle(request: Request, native?: NativeRequestContext): Promise<Response | null> {
-        return this.server.handle(request, native);
-    }
+    readonly handle = (request: Request, native?: NativeRequestContext): Promise<Response | null> =>
+        this.server.handle(request, native);
     /** Start listening without waiting for the application's lifetime to end. */
     async start(options?: ArcNodeRunOptions): Promise<void> {
         if (this.#disposed) throw new Error('Arc application is disposed');

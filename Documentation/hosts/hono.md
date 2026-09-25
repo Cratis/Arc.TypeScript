@@ -14,13 +14,13 @@ import { arc } from './arc.js';
 
 const app = new Hono<{ Variables: { startedAt: number } }>();
 app.use('*', async (context, next) => { context.set('startedAt', Date.now()); await next(); });
-app.route('/', cratisArc(arc));
+app.use(cratisArc(arc));
 app.get('/health', context => context.text(`ok since ${context.get('startedAt')}`));
 const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1' });
 process.once('SIGTERM', () => { void hosted.dispose().then(() => arc.dispose()); });
 ```
 
-`arc` is the built application from [Host adapters](index.md#before-you-start). `cratisArc(arc)` creates an HTTP/SSE sub-app that continues to your routes for foreign paths. `serveCratisArc` starts a Node listener with WebSocket upgrades and returns its listener and async disposer; it does not dispose `arc`. Mount the sub-app before adding your routes. `mountHono` and `mountHonoWebSockets` remain deprecated aliases.
+`arc` is the built application from [Host adapters](index.md#before-you-start). `cratisArc(arc)` returns HTTP/SSE middleware that continues to your routes for foreign paths; mount it before adding your routes. Use `app.use('/v1/*', cratisArc(arc))` to expose Arc under a prefix. `serveCratisArc` starts a Node listener with WebSocket upgrades and returns its listener and async disposer; it does not dispose `arc`. If you own the Node listener, call `const disposeSockets = cratisArc(arc).injectWebSocket(listener)` instead, then dispose the sockets before closing the listener. `mountHono` and `mountHonoWebSockets` remain deprecated aliases.
 
 ## Run on Node
 
@@ -36,7 +36,7 @@ Runtimes other than `@hono/node-server` do not expose the raw request-target spe
 
 ## Observable queries over WebSockets
 
-`serveCratisArc(app, arc, { port, native? })` installs observable WebSockets on the Node listener; HTTP/SSE-only Fetch runtimes can use `app.route('/', cratisArc(arc))` with their own server. Other runtimes need a separately verified WebSocket upgrade bridge. The pinned `@hono/node-server` 1.x does not export the Hono WebSocket upgrade helper, so this Node adapter still uses `@hono/node-ws` internally. See [WebSockets](websockets.md#hono).
+`serveCratisArc(app, arc, { port, native? })` installs observable WebSockets on the Node listener. Arc core imports Node modules: Hono runtimes other than Node have not been verified, even for HTTP/SSE, and need their own validated host and WebSocket bridge. The pinned `@hono/node-server` 1.x does not export the Hono WebSocket upgrade helper, so this Node adapter still uses `@hono/node-ws` internally. See [WebSockets](websockets.md#hono).
 
 ## Related
 

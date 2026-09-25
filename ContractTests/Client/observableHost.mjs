@@ -13,18 +13,33 @@ export async function observableHost(kind, server, native) {
         const app = express(); const middleware = expressArc(server, native); app.use(middleware);
         const listener = app.listen(0, '127.0.0.1');
         await new Promise(resolve => listener.once('listening', resolve));
-        middleware.attach(listener, native);
+        const disposeSockets = middleware.injectWebSocket(listener, native);
         return { origin: `http://127.0.0.1:${listener.address().port}`,
-            close: () => new Promise((resolve, reject) => listener.close(error => error ? reject(error) : resolve())) };
+            close: async () => {
+                await disposeSockets();
+                const closed = new Promise((resolve, reject) => listener.close(error => error ? reject(error) : resolve()));
+                listener.closeAllConnections();
+                await closed;
+            } };
     }
     if (kind === 'fastify') {
         const app = fastify();
+        const foreignSockets = new Set();
+        app.server.on('upgrade', (request, socket) => {
+            if (server.endpoints.has(request.url?.split('?')[0] ?? '')) return;
+            foreignSockets.add(socket);
+            socket.once('close', () => foreignSockets.delete(socket));
+        });
         await app.register(fastifyArc, { arc: server, native, webSockets: true });
         await app.listen({ port: 0, host: '127.0.0.1' });
-        return { origin: app.listeningOrigin, close: () => app.close() };
+        return { origin: app.listeningOrigin, close: async () => {
+            // The test host owns foreign upgrades; Arc only drains Arc sockets.
+            for (const socket of foreignSockets) socket.destroy();
+            await app.close();
+        } };
     }
     const app = new Hono();
-    app.route('/', honoArc(server, native));
+    app.use(honoArc(server, native));
     const hosted = await serveCratisArc(app, server, { port: 0, hostname: '127.0.0.1', native });
     const listener = hosted.server;
     return { origin: `http://127.0.0.1:${listener.address().port}`,

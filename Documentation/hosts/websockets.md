@@ -16,14 +16,14 @@ const app = express();
 const middleware = cratisArc(arc);
 app.use(middleware);
 const listener = app.listen(3000, '127.0.0.1');
-const closeSockets = middleware.attach(listener);
+const closeSockets = middleware.injectWebSocket(listener);
 ```
 
-Call `middleware.attach(listener, native?)` on the listener returned by `app.listen()`, and `await closeSockets()` at shutdown. Express HTTP middleware does **not** run on Node `upgrade` requests: session, authentication, CORS, and rate-limiting middleware cannot authorize the socket. The optional `native` callback receives a raw `IncomingMessage`, not an Express request, so `trust proxy` and `req.protocol` do not apply. Authenticate upgrades with Arc authentication handlers or a trusted session lookup in that callback.
+Call `middleware.injectWebSocket(listener, native?)` on the listener returned by `app.listen()`, and `await closeSockets()` at shutdown. Express HTTP middleware does **not** run on Node `upgrade` requests: session, authentication, CORS, and rate-limiting middleware cannot authorize the socket. The optional `native` callback receives a raw `IncomingMessage`, not an Express request, so `trust proxy` and `req.protocol` do not apply. Authenticate upgrades with Arc authentication handlers or a trusted session lookup in that callback.
 
 ## Fastify
 
-Call `await app.register(cratisArc, { arc, webSockets: true })` before listening (`cratisArc` comes from `@cratis/arc.fastify`). A shared `@fastify/websocket` can be registered before or after Arc; real upgrade checks cover both orders. A `prefix` in the registration scopes HTTP and WebSocket paths without changing Arc's generated routes.
+Call `await app.register(cratisArc, { arc })` before listening (`webSockets` defaults to `true`; `cratisArc` comes from `@cratis/arc.fastify`). A shared `@fastify/websocket` can be registered before or after Arc; real upgrade checks cover both orders. A `prefix` in the registration scopes HTTP and WebSocket paths without changing Arc's generated routes.
 
 Fastify's `onRequest`, `preValidation`, and `preHandler` hooks run before the upgrade. `app.close()` disposes Arc-owned sockets and subscriptions, **not** the Arc application or its services; call `await arc.dispose()` separately.
 
@@ -35,7 +35,7 @@ import { cratisArc, serveCratisArc } from '@cratis/arc.hono';
 import { arc } from './arc.js';
 
 const app = new Hono();
-app.route('/', cratisArc(arc));
+app.use(cratisArc(arc));
 const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1' });
 ```
 
@@ -59,7 +59,7 @@ Each bridge checks exact raw paths and the configured `allowedOrigins` before ac
 Arc never trusts `X-Forwarded-*` by itself. A trusted `native` callback can set `secure` and `authority` when a verified proxy terminates TLS. Validate the proxy connection against a fixed list before reading forwarded values:
 
 ```typescript
-middleware.attach(listener, request => {
+middleware.injectWebSocket(listener, request => {
     if (request.socket.remoteAddress !== '127.0.0.1') throw new Error('Untrusted proxy');
     const protocol = request.headers['x-forwarded-proto'];
     const host = request.headers['x-forwarded-host'];

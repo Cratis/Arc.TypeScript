@@ -88,9 +88,11 @@ export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
     const mount = new FastifyWebSocketMount(server, native, prefix);
     mounts.set(app, mount);
     const upgrades = new Set<import('node:net').Socket>();
-    const onUpgrade = (_request: import('node:http').IncomingMessage, socket: import('node:net').Socket): void => {
-        // Fastify's default preClose closes accepted WebSockets, but rejected
-        // upgrades can leave a hijacked socket open outside its client set.
+    const onUpgrade = (request: import('node:http').IncomingMessage, socket: import('node:net').Socket): void => {
+        // Only Arc upgrades belong to this mount; other plugins own their sockets.
+        const path = request.url?.split('?')[0];
+        if (!path || !server.endpoints.has(path.slice(prefix.replace(/\/$/, '').length)) ||
+            !path.startsWith(prefix.replace(/\/$/, '') + '/')) return;
         upgrades.add(socket);
         const release = (): void => { upgrades.delete(socket); socket.off('error', onSocketError); };
         const onSocketError = (): void => { socket.destroy(); };

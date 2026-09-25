@@ -35,6 +35,7 @@ async function upgrade(origin, path, browserOrigin, headers = {}) {
             resolve(response.statusCode);
             response.resume();
             request.destroy();
+            response.socket.destroy();
         });
         socket.once('error', reject);
     }));

@@ -18,10 +18,18 @@ app.use(middleware);
 app.use(express.json());
 app.get('/health', (_request, response) => { response.send('ok'); });
 const listener = app.listen(3000, '127.0.0.1');
-const disposeSockets = middleware.attach(listener);
+const disposeSockets = middleware.injectWebSocket(listener);
 
 process.once('SIGTERM', () => {
-    void disposeSockets().then(() => listener.close(() => { void arc.dispose(); }));
+    void (async () => {
+        try {
+            await disposeSockets();
+            const closed = new Promise<void>((resolve, reject) =>
+                listener.close(error => error ? reject(error) : resolve()));
+            listener.closeAllConnections(); // Drain open SSE responses before awaiting close.
+            await closed;
+        } finally { await arc.dispose(); }
+    })();
 });
 ```
 
@@ -45,7 +53,7 @@ An unexpected error inside the adapter is passed to Express with `next(error)`. 
 
 ## Observable queries over WebSockets
 
-Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `cratisArc(arc).attach(listener, native?)`; the middleware cannot see upgrades. See [WebSockets](websockets.md#express). `mountExpress` and `mountExpressWebSockets` remain deprecated aliases.
+Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `cratisArc(arc).injectWebSocket(listener, native?)`; the middleware cannot see upgrades. See [WebSockets](websockets.md#express). `mountExpress` and `mountExpressWebSockets` remain deprecated aliases.
 
 ## Related
 

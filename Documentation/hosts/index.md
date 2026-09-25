@@ -26,9 +26,9 @@ export const arc = await builder.build();
 
 | Package | Exports | Framework peer range |
 | --- | --- | --- |
-| `@cratis/arc.express` | `cratisArc(arc)` middleware and `.attach(listener)` | `express` `^5.0.0` |
-| `@cratis/arc.fastify` | `app.register(cratisArc, { arc, webSockets: true })` | `fastify` `^5.0.0` |
-| `@cratis/arc.hono` | `app.route('/', cratisArc(arc))`; Node: `serveCratisArc` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` for Node hosting |
+| `@cratis/arc.express` | `cratisArc(arc)` middleware and `.injectWebSocket(listener)` | `express` `^5.0.0` |
+| `@cratis/arc.fastify` | `app.register(cratisArc, { arc })` (WebSockets on by default) | `fastify` `^5.0.0` |
+| `@cratis/arc.hono` | `app.use(cratisArc(arc))`; Node: `serveCratisArc` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` for Node hosting |
 | `@cratis/arc.core/hosting` | `attachNodeWebSockets` and adapter hosting primitives | None |
 
 Each adapter accepts a built `ArcApplication` or low-level `ArcServer`. The older `mount*` functions remain deprecated aliases.
@@ -54,7 +54,7 @@ The adapters add no Arc behavior of their own. Each one:
 
 | Area | Express | Fastify | Hono |
 | --- | --- | --- | --- |
-| Registration | One middleware, before body parsers | Encapsulated plugin; routes exist once the app is ready | Routed sub-app |
+| Registration | One middleware, before body parsers | Encapsulated plugin; routes exist once the app is ready | One middleware |
 | Request bodies | Raw request stream | Raw buffer from a scoped catch-all parser | The Fetch API request body |
 | Body size | Arc's `maxBodyBytes` | Fastify's `bodyLimit` first, then `maxBodyBytes` | Arc's `maxBodyBytes` |
 | Unknown path | Falls through to your routes; Express's own 404 carries no Arc correlation header | Fastify's 404 | Falls through to your routes |
