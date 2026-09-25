@@ -7,7 +7,7 @@ An aggregate root holds the state one event source's history implies, and the me
 
 ## Define the events and the aggregate
 
-```typescript title="Order.ts"
+```typescript title="Features/Order.ts"
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { AggregateRoot } from '@cratis/arc.chronicle';

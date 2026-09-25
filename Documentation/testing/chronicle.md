@@ -217,6 +217,8 @@ export class ReturnBook {
 }
 ```
 
+In an application, place `Returning.ts` under `Features/Books/Returning/` and run the [proxy generator](../proxy-generation/getting-started.md) against `Features/`, writing metadata to `Features/generatedMetadata.ts`. Use absolute paths for the generator options, as in the linked script. Load the generated metadata and `discover()` the `Features/` folder after `withChronicle`, as in [Add event sourcing](../chronicle/add-event-sourcing.md). The generator omits the rejection branch from `ReturnBook`'s client response; the rejection reaches the caller as a validation failure.
+
 The test seeds a `BookLent` for the book, returns it, and then tries again:
 
 ```typescript title="Features/Books/Returning/for_ReturnBook/when_returning/with_a_lent_book.ts"
