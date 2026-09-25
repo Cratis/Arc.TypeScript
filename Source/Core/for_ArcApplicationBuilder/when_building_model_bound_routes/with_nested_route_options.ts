@@ -10,7 +10,7 @@ class RouteCommand { handle(): void {} }
 describe('when applying nested route options to a folder-style namespace', given(an_application_builder, context => {
     let route: string;
     beforeEach(async () => {
-        const builder = context.create({ prefix: 'old', segmentsToSkip: 0, generatedApis: {
+        const builder = context.create({ generatedApis: {
             routePrefix: 'public', segmentsToSkipForRoute: 1, includeCommandNameInRoute: true
         } });
         builder.add(RouteCommand);
@@ -18,7 +18,7 @@ describe('when applying nested route options to a folder-style namespace', given
         try { route = application.server.commands[0]!.route; }
         finally { await application.dispose(); }
     });
-    it('should skip only the configured namespace segment and prefer nested options', () => {
+    it('should skip only the configured namespace segment', () => {
         route.should.equal('/public/tasks/registration/route-command');
     });
 }));

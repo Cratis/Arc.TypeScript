@@ -133,7 +133,7 @@ export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-`discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` in `appsettings.json`, which returns exception details to callers; leave it off anywhere a real user can reach.
+`discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` to enable development discovery. Exception details instead follow `Cratis:Arc:ExposeExceptionDetails`, which defaults on only in a Development environment; keep it off on public hosts.
 
 :::caution[The discovery folder must not contain the entry point]
 `discover()` refuses a folder that contains the module currently calling it. Keep your artifacts in a dedicated folder such as `Features/`, as the sample does.

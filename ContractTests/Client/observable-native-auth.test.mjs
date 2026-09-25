@@ -8,9 +8,9 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import { ArcServer, CurrentValueSubject, defineObservableQuery } from '@cratis/arc.core';
-import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
-import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.fastify';
-import { mountHono, mountHonoWebSockets } from '@cratis/arc.hono';
+import { cratisArc as expressArc } from '@cratis/arc.express';
+import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
+import { cratisArc as honoArc, createHonoWebSockets } from '@cratis/arc.hono';
 
 const principal = { id: 'verified', isAuthenticated: true, roles: ['reader'] };
 function protectedServer() {
@@ -45,16 +45,20 @@ test('Express WS accepts an async native resolver without running HTTP middlewar
     let middlewareCalls = 0;
     let resolverCalls = 0;
     app.use((_request, _response, next) => { middlewareCalls++; next(); });
-    mountExpress(app, server);
+    const middleware = expressArc(server);
+    app.use(middleware);
     const listener = app.listen(0, '127.0.0.1');
     await new Promise(resolve => listener.once('listening', resolve));
-    mountExpressWebSockets(listener, server, async () => { resolverCalls++; await Promise.resolve(); return { principal }; });
+    const disposeSockets = middleware.injectWebSocket(listener, async () => {
+        resolverCalls++; await Promise.resolve(); return { principal };
+    });
     try {
         const frame = await query(`http://127.0.0.1:${listener.address().port}`);
         assert.equal(frame.payload.data[0].name, 'authorized');
         assert.equal(middlewareCalls, 0);
         assert.equal(resolverCalls, 1);
     } finally {
+        await disposeSockets();
         await server.dispose();
         await new Promise(resolve => listener.close(resolve));
     }
@@ -65,8 +69,7 @@ test('Fastify WS runs authentication hooks before resolving the native principal
     const app = fastify();
     let hooks = 0;
     app.addHook('preValidation', async request => { hooks++; request.trustedPrincipal = principal; });
-    mountFastifyWebSockets(app, server, async request => ({ principal: request.trustedPrincipal }));
-    mountFastify(app, server);
+    app.register(fastifyArc, { arc: server, native: async request => ({ principal: request.trustedPrincipal }) });
     await app.listen({ port: 0, host: '127.0.0.1' });
     try {
         const frame = await query(app.listeningOrigin);
@@ -84,8 +87,8 @@ test('Hono WS runs application middleware before resolving the native principal'
     const app = new Hono();
     let hooks = 0;
     app.use('*', async (context, next) => { hooks++; context.set('trustedPrincipal', principal); await next(); });
-    mountHono(app, server);
-    const webSockets = mountHonoWebSockets(app, server, async context => ({ principal: context.get('trustedPrincipal') }));
+    app.use(honoArc(server));
+    const webSockets = createHonoWebSockets(app, server, async context => ({ principal: context.get('trustedPrincipal') }));
     const listener = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' });
     await new Promise(resolve => listener.once('listening', resolve));
     webSockets.injectWebSocket(listener);

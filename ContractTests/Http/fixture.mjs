@@ -14,7 +14,7 @@ import { GuidCommand } from './modelBound/dist/GuidCommand.js';
 import { GuidCommandValidator } from './modelBound/dist/GuidCommandValidator.js';
 import { HttpMetric } from './modelBound/dist/HttpMetric.js';
 import { PolicyItems, RateLookup } from './modelBound/dist/PolicyAndObservable.js';
-import { mountExpress } from '@cratis/arc.express';
+import { cratisArc } from '@cratis/arc.express';
 
 let executions = 0;
 const items = Object.freeze([{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }, { id: 3, name: 'Linus' }]);
@@ -85,7 +85,7 @@ const authentication = request => {
 };
 const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems],
-    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, segmentsToSkip: 1
+    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, generatedApis: { segmentsToSkipForRoute: 1 }
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
@@ -93,7 +93,7 @@ builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, Mode
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));
 const arc = await builder.build();
 const app = express();
-mountExpress(app, arc);
+app.use(cratisArc(arc));
 const server = app.listen(0, '127.0.0.1', () => {
     const address = server.address();
     console.log(JSON.stringify({ kind: 'typescript-http-fixture-ready', baseUrl: `http://127.0.0.1:${address.port}` }));

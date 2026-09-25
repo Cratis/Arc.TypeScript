@@ -3,7 +3,7 @@
 import { should } from 'vitest';
 import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { MongoDBOptions } from '../MongoDBOptions.js';
-import { withMongoDB } from '../addMongoDB.js';
+import { withMongoDB } from '../withMongoDB.js';
 
 should();
 describe('when code supplies a MongoDB client over a configured server', () => {

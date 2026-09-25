@@ -22,7 +22,7 @@ describe('when resolving tenants with ordered sources', () => {
         forbidden = (await run('evil.example.com'))!.status;
         invalidHeader = (await run('south.example.com', '../wrong'))!.status;
         anonymous = (await server.handle(new Request('http://arc.invalid/api/tenant', { headers: { 'x-cratis-tenant-id': 'north' } }), { authority: 'example.com' }))!.status;
-        const authoritative = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['fixed'], fixed: 'north', required: true }, resolveTenant: () => 'custom',
+        const authoritative = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['fixed'], fixedTenantId: 'north', required: true, resolve: () => 'custom' },
             queries: [defineQuery({ name: 'Tenant', schema: z.object({}), perform: (_input, context) => context.tenantId })] });
         custom = (await (await identityGet(authoritative, '/api/tenant'))!.json()).data;
         await Promise.all([server.dispose(), authoritative.dispose()]);

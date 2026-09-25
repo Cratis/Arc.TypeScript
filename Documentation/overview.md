@@ -11,16 +11,16 @@ You have written a command and a read model, and now something has to listen on 
 | --- | --- | --- |
 | Standalone Node host | `@cratis/arc.core`: `app.run()` or `app.start()` | You want Arc routes, and optionally a built frontend, on one port with no web framework |
 | Your own Node server | `@cratis/arc.core`: `createArcNodeHandler(server)` | You already own a `node:http` or `node:https` server and want Arc as its request handler |
-| Express 5 | `@cratis/arc.express`: `mountExpress(app, arcApp)` | Your application already uses Express middleware and routes |
-| Fastify 5 | `@cratis/arc.fastify`: `mountFastify(app, arcApp)` | Your application already uses Fastify plugins and hooks |
-| Hono 4 | `@cratis/arc.hono`: `mountHono(app, arcApp)` | Your application already uses Hono, on Node through `@hono/node-server` |
+| Express 5 | `@cratis/arc.express`: `app.use(cratisArc(arcApp))` | Your application already uses Express middleware and routes |
+| Fastify 5 | `@cratis/arc.fastify`: `app.register(cratisArc, { arc: arcApp })` | Your application already uses Fastify plugins and hooks |
+| Hono 4 | `@cratis/arc.hono`: `app.use(cratisArc(arcApp))` | Your application already uses Hono, on Node through `@hono/node-server` |
 | Any Fetch API host or none | `@cratis/arc.core`: `server.handle(request)` | You call Arc from a spec, a job, or a runtime that speaks `Request` and `Response` |
 
 ```mermaid
 flowchart TB
     Builder["ArcApplication.createBuilder()<br/>add, discover, services"] --> App["ArcApplication<br/>app.server: ArcServer"]
     App -->|app.run / app.start| Node["Standalone Node host"]
-    App -->|mountExpress / mountFastify / mountHono| Framework["Your web framework"]
+    App -->|cratisArc adapters| Framework["Your web framework"]
     App -->|app.server.handle| Fetch["Fetch API Request"]
 ```
 

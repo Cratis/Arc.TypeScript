@@ -15,10 +15,10 @@ interface PreparedUpgrade {
     readonly resolved: NonNullable<Awaited<ReturnType<typeof prepareObservableUpgrade>>['resolved']>;
 }
 
-const mounts = new WeakMap<FastifyInstance, FastifyWebSocketMount>();
+const mounts = new WeakMap<FastifyInstance, FastifyWebSocketBridge>();
 
 /** Let Fastify hooks authenticate the request before the plugin upgrades a route. */
-export class FastifyWebSocketMount {
+class FastifyWebSocketBridge {
     readonly #prepared = new WeakMap<FastifyRequest, PreparedUpgrade>();
     readonly #sockets = new Set<{ close(): void; completion: Promise<void> }>();
     constructor(readonly server: ArcServer,
@@ -81,11 +81,11 @@ export class FastifyWebSocketMount {
     }
 }
 
-/** Register before mountFastify and before listen; onClose releases Arc-owned sockets and scopes. */
-export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
+/** Register before the HTTP routes and before listen; onClose releases Arc-owned sockets and scopes. */
+export function registerFastifyWebSockets(app: FastifyInstance, server: ArcServer,
     native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>, prefix = ''): () => Promise<void> {
     if (mounts.has(app)) throw new Error('Fastify observable WebSockets are already mounted');
-    const mount = new FastifyWebSocketMount(server, native, prefix);
+    const mount = new FastifyWebSocketBridge(server, native, prefix);
     mounts.set(app, mount);
     const upgrades = new Set<import('node:net').Socket>();
     const onUpgrade = (request: import('node:http').IncomingMessage, socket: import('node:net').Socket): void => {
@@ -116,4 +116,4 @@ export function mountFastifyWebSockets(app: FastifyInstance, server: ArcServer,
     return () => mount.dispose();
 }
 
-export function fastifyWebSocketMount(app: FastifyInstance): FastifyWebSocketMount | undefined { return mounts.get(app); }
+export function fastifyWebSocketMount(app: FastifyInstance): FastifyWebSocketBridge | undefined { return mounts.get(app); }

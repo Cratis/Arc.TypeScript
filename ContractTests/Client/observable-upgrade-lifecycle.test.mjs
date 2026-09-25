@@ -12,8 +12,8 @@ import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import { ArcServer, CurrentValueSubject, createArcNodeHandler, defineObservableQuery, runArc } from '@cratis/arc.core';
 import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
-import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.fastify';
-import { mountHono, mountHonoWebSockets } from '@cratis/arc.hono';
+import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
+import { cratisArc as honoArc, createHonoWebSockets } from '@cratis/arc.hono';
 import { observableHost } from './observableHost.mjs';
 
 const pause = duration => new Promise(resolve => setTimeout(resolve, duration));
@@ -79,11 +79,10 @@ test('Fastify Arc routes coexist with an already registered websocket plugin', a
     const server = makeServer();
     const app = fastify();
     app.register(websocket);
-    mountFastifyWebSockets(app, server);
+    app.register(fastifyArc, { arc: server });
     app.register(async scoped => {
         scoped.get('/mine', { websocket: true }, socket => socket.on('message', () => socket.send('mine')));
     });
-    mountFastify(app, server);
     await app.listen({ host: '127.0.0.1', port: 0 });
     try {
         assert.equal((await socketResult(app.listeningOrigin, '/.cratis/queries/ws')).type, 'Connected');
@@ -103,8 +102,8 @@ test('Hono Arc routes share the application websocket helper without taking its 
     const app = new Hono();
     const helper = createNodeWebSocket({ app });
     app.get('/mine', helper.upgradeWebSocket(() => ({ onOpen: (_event, connection) => connection.send('mine') })));
-    const arcSockets = mountHonoWebSockets(app, server, undefined, helper);
-    mountHono(app, server);
+    const arcSockets = createHonoWebSockets(app, server, undefined, helper);
+    app.use(honoArc(server));
     const listener = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 });
     await new Promise(resolve => listener.once('listening', resolve));
     helper.injectWebSocket(listener);
@@ -125,8 +124,8 @@ test('Hono Arc routes share the application websocket helper without taking its 
 test('Hono WebSocket route passes an ordinary GET to Arc when mounted first', async () => {
     const server = makeServer();
     const app = new Hono();
-    const sockets = mountHonoWebSockets(app, server);
-    mountHono(app, server);
+    const sockets = createHonoWebSockets(app, server);
+    app.use(honoArc(server));
     const listener = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 });
     await new Promise(resolve => listener.once('listening', resolve));
     sockets.injectWebSocket(listener);

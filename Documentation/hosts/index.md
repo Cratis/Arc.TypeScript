@@ -47,7 +47,7 @@ Express needs a listener attach step for WebSockets; Fastify's plugin and Hono's
 The adapters add no Arc behavior of their own. Each one:
 
 - dispatches only requests whose path exactly matches an Arc route, on a fixed internal origin, so a crafted `Host` header cannot select a different operation (Express and Fastify compare the raw path; Hono checks the raw request-target only on `@hono/node-server`);
-- hands Arc the unparsed body and lets Arc enforce `maxBodyBytes`;
+- hands Arc the unparsed body and lets Arc enforce `hosting.maxBodyBytes`;
 - passes a cancellation signal that becomes `context.signal`; pass it to anything that accepts one, such as `fetch` or a database driver;
 - serves the same routes: commands, validation routes, queries, observable queries, and the `/.cratis` and `/openapi.json` endpoints listed in the [HTTP contract reference](../reference/http-contract.md).
 
@@ -57,7 +57,7 @@ The adapters add no Arc behavior of their own. Each one:
 | --- | --- | --- | --- |
 | Registration | One middleware, before body parsers | Encapsulated plugin; routes exist once the app is ready | One middleware |
 | Request bodies | Raw request stream | Raw buffer from a scoped catch-all parser | The Fetch API request body |
-| Body size | Arc's `maxBodyBytes` | Fastify's `bodyLimit` first, then `maxBodyBytes` | Arc's `maxBodyBytes` |
+| Body size | Arc's `hosting.maxBodyBytes` | Fastify's `bodyLimit` first, then `hosting.maxBodyBytes` | Arc's `hosting.maxBodyBytes` |
 | Unknown path | Falls through to your routes; Express's own 404 carries no Arc correlation header | Fastify's 404 | Falls through to your routes |
 | `context.signal` aborts | When the client disconnects before the response finishes | When the client disconnects before the response finishes | When the signal of the request Hono received aborts; depends on the server running Hono |
 | Application type | `Express` | `FastifyInstance` | `Hono<E>` for any `Env` type |

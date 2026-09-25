@@ -13,7 +13,7 @@ describe('when entering nested executions with a custom tenant resolver', () => 
     let nestedData: unknown;
     let after: unknown;
     beforeEach(async () => {
-        const server = new ArcServer({ resolveTenant: () => undefined, queries: [defineQuery({ name: 'Tenant', schema: z.object({}), perform: (_input, ctx) => [ctx.tenantId, currentContext()?.tenantId] })] });
+        const server = new ArcServer({ tenancy: { resolve: () => undefined }, queries: [defineQuery({ name: 'Tenant', schema: z.object({}), perform: (_input, ctx) => [ctx.tenantId, currentContext()?.tenantId] })] });
         httpData = (await (await server.handle(new Request('http://arc.invalid/api/tenant', { headers: { 'x-cratis-tenant-id': 'forged' } })))!.json()).data;
         const outer = new ArcServer({ commands: [defineCommand({ name: 'Outer', schema: z.object({}), handle: async () => {
             const before = currentContext();

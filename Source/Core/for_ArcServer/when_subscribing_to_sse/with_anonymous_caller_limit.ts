@@ -16,7 +16,7 @@ describe('when subscribing to SSE with an anonymous caller limit', () => {
 
     beforeEach(async () => {
         const subject = new CurrentValueSubject<number>(1);
-        const server = new ArcServer({ maxObservableSubscriptions: 16, maxObservableSubscriptionsPerCaller: 8,
+        const server = new ArcServer({ query: { maxObservableSubscriptions: 16, maxObservableSubscriptionsPerCaller: 8 },
             observableQueries: [defineObservableQuery({ name: 'Value', schema: z.object({}), observe: () => subject })] });
         const streams: Response[] = [];
         admitted = [];

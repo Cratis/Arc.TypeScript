@@ -8,7 +8,7 @@ describe('when documenting generated results with command and query', given(an_o
     let paths: Record<string, Record<string, { responses: Record<string, { content: Record<string, { schema: Record<string, unknown> }> }>; parameters?: { name: string }[] }>>;
     let version: string;
     beforeEach(() => {
-        const document = renderOpenApi([context.command], [context.query], { openApiVersion: '2.0.0' });
+        const document = renderOpenApi([context.command], [context.query], { generatedApis: { openApiVersion: '2.0.0' } });
         version = (document.info as { version: string }).version;
         paths = document.paths as typeof paths;
     });

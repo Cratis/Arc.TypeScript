@@ -10,7 +10,8 @@ const handler = jwtBearer({ jwksUrl: new URL('https://example.invalid/keys'), is
 describe('when documenting security with a registered bearer handler', () => {
     let document: Record<string, unknown>;
     beforeEach(() => {
-        const operation = { kind: 'command', name: 'Save', route: '/api/save', schema: z.object({}), inputSchema: {},
+        const operation = { kind: 'command', name: 'Save', fullyQualifiedName: 'Save', route: '/api/save',
+            schema: z.object({}), inputSchema: {},
             authorization: { authenticated: true }, run: async () => { throw new Error('not called'); } } as Operation;
         document = renderOpenApi([operation], [], { authentication: [handler] });
     });

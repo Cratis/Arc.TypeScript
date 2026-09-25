@@ -7,8 +7,8 @@ import { CurrentValueSubject } from '../../queries/observable/CurrentValueSubjec
 import { defineObservableQuery } from '../../queries/observable/defineObservableQuery.js';
 
 export function healthServer(maxConnectionsPerCaller?: number): ArcServer {
-    return new ArcServer({ enableObservableHealth: true,
-        ...(maxConnectionsPerCaller === undefined ? {} : { maxObservableHubConnectionsPerCaller: maxConnectionsPerCaller }),
+    return new ArcServer({ query: { enableObservableHealth: true,
+        ...(maxConnectionsPerCaller === undefined ? {} : { maxObservableHubConnectionsPerCaller: maxConnectionsPerCaller }) },
         authentication: [request => {
             const id = request.headers.get('authorization');
             return id === 'alice' || id === 'bob'

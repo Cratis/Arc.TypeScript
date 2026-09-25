@@ -37,7 +37,7 @@ app.UseCratisArc();
 app.Run();
 ```
 
-Importing `@cratis/arc.chronicle` registers a typed builder extension without modifying the builder prototype. Call `withChronicle` **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors. `addChronicle` remains a deprecated alias. To avoid keeping a connection string in source, put `Cratis:Chronicle:{ConnectionString,EventStore}` in `appsettings.json` or override it with `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`, then call `builder.withChronicle({})`. Code options win over file and environment settings. The Chronicle engine must run separately.
+Importing `@cratis/arc.chronicle` installs its typed `withChronicle` builder method; Core does not depend on Chronicle. Call `withChronicle` **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors. To avoid keeping a connection string in source, put `Cratis:Chronicle:{ConnectionString,EventStore}` in `appsettings.json` or override it with `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`, then call `builder.withChronicle({})`. Code options win over file and environment settings. The Chronicle engine must run separately.
 
 The experimental private `@cratis/cratis` composition has a shorter TypeScript path (under 20 lines):
 

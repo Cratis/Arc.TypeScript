@@ -6,6 +6,6 @@ should();
 
 describe('when configuring an invalid correlation header', () => {
     it('should reject it before accepting a request', () => {
-        (() => new ArcServer({ correlationHeader: 'invalid header' })).should.throw('Invalid correlation header');
+        (() => new ArcServer({ correlationId: { httpHeader: 'invalid header' } })).should.throw('Invalid correlation header');
     });
 });

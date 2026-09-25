@@ -86,7 +86,7 @@ export class a_registered_command {
         ({ eventTypes: { all: [Created] }, eventLog: { appendMany: this.appendMany } }) as unknown as IEventStore);
     async build() {
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: this.getEventStore } as unknown as IChronicleClient });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: this.getEventStore } as unknown as IChronicleClient });
         builder.add(Create, CreateWithResponse, CreateWithMessage, CreateWithOperation, CreateSensitive, CreateRejected, CreateMany, CreateMixed, CreateEmpty, ReturnData, ReturnEventShapedData, Created);
         return builder.build();
     }

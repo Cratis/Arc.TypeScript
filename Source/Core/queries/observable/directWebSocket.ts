@@ -17,7 +17,7 @@ import type { WebSocketTransport } from './WebSocketTransport.js';
 export async function directWebSocket(server: ArcServer, request: Request, transport: WebSocketTransport,
     native?: NativeRequestContext, resolved?: ResolvedConnectionContext): Promise<void> {
     let context: ExecutionContext = {
-        correlationId: correlation(request.headers.get(server.options.correlationHeader ?? 'X-Correlation-ID')),
+        correlationId: correlation(request.headers.get(server.options.correlationId?.httpHeader ?? 'X-Correlation-ID')),
         principal: undefined, tenantId: undefined, signal: transport.signal, allowedSeverity: Severity.Warning
     };
     try {
@@ -38,7 +38,7 @@ export async function directWebSocket(server: ArcServer, request: Request, trans
             await transport.send({ type: 'Data', data: queryResult(context, { validationResults: malformed(context) }) });
             return;
         }
-        const name = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const name = operation.fullyQualifiedName;
         const session = await server.openObservableQuery(name, input, context, options);
         try {
             const outgoing = (async (): Promise<void> => {

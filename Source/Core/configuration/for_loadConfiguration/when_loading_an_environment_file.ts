@@ -14,5 +14,5 @@ describe('when loading an environment-specific settings file', () => {
         settings.Cratis?.Arc?.generatedApis?.includeCommandNameInRoute?.should.equal(true);
         settings.Cratis?.Arc?.generatedApis?.segmentsToSkipForRoute?.should.equal(2);
     });
-    it('should accept string-valued numeric settings', () => { settings.Cratis?.Arc?.maxBodyBytes?.should.equal(1024); });
+    it('should accept string-valued numeric settings', () => { settings.Cratis?.Arc?.hosting?.maxBodyBytes?.should.equal(1024); });
 });

@@ -1,9 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
-import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { ArcOptions } from './ArcOptions.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
-import type { IntegrationOptions } from './ArcBuilderIntegrationOptions.js';
 import { ArcApplicationServices } from './ArcApplicationServices.js';
 import { FetchArcApplication } from './FetchArcApplication.js';
 import { ArcServer } from './ArcServer.js';
@@ -56,7 +55,7 @@ export class ArcApplicationBuilder {
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     protected generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
-    constructor(private readonly options: ArcServerOptions = {}, readonly configuration: CratisConfiguration = {}) {}
+    constructor(private readonly options: ArcOptions = {}, readonly configuration: CratisConfiguration = {}) {}
     /** Install an optional integration registered by its explicit package import. */
     extend<T>(name: string, options: T): this {
         const extension = ArcApplicationBuilder.extensions().get(name);
@@ -78,20 +77,6 @@ export class ArcApplicationBuilder {
         if (!global[key]) global[key] = new Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>();
         return global[key] as Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>;
     }
-    /** Attach Arc and Chronicle after importing @cratis/cratis. */
-    addCratis(options?: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options ?? {}); }
-    /** Attach Chronicle after importing @cratis/arc.chronicle. */
-    withChronicle(options: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options); }
-    /** @deprecated Use withChronicle. */
-    addChronicle(options: IntegrationOptions<'chronicle'>): this { return this.withChronicle(options); }
-    /** Attach MongoDB after importing @cratis/arc.mongodb. */
-    withMongoDB(options: IntegrationOptions<'mongodb'>): this { return this.extend('mongodb', options); }
-    /** @deprecated Use withMongoDB. */
-    addMongoDB(options: IntegrationOptions<'mongodb'>): this { return this.withMongoDB(options); }
-    /** Attach Drizzle after importing @cratis/arc.drizzle. */
-    withDrizzle(options: IntegrationOptions<'drizzle'>): this { return this.extend('drizzle', options); }
-    /** @deprecated Use withDrizzle. */
-    addDrizzle(options: IntegrationOptions<'drizzle'>): this { return this.withDrizzle(options); }
     /** Install source-generated bindings before adding or discovering artifacts. */
     useGeneratedMetadata(metadata: GeneratedMetadata): this {
         if (this.#built || this.#artifacts.length) throw new Error('Register generated metadata before artifacts');

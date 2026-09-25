@@ -12,7 +12,7 @@ describe('when exceeding the SSE outbound frame limit', () => {
     let outcomes: PromiseSettledResult<void>[];
 
     beforeEach(async () => {
-        output = new SseHubTransport(new ObservableLimits({ maxObservableOutboundFrames: 64 }));
+        output = new SseHubTransport(new ObservableLimits({ query: { maxObservableOutboundFrames: 64 } }));
         await output.send({ type: HubFrameType.Connected });
         const waiting = Array.from({ length: 64 }, () => output.send({ type: HubFrameType.QueryResult }));
         outcomes = await Promise.allSettled([...waiting, output.send({ type: HubFrameType.QueryResult })]);

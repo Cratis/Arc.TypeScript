@@ -19,7 +19,7 @@ export class ModelGraphValidator {
         const walk = async (value: unknown, path: string, skip = false): Promise<void> => {
             if (value == null || typeof value !== 'object' || visited.has(value)) return;
             visited.add(value);
-            if (signal.aborted) throw signal.reason ?? new Error('Validation cancelled');
+            if (signal.aborted) throw signal.reason ?? new Error('Validation canceled');
             let ignored: ReadonlySet<string> | undefined;
             const type = value.constructor as ClassType;
             const validatorType = skip ? undefined : this.validators.get(type);
@@ -37,10 +37,10 @@ export class ModelGraphValidator {
                         }
                         if (rule.kind !== 'notNull' && member instanceof ConceptAs) member = (member as ConceptAs<unknown>).value;
                         const applicable = rule.condition ? await rule.condition(value) : true;
-                        if (signal.aborted) throw signal.reason ?? new Error('Validation cancelled');
+                        if (signal.aborted) throw signal.reason ?? new Error('Validation canceled');
                         if (!applicable) continue;
                         const valid = await evaluateRule(rule, member, value, signal);
-                        if (signal.aborted) throw signal.reason ?? new Error('Validation cancelled');
+                        if (signal.aborted) throw signal.reason ?? new Error('Validation canceled');
                         if (valid) continue;
                         const memberPath = value instanceof ConceptAs && path ? path : [path, ...rule.path].filter(Boolean).join('.');
                         const message = typeof rule.message === 'function' ? rule.message(member, value) : rule.message ?? `The value is invalid.`;

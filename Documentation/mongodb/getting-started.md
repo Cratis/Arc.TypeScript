@@ -1,6 +1,6 @@
 ---
 title: Get started with MongoDB
-description: Register a MongoDB client and read models with addMongoDB, inject a tenant-scoped collection into model-bound queries, and own the client's lifetime.
+description: Register a MongoDB client and read models with withMongoDB, inject a tenant-scoped collection into model-bound queries, and own the client's lifetime.
 ---
 
 This page connects one read model to MongoDB and serves it from a query. The code comes from the package's [replica-set integration fixture](https://github.com/Cratis/Arc.TypeScript/tree/main/Source/MongoDB/for_MongoCollection/given).
@@ -55,8 +55,8 @@ import { TaskRecord } from './TaskRecord.js';
 import { TaskQueries } from './TaskQueries.js';
 
 const client = new MongoClient(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017');
-const builder = ArcApplication.createBuilder({ tenancy: { sources: ['fixed'], fixed: 'default' } });
-builder.add(TaskQueries).addMongoDB({
+const builder = ArcApplication.createBuilder({ tenancy: { resolverType: 'fixed', fixedTenantId: 'default' } });
+builder.add(TaskQueries).withMongoDB({
     client, databaseNameResolver: tenant => `tasks_${tenant}`, readModels: [TaskRecord]
 });
 const app = await builder.build();
@@ -64,7 +64,7 @@ await app.run();
 await client.close();
 ```
 
-Importing `@cratis/arc.mongodb` adds `addMongoDB` to the builder. You can instead call the exported `addMongoDB(builder, options)` function. The fixed `default` tenant makes this a single-tenant example; see [Tenancy](tenancy.md) for real tenant routing.
+Importing `@cratis/arc.mongodb` adds `withMongoDB` to the builder. The exported `withMongoDB(builder, options)` function is equivalent. The fixed `default` tenant makes this a single-tenant example; see [Tenancy](tenancy.md) for real tenant routing.
 
 ## Options
 

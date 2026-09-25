@@ -1,8 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import type { Operation } from './Operation.js';
+import { fullyQualifiedName } from './fullyQualifiedName.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ObservableSource } from '../queries/observable/ObservableSource.js';
 import type { QueryHealthSnapshot } from '../queries/observable/QueryHealthSnapshot.js';
@@ -30,22 +31,22 @@ export function includeRouteName(item: { namespace?: string; routeNamespace?: st
     return includeName || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
         (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
 }
-export function createRouteTable(options: ArcServerOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
+export function createRouteTable(options: ArcOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
     commands: readonly Operation[]; queries: readonly Operation[]; routes: ReadonlyMap<string, Operation>; endpoints: ReadonlyMap<string, string>
 } {
-        const prefix = options.generatedApis?.routePrefix ?? options.prefix ?? 'api';
+        const prefix = options.generatedApis?.routePrefix ?? 'api';
         if (prefix && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(prefix)) throw new Error('Unsafe Arc prefix');
-        const skip = options.generatedApis?.segmentsToSkipForRoute ?? options.segmentsToSkip ?? 0;
+        const skip = options.generatedApis?.segmentsToSkipForRoute ?? 0;
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid namespace segments to skip');
         for (const item of [...options.commands ?? [], ...options.queries ?? [], ...options.observableQueries ?? []]) {
             if (item.clientOutput) {
-                const id = [item.namespace, item.name].filter(Boolean).join('.');
+                const id = fullyQualifiedName(item);
                 if (options.queries?.some(query => query === item) || options.observableQueries?.some(query => query === item))
                     inspectClientQueryInput(item.schema, id);
                 inspectClientInput(item.schema, id);
             }
             validateAuthorization(item.authorization, item.name, options.authorizationPolicies ?? {}, options.authenticationSchemes ?? {});
-            if (options.observableQueries?.includes(item as NonNullable<ArcServerOptions['observableQueries']>[number]) &&
+            if (options.observableQueries?.includes(item as NonNullable<ArcOptions['observableQueries']>[number]) &&
                 authorizationRequirements(item.authorization).some(requirement => requirement.schemes?.length))
                 throw new InvalidAuthorizationConfiguration(`Authentication schemes on observable query '${item.name}' require per-subscription authentication, which the hub does not support.`);
             if (item.schema instanceof z.ZodObject) {
@@ -53,8 +54,8 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 if (new Set(folded).size !== folded.length) throw new Error(`Ambiguous Arc argument names: ${item.name}`);
             }
         }
-        const includeCommandName = options.generatedApis?.includeCommandNameInRoute ?? options.includeCommandNameInRoute;
-        const includeQueryName = options.generatedApis?.includeQueryNameInRoute ?? options.includeQueryNameInRoute;
+        const includeCommandName = options.generatedApis?.includeCommandNameInRoute;
+        const includeQueryName = options.generatedApis?.includeQueryNameInRoute;
         const commandDefinitions = options.commands ?? [];
         const queryDefinitions = [...options.queries ?? [], ...options.observableQueries ?? []];
         const commands = commandDefinitions.map(item => commandOperation(item, routeFor(item, prefix, skip,
@@ -64,7 +65,7 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 includeRouteName(item, queryDefinitions, skip, includeQueryName)), false, options)),
             ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip,
                 includeRouteName(item, queryDefinitions, skip, includeQueryName)), options)),
-            ...(options.enableObservableHealth ? [{ ...observableOperation({
+            ...(options.query?.enableObservableHealth ? [{ ...observableOperation({
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },
                 observe: (_input, context) => observeHealth(context)
@@ -89,7 +90,8 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 (operation.kind === 'command' && (routes.has(operation.route + '/validate') || reserved.has(operation.route + '/validate'))))
                 throw new Error(`Duplicate Arc route: ${operation.route}`);
             routes.set(operation.route, operation);
-            endpoints.set(operation.route, operation.kind === 'command' ? 'POST' : options.enableQueryMethod === false ? 'GET' : 'GET, QUERY');
+            endpoints.set(operation.route, operation.kind === 'command' ? 'POST' :
+                options.generatedApis?.enableQueryHttpMethod === false ? 'GET' : 'GET, QUERY');
             if (operation.kind === 'command') {
                 routes.set(operation.route + '/validate', operation);
                 endpoints.set(operation.route + '/validate', 'POST');

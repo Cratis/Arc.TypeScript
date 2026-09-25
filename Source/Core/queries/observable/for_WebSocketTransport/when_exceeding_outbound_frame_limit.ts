@@ -25,7 +25,7 @@ describe('when exceeding the socket outbound frame limit', () => {
 
     beforeEach(async () => {
         output = new WebSocketTransport(new BlockingSocket() as unknown as WebSocket,
-            new ObservableLimits({ maxObservableOutboundFrames: 64 }));
+            new ObservableLimits({ query: { maxObservableOutboundFrames: 64 } }));
         const waiting = Array.from({ length: 64 }, () => output.send({ type: HubFrameType.QueryResult }));
         outcomes = await Promise.allSettled([...waiting, output.send({ type: HubFrameType.QueryResult })]);
     });

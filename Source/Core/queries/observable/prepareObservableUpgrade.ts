@@ -19,7 +19,7 @@ export async function prepareObservableUpgrade(server: ArcServer, request: Reque
     if (!server.endpoints.has(path)) return { status: 404 };
     if (path !== '/.cratis/queries/ws' && (!operation || !isObservableOperation(operation)))
         return { status: 426 };
-    const correlationId = correlation(request.headers.get(server.options.correlationHeader ?? 'X-Correlation-ID'));
+    const correlationId = correlation(request.headers.get(server.options.correlationId?.httpHeader ?? 'X-Correlation-ID'));
     try {
         if (!await originAllowed(request.headers.get('origin'), request, native, server.options))
             return { status: 403 };

@@ -3,10 +3,10 @@ title: OpenAPI
 description: Inspect command and query request and result envelopes at /openapi.json, and configure the advertised application version.
 ---
 
-Arc serves an OpenAPI 3.1 document at `GET /openapi.json`. Route paths follow [endpoint mapping](../core/endpoint-mapping.md). It describes registered commands as `POST` and queries as `GET`, including observable queries. Set `openApiVersion` when constructing the server or builder to advertise your application's version; the default remains `0.1.0`.
+Arc serves an OpenAPI 3.1 document at `GET /openapi.json`. Route paths follow [endpoint mapping](../core/endpoint-mapping.md). It describes registered commands as `POST` and queries as `GET`, including observable queries. Set `generatedApis.openApiVersion` when constructing the server or builder to advertise your application's version; the default remains `0.1.0`.
 
 ```typescript
-const server = new ArcServer({ openApiVersion: '2.3.0' });
+const server = new ArcServer({ generatedApis: { openApiVersion: '2.3.0' } });
 ```
 
 Fetch the document with `curl http://127.0.0.1:3000/openapi.json`. The document is public; this endpoint does not run authentication handlers. Host an OpenAPI UI separately if needed. Arc does not bundle a Swagger or Scalar UI.

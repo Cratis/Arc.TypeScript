@@ -32,8 +32,7 @@ export class HubSubscriptionRunner {
     async admit(): Promise<HubSubscriptionOutcome> {
         const tag = this.tag();
         try {
-            const operation = this.server.queries.find(item =>
-                [item.namespace, item.name].filter(Boolean).join('.') === this.request.queryName);
+            const operation = this.server.queryOperation(this.request.queryName);
             if (!operation || !isObservableOperation(operation)) {
                 await this.output.send({ type: HubFrameType.Error, ...tag, payload: 'Unknown observable query' });
                 this.onCompleted();

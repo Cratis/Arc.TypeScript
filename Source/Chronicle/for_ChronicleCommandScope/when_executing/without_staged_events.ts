@@ -14,7 +14,7 @@ describe('when a command has no staged Chronicle events', () => {
     it('should allow another deferred commit participant and report no Chronicle commit', async () => {
         const setup = new a_registered_command();
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.addCommandExecutionScope(() => ({ isCommitParticipant: true, getCommitDisposition: () => 'NoCommit' as const,
             begin() {}, complete() {} }));
         builder.add(OperationOnly);

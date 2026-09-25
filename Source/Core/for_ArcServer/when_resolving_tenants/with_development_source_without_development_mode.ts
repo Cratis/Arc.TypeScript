@@ -6,7 +6,7 @@ import { ArcServer, defineQuery } from '../../index.js';
 describe('when resolving a development tenant without development mode', () => {
     let response: Response;
     beforeEach(async () => {
-        const server = new ArcServer({ tenancy: { sources: ['development'], fixed: 'local' },
+        const server = new ArcServer({ tenancy: { sources: ['development'], fixedTenantId: 'local' },
             queries: [defineQuery({ name: 'Tenant', schema: z.object({}), perform: (_input, context) => context.tenantId })] });
         try { response = (await server.handle(new Request('http://localhost/api/tenant')))!; }
         finally { await server.dispose(); }

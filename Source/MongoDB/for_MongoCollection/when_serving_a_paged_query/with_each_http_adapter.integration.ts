@@ -8,9 +8,9 @@ import { serve } from '@hono/node-server';
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { ArcApplication } from '@cratis/arc.core';
 import { Guid } from '@cratis/fundamentals';
-import { mountExpress } from '../../../Express/index.js';
-import { mountFastify } from '../../../Fastify/index.js';
-import { mountHono } from '../../../Hono/index.js';
+import { cratisArc as expressArc } from '../../../Express/index.js';
+import { cratisArc as fastifyArc } from '../../../Fastify/index.js';
+import { cratisArc as honoArc } from '../../../Hono/index.js';
 import { given } from '../../given.js';
 import { mongoCollection } from '../../index.js';
 import { a_replica_set } from '../given/a_replica_set.js';
@@ -27,8 +27,8 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
         beforeEach(async () => {
             if (!process.env.ARC_MONGO_TEST_URI) throw new Error('ARC_MONGO_TEST_URI is required');
             await context.client.connect();
-            const builder = ArcApplication.createBuilder({ resolveTenant: () => 'a' });
-            builder.add(TaskQueries).addMongoDB({ client: context.client, databaseNameResolver: tenant => `${context.name}_${tenant}`,
+            const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'a' } });
+            builder.add(TaskQueries).withMongoDB({ client: context.client, databaseNameResolver: tenant => `${context.name}_${tenant}`,
                 readModels: [TaskRecord] });
             const application = await builder.build();
             const scope = application.server.services.createScope(context.context('a'));
@@ -48,18 +48,18 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
             try {
                 if (adapter === 'Express') {
                     const host = express();
-                    mountExpress(host, application);
+                    host.use(expressArc(application));
                     listener = createServer(host);
                     await new Promise<void>(resolve => listener!.listen(0, '127.0.0.1', resolve));
                 } else if (adapter === 'Fastify') {
                     const host = fastify();
-                    mountFastify(host, application);
+                    host.register(fastifyArc, { arc: application });
                     await host.listen({ port: 0, host: '127.0.0.1' });
                     listener = host.server as Server;
                     stop = () => host.close();
                 } else {
                     const host = new Hono();
-                    mountHono(host, application);
+                    host.use(honoArc(application));
                     const hosted = serve({ fetch: host.fetch, port: 0, hostname: '127.0.0.1' });
                     listener = hosted as Server;
                     if (!hosted.listening) await new Promise<void>(resolve => hosted.once('listening', resolve));

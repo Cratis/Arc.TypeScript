@@ -1,8 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from './index.js';
-import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { CommandResult } from './commands/CommandResult.js';
+import type { ExecutionContext } from './execution/ExecutionContext.js';
+import type { QueryOptions } from './queries/QueryOptions.js';
+import type { QueryResult } from './queries/QueryResult.js';
+import type { ArcOptions } from './ArcOptions.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
 import { withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
 import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
@@ -35,9 +38,11 @@ export class ArcServer {
     readonly commands: readonly Operation[];
     readonly queries: readonly Operation[];
     readonly routes: ReadonlyMap<string, Operation>;
+    readonly #commandsByName: ReadonlyMap<string, Operation>;
+    readonly #queriesByName: ReadonlyMap<string, Operation>;
     /** All root-owned endpoints and their allowed methods. Adapters use this for raw path dispatch. */
     readonly endpoints: ReadonlyMap<string, string>;
-    readonly options: ArcServerOptions;
+    readonly options: ArcOptions;
     readonly services: ServiceRegistry;
     /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
@@ -49,14 +54,14 @@ export class ArcServer {
     readonly #sessions: ObservableSessions;
     readonly #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
 
-    constructor(options: ArcServerOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
+    constructor(options: ArcOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
         this.#generatedMetadata = generatedMetadata;
         const detailsSchema = options.identityDetails?.schema ?? (options.identityDetails?.detailsType
             ? objectSchema(options.identityDetails.detailsType) : undefined);
         this.options = detailsSchema && options.identityDetails ? {
             ...options, identityDetails: { ...options.identityDetails, schema: detailsSchema }
         } : options;
-        if (options.correlationHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationHeader))
+        if (options.correlationId?.httpHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationId?.httpHeader))
             throw new Error('Invalid correlation header');
         if (options.commandCompensationTimeoutMs !== undefined &&
             (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
@@ -64,14 +69,14 @@ export class ArcServer {
             throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
         validateTenancy(options.tenancy);
         if (options.nativePrincipal && options.authentication?.length) throw new Error('Native principal and Arc authentication handlers cannot be combined');
-        if (options.identityDetails && (!(detailsSchema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function' || options.identityDetailsSchema))
-            throw new Error('Identity details require a provider schema; legacy schema cannot be combined');
+        if (options.identityDetails && (!(detailsSchema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function'))
+            throw new Error('Identity details require a provider schema');
         if ((options.developmentUsers || options.developmentTenants) && !options.development) throw new Error('Discovery providers require development mode');
         this.#identitySchema = detailsSchema ? z.toJSONSchema(detailsSchema) : undefined;
         this.observableLimits = new ObservableLimits(options);
-        if (options.allowedOrigins !== undefined && !Array.isArray(options.allowedOrigins) &&
-            typeof options.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');
-        if (Array.isArray(options.allowedOrigins) && options.allowedOrigins.some(origin => {
+        if (options.query?.allowedOrigins !== undefined && !Array.isArray(options.query?.allowedOrigins) &&
+            typeof options.query?.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');
+        if (Array.isArray(options.query?.allowedOrigins) && options.query?.allowedOrigins.some(origin => {
             if (typeof origin !== 'string') return true;
             try {
                 const parsed = new URL(origin);
@@ -84,20 +89,23 @@ export class ArcServer {
             if (this.services.registration(token).lifetime === 'singleton')
                 throw new Error(`Query renderer or read-model interceptor ${this.services.registration(token).token.name} must not be singleton`);
         }
-        if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
+        if (options.hosting?.maxBodyBytes !== undefined &&
+            (!Number.isSafeInteger(options.hosting.maxBodyBytes) || options.hosting.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
-        if (options.observableKeepAliveIntervalMs !== undefined &&
-            (!Number.isSafeInteger(options.observableKeepAliveIntervalMs) || options.observableKeepAliveIntervalMs < 0 ||
-                options.observableKeepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
-        if (options.enableObservableHealth !== undefined && typeof options.enableObservableHealth !== 'boolean')
+        if (options.query?.keepAliveIntervalMs !== undefined &&
+            (!Number.isSafeInteger(options.query?.keepAliveIntervalMs) || options.query?.keepAliveIntervalMs < 0 ||
+                options.query?.keepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
+        if (options.query?.enableObservableHealth !== undefined && typeof options.query?.enableObservableHealth !== 'boolean')
             throw new Error('Invalid observable health option');
         const table = createRouteTable(options, context => this.#hub.observeHealth(context));
         this.commands = table.commands;
         this.queries = table.queries;
+        this.#commandsByName = new Map(this.commands.map(operation => [operation.fullyQualifiedName, operation]));
+        this.#queriesByName = new Map(this.queries.map(operation => [operation.fullyQualifiedName, operation]));
         this.routes = table.routes;
         this.endpoints = table.endpoints;
         this.#hub = new ObservableQueryHub(this);
-        this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.queries);
+        this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
         registerObservableCleanup(this, this.#sessions);
     }
 
@@ -161,7 +169,7 @@ export class ArcServer {
             return result;
         });
         const name = operation.kind === 'command' ? validateOnly ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute' : 'cratis.arc.query.perform';
-        const qualified = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const qualified = operation.fullyQualifiedName;
         const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
         const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
@@ -196,6 +204,9 @@ export class ArcServer {
         if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     }
 
+    /** @internal Look up a query by its namespace-qualified name for hosting transports. */
+    queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }
+
     /** Open one query pipeline and service scope until its subscription ends. Caller must close it. */
     openObservableQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<ObservableQuerySession> {
         return this.#sessions.openSession(name, input, context, options, 'subscription');
@@ -217,15 +228,15 @@ export class ArcServer {
         const matches = this.commands.filter(item => item.name === type.name);
         if (matches.length !== 1) throw new Error(`Ambiguous or unregistered Arc command: ${type.name}`);
         const operation = matches[0]!;
-        return this.executeCommand([operation.namespace, operation.name].filter(Boolean).join('.'), encode(command), context, validateOnly);
+        return this.executeCommand(operation.fullyQualifiedName, encode(command), context, validateOnly);
     }
     async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
-        const operation = this.commands.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        const operation = this.#commandsByName.get(name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
         return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, validateOnly) as Promise<CommandResult>;
     }
     async performQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<QueryResult> {
-        const operation = this.queries.find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        const operation = this.#queriesByName.get(name);
         if (!operation) throw new Error(`Unknown query: ${name}`);
         const execution = Object.freeze({ ...context, allowedSeverity: Severity.Warning });
         if (!isObservableOperation(operation)) return this.runScoped(operation, input, execution, options) as Promise<QueryResult>;

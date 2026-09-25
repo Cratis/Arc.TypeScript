@@ -8,9 +8,9 @@ import Fastify from 'fastify';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { ArcServer, type NativeRequestContext } from '@cratis/arc.core';
-import { mountExpress } from '../../index.js';
-import { mountFastify } from '../../../Fastify/index.js';
-import { mountHono } from '../../../Hono/index.js';
+import { cratisArc as expressArc } from '../../index.js';
+import { cratisArc as fastifyArc } from '../../../Fastify/index.js';
+import { cratisArc as honoArc } from '../../../Hono/index.js';
 import { cert, key } from '../../../Core/given/tls-fixture.js';
 
 type HostName = 'Express' | 'Fastify' | 'Hono';
@@ -47,7 +47,7 @@ export async function startHost(host: HostName, arc: ArcServer, options: {
     if (host === 'Express') {
         const app = express();
         if (options.decorated) app.use((_request, response, next) => { response.cookie('host-cache', 'present'); next(); });
-        mountExpress(app, arc, options.native as Parameters<typeof mountExpress>[2]);
+        app.use(expressArc(arc, options.native as Parameters<typeof expressArc>[1]));
         if (options.decorated) app.get('/foreign', (_request, response) => response.end('other'));
         server = secure ? httpsServer({ cert, key }, app) : httpServer(app);
         close = () => closed(server);
@@ -55,7 +55,7 @@ export async function startHost(host: HostName, arc: ArcServer, options: {
     } else if (host === 'Fastify') {
         const app = Fastify({ serverFactory: handler => secure ? httpsServer({ cert, key }, handler) : httpServer(handler) });
         if (options.decorated) app.addHook('onRequest', (_request, reply, done) => { reply.header('set-cookie', 'host-cache=present; Path=/'); done(); });
-        mountFastify(app, arc, options.native as Parameters<typeof mountFastify>[2]);
+        app.register(fastifyArc, { arc, native: options.native as Parameters<typeof fastifyArc>[1]['native'] });
         if (options.decorated) app.get('/foreign', async () => 'other');
         await app.listen({ host: '127.0.0.1', port: 0 });
         server = app.server as Server;
@@ -68,8 +68,8 @@ export async function startHost(host: HostName, arc: ArcServer, options: {
             context.header('x-correlation-id', 'forged');
             await next();
         });
-        mountHono(app, arc, context => options.native ? options.native() as NativeRequestContext :
-            { secure: context.env.incoming.socket instanceof TLSSocket && context.env.incoming.socket.encrypted });
+        app.use(honoArc<{ Bindings: { incoming: IncomingMessage } }>(arc, context => options.native ? options.native() as NativeRequestContext :
+            { secure: context.env.incoming.socket instanceof TLSSocket && context.env.incoming.socket.encrypted }));
         if (options.decorated) app.get('/foreign', context => context.text('other'));
         server = secure
             ? serve({ fetch: app.fetch, createServer: httpsServer, serverOptions: { cert, key }, port: 0, hostname: '127.0.0.1' }) as Server

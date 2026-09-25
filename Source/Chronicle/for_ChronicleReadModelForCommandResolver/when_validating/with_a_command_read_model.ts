@@ -37,7 +37,7 @@ describe('when validating with a command read model', () => {
         find.resolves(existing);
         getStore.callsFake(async (): Promise<IEventStore> => ({ readModels: { findInstanceById: find } }) as unknown as IEventStore);
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Names', client: { getEventStore: getStore } as unknown as IChronicleClient });
+        builder.withChronicle({ eventStore: 'Names', client: { getEventStore: getStore } as unknown as IChronicleClient });
         builder.add(SetName, SetNameValidator, ExistingName);
         application = await builder.build();
     });

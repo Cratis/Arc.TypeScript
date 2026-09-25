@@ -52,7 +52,7 @@ export class ChronicleCommandScenario<T extends object> {
             }
             return store;
         } } as IChronicleClient;
-        this.#scenario.extend(builder => { builder.addChronicle({ eventStore: 'InMemoryScenario', client }); });
+        this.#scenario.extend(builder => { builder.withChronicle({ eventStore: 'InMemoryScenario', client }); });
     }
     static for<T extends object>(type: ClassType<T>, ...artifacts: ClassType[]): ChronicleCommandScenario<T> {
         return new ChronicleCommandScenario(type, artifacts);

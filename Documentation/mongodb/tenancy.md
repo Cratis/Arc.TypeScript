@@ -1,6 +1,6 @@
 ---
 title: MongoDB tenancy
-description: How addMongoDB chooses a database and server for each tenant, and what a single-tenant application configures.
+description: How withMongoDB chooses a database and server for each tenant, and what a single-tenant application configures.
 ---
 
 Every Arc execution resolves a tenant, and the MongoDB collection you inject belongs to that tenant's database. You decide the mapping; the package never falls back to a default database silently.
@@ -12,7 +12,7 @@ Every Arc execution resolves a tenant, and the MongoDB collection you inject bel
 | `database: 'tasks'` | `tasks` | `tasks+acme` |
 | `databaseNameResolver: tenant => \`tasks_${tenant}\`` | `tasks_default` | `tasks_acme` |
 
-Tenant names are normalized to lowercase before a database is chosen, including names returned by `resolveTenant`. A missing tenant or an empty database name fails the request.
+Tenant names are normalized to lowercase before a database is chosen, including names returned by `tenancy.resolve`. A missing tenant or an empty database name fails the request.
 
 ## Server per tenant
 
@@ -23,7 +23,7 @@ Tenant names are normalized to lowercase before a database is chosen, including 
 Configure Arc tenancy with a fixed tenant of `default`:
 
 ```typescript
-const builder = ArcApplication.createBuilder({ tenancy: { sources: ['fixed'], fixed: 'default' } });
+const builder = ArcApplication.createBuilder({ tenancy: { resolverType: 'fixed', fixedTenantId: 'default' } });
 ```
 
 With `database: 'tasks'`, every request then uses the bare `tasks` database.

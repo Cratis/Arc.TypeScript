@@ -1,13 +1,27 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-/** The first source producing a tenant wins. A header requests a tenant; it does not prove membership. */
+import type { Principal } from '../identity/Principal.js';
+
+/** A header requests a tenant; it does not prove membership. Ordered sources are a TypeScript extension. */
 export interface TenancyOptions {
-    readonly sources: readonly ('header' | 'query' | 'claim' | 'fixed' | 'development' | 'subdomain')[];
+    /** Select one built-in source, as in .NET; defaults to header when sources is omitted. */
+    readonly resolverType?: 'header' | 'query' | 'claim' | 'fixed' | 'development' | 'subdomain';
+    /** Ordered tenant sources; first matching source wins. Do not combine with resolverType. */
+    readonly sources?: readonly ('header' | 'query' | 'claim' | 'fixed' | 'development' | 'subdomain')[];
+    /** Tenant header and subdomain fallback; defaults to x-cratis-tenant-id. */
+    readonly httpHeader?: string;
+    /** Trusted application resolver; its answer is final and is not normalized by Arc. */
+    readonly resolve?: (request: Request, principal: Principal | undefined) => string | undefined | Promise<string | undefined>;
+    /** Parameter used by the query source; defaults to tenantId. */
     readonly queryParameter?: string;
+    /** Claim used by the claim source; defaults to tenant_id. */
     readonly claimType?: string;
-    readonly fixed?: string;
+    /** Tenant returned by fixed and development sources; defaults to development when selected. */
+    readonly fixedTenantId?: string;
+    /** Registrable base domain used for subdomain selection. */
     readonly baseDomain?: string;
+    /** Require a selected tenant for every request. */
     readonly required?: boolean;
-    /** When set, a selected tenant requires an authenticated principal with an own claim listing that tenant. */
+    /** Own claim listing tenants of which the authenticated principal is a member. */
     readonly membershipClaim?: string;
 }

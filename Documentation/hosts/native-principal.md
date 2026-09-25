@@ -7,12 +7,12 @@ Your Express session middleware, Fastify JWT plugin, or Hono auth middleware alr
 
 ## Turn it on
 
-Set `nativePrincipal: true` in the options, and pass a callback as the third argument of the mount function. The callback runs for every Arc request and returns a `NativeRequestContext`:
+Set `nativePrincipal: true` in the options, and pass a callback as the second argument to `cratisArc`. The callback runs for every Arc request and returns a `NativeRequestContext`:
 
 ```typescript title="server.ts"
 import express from 'express';
 import { ArcApplication, type Principal } from '@cratis/arc.core';
-import { mountExpress } from '@cratis/arc.express';
+import { cratisArc } from '@cratis/arc.express';
 
 // Your own session middleware sets request.user after verifying the session.
 type SessionRequest = express.Request & { user?: { id: string; roles: string[] } };
@@ -23,11 +23,11 @@ const arc = await builder.build();
 
 const app = express();
 // app.use(yourVerifiedSessionMiddleware);
-mountExpress(app, arc, request => {
+app.use(cratisArc(arc, request => {
     const user = (request as SessionRequest).user;
     const principal: Principal | undefined = user ? { ...user, isAuthenticated: true } : undefined;
     return { principal };
-});
+}));
 ```
 
 The session middleware in this example is yours. Arc does not implement or validate session cookies: host sessions can use `HttpOnly`, `Secure`, and `SameSite` cookies according to your framework's own middleware.

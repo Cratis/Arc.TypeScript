@@ -1,7 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ArcServerOptions } from '../ArcServerOptions.js';
-import type { ExecutionContext, QueryOptions } from '../index.js';
+import type { ArcOptions } from '../ArcOptions.js';
+import type { ExecutionContext } from '../execution/ExecutionContext.js';
+import type { QueryOptions } from './QueryOptions.js';
 import type { Operation } from '../http/Operation.js';
 import type { ServiceRegistry } from '../dependencyInjection/ServiceRegistry.js';
 import { ObservableQuerySession } from './observable/ObservableQuerySession.js';
@@ -9,6 +10,7 @@ import { ObservableSubscriptionLimitError } from './observable/ObservableSubscri
 import { isObservableOperation } from './observable/ObservableOperation.js';
 import { observableCallerKey } from './observable/observableCallerKey.js';
 import type { ObservableLimits } from './observable/ObservableLimits.js';
+import { exposeExceptionDetails } from '../execution/exposeExceptionDetails.js';
 
 export class ObservableSessions {
     readonly #observableSessions = new Set<ObservableQuerySession>();
@@ -21,8 +23,8 @@ export class ObservableSessions {
     #openingSnapshots = 0;
     #disposed = false;
 
-    constructor(private readonly options: ArcServerOptions, private readonly services: ServiceRegistry,
-        private readonly observableLimits: ObservableLimits, private readonly queries: () => readonly Operation[]) {}
+    constructor(private readonly options: ArcOptions, private readonly services: ServiceRegistry,
+        private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>) {}
 
     get sessions(): readonly ObservableQuerySession[] {
         return [...new Set([...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
@@ -56,7 +58,7 @@ export class ObservableSessions {
         admission: 'subscription' | 'snapshot'): Promise<ObservableQuerySession> {
         if (this.#disposed) throw new Error('Arc server is disposed');
         if (context.signal.aborted) throw new Error('Observable subscription was canceled');
-        const operation = this.queries().find(item => [item.namespace, item.name].filter(Boolean).join('.') === name);
+        const operation = this.queries().get(name);
         if (!operation || !isObservableOperation(operation)) throw new Error(`Unknown observable query: ${name}`);
         const key = this.callerKey(context);
         let releaseOwner = (): void => {};
@@ -84,7 +86,8 @@ export class ObservableSessions {
             const held: { session?: ObservableQuerySession } = {};
             const session = await ObservableQuerySession.open({
                 operation, input, context, options, services: this.services,
-                guards: this.options.observableEmissionGuards ?? [], development: this.options.development === true,
+                guards: this.options.query?.observableEmissionGuards ?? [],
+                exposeExceptionDetails: exposeExceptionDetails(this.options),
                 pendingEmissions: this.observableLimits.pendingEmissions,
                 reportFailure: error => Promise.resolve(this.options.logger?.(error, context.correlationId)),
                 onRelease: () => {

@@ -54,11 +54,11 @@ Items are matched by an `id` property; the property name is matched case-insensi
 
 ## Revisions and keep-alive
 
-`Connected` advertises revisions and a keep-alive interval, 30 seconds by default. Each outbound frame reschedules the next idle ping; `observableKeepAliveIntervalMs: 0` disables keep-alive. Positive safe-integer revisions supersede legacy subscribes and reject stale or duplicate operations. Unsubscribe tombstones live for two minutes, at most 1024 per connection by default.
+`Connected` advertises revisions and a keep-alive interval, 30 seconds by default. Each outbound frame reschedules the next idle ping; `query: { keepAliveIntervalMs: 0 }` disables keep-alive. Positive safe-integer revisions supersede legacy subscribes and reject stale or duplicate operations. Unsubscribe tombstones live for two minutes, at most 1024 per connection by default.
 
 ## Limits
 
-By default the server allows 4096 subscriptions globally and per caller, 512 hub connections globally and per caller, 256 subscriptions per hub connection, and 256 queued inbound and outbound frames. Per-caller limits default to the global ones, so one caller can exhaust capacity: set lower `maxObservableSubscriptionsPerCaller` and `maxObservableHubConnectionsPerCaller` for internet-facing hosts. `observableShutdownTimeoutMs` (10 seconds) bounds hub and direct WebSocket cleanup at shutdown. All limits are listed in [Configuration](../configuration/index.md#observable-query-limits).
+By default the server allows 4096 subscriptions globally and per caller, 512 hub connections globally and per caller, 256 subscriptions per hub connection, and 256 queued inbound and outbound frames. Per-caller limits default to the global ones, so one caller can exhaust capacity: set lower `query.maxObservableSubscriptionsPerCaller` and `query.maxObservableHubConnectionsPerCaller` for internet-facing hosts. `query.observableShutdownTimeoutMs` (10 seconds) bounds hub and direct WebSocket cleanup at shutdown. All limits are listed in [Configuration](../configuration/index.md#observable-query-limits).
 
 ## Related
 

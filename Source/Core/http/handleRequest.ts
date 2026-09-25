@@ -6,11 +6,13 @@ import { stringifyWire } from '../reflection/stringifyWire.js';
 import type { ArcServer } from '../ArcServer.js';
 import type { NativeRequestContext } from './NativeRequestContext.js';
 import type { Operation } from './Operation.js';
-import type { CommandResult, ExecutionContext, QueryOptions, QueryResult } from '../index.js';
+import type { CommandResult } from '../commands/CommandResult.js';
+import type { ExecutionContext } from '../execution/ExecutionContext.js';
+import type { QueryOptions } from '../queries/QueryOptions.js';
+import type { QueryResult } from '../queries/QueryResult.js';
 import type { ObservableQuerySession } from '../queries/observable/ObservableQuerySession.js';
 import { TenantRequestError } from '../tenancy/TenantRequestError.js';
-import { resolveConfiguredTenant } from '../tenancy/resolveConfiguredTenant.js';
-import { tenantId } from '../tenancy/tenantId.js';
+import { resolveTenant } from '../tenancy/resolveTenant.js';
 import { BadRequest } from './BadRequest.js';
 import { body } from './body.js';
 import { utf8Bytes } from './utf8Bytes.js';
@@ -19,6 +21,7 @@ import { commandResult, malformed, queryResult, status } from '../results/index.
 import { allowedSeverity } from '../validation/allowedSeverity.js';
 import { authenticate, verifiedPrincipal } from '../authentication/authenticate.js';
 import { correlation } from '../execution/correlation.js';
+import { exposeExceptionDetails } from '../execution/exposeExceptionDetails.js';
 import { hasFailure, originalFailure } from '../results/failureTracking.js';
 import { Severity } from '../validation/Severity.js';
 import { requestContext } from '../execution/RequestContextStore.js';
@@ -52,7 +55,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
         const operation = server.routes.get(path);
         if (!server.endpoints.has(path)) return null;
         const introspection = !operation;
-        const header = server.options.correlationHeader ?? 'X-Correlation-ID';
+        const header = server.options.correlationId?.httpHeader ?? 'X-Correlation-ID';
         const correlationId = correlation(request.headers.get(header));
         const headers = new Headers({ [header]: correlationId });
         const send = (value: unknown, code: number, extra?: HeadersInit): Response => new Response(stringifyWire(value), { status: code, headers: new Headers({ ...Object.fromEntries(headers), 'content-type': 'application/json; charset=utf-8', ...Object.fromEntries(new Headers(extra)) }) });
@@ -71,12 +74,12 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             'http.route': operation?.route ?? path }, async () => {
         if (introspection && request.method !== 'GET') return new Response(null, { status: 405, headers: new Headers({ ...Object.fromEntries(headers), allow: 'GET' }) });
         if (introspection && path !== '/.cratis/me' && path !== '/.cratis/users' && path !== '/.cratis/tenants') {
-            if (path === '/.cratis/identity-details/schema') return send(bindings.identitySchema ?? server.options.identityDetailsSchema ?? {}, 200);
+            if (path === '/.cratis/identity-details/schema') return send(bindings.identitySchema ?? {}, 200);
             if (path === '/openapi.json') return send(server.openApi(), 200);
             return send((path === '/.cratis/commands' ? server.commands : server.queries).map(item => ({
                 name: item.name, namespace: item.namespace ?? '', route: item.route, type: item.name,
                 documentationSummary: item.summary ?? '', ...(item.kind === 'command' ? { payloadSchema: item.inputSchema } : {
-                    fullyQualifiedName: [item.namespace, item.name].filter(Boolean).join('.'), argumentsSchema: item.inputSchema
+                    fullyQualifiedName: item.fullyQualifiedName, argumentsSchema: item.inputSchema
                 })
             })), 200);
         }
@@ -85,7 +88,9 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
         if (!operation && !isIdentity && !isDiscovery) return null;
         const isValidation = operation?.kind === 'command' && path === operation.route + '/validate';
         const allowed = server.endpoints.get(path)!;
-        if (operation?.kind === 'command' ? request.method !== 'POST' : request.method !== 'GET' && (request.method !== 'QUERY' || server.options.enableQueryMethod === false))
+        const methodAllowed = operation?.kind === 'command' ? request.method === 'POST' :
+            request.method === 'GET' || (request.method === 'QUERY' && server.options.generatedApis?.enableQueryHttpMethod !== false);
+        if (!methodAllowed)
             return new Response(null, { status: 405, headers: new Headers({ ...Object.fromEntries(headers), allow: allowed }) });
         if (request.method === 'QUERY' || isIdentity) headers.set('cache-control', 'no-store');
         let context: ExecutionContext = { correlationId, principal: undefined, tenantId: undefined, signal: request.signal, allowedSeverity: operation?.kind === 'command' ? clientAllowedSeverity(request.headers.get('X-Allowed-Severity')) : Severity.Warning };
@@ -109,12 +114,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                 return send(result, 401);
             }
             if (isIdentity && !authentication.principal) return send({ error: 'Unauthorized' }, 401);
-            const resolved = server.options.resolveTenant
-                ? await server.options.resolveTenant(request, authentication.principal)
-                : server.options.tenancy
-                    ? resolveConfiguredTenant(request, authentication.principal, trustedNative, server.options.tenancy, server.options.tenantHeader ?? 'x-cratis-tenant-id')
-                    : request.headers.get(server.options.tenantHeader ?? 'x-cratis-tenant-id') ?? undefined;
-            const tenant = server.options.tenancy && !server.options.resolveTenant && resolved !== undefined ? tenantId(resolved) : resolved;
+            const tenant = await resolveTenant(server.options, request, authentication.principal, trustedNative);
             context = Object.freeze({ ...context, principal: authentication.principal,
                 tenantId: tenant, remoteAddress: trustedNative?.remoteAddress });
             return await requestContext.run(context, async () => {
@@ -156,16 +156,17 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                     try {
                         if (request.method === 'GET' && isObservableOperation(operation))
                             snapshotRequest = snapshotOptions(new URL(request.url));
-                        if (operation.kind === 'command') input = await body(request, server.options.maxBodyBytes ?? 1024 * 1024);
+                        if (operation.kind === 'command') input = await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024);
                         else if (request.method === 'GET') ({ input, options } = getQuery(new URL(request.url), operation.schema, isObservableOperation(operation)));
-                        else ({ input, options } = structuredQuery(await body(request, server.options.maxBodyBytes ?? 1024 * 1024), operation.schema));
+                        else ({ input, options } = structuredQuery(
+                            await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024), operation.schema));
                     } catch (error) {
                         if (!(error instanceof BadRequest)) throw error;
                         const failure = operation.kind === 'command' ? commandResult(context, { validationResults: malformed(context) }) : queryResult(context, { validationResults: malformed(context) });
                         return send(failure, 400);
                     }
                     if (isObservableOperation(operation)) {
-                        const name = [operation.namespace, operation.name].filter(Boolean).join('.');
+                        const name = operation.fullyQualifiedName;
                         const streaming = request.method === 'GET' &&
                             request.headers.get('accept')?.toLowerCase().includes('text/event-stream') === true;
                         const session = await bindings.openSession(name, input, context, options,
@@ -173,7 +174,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         if (streaming) {
                             if (session.rejection) {
                                 const rejected = session.rejection;
-                                if (rejected.hasExceptions && !server.options.development) {
+                                if (rejected.hasExceptions && !exposeExceptionDetails(server.options)) {
                                     rejected.exceptionMessages = ['An unexpected error occurred'];
                                     rejected.exceptionStackTrace = '';
                                 }
@@ -184,7 +185,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         try {
                             const outcome = await snapshot(session, context, snapshotRequest.wait, snapshotRequest.timeoutMs,
                                 () => bindings.reserveSession(session, context));
-                            if (!outcome.protocol && outcome.result.hasExceptions && !server.options.development) {
+                            if (!outcome.protocol && outcome.result.hasExceptions && !exposeExceptionDetails(server.options)) {
                                 outcome.result.exceptionMessages = ['An unexpected error occurred'];
                                 outcome.result.exceptionStackTrace = '';
                             }
@@ -194,7 +195,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                     const result = await bindings.runScoped(operation, input, context, options, isValidation);
                     if (hasFailure(result) && !await logFailure(originalFailure(result))) return serverFailure();
                     if (result.exceptionMessages.length) {
-                        if (!server.options.development) {
+                        if (!exposeExceptionDetails(server.options)) {
                             result.exceptionMessages = ['An unexpected error occurred'];
                             result.exceptionStackTrace = '';
                         }

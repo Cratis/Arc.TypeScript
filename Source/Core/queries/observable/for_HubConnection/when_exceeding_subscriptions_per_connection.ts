@@ -18,8 +18,7 @@ describe('when exceeding subscriptions per physical connection', () => {
     let denied: HubSubscriptionOutcome;
 
     beforeEach(async () => {
-        context = new a_query_connection(new ArcServer({ maxObservableSubscriptions: 64, maxObservableSubscriptionsPerCaller: 64,
-            maxObservableHubSubscriptionsPerConnection: 32,
+        context = new a_query_connection(new ArcServer({ query: { maxObservableSubscriptions: 64, maxObservableSubscriptionsPerCaller: 64, maxObservableHubSubscriptionsPerConnection: 32 },
             observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}),
                 observe: () => new CurrentValueSubject<number[]>([1]) })] }),
         { id: 'alice', isAuthenticated: true, roles: [] });

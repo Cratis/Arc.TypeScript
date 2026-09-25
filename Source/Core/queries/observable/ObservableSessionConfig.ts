@@ -14,7 +14,7 @@ export interface ObservableSessionConfig {
     readonly options?: QueryOptions;
     readonly services: ServiceRegistry;
     readonly guards: readonly ServiceToken<ObservableEmissionGuard>[];
-    readonly development: boolean;
+    readonly exposeExceptionDetails: boolean;
     readonly pendingEmissions: number;
     readonly context: ExecutionContext;
     readonly reportFailure: (error: unknown) => Promise<void>;

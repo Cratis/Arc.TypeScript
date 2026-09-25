@@ -13,7 +13,7 @@ describe('when resolving a collection with an owned client', given(a_replica_set
     beforeEach(async () => {
         if (!process.env.ARC_MONGO_TEST_URI) throw new Error('ARC_MONGO_TEST_URI is required');
         const builder = ArcApplication.createBuilder();
-        builder.addMongoDB({ server: process.env.ARC_MONGO_TEST_URI, database: context.name,
+        builder.withMongoDB({ server: process.env.ARC_MONGO_TEST_URI, database: context.name,
             readModels: [TaskRecord] });
         const application = await builder.build();
         const scope = application.server.services.createScope(context.context('default'));

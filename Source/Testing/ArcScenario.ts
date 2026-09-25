@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { randomUUID } from 'node:crypto';
 import { ArcServer, Severity } from '@cratis/arc.core';
-import type { ArcServerOptions, CommandResult, ExecutionContext, QueryOptions, QueryResult, ObservableQuerySession } from '@cratis/arc.core';
+import type { ArcOptions, CommandResult, ExecutionContext, QueryOptions, QueryResult, ObservableQuerySession } from '@cratis/arc.core';
 
 /** Executes real Arc pipelines. Owns its server unless a caller supplied a registry. */
 export class ArcScenario {
     readonly server: ArcServer;
-    constructor(options: ArcServerOptions, readonly context: Partial<ExecutionContext> = {}) {
+    constructor(options: ArcOptions, readonly context: Partial<ExecutionContext> = {}) {
         this.server = new ArcServer(options);
     }
     private execution(overrides: Partial<ExecutionContext>): ExecutionContext {

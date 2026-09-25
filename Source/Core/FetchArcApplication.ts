@@ -2,13 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ArcServer } from './ArcServer.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
-import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { ArcOptions } from './ArcOptions.js';
 import { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
 
 /** A Fetch-native Arc application; its host owns the HTTP listener and request lifecycle. */
 export class FetchArcApplication {
     /** Build from explicitly registered artifacts without filesystem configuration or discovery. */
-    static createBuilder(options: ArcServerOptions = {}): ArcApplicationBuilder {
+    static createBuilder(options: ArcOptions = {}): ArcApplicationBuilder {
         return new ArcApplicationBuilder(options);
     }
     constructor(readonly server: ArcServer) {}

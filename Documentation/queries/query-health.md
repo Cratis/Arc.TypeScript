@@ -8,10 +8,10 @@ When a live widget stops updating, the first question is whether its subscriptio
 ## Turn it on
 
 ```typescript
-const builder = ArcApplication.createBuilder({ enableObservableHealth: true, authentication: [/* verified handlers */] });
+const builder = ArcApplication.createBuilder({ query: { enableObservableHealth: true }, authentication: [/* verified handlers */] });
 ```
 
-`enableObservableHealth: true` registers `/.cratis/queries/health` as an observable query for GET and `QUERY`. It requires authentication.
+`query.enableObservableHealth: true` registers `/.cratis/queries/health` as an observable query for GET and `QUERY`. It requires authentication.
 
 ## What it reports
 

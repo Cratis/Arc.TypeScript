@@ -18,7 +18,7 @@ describe('when handling an observable snapshot with a suppressed current value',
         const token = serviceToken<ObservableEmissionGuard>('suppress snapshots');
         const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
             check: () => ObservableEmissionDecision.Suppress
-        }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+        }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => CurrentValueSubject.of(7)
         })] });
         const response = await server.handle(new Request('http://localhost/api/numbers'));

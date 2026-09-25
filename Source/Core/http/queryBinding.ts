@@ -1,7 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { PageRequest, QueryOptions, SortRequest } from '../index.js';
+import type { PageRequest } from '../queries/PageRequest.js';
+import type { QueryOptions } from '../queries/QueryOptions.js';
+import type { SortRequest } from '../queries/SortRequest.js';
 import { BadRequest } from './BadRequest.js';
 
 function integer(value: unknown, fallback: number): number {

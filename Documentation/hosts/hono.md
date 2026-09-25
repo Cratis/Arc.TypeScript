@@ -20,7 +20,7 @@ const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1
 process.once('SIGTERM', () => { void hosted.dispose().then(() => arc.dispose()); });
 ```
 
-`arc` is the built application from [Host adapters](index.md#before-you-start). `cratisArc(arc)` returns HTTP/SSE middleware that continues to your routes for foreign paths; mount it before adding your routes. Use `app.use('/v1/*', cratisArc(arc))` to expose Arc under a prefix. `serveCratisArc` starts a Node listener with WebSocket upgrades and returns its listener and async disposer; it does not dispose `arc`. If you own the Node listener, call `const disposeSockets = cratisArc(arc).injectWebSocket(listener)` instead, then dispose the sockets before closing the listener. `mountHono` and `mountHonoWebSockets` remain deprecated aliases.
+`arc` is the built application from [Host adapters](index.md#before-you-start). `cratisArc(arc)` returns HTTP/SSE middleware that continues to your routes for foreign paths; mount it before adding your routes. Use `app.use('/v1/*', cratisArc(arc))` to expose Arc under a prefix. `serveCratisArc` starts a Node listener with WebSocket upgrades and returns its listener and async disposer; it does not dispose `arc`. If you own the Node listener, call `const disposeSockets = cratisArc(arc).injectWebSocket(listener)` instead, then dispose the sockets before closing the listener.
 
 ## Run on Node
 

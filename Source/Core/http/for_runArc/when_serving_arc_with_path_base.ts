@@ -25,7 +25,7 @@ describe('when serving Arc with a path base and static fallback', () => {
         await writeFile(join(root, 'api', 'echo'), 'SHADOW');
         await writeFile(join(root, 'index.html'), '<html>base</html>');
         let calls = 0;
-        const arc = new ArcServer({ maxBodyBytes: 16, commands: [defineCommand({
+        const arc = new ArcServer({ hosting: { maxBodyBytes: 16 }, commands: [defineCommand({
             name: 'Echo', schema: z.object({ value: z.string() }), handle: ({ value }) => { calls++; return value; }
         })] });
         const host = await runArc(arc, { port: 0, pathBase: '/app', staticFiles: { root }, fallback: 'index.html' });

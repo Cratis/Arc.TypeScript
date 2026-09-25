@@ -9,7 +9,7 @@ should();
 describe('when handling a query with a custom correlation header', () => {
     let response: Response;
     beforeEach(async () => {
-        const server = new ArcServer({ correlationHeader: 'X-Request-Correlation', queries: [defineQuery({
+        const server = new ArcServer({ correlationId: { httpHeader: 'X-Request-Correlation' }, queries: [defineQuery({
             name: 'Items', schema: z.object({}), perform: () => []
         })] });
         try {

@@ -7,7 +7,7 @@ import { withChronicle } from '@cratis/arc.chronicle';
 import { metadata } from './Features/generatedMetadata.js';
 
 const builder = ArcApplication.createBuilder({ development: true, nativePrincipal: true,
-    resolveTenant: () => 'Default', allowedOrigins: ['http://127.0.0.1:5173'] });
+    tenancy: { resolve: () => 'Default' }, query: { allowedOrigins: ['http://127.0.0.1:5173'] } });
 builder.useGeneratedMetadata(metadata);
 withChronicle(builder, process.env.CHRONICLE_URL ? { connectionString: process.env.CHRONICLE_URL } : {});
 await builder.discover(new URL('./Features/', import.meta.url));

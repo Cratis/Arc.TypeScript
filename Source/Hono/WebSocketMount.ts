@@ -10,7 +10,7 @@ import { ObservableHandshakeTimeoutError, prepareObservableUpgrade, serveUpgrade
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 /** Register Hono WebSocket routes before serve(), then inject into the Node listener. */
-export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServer,
+export function createHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServer,
     native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>,
     existingWebSockets?: NodeWebSocket): {
         injectWebSocket(host: HttpServer): void;
@@ -45,7 +45,8 @@ export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServ
                 }, observableLimits(server).handshakeTimeoutMs);
             } catch (error) {
                 if (error instanceof ObservableHandshakeTimeoutError) return new Response(null, { status: 408 });
-                await server.options.logger?.(error, context.req.header(server.options.correlationHeader ?? 'X-Correlation-ID') ?? '');
+                const header = server.options.correlationId?.httpHeader ?? 'X-Correlation-ID';
+                await server.options.logger?.(error, context.req.header(header) ?? '');
                 return new Response(null, { status: 500 });
             }
             if (handshake.prepared.status !== 101 || !handshake.prepared.resolved)

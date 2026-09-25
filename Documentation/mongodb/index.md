@@ -13,7 +13,7 @@ Your read models live in MongoDB, and every tenant has its own database. Wiring 
 
 | Capability | Page |
 | --- | --- |
-| Register collections with `builder.addMongoDB(...)` and inject them into queries | [Get started](getting-started.md) |
+| Register collections with `builder.withMongoDB(...)` and inject them into queries | [Get started](getting-started.md) |
 | Choose a database, or a server, per tenant | [Tenancy](tenancy.md) |
 | Map decorated fields, concepts, GUIDs, and dates to BSON | [Serializers](serializers.md) |
 | Match Arc on .NET's property and collection naming | [Naming policies](naming-policies.md) |
@@ -21,7 +21,7 @@ Your read models live in MongoDB, and every tenant has its own database. Wiring 
 | Turn a change stream into an observable query | [Observing collections](observing-collections.md) |
 | Load a read model by command key | [Command context](../commands/command-context.md#load-a-read-model-by-key) |
 
-`addMongoDB` registers a read-model resolver for the models you list in `readModels`, so a command can declare `@inject(commandReadModel(TaskRecord))` and receive the document whose identity equals the command key. Do not also register another integration, such as Chronicle, as the owner of the same type.
+`withMongoDB` registers a read-model resolver for the models you list in `readModels`, so a command can declare `@inject(commandReadModel(TaskRecord))` and receive the document whose identity equals the command key. Do not also register another integration, such as Chronicle, as the owner of the same type.
 
 :::caution[Storage does not authorize a caller]
 Arc selects a tenant from the execution context, and the collection selects that tenant's database. Your authentication and authorization still have to verify that the caller may use that tenant and read those documents. Never pass untrusted request JSON directly to a MongoDB filter.

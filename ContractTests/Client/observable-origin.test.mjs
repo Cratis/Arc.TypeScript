@@ -100,7 +100,7 @@ for (const kind of ['express', 'fastify', 'hono']) {
 }
 
 test('upgrade admission and handshake timeout answer with HTTP statuses', async () => {
-    const limited = fixture({ maxObservableHubConnections: 1 });
+    const limited = fixture({ query: { maxObservableHubConnections: 1 } });
     const listener = await observableHost('express', limited);
     const socket = new WebSocket(`${listener.origin.replace('http:', 'ws:')}/.cratis/queries/ws`);
     try {
@@ -108,7 +108,7 @@ test('upgrade admission and handshake timeout answer with HTTP statuses', async 
         assert.equal(await upgrade(listener.origin, '/.cratis/queries/ws', listener.origin), 503);
     } finally { socket.close(); await limited.dispose(); await listener.close(); }
     for (const kind of ['express', 'fastify', 'hono']) {
-        const slow = fixture({ observableHandshakeTimeoutMs: 10 });
+        const slow = fixture({ query: { observableHandshakeTimeoutMs: 10 } });
         const hosting = await observableHost(kind, slow, async () => new Promise(() => {}));
         try {
             assert.equal(await upgrade(hosting.origin, '/.cratis/queries/ws', hosting.origin), 408);
@@ -121,7 +121,7 @@ test('explicit Origin allow-list and async predicate support development proxies
         ['http://localhost:5173'],
         async origin => origin === 'http://localhost:5173'
     ]) {
-        const server = fixture({ allowedOrigins });
+        const server = fixture({ query: { allowedOrigins } });
         const listening = await observableHost('express', server);
         try {
             assert.equal(await upgrade(listening.origin, '/.cratis/queries/ws', 'http://localhost:5173',

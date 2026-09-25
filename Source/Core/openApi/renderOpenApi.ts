@@ -1,14 +1,14 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Operation } from '../http/Operation.js';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
 import { isObservableOperation } from '../queries/observable/ObservableOperation.js';
 import { resultSchema } from './resultSchema.js';
 import { isJwtBearer } from '../authentication/jwtBearer.js';
 
 /** Render the GET representation of Arc routes. The QUERY method has no OpenAPI path-item equivalent. */
-export function renderOpenApi(commands: readonly Operation[], queries: readonly Operation[], options: ArcServerOptions = {}): Record<string, unknown> {
+export function renderOpenApi(commands: readonly Operation[], queries: readonly Operation[], options: ArcOptions = {}): Record<string, unknown> {
     const paths: Record<string, Record<string, unknown>> = {};
     const named = Object.entries(options.authenticationSchemes ?? {}).filter(([, handler]) => isJwtBearer(handler)).map(([name]) => name);
     const defaultBearer = named.includes('bearer') ? 'arcBearer' : 'bearer';
@@ -42,7 +42,7 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
                     ['waitForFirstResultTimeout', { type: 'number', exclusiveMinimum: 0, maximum: 120 }]] as const : [])
             ].filter(([name]) => !reserved.has(name.toLowerCase())).map(([name, schema]) => ({ name, in: 'query', required: false, schema }))
         ] : undefined;
-        const operationId = [operation.namespace, operation.name].filter(Boolean).join('.');
+        const operationId = operation.fullyQualifiedName;
         paths[operation.route] ??= {};
         paths[operation.route]![method] = {
             operationId, tags: [operation.routeNamespace ?? operation.namespace ?? operation.name],
@@ -58,7 +58,7 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
                 '500': { description: 'Server error', content: { 'application/json': { schema: resultSchema(operation, false) } } } }
         };
     }
-    return { openapi: '3.1.0', info: { title: 'Arc', version: options.openApiVersion ?? '0.1.0' },
+    return { openapi: '3.1.0', info: { title: 'Arc', version: options.generatedApis?.openApiVersion ?? '0.1.0' },
         ...(schemes.length ? { components: { securitySchemes: Object.fromEntries(schemes.map(name => [name,
             { type: 'http', scheme: 'bearer' }])) } } : {}), paths };
 }

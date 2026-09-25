@@ -71,11 +71,11 @@ describe('when returned events from nested commands join one Chronicle append', 
         setup.getEventStore.resolves(store);
         const builder = ArcApplication.createBuilder();
         const { getEventStore } = setup;
-        builder.addChronicle({ client: { getEventStore } as never, eventStore: 'Tasks' });
+        builder.withChronicle({ client: { getEventStore } as never, eventStore: 'Tasks' });
         builder.add(CreateNested, DetachedNested, CrossTenantNested, CrossStoreNested, RejectAfterNested, IgnoreNestedFailure, CreateMany, CreateRejected, Created);
         application = await builder.build();
         const other = ArcApplication.createBuilder();
-        other.addChronicle({ client: { getEventStore: async () => ({ ...store }) } as never, eventStore: 'Other' });
+        other.withChronicle({ client: { getEventStore: async () => ({ ...store }) } as never, eventStore: 'Other' });
         other.add(CreateMany, Created);
         otherApplication = await other.build();
     });

@@ -39,18 +39,18 @@ app.use(cratisArc(arc));
 const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1' });
 ```
 
-Call `await hosted.dispose()` at shutdown, before disposing `arc`. If your application already has a `createNodeWebSocket({ app })` helper, the deprecated `mountHonoWebSockets` alias accepts it as a fourth argument; call **only** `helper.injectWebSocket(listener)` because Arc does not own that shared listener. Ordinary GET requests pass through the WebSocket route to your handlers. Hono middleware runs for upgrades, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is needed only for this Node host; other Hono runtimes need their own verified bridge.
+Call `await hosted.dispose()` at shutdown, before disposing `arc`. If your application already has a `createNodeWebSocket({ app })` helper, call `createHonoWebSockets(app, arc.server, undefined, helper)` on the same Hono app after registering `cratisArc` middleware; call **only** `helper.injectWebSocket(listener)`, then dispose the Arc bridge before closing the listener because Arc does not own that shared listener. Ordinary GET requests pass through the WebSocket route to your handlers. Hono middleware runs for upgrades, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is needed only for this Node host; other Hono runtimes need their own verified bridge.
 
 ## Frame limits
 
-Arc rejects oversized inbound WebSocket frames with close code 1009 on every adapter, even with shared WebSocket infrastructure. Configure a shared plugin or helper's `maxPayload` at or below `maxObservableInboundFrameBytes` (64 KiB by default) so it rejects them before delivery. The other observable limits are in [Configuration](../configuration/index.md#observable-query-limits).
+Arc rejects oversized inbound WebSocket frames with close code 1009 on every adapter, even with shared WebSocket infrastructure. Configure a shared plugin or helper's `maxPayload` at or below `query.maxObservableInboundFrameBytes` (64 KiB by default) so it rejects them before delivery. The other observable limits are in [Configuration](../configuration/index.md#observable-query-limits).
 
 ## Origin checks
 
-Each bridge checks exact raw paths and the configured `allowedOrigins` before accepting an upgrade.
+Each bridge checks exact raw paths and the configured `query.allowedOrigins` before accepting an upgrade.
 
 - By default, a browser `Origin` that is present must match the trusted transport's scheme and authority.
-- `allowedOrigins: ['http://localhost:5173']` replaces that default with an explicit list. Include your application's own origin when it must stay allowed.
+- `query: { allowedOrigins: ['http://localhost:5173'] }` replaces that default with an explicit list. Include your application's own origin when it must stay allowed.
 - An async predicate `(origin, request, native) => boolean` can implement a host policy.
 - An absent `Origin` is permitted for native clients. It is **not** proof of authentication.
 

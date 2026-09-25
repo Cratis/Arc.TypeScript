@@ -12,9 +12,9 @@ import express from 'express';
 import Fastify from 'fastify';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { mountExpress } from '@cratis/arc.express';
-import { mountFastify } from '@cratis/arc.fastify';
-import { mountHono } from '@cratis/arc.hono';
+import { cratisArc as expressArc } from '@cratis/arc.express';
+import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
+import { cratisArc as honoArc } from '@cratis/arc.hono';
 import { ArcApplication, serviceToken } from '@cratis/arc.core';
 import { context, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
@@ -48,7 +48,7 @@ const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connect
 const interceptor = serviceToken('live read model interceptor');
 const builder = ArcApplication.createBuilder({ development: true,
     readModelInterceptors: [interceptor],
-    resolveTenant: request => request.headers.get('x-test-tenant') ?? undefined });
+    tenancy: { resolve: request => request.headers.get('x-test-tenant') ?? undefined } });
 builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view => {
     const publicView = new LiveView();
     Object.assign(publicView, view);
@@ -62,17 +62,17 @@ application = await builder.build();
 
 async function host(kind) {
     if (kind === 'express') {
-        const app = express(); mountExpress(app, application);
+        const app = express(); app.use(expressArc(application));
         const server = createServer(app); server.listen(0, '127.0.0.1'); await once(server, 'listening');
         return { url: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((resolve, reject) =>
             server.close(error => error ? reject(error) : resolve())) };
     }
     if (kind === 'fastify') {
-        const app = Fastify(); mountFastify(app, application);
+        const app = Fastify(); app.register(fastifyArc, { arc: application });
         const url = await app.listen({ host: '127.0.0.1', port: 0 });
         return { url, close: () => app.close() };
     }
-    const app = new Hono(); mountHono(app, application);
+    const app = new Hono(); app.use(honoArc(application));
     const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 });
     await once(server, 'listening');
     return { url: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((resolve, reject) =>

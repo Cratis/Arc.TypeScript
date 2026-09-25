@@ -53,15 +53,15 @@ Routes derive from folders and class names. A folder move changes the route, and
 
 ### Every command answers 400 malformedRequest behind Express
 
-A body parser such as `express.json()` ran before Arc and consumed the body. Call `mountExpress` before adding body parsers. See [Express](hosts/express.md).
+A body parser such as `express.json()` ran before Arc and consumed the body. Call `app.use(cratisArc(arc))` before adding body parsers. See [Express](hosts/express.md).
 
 ### Fastify answers 413 for a large body
 
-Fastify's `bodyLimit`, 1 MiB by default, applies before Arc's `maxBodyBytes`. Raise both. See [Fastify](hosts/fastify.md).
+Fastify's `bodyLimit`, 1 MiB by default, applies before Arc's `hosting.maxBodyBytes`. Raise both. See [Fastify](hosts/fastify.md).
 
 ### A browser WebSocket never opens from a dev server
 
-The page's origin differs from the server's, so the `Origin` check refuses the upgrade. Add the dev server origin, and your application origin, to `allowedOrigins`. See [WebSockets](hosts/websockets.md#origin-checks).
+The page's origin differs from the server's, so the `Origin` check refuses the upgrade. Add the dev server origin, and your application origin, to `query.allowedOrigins`. See [WebSockets](hosts/websockets.md#origin-checks).
 
 ### An observable query answers 202
 

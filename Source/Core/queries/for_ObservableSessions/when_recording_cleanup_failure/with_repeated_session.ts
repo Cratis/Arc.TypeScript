@@ -15,7 +15,7 @@ describe('when recording repeated cleanup failures', () => {
 
     beforeEach(() => {
         server = new ArcServer({});
-        sessions = new ObservableSessions({}, server.services, new ObservableLimits({}), () => []);
+        sessions = new ObservableSessions({}, server.services, new ObservableLimits({}), () => new Map());
         const session = {};
         firstRecorded = sessions.recordCleanupFailure(session);
         secondRecorded = sessions.recordCleanupFailure(session);

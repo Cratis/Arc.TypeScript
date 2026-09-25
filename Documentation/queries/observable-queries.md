@@ -89,7 +89,7 @@ import express from 'express';
 import { z } from 'zod';
 import { ArcServer, defineObservableQuery } from '@cratis/arc.core';
 import { BehaviorSubject } from 'rxjs';
-import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
+import { cratisArc } from '@cratis/arc.express';
 
 const numbers = new BehaviorSubject<number[]>([1]);
 const query = defineObservableQuery({
@@ -99,15 +99,16 @@ const query = defineObservableQuery({
 });
 const server = new ArcServer({ observableQueries: [query] });
 const app = express();
-mountExpress(app, server);
+const adapter = cratisArc(server);
+app.use(adapter);
 const listener = app.listen(3000, '127.0.0.1');
-mountExpressWebSockets(listener, server);
+const disposeSockets = adapter.injectWebSocket(listener);
 let nextNumber = 2;
 const timer = setInterval(() => numbers.next([nextNumber++]), 1000);
 
 process.once('SIGINT', () => {
     clearInterval(timer);
-    void server.dispose().then(() => listener.close(), error => {
+    void disposeSockets().then(() => server.dispose()).then(() => listener.close(), error => {
         console.error(error);
         process.exitCode = 1;
         listener.close();

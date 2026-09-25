@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { z } from 'zod';
 import { ArcServer, AuthenticationStatus, defineCommand, defineQuery } from '@cratis/arc.core';
-import { mountExpress } from '@cratis/arc.express';
+import { cratisArc } from '@cratis/arc.express';
 import { CreateWidget } from '../../.ai-work/client-candidate/CreateWidget.proxy.js';
 import { GetWidgets } from '../../.ai-work/client-candidate/GetWidgets.proxy.js';
 import { QueryHttpMethod, Paging, Sorting, SortDirection } from '@cratis/arc/queries';
@@ -24,7 +24,7 @@ test('published 22.19.1 client against actual Express host', async () => {
             perform: ({ term }) => widgets.filter(widget => widget.name.includes(term)) })]
     });
     const app = express();
-    mountExpress(app, server);
+    app.use(cratisArc(server));
     const listener = app.listen(0, '127.0.0.1');
     await new Promise(resolve => listener.once('listening', resolve));
     const origin = `http://127.0.0.1:${listener.address().port}`;

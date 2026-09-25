@@ -26,7 +26,7 @@ async function within(promise, name) {
 }
 
 test('revision replacement frees a legacy slot at a one-subscription per-caller limit', async () => {
-    const server = new ArcServer({ maxObservableSubscriptionsPerCaller: 1,
+    const server = new ArcServer({ query: { maxObservableSubscriptionsPerCaller: 1 },
         observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}),
             observe: () => CurrentValueSubject.of([{ id: '1', name: 'first' }]) })] });
     const listening = await observableHost('express', server);

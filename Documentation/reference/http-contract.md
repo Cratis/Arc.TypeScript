@@ -30,7 +30,7 @@ The description endpoints do not run authentication handlers. Methods that reach
 | --- | --- | --- |
 | `X-Correlation-ID` (configurable) | Request and response | Reused when a valid non-zero UUID, otherwise replaced; always returned |
 | `X-Allowed-Severity` | Request | `0`, `1`, or `2` on commands; `3` is capped to `2`; ignored on queries |
-| `x-cratis-tenant-id` (configurable) | Request | The requested tenant without `resolveTenant` or `tenancy` |
+| `x-cratis-tenant-id` (configurable) | Request | The requested tenant without `tenancy.resolve` or another configured tenant source |
 | `Authorization` | Request | Read only by the authentication handlers you configure |
 | `Cache-Control: no-store` | Response | On `QUERY` responses and `/.cratis/me` |
 | `Allow` | Response | On 405 answers |

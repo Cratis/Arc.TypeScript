@@ -20,7 +20,7 @@ export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-The Tasks sample sets `Development` in `Samples/Tasks/appsettings.json`; run the workspace command from its package directory (Yarn does this). `createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`; the older `ArcServerOptions` name is still exported). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`. This TypeScript setup corresponds to C#'s standalone `ArcApplication.CreateBuilder(args)`, `builder.AddCratisArc()`, `builder.Build()`, `app.UseCratisArc()`, `app.RunAsync()`. On Node, `app.run()` performs the standalone host step. For an Arc + Chronicle comparison, see [Add event sourcing](../chronicle/add-event-sourcing.md).
+The Tasks sample sets `Development` in `Samples/Tasks/appsettings.json`; run the workspace command from its package directory (Yarn does this). `createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`. This TypeScript setup corresponds to C#'s standalone `ArcApplication.CreateBuilder(args)`, `builder.AddCratisArc()`, `builder.Build()`, `app.UseCratisArc()`, `app.RunAsync()`. On Node, `app.run()` performs the standalone host step. For an Arc + Chronicle comparison, see [Add event sourcing](../chronicle/add-event-sourcing.md).
 
 Before a listener opens, `build()` checks the declared graph: missing service registrations, dependency cycles, singletons that capture shorter-lived services, and decorators placed where they have no effect. It never runs a service factory to do this.
 

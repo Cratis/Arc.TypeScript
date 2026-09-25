@@ -22,7 +22,7 @@ describe('when an emission guard denies and terminates SSE', () => {
         const guard = serviceToken<ObservableEmissionGuard>('deny second');
         const server = new ArcServer({ services: [{ token: guard, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
             check: emission => emission.data === 2 ? ObservableEmissionDecision.DenyAndTerminate : ObservableEmissionDecision.Allow
-        }) }], observableEmissionGuards: [guard], observableQueries: [defineObservableQuery({
+        }) }], query: { observableEmissionGuards: [guard] }, observableQueries: [defineObservableQuery({
             name: 'Value', schema: z.object({}), observe: () => tracked
         })] });
         const response = await server.handle(new Request('http://localhost/api/value', {

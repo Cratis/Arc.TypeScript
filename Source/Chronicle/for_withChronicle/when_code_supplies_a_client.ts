@@ -3,7 +3,7 @@
 import { should } from 'vitest';
 import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { ChronicleRegistration } from '../ChronicleOptions.js';
-import { withChronicle } from '../addChronicle.js';
+import { withChronicle } from '../withChronicle.js';
 
 should();
 describe('when code supplies a Chronicle client over a configured connection string', () => {

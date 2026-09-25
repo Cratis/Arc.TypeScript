@@ -4,7 +4,8 @@ import { serve } from '@hono/node-server';
 import type { Context, Env, Hono } from 'hono';
 import { createServer, type Server } from 'node:http';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
-import { mountHonoWebSockets } from './WebSocketMount.js';
+import { createHonoWebSockets } from './WebSocketMount.js';
+import { serverOf } from '@cratis/arc.core/hosting';
 
 /** Serve a Hono app with Arc observable upgrades on a Node listener; caller owns the Arc application. */
 export async function serveCratisArc<E extends Env>(app: Hono<E>, arc: ArcServer | ArcApplication, options: {
@@ -12,7 +13,7 @@ export async function serveCratisArc<E extends Env>(app: Hono<E>, arc: ArcServer
     hostname?: string;
     native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>;
 }): Promise<{ server: Server; dispose(): Promise<void> }> {
-    const bridge = mountHonoWebSockets(app, 'server' in arc ? arc.server : arc, options.native);
+    const bridge = createHonoWebSockets(app, serverOf(arc), options.native);
     let server: Server;
     try {
         server = serve({ fetch: app.fetch, port: options.port, hostname: options.hostname, createServer }) as Server;
