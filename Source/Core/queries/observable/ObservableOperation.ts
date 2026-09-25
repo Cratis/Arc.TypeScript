@@ -9,7 +9,7 @@ import type { Operation } from '../../http/Operation.js';
 import { queryOperation } from '../queryOperation.js';
 import { renderQuery } from '../renderQuery.js';
 import { queryResult } from '../../results/index.js';
-import { recordFailure } from '../../results/failureTracking.js';
+import { recordFailure } from '../../execution/failureTracking.js';
 import type { ObservableQueryDefinition } from './ObservableQueryDefinition.js';
 import type { ObservableSource } from './ObservableSource.js';
 

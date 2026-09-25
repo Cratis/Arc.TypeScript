@@ -4,7 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 class Effect extends CommandOperation { execute(signal: AbortSignal): void { void signal; } }

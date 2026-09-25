@@ -3,7 +3,7 @@
 import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { an_operation_command } from '../given/an_operation_command.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
 import type { CommandOperationFailure } from '../../commands/CommandOperationFailure.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();

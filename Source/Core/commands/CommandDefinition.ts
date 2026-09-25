@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
-import type { Outcome } from '../results/Outcome.js';
+import type { Outcome } from './Outcome.js';
 import type { CommandExecutionScope } from './CommandExecutionScope.js';
 import type { CommandFilter } from './CommandFilter.js';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;

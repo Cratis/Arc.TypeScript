@@ -3,7 +3,7 @@
 import type { z } from 'zod';
 import type { ArcOptions } from './ArcOptions.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
-import { ArcApplicationServices } from './ArcApplicationServices.js';
+import { ArcApplicationServices } from './dependencyInjection/ArcApplicationServices.js';
 import { FetchArcApplication } from './FetchArcApplication.js';
 import { ArcServer } from './ArcServer.js';
 import type { CommandDefinition } from './commands/CommandDefinition.js';
@@ -28,7 +28,7 @@ import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 import type { QueryRenderer } from './queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
-import { readModelArgument } from './commands/modelBound/readModel.js';
+import { readModelArgument } from './commands/modelBound/commandReadModel.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';

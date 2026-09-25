@@ -6,7 +6,7 @@ import { given } from '../../given.js';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
 import { serviceToken } from '../../dependencyInjection/ServiceToken.js';
-import { tuple } from '../../results/tuple.js';
+import { tuple } from '../../commands/tuple.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 import type { CommandContext } from '../../commands/CommandContext.js';
 import type { CommandResponseValueHandler } from '../../commands/CommandResponseValueHandler.js';

@@ -5,13 +5,13 @@ import type { ArcOptions } from '../ArcOptions.js';
 import type { CommandDefinition } from './CommandDefinition.js';
 import type { CommandResult } from './CommandResult.js';
 import type { ValidationResult } from '../validation/ValidationResult.js';
-import { isOutcome } from '../results/Outcome.js';
+import { isOutcome } from './Outcome.js';
 import { authorized } from '../authorization/authorized.js';
-import { commandResult } from '../results/commandResult.js';
-import { malformed } from '../results/malformed.js';
+import { commandResult } from './createCommandResult.js';
+import { malformed } from '../http/malformed.js';
 import type { Operation } from '../http/Operation.js';
 import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
-import { recordFailure } from '../results/failureTracking.js';
+import { recordFailure } from '../execution/failureTracking.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
 import { ReadModelForCommandError } from './ReadModelForCommandError.js';
@@ -25,7 +25,7 @@ import { setCommandRecovery } from './commandRecovery.js';
 import type { CommandExecutionScope, CommandOperationExecutionScope } from './CommandExecutionScope.js';
 import type { CommandCommitDisposition } from './CommandCommitDisposition.js';
 import type { CommandContext } from './CommandContext.js';
-import { observe } from '../observability.js';
+import { observe } from '../execution/observability.js';
 
 function disposition(scopes: readonly CommandExecutionScope[], context: CommandContext): CommandCommitDisposition {
     const participants = scopes.filter((scope): scope is CommandOperationExecutionScope =>

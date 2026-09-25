@@ -18,7 +18,7 @@ import { createRouteTable } from './http/createRouteTable.js';
 import { renderOpenApi } from './openApi/renderOpenApi.js';
 import type { Operation } from './http/Operation.js';
 import { commandResult, queryResult } from './results/index.js';
-import { recordFailure } from './results/failureTracking.js';
+import { recordFailure } from './execution/failureTracking.js';
 import { Severity } from './validation/Severity.js';
 import { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import { withServices } from './dependencyInjection/ServiceScope.js';
@@ -26,13 +26,13 @@ import { requestContext } from './execution/RequestContextStore.js';
 import { isObservableOperation } from './queries/observable/ObservableOperation.js';
 import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
-import { ObservableSessions } from './queries/ObservableSessions.js';
+import { ObservableSessions } from './queries/observable/ObservableSessions.js';
 import { ObservableLimits } from './queries/observable/ObservableLimits.js';
 import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
 import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
-import { observe } from './observability.js';
+import { observe } from './execution/observability.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 export class ArcServer {
     readonly commands: readonly Operation[];

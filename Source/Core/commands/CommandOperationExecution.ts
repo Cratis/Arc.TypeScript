@@ -3,7 +3,7 @@
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { CommandContext } from './CommandContext.js';
 import type { CommandCommitDisposition } from './CommandCommitDisposition.js';
-import { isCommandOperation, type CommandOperation } from './CommandOperationDeclaration.js';
+import { isCommandOperation, type CommandOperation } from './CommandOperation.js';
 import { CommandOperationBoundary } from './CommandOperationBoundary.js';
 import type { CommandOperationFailure } from './CommandOperationFailure.js';
 import type { CommandOperationOutcome } from './CommandOperationOutcome.js';

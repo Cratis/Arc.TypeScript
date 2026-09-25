@@ -1,10 +1,10 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
-import type { ServiceIdentifier, ServiceClass } from './dependencyInjection/ServiceIdentifier.js';
-import { reflectedParameters } from './reflection/reflectedParameters.js';
-import { ownMetadata } from './reflection/ownMetadata.js';
-import type { ServiceScope } from './dependencyInjection/ServiceScope.js';
+import type { ServiceRegistration } from './ServiceRegistration.js';
+import type { ServiceIdentifier, ServiceClass } from './ServiceIdentifier.js';
+import { reflectedParameters } from '../reflection/reflectedParameters.js';
+import { ownMetadata } from '../reflection/ownMetadata.js';
+import type { ServiceScope } from './ServiceScope.js';
 
 /** Collect class and factory registrations for a built application. */
 export class ArcApplicationServices {

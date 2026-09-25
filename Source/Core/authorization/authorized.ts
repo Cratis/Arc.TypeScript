@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Authorization } from './Authorization.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from '../http/DescriptorBase.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyFunction, AuthorizationPolicyRegistration } from './AuthorizationPolicy.js';
 import { authorizationRequirements } from './authorizationRequirements.js';

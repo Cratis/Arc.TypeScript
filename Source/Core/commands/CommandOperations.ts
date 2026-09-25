@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { CommandOperation } from './CommandOperationDeclaration.js';
+import type { CommandOperation } from './CommandOperation.js';
 const brand = Symbol.for('@cratis/arc.core/command-operations');
 /** Immutable, explicit batch of server-only operation declarations. */
 export class CommandOperations {

@@ -1,10 +1,10 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { isArcTuple } from '../../results/ArcTuple.js';
-import { tuple } from '../../results/tuple.js';
-import { isOutcome, response } from '../../results/Outcome.js';
+import { isArcTuple } from '../ArcTuple.js';
+import { tuple } from '../tuple.js';
+import { isOutcome, response } from '../Outcome.js';
 import { encode } from '../../reflection/wireSchema.js';
-import { CommandOperation } from '../CommandOperationDeclaration.js';
+import { CommandOperation } from '../CommandOperation.js';
 import { isCommandOperations } from '../CommandOperations.js';
 /** Preserve server-only declarations and branded return branches until the pipeline classifies them. */
 export function encodeCommandResponse(value: unknown): unknown {

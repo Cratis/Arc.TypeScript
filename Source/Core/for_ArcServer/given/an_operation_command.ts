@@ -3,11 +3,11 @@
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
 import type { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
 import type { CommandContext } from '../../commands/CommandContext.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
-import { tuple } from '../../results/tuple.js';
+import { tuple } from '../../commands/tuple.js';
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 
 export class ProbeOperation extends CommandOperation {

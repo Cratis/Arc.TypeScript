@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import { observe } from '../observability.js';
+import { observe } from '../execution/observability.js';
 import { stringifyWire } from '../reflection/stringifyWire.js';
 import type { ArcServer } from '../ArcServer.js';
 import type { NativeRequestContext } from './NativeRequestContext.js';
@@ -22,7 +22,7 @@ import { allowedSeverity } from '../validation/allowedSeverity.js';
 import { authenticate, verifiedPrincipal } from '../authentication/authenticate.js';
 import { correlation } from '../execution/correlation.js';
 import { exposeExceptionDetails } from '../execution/exposeExceptionDetails.js';
-import { hasFailure, originalFailure } from '../results/failureTracking.js';
+import { hasFailure, originalFailure } from '../execution/failureTracking.js';
 import { Severity } from '../validation/Severity.js';
 import { requestContext } from '../execution/RequestContextStore.js';
 import { isObservableOperation } from '../queries/observable/ObservableOperation.js';

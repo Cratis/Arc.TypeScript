@@ -4,7 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
 import type { CommandOperationFailure } from '../../commands/CommandOperationFailure.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();

@@ -6,7 +6,7 @@ import { ArcServer } from '../../../ArcServer.js';
 import { currentServices } from '../../ServiceScope.js';
 import { serviceToken } from '../../ServiceToken.js';
 import { defineQuery } from '../../../queries/defineQuery.js';
-import { originalFailure } from '../../../results/failureTracking.js';
+import { originalFailure } from '../../../execution/failureTracking.js';
 import { beforeDeadline, captureFailure, gate, serviceContext } from '../given/a_service_lifecycle.js';
 
 should();

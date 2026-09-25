@@ -8,7 +8,7 @@ import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ObservableSource } from '../queries/observable/ObservableSource.js';
 import type { QueryHealthSnapshot } from '../queries/observable/QueryHealthSnapshot.js';
 import { inspectClientInput, inspectClientQueryInput } from '../introspection/ClientManifest.js';
-import { commandOperation } from '../commands/commandOperation.js';
+import { commandOperation } from '../commands/runCommandOperation.js';
 import { queryOperation } from '../queries/queryOperation.js';
 import { observableOperation } from '../queries/observable/ObservableOperation.js';
 import { authorizationRequirements, validateAuthorization } from '../authorization/authorizationRequirements.js';

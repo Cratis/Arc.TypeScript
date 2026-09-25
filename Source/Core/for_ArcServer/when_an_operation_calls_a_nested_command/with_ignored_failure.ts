@@ -3,7 +3,7 @@
 import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { an_operation_command } from '../given/an_operation_command.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 describe('when an operation calls a nested command with ignored failure', given(an_operation_command, context => {

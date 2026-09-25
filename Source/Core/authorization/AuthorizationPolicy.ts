@@ -3,7 +3,7 @@
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { Principal } from '../identity/Principal.js';
 import type { ClassType } from '../reflection/ClassType.js';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from '../http/DescriptorBase.js';
 
 /** The selected caller, operation and request data supplied before validation. */
 export interface AuthorizationPolicyContext {

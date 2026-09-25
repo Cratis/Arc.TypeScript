@@ -9,10 +9,10 @@ import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { after, test } from 'node:test';
 import { Guid } from '@cratis/fundamentals';
-import { RegisterAuthor } from './Web/src/generated/Authors/Registration/RegisterAuthor.proxy.ts';
-import { AuthorsPage } from './Web/src/generated/Authors/Listing/AuthorsPage.proxy.ts';
-import { AllAuthors } from './Web/src/generated/Authors/Listing/AllAuthors.proxy.ts';
-import { AddBook } from './Web/src/generated/Books/Registration/AddBook.proxy.ts';
+import { RegisterAuthor } from './Web/src/generated/Authors/Registration/RegisterAuthor.proxy.js';
+import { AuthorsPage } from './Web/src/generated/Authors/Listing/AuthorsPage.proxy.js';
+import { AllAuthors } from './Web/src/generated/Authors/Listing/AllAuthors.proxy.js';
+import { AddBook } from './Web/src/generated/Books/Registration/AddBook.proxy.js';
 
 const socket = createServer();
 socket.listen(0, '127.0.0.1');
