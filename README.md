@@ -71,6 +71,8 @@ yarn workspace @cratis/arc.core.sample.tasks start
 
 The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line. The [Library sample](Samples/Library/README.md) adds Chronicle event sourcing, projected read models, and a React client; it requires an owned development kernel. See [Vertical slices](Documentation/vertical-slices.md) for its file layout.
 
+If `corepack enable` reports that the command is missing, as on Node.js 25 and later, run `npm install --global corepack` first. To start your own application instead of the sample, follow [Create an application](Documentation/getting-started/create-an-application.md).
+
 ## What works and what does not
 
 Supported, with specs in this repository: commands and queries with Zod schemas, observable queries (HTTP snapshots, direct SSE and WebSocket, and the multiplexed WebSocket and SSE hubs used by the `@cratis/arc` client), validation-only requests, validators and filters, declared and per-request authorization, authentication handlers, correlation IDs, execution scopes, in-memory and provider paging, exception redaction, introspection, OpenAPI, the three host adapters, tenant-scoped MongoDB collections with live replica-set specs, and SQL paging with SQLite and PostgreSQL specs.
