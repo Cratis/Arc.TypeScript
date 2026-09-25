@@ -3,9 +3,9 @@ title: Observe Arc requests
 description: Subscribe to Arc for TypeScript tracing and operation durations with an application-owned OpenTelemetry SDK.
 ---
 
-A slow command in production is hard to explain from logs alone. Was the time spent in validation, in your handler, or in the HTTP layer? Arc for TypeScript emits spans for each pipeline stage and an operation-duration histogram through `@opentelemetry/api`, so the tracing backend you already run can answer that.
+A slow command in production is hard to explain from logs alone. Was the time spent in validation, in your handler, or in the HTTP layer? Arc for TypeScript emits spans for its pipeline stages and an operation-duration histogram through `@opentelemetry/api`, so the tracing backend you already run can answer that.
 
-Arc only emits. Core does not install an exporter, context manager, or SDK, so it stays usable without any tracing infrastructure. You install and start an SDK **in your application**, before you build the Arc server. Arc never sends raw exception messages to spans, including in development.
+Core does not install an exporter, context manager, or SDK, so it stays usable without any tracing infrastructure. You install and start an SDK **in your application**, before you build the Arc server. Arc never sends raw exception messages to spans, including in development.
 
 ## Before you start
 
