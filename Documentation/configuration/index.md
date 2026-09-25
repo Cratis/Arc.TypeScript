@@ -130,7 +130,7 @@ These TypeScript-only `ArcOptions` values are code-only; the builder can also re
 
 ## Routes and requests
 
-A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while reading, answers 400 `malformedRequest`. Arc also rejects non-UTF-8 JSON, non-finite numbers, nesting beyond 32 levels, and the keys `__proto__`, `prototype`, and `constructor`. Fastify's own `bodyLimit` applies first. Every result carries a correlation ID. Arc reuses a valid, non-zero UUID from `correlationId.httpHeader` in lowercase; otherwise it generates one.
+A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while reading, answers 400 `malformedRequest` for commands and `QUERY` alike. Unlike invalid `QUERY` JSON, the limit does not produce an exception envelope. Arc also rejects non-UTF-8 JSON, non-finite numbers, nesting beyond 32 levels, and the keys `__proto__`, `prototype`, and `constructor`. Fastify's own `bodyLimit` applies first. Every result carries a correlation ID. Arc reuses a valid, non-zero UUID from `correlationId.httpHeader` in lowercase; otherwise it generates one.
 
 ## Security
 

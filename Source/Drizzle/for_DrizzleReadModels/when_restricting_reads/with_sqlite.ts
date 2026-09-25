@@ -40,15 +40,18 @@ describe('when restricting read-only SQL access', given(a_sqlite_database, conte
     });
     it('should cap unpaged reads and reject invalid pages', async () => {
         const models = new DrizzleReadModels(context.database, context.table, TaskRecord, 1);
-        await shouldRejectWithMessage(models.find(undefined), 'Drizzle find exceeds maxPageSize');
+        await shouldRejectWithMessage(models.find(undefined), 'The result exceeds the maximum of 1 items; use queryPage for paged results');
         (await models.findOne(eq(context.table.title, 'a')))!.title.should.equal('a');
         should().equal(await models.findOne(eq(context.table.title, 'missing')), undefined);
         await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: -1, pageSize: 1 } }), 'Invalid Drizzle page');
-        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: 0, pageSize: 2 } }), 'Invalid Drizzle page');
+        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: 0, pageSize: 2 } }), 'maximum page size of 1');
         await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: Number.MAX_SAFE_INTEGER, pageSize: 2 } }),
             'Invalid Drizzle page');
-        await shouldRejectWithMessage(models.queryPage(undefined, {}), 'requires options.paging');
         (() => new DrizzleReadModels(context.database, context.table, TaskRecord, 10001)).should.throw('maxPageSize');
+    });
+    it('should allow a bounded unpaged query', async () => {
+        const models = new DrizzleReadModels(context.database, context.table, TaskRecord, 2);
+        (await models.queryPage(undefined, {})).items.should.have.lengthOf(2);
     });
     it('should order descending with a primary-key tie-breaker', async () => {
         const id = Guid.parse('22112233-4455-6677-8899-aabbccddeeff');

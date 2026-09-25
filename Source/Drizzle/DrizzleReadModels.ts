@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { asc, desc, eq, getTableColumns } from 'drizzle-orm';
 import type { Column, SQL, Table } from 'drizzle-orm';
-import { InvalidQuerySort, queryPage } from '@cratis/arc.core';
+import { InvalidQuerySort, QueryPagingRequired, queryPage } from '@cratis/arc.core';
 import type { QueryOptions, QueryPage } from '@cratis/arc.core';
 import type { DrizzleDatabase } from './DrizzleDatabase.js';
 import type { DrizzleFilter } from './DrizzleFilter.js';
@@ -59,7 +59,8 @@ export class DrizzleReadModels<T extends object> {
         this.order(sorting);
         const total = await this.db.$count(this.table, filter);
         if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
-        if (total > this.maxPageSize) throw new RangeError('Drizzle find exceeds maxPageSize');
+        if (total > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true,
+            `The result exceeds the maximum of ${this.maxPageSize} items; use queryPage for paged results`);
         return this.select(filter, sorting, this.maxPageSize);
     }
 
@@ -78,13 +79,14 @@ export class DrizzleReadModels<T extends object> {
 
     /** Push a typed predicate, count, sort and page into SQL; never load the unbounded result before paging. */
     async queryPage(filter: DrizzleFilter, options: QueryOptions): Promise<QueryPage<T>> {
-        if (!options.paging) throw new Error('Drizzle queryPage requires options.paging');
-        const { page, pageSize } = options.paging;
+        const { page, pageSize } = options.paging ?? { page: 0, pageSize: this.maxPageSize };
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize < 1 ||
-            pageSize > this.maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid Drizzle page');
+            !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid Drizzle page');
+        if (pageSize > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize);
         this.order(options.sorting);
         const total = await this.db.$count(this.table, filter);
         if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
+        if (!options.paging && total > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
         const items = await this.select(filter, options.sorting, pageSize, page * pageSize);
         return queryPage(items, total, options.sorting);
     }

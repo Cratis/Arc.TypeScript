@@ -22,10 +22,8 @@ describe('when paging with an invalid size', given(a_tenant_collection, context 
         configured = await models.page(executionContext('a'), 'alice', { page: 0, pageSize: 101 });
     });
     it('should reject invalid page sizes', () => should_reject_with_error(invalid, 'Paging requires'));
-    it('should reject sizes exceeding the default limit before querying', () => {
-        should_reject_with_error(oversized, 'maxPageSize');
-        rejectedBeforeQuery.should.equal(true);
-    });
+    it('should reject sizes exceeding the default limit', () => should_reject_with_error(oversized, 'maximum page size of 100'));
+    it('should reject oversized requests before querying', () => rejectedBeforeQuery.should.equal(true));
     it('should honor a configured limit', () => configured.items.should.deep.equal([context.doc]));
     it('should reject an invalid configured limit', () => {
         (() => new MongoReadModels<Task, string>({ client: context.client, maxPageSize: 0, databaseForTenant: () => 'app', filterFor: owner => ({ owner }) }, 'tasks')).should.throw('maxPageSize');
