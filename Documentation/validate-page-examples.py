@@ -121,7 +121,7 @@ def sample_fixtures(destination: Path, source_root: str, prefix: str, excluded: 
     sample = ROOT / source_root
     for source in sorted(sample.rglob('*.ts')):
         path = source.relative_to(sample)
-        if any(part.startswith('for_') or part == 'given' for part in path.parts):
+        if any(part.startswith('for_') or part in ('given', 'dist', 'node_modules') for part in path.parts):
             continue
         if path.as_posix() in excluded:
             continue
