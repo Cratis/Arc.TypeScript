@@ -13,7 +13,7 @@ Your read models live in SQL tables. Every query needs the right database for th
 
 | Capability | Page |
 | --- | --- |
-| Register a database and read models with `withDrizzle`, serve a query, write from a command, and keep queries on a read-only handle | [Get started](getting-started.md) |
+| Register a database and read models with `withDrizzle`, serve a query, load a model by a command key, write from a command, and keep queries on a read-only handle | [Get started](getting-started.md) |
 | Store GUIDs, concepts, dates, times, durations, and JSON per dialect | [Column types](column-types.md) |
 | Count, sort, and page in SQL | [Paging and sorting](paging.md) |
 | Route each tenant to its own database | [Tenancy](tenancy.md) |
@@ -28,7 +28,6 @@ Drizzle 0.45 is before 1.0. The peer dependency `^0.45.0` accepts 0.45 releases,
 
 - **No schema management.** `withDrizzle` never creates tables, adds columns, or runs migrations. See [Own the schema](getting-started.md#own-the-schema).
 - **No live queries.** There is no `observe()`, and Arc does not refresh an observable query when a table changes. SQLite has no cross-process change notification here, and Drizzle does not announce writes. PostgreSQL `LISTEN`/`NOTIFY` would need managed triggers, a listener connection per tenant, resubscription after reconnects, a race-free first read, and tested shutdown; none of that is included. If your application has a reliable, tenant-scoped change source of its own, an Arc [observable query](../queries/observable-queries.md) can consume it. An in-process event after a command write does not see changes made by other processes.
-- **No command read models.** `commandReadModel(Type)` does not load SQL models by command key. A command can inject `drizzleReadModel(Type)` and read explicitly.
 - **No transactions or change tracking.** There is no unit of work shared with command execution. Use a Drizzle transaction in your command when several writes must succeed together.
 - **One registration per application.** A second `withDrizzle` fails at build with a duplicate service. Several tenants use one registration with `databaseFactory`.
 - **No EF-only features.** Arc on .NET's Entity Framework integration also has SQL Server, spatial Point, LineString, and Polygon types, several DbContexts, and automatic concept conversion in `BaseDbContext`. None of those are part of this package.
