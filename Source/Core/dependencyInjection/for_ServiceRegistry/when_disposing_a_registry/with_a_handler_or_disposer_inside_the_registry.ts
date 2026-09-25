@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../../ArcServer.js';
@@ -16,7 +17,7 @@ describe('when disposing a registry with a handler or disposer inside the regist
     let successful: boolean;
     beforeEach(async () => {
         const token = serviceToken<object>('disposer');
-        const registry = new ServiceRegistry([{ token, lifetime: 'scoped', factory: () => ({
+        const registry = new ServiceRegistry([{ token, lifetime: ServiceLifetime.Scoped, factory: () => ({
             [Symbol.asyncDispose]: async () => { disposerFailure = await captureFailure(registry.dispose()); }
         }) }]);
         const server = new ArcServer({ services: registry, queries: [defineQuery({ name: 'Self', schema: z.object({}), perform: async () => {

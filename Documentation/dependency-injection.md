@@ -54,13 +54,13 @@ In standard mode, `@inject(...)` and `@query(...)` also type-check their paramet
 Low-level definitions register services as `{ token, lifetime, factory }` in the `services` option, declare them with `handlerDependencies` or `validatorDependencies`, and resolve them with `currentServices()`:
 
 ```typescript
-import { ArcServer, currentServices, defineCommand, serviceToken, Severity } from '@cratis/arc.core';
+import { ArcServer, currentServices, defineCommand, serviceToken, ServiceLifetime, Severity } from '@cratis/arc.core';
 import { z } from 'zod';
 
 const journal = serviceToken<{ append(text: string): void; entries: string[] }>('journal');
 let created = 0;
 const server = new ArcServer({
-    services: [{ token: journal, lifetime: 'scoped', factory: () => {
+    services: [{ token: journal, lifetime: ServiceLifetime.Scoped, factory: () => {
         created++;
         const entries: string[] = [];
         return { entries, append: (text: string) => { entries.push(text); } };

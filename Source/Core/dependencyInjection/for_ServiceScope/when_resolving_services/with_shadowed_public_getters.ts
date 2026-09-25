@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -16,16 +17,18 @@ describe('when resolving services with shadowed public getters', () => {
     let beforeShutdown: string[];
     let afterShutdown: string[];
     beforeEach(async () => {
-        const scoped = serviceToken<object>('scoped'); const root = serviceToken<object>('root'); const alias = serviceToken<object>('alias');
+        const scoped = serviceToken<object>('scoped');
+        const root = serviceToken<object>('root');
+        const alias = serviceToken<object>('alias');
         const events: string[] = []; scopedCreations = 0; rootCreations = 0; let firstScoped!: object;
         const registry = new ServiceRegistry([
-            { token: scoped, lifetime: 'scoped', factory: () => {
-                scopedCreations++; return { [Symbol.dispose]: () => { events.push('scoped'); } };
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => {
+                scopedCreations++; return { [Symbol.dispose]: () => { events.push(ServiceLifetime.Scoped); } };
             } },
-            { token: root, lifetime: 'singleton', factory: () => {
+            { token: root, lifetime: ServiceLifetime.Singleton, factory: () => {
                 rootCreations++; return { [Symbol.dispose]: () => { events.push('root'); } };
             } },
-            { token: alias, lifetime: 'scoped', factory: () => firstScoped }
+            { token: alias, lifetime: ServiceLifetime.Scoped, factory: () => firstScoped }
         ]);
         const scope = registry.createScope(serviceContext('original'));
         try {
@@ -60,7 +63,7 @@ describe('when resolving services with shadowed public getters', () => {
         rootCreations.should.equal(1);
     });
     it('should dispose each owned instance in its owning scope', () => {
-        beforeShutdown.should.deep.equal(['scoped']);
-        afterShutdown.should.deep.equal(['scoped', 'root']);
+        beforeShutdown.should.deep.equal([ServiceLifetime.Scoped]);
+        afterShutdown.should.deep.equal([ServiceLifetime.Scoped, 'root']);
     });
 });

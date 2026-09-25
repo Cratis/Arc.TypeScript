@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -15,9 +16,11 @@ describe('when resolving services with concurrent scopes and tenants', () => {
         const transient = serviceToken<object>('transient');
         let singleCalls = 0; let scopedCalls = 0; let transientCalls = 0;
         const registry = new ServiceRegistry([
-            { token: singleton, lifetime: 'singleton', factory: async () => { singleCalls++; await Promise.resolve(); return { id: singleCalls }; } },
-            { token: scoped, lifetime: 'scoped', factory: async (_resolver, identity) => { scopedCalls++; await Promise.resolve(); return { tenant: identity.tenantId }; } },
-            { token: transient, lifetime: 'transient', factory: () => { transientCalls++; return {}; } }
+            { token: singleton, lifetime: ServiceLifetime.Singleton,
+                factory: async () => { singleCalls++; await Promise.resolve(); return { id: singleCalls }; } },
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: async (_resolver,
+                identity) => { scopedCalls++; await Promise.resolve(); return { tenant: identity.tenantId }; } },
+            { token: transient, lifetime: ServiceLifetime.Transient, factory: () => { transientCalls++; return {}; } }
         ]);
         const a = registry.createScope(serviceContext('a'));
         const b = registry.createScope(serviceContext('b'));

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -16,7 +17,7 @@ describe('when resolving a singleton with a detached child after factory complet
         const entered = gate(); const release = gate();
         let child: Promise<Awaited<ReturnType<ArcServer['performQuery']>>> | undefined;
         constructions = 0; const value = {};
-        const server = new ArcServer({ services: [{ token: singleton, lifetime: 'singleton', factory: () => {
+        const server = new ArcServer({ services: [{ token: singleton, lifetime: ServiceLifetime.Singleton, factory: () => {
             constructions++; child = server.performQuery('Child', {}, serviceContext('child'));
             return value;
         } }], queries: [

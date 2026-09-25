@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -15,7 +16,7 @@ describe('when resolving detached manual scopes after a singleton factory settle
         const started = gate(); const released = gate();
         let detached!: Promise<readonly (string | undefined)[]>;
         const registry = new ServiceRegistry([
-            { token: origin, lifetime: 'singleton', factory: () => {
+            { token: origin, lifetime: ServiceLifetime.Singleton, factory: () => {
                 detached = (async () => {
                     started.release(); await released.promise;
                     const beta = registry.createScope(serviceContext('beta'));
@@ -24,8 +25,8 @@ describe('when resolving detached manual scopes after a singleton factory settle
                 })();
                 return {};
             } },
-            { token: tenant, lifetime: 'scoped', factory: (_scope, identity) => ({ tenant: identity.tenantId }) },
-            { token: transient, lifetime: 'transient', factory: (_scope, identity) => ({ tenant: identity.tenantId }) }
+            { token: tenant, lifetime: ServiceLifetime.Scoped, factory: (_scope, identity) => ({ tenant: identity.tenantId }) },
+            { token: transient, lifetime: ServiceLifetime.Transient, factory: (_scope, identity) => ({ tenant: identity.tenantId }) }
         ]);
         const alpha = registry.createScope(serviceContext('alpha'));
         try {

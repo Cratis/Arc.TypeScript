@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -16,8 +17,10 @@ describe('when executing a command with invalid aborted or failing scope', () =>
     beforeEach(async () => {
         const events: string[] = []; const validator = serviceToken<object>('validator'); const handler = serviceToken<object>('handler');
         const server = new ArcServer({ services: [
-            { token: validator, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { events.push('validator disposed'); } }) },
-            { token: handler, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { events.push('handler disposed'); } }) }
+            { token: validator, lifetime: ServiceLifetime.Scoped,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('validator disposed'); } }) },
+            { token: handler, lifetime: ServiceLifetime.Scoped,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('handler disposed'); } }) }
         ], commands: [
             defineCommand({ name: 'Invalid', schema: z.object({}), validatorDependencies: [validator], handlerDependencies: [handler],
                 validate: () => [validation('no', [], 'rule', Severity.Error)], handle: () => { events.push('unexpected'); } }),

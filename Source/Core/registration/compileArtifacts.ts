@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../dependencyInjection/ServiceLifetime.js';
 import type { z } from 'zod';
 import type { ArcOptions } from '../ArcOptions.js';
 import type { Artifact } from '../reflection/Artifact.js';
@@ -38,11 +39,11 @@ export function registerValidators(artifacts: readonly Artifact[], options: ArcO
         if (validatorTypes.has(target)) throw new Error(`Duplicate validator target: ${target.name}`);
         validatorTypes.set(target, type as ClassType<BaseValidator<unknown>>);
         const lifetime = ownMetadata(type).lifetime;
-        if (lifetime === 'singleton') throw new Error(`Validator ${type.name} must not be singleton`);
+        if (lifetime === ServiceLifetime.Singleton) throw new Error(`Validator ${type.name} must not be singleton`);
         const existing = [...Array.isArray(options.services) ? options.services : [], ...services.registrations]
             .find(registration => registration.token === type);
-        if (existing?.lifetime === 'singleton') throw new Error(`Validator ${type.name} must not be singleton`);
-        if (!existing) services[lifetime === 'scoped' ? 'addScoped' : 'addTransient'](type);
+        if (existing?.lifetime === ServiceLifetime.Singleton) throw new Error(`Validator ${type.name} must not be singleton`);
+        if (!existing) services[lifetime === ServiceLifetime.Scoped ? 'addScoped' : 'addTransient'](type);
         dependencies.push(type);
     }
     return validatorTypes;
@@ -51,7 +52,7 @@ export function registerValidators(artifacts: readonly Artifact[], options: ArcO
 function registerQueryExtension(type: ClassType, metadata: ReturnType<typeof ownMetadata>, registrations: ArtifactRegistrations): void {
     if (!metadata.queryRenderer && !metadata.readModelInterceptor) return;
     if (metadata.command || metadata.readModel || metadata.validatorTarget || metadata.responseValueHandler ||
-        metadata.queryRenderer && metadata.readModelInterceptor || metadata.lifetime === 'singleton')
+        metadata.queryRenderer && metadata.readModelInterceptor || metadata.lifetime === ServiceLifetime.Singleton)
         throw new Error(`Conflicting Arc query extension artifact: ${type.name}`);
     if (metadata.queryRenderer) {
         if (typeof type.prototype.canRender !== 'function' || typeof type.prototype.render !== 'function')
@@ -84,8 +85,8 @@ export function compileArtifacts(artifacts: readonly Artifact[], graph: ModelGra
         registerQueryExtension(type, metadata, registrations);
         registerResponseHandler(type, metadata, registrations);
         if (metadata.lifetime && !metadata.validatorTarget) {
-            const registration = metadata.lifetime === 'singleton' ? 'addSingleton' :
-                metadata.lifetime === 'scoped' ? 'addScoped' : 'addTransient';
+            const registration = metadata.lifetime === ServiceLifetime.Singleton ? 'addSingleton' :
+                metadata.lifetime === ServiceLifetime.Scoped ? 'addScoped' : 'addTransient';
             registrations.services[registration](type);
         }
         if (metadata.command) {

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -19,8 +20,10 @@ describe('when handling an identity request with a nested singleton failure', ()
         const broken = serviceToken<object>('nested broken singleton');
         events = [];
         const server = new ArcServer({ services: [
-            { token: partial, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { events.push('singleton disposed'); } }) },
-            { token: broken, lifetime: 'singleton', factory: async scope => { await scope.resolve(partial); throw Error('secret'); } }
+            { token: partial, lifetime: ServiceLifetime.Singleton,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('singleton disposed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Singleton,
+                factory: async scope => { await scope.resolve(partial); throw Error('secret'); } }
         ], authentication: [() => ({ status: AuthenticationStatus.Authenticated, principal: identityPrincipal })],
         identityDetails: { schema: z.object({ value: z.string() }), provide: async () => { await currentServices().resolve(broken); return { value: 'secret' }; } },
         queries: [defineQuery({ name: 'Outer', schema: z.object({}), perform: async () => {

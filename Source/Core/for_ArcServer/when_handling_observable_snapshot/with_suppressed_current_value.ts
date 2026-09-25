@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, serviceToken } from '../../index.js';
@@ -16,7 +17,7 @@ describe('when handling an observable snapshot with a suppressed current value',
 
     beforeEach(async () => {
         const token = serviceToken<ObservableEmissionGuard>('suppress snapshots');
-        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+        const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped, factory: (): ObservableEmissionGuard => ({
             check: () => ObservableEmissionDecision.Suppress
         }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => CurrentValueSubject.of(7)

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,8 +16,9 @@ describe('when a values provider supplies an empty resolved key', () => {
     let captured: CommandContext;
     beforeEach(async () => {
         const server = new ArcServer({
-            services: [{ token: values, lifetime: 'scoped', factory: () => ({ provide: () => ({ ResolvedKey: '', DisplayName: 1 }) }) },
-                { token: key, lifetime: 'scoped', factory: () => ({ resolve: () => 'other' }) }],
+            services: [{ token: values, lifetime: ServiceLifetime.Scoped,
+                factory: () => ({ provide: () => ({ ResolvedKey: '', DisplayName: 1 }) }) },
+                { token: key, lifetime: ServiceLifetime.Scoped, factory: () => ({ resolve: () => 'other' }) }],
             commandContextValuesProviders: [values], commandKeyResolvers: [key],
             commands: [defineCommand({ name: 'Run', schema: z.object({}), handle: (_input, context) => {
                 captured = context as CommandContext;

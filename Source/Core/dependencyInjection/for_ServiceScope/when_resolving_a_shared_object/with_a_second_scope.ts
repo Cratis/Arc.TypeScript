@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -11,7 +12,7 @@ describe('when resolving a shared object with a second scope', () => {
     beforeEach(async () => {
         const token = serviceToken<object>('shared scoped object'); disposals = 0;
         const shared = { [Symbol.dispose]: () => { disposals++; } };
-        const registry = new ServiceRegistry([{ token, lifetime: 'scoped', factory: () => shared }]);
+        const registry = new ServiceRegistry([{ token, lifetime: ServiceLifetime.Scoped, factory: () => shared }]);
         const first = registry.createScope(serviceContext('first'));
         const second = registry.createScope(serviceContext('second'));
         firstOwned = await first.resolve(token) === shared;

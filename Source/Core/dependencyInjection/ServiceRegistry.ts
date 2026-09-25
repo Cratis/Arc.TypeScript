@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from './ServiceLifetime.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
@@ -36,11 +37,11 @@ export class ServiceRegistry {
             if (!registration.token || typeof registration.token.key !== 'symbol' || typeof registration.token.name !== 'string')
                 throw new ServiceDependencyError('Invalid service token');
             if (this.#registrations.has(registration.token.key)) throw new ServiceDependencyError(`Duplicate service: ${registration.token.name}`);
-            if (!['singleton', 'scoped', 'transient'].includes(registration.lifetime) ||
+            if (![ServiceLifetime.Singleton, ServiceLifetime.Scoped, ServiceLifetime.Transient].includes(registration.lifetime) ||
                 (registration.factory === undefined) === !Object.hasOwn(registration, 'instance') ||
                 Object.hasOwn(registration, 'instance') && (registration.instance === undefined || registration.instance === null))
                 throw new ServiceDependencyError(`Invalid service registration: ${registration.token.name}`);
-            if (Object.hasOwn(registration, 'instance') && registration.lifetime !== 'singleton')
+            if (Object.hasOwn(registration, 'instance') && registration.lifetime !== ServiceLifetime.Singleton)
                 throw new ServiceDependencyError(`Instance must be singleton: ${registration.token.name}`);
             if (Object.hasOwn(registration, 'instance') && (typeof registration.instance === 'object' || typeof registration.instance === 'function'))
                 this.#owners.set(registration.instance as object, null);
@@ -136,10 +137,12 @@ export class ServiceRegistry {
             const token = normalizeServiceToken(identifier);
             const registration = this.registration(token);
             if (chain.includes(token.key)) throw new ServiceDependencyError(`Service dependency cycle: ${token.name}`);
-            if (singleton && registration.lifetime !== 'singleton') throw new ServiceDependencyError(`Captive service dependency: ${token.name}`);
+            if (singleton && registration.lifetime !== ServiceLifetime.Singleton)
+                throw new ServiceDependencyError(`Captive service dependency: ${token.name}`);
             if (registration.dependencies !== undefined && !Array.isArray(registration.dependencies))
                 throw new ServiceDependencyError(`Invalid service dependencies: ${token.name}`);
-            for (const dependency of registration.dependencies ?? []) visit(dependency, [...chain, token.key], singleton || registration.lifetime === 'singleton');
+            for (const dependency of registration.dependencies ?? []) visit(dependency, [...chain, token.key],
+                singleton || registration.lifetime === ServiceLifetime.Singleton);
         };
         for (const token of tokens) visit(token, [], false);
     }

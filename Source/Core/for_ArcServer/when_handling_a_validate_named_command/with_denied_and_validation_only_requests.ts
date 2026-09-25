@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,8 +16,9 @@ describe('when handling a validate named command with denied and validation only
     beforeEach(async () => {
         const events: string[] = []; const validator = serviceToken<object>('validator'); const handler = serviceToken<object>('handler');
         const server = new ArcServer({ services: [
-            { token: validator, lifetime: 'scoped', factory: () => { events.push('validator'); return { [Symbol.dispose]: () => { events.push('validator disposed'); } }; } },
-            { token: handler, lifetime: 'scoped', factory: () => { events.push('handler'); return {}; } }
+            { token: validator, lifetime: ServiceLifetime.Scoped,
+                factory: () => { events.push('validator'); return { [Symbol.dispose]: () => { events.push('validator disposed'); } }; } },
+            { token: handler, lifetime: ServiceLifetime.Scoped, factory: () => { events.push('handler'); return {}; } }
         ], commands: [defineCommand({ name: 'Submit', schema: z.object({}), authorization: { authenticated: true },
             handlerDependencies: [handler], validatorDependencies: [validator],
             validate: () => { events.push('validate'); return []; }, handle: () => { events.push('handle'); return 1; } })] });
@@ -26,7 +28,8 @@ describe('when handling a validate named command with denied and validation only
         validationSuccess = (await server.validateCommand('Submit', {}, { ...serviceContext('alpha'),
             principal: { id: 'a', isAuthenticated: true, roles: [] } })).isSuccess;
         afterValidation = [...events];
-        const http = new ArcServer({ services: [{ token: handler, lifetime: 'scoped', factory: () => { events.push('http factory'); return {}; } }],
+        const http = new ArcServer({ services: [{ token: handler, lifetime: ServiceLifetime.Scoped,
+            factory: () => { events.push('http factory'); return {}; } }],
             commands: [defineCommand({ name: 'Submit', schema: z.object({}), handlerDependencies: [handler], handle: () => { events.push('http handle'); return 1; } })] });
         httpStatus = (await http.handle(new Request(url, { method: 'POST', body: '{}' })))?.status;
         afterHttp = [...events];

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../dependencyInjection/ServiceLifetime.js';
 import type { Authorization } from '../authorization/Authorization.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
 import type { QueryMetadata } from '../queries/modelBound/QueryMetadata.js';
@@ -30,7 +31,7 @@ export interface ArtifactMetadata {
     methodRoutes?: Map<string, string>;
     fieldOptions?: Map<string, FieldOptions>;
     keyField?: string;
-    lifetime?: 'singleton' | 'scoped' | 'transient';
+    lifetime?: ServiceLifetime;
     constructorTokens?: readonly ServiceIdentifier<unknown>[];
     validatorTarget?: ClassType;
 }

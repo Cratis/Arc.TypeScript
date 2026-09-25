@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, currentServices, serviceToken } from '../../index.js';
@@ -18,7 +19,7 @@ describe('when opening an observable query with a scoped dependency', () => {
         const token = serviceToken<{ tenant: string; [Symbol.asyncDispose](): Promise<void> }>('subscription');
         disposals = 0;
         const subject = new CurrentValueSubject<string>();
-        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (_, context) => ({
+        const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped, factory: (_, context) => ({
             tenant: context.tenantId ?? '', async [Symbol.asyncDispose]() { disposals++; }
         }) }], observableQueries: [defineObservableQuery({
             name: 'Live', schema: z.object({}), handlerDependencies: [token],

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { currentContext } from '../../../ArcServer.js';
 import { currentServices } from '../../ServiceScope.js';
@@ -20,7 +21,7 @@ describe('when resolving a shared singleton with a cancelled caller', () => {
         const alpha = { ...serviceContext('alpha'), signal: cancelled.signal };
         const beta = serviceContext('beta');
         seen = []; creations = 0;
-        const registry = new ServiceRegistry([{ token, lifetime: 'singleton', factory: async (resolver, lifetime) => {
+        const registry = new ServiceRegistry([{ token, lifetime: ServiceLifetime.Singleton, factory: async (resolver, lifetime) => {
             creations++;
             seen.push(Object.isFrozen(lifetime), lifetime === registry.singletonContext, lifetime.signal.aborted,
                 lifetime.signal === alpha.signal, lifetime.signal === beta.signal,

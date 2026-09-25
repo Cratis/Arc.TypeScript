@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -13,14 +14,14 @@ describe('when creating a manual scope inside a factory with scoped and singleto
         const inner = serviceToken<{ tenant: string | undefined }>('manual tenant');
         const singleton = serviceToken<object>('manual singleton');
         const registry = new ServiceRegistry([
-            { token: inner, lifetime: 'scoped', factory: (_resolver, identity) => ({ tenant: identity.tenantId }) },
-            { token: outer, lifetime: 'scoped', factory: async () => {
+            { token: inner, lifetime: ServiceLifetime.Scoped, factory: (_resolver, identity) => ({ tenant: identity.tenantId }) },
+            { token: outer, lifetime: ServiceLifetime.Scoped, factory: async () => {
                 const beta = registry.createScope(serviceContext('beta'));
                 try { manualTenant = (await beta.resolve(inner)).tenant; }
                 finally { await beta.dispose(); }
                 return {};
             } },
-            { token: singleton, lifetime: 'singleton', factory: async () => {
+            { token: singleton, lifetime: ServiceLifetime.Singleton, factory: async () => {
                 const beta = registry.createScope(serviceContext('beta'));
                 try { await beta.resolve(inner); }
                 finally { await beta.dispose(); }
