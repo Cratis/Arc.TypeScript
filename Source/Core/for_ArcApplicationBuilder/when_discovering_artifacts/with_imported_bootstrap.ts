@@ -1,5 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Load the Core module graph at collection time, so the hook measures only the bootstrap's discovery.
+import '../../index.js';
+
 describe('when the bootstrap is imported by a separate entry point', () => {
     let result: string;
     beforeEach(async () => {
