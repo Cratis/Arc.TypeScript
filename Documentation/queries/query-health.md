@@ -17,7 +17,7 @@ const builder = ArcApplication.createBuilder({ query: { enableObservableHealth: 
 
 An authenticated caller sees only its own tenant and principal's **hub** connections, their subscription counts, and query groups. Direct SSE and WebSocket connections and remote IP addresses are not included. Other callers' unchanged snapshots are not emitted to you, and your own bursts are coalesced. The built-in health query is not emitted as an application proxy in the client manifest.
 
-:::note[A deliberate difference from Arc on .NET]
+:::caution[A deliberate difference from Arc on .NET]
 Arc on .NET exposes a broader, anonymous, cross-caller health view. Arc for TypeScript keeps it disabled by default and scoped to the caller, because connection metadata is sensitive.
 :::
 

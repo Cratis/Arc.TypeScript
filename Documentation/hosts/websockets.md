@@ -73,5 +73,6 @@ Adapt the trusted proxy address and host to your deployment; never accept these 
 ## Related
 
 - [Observable queries](../queries/observable-queries.md)
+- [Subscribe to an observable query](../queries/subscribing-to-observable-queries.md)
 - [Multiplexed observable queries](../queries/observable-query-demultiplexer.md)
 - [Native principal](native-principal.md)

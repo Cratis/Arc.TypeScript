@@ -225,7 +225,7 @@ It lists one `AuthorRegistered` event, with the author's ID as `eventSourceId` a
 
 A client that registers an author and then asks for the list can run into the gap above. Choose how to handle it by what the client needs:
 
-- **Show what is there, and update it.** A screen that lists authors can subscribe to an observable query, which pushes a new list whenever the projection changes. [Read models](read-models/index.md) shows the query, and [Observable queries](../queries/observable-queries.md) the client side.
+- **Show what is there, and update it.** A screen that lists authors can subscribe to an observable query, which pushes a new list whenever the projection changes. [Read models](read-models/index.md) shows the query, and [Subscribe to an observable query](../queries/subscribing-to-observable-queries.md) the client side.
 - **Ask again.** A script or test that needs the new author can repeat the query until it appears, with a limit on how long it tries.
 - **Make the command wait**, as described next, when the caller must see its own write in the very next query.
 

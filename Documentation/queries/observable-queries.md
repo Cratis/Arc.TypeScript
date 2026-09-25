@@ -1,6 +1,6 @@
 ---
 title: Observable queries
-description: Serve a current snapshot and live updates from one query route, choose a source, and subscribe over direct server-sent events or WebSockets.
+description: Serve a current snapshot and live updates from one query route, choose a source, and control paging, authorization, and subscription lifetime.
 ---
 
 A task board should update when someone adds a task, without the browser polling. An observable query serves the current snapshot on an ordinary GET and streams every change to subscribers, from the same route and the same pipeline.
@@ -112,48 +112,9 @@ export class OwnedTask {
 
 `@authorize()` turns anonymous callers away before `myTasks` runs, so `caller` is always an authenticated ID. Each subscriber gets their own filtered stream: when a task owned by `ada` is added, only Ada's subscription emits a new list with it. The filter runs in the producer, so rows the caller must not see never enter the result at all. Never leave that filtering to the client.
 
-## Subscribe over direct server-sent events
+## Subscribe from a client
 
-In a browser on the same origin:
-
-```javascript
-const stream = new EventSource('/api/tasks/listing/observe-all-tasks');
-stream.onmessage = event => console.log(JSON.parse(event.data).data);
-// Call stream.close() when you no longer need updates.
-```
-
-A direct SSE frame is `data: <query result JSON>\n\n`, a full query result each time. Browser `EventSource` cannot set an `Authorization` header: authenticate with your host's session cookie, never with the `.cratis-identity` display cookie.
-
-## Subscribe over a direct WebSocket
-
-```javascript
-const socket = new WebSocket(`ws://${location.host}/api/tasks/listing/observe-all-tasks`);
-socket.onmessage = event => {
-    const message = JSON.parse(event.data);
-    if (message.type === 'Data') console.log(message.data.data);
-    if (message.type === 'Pong') console.log('Pong at', message.timestamp);
-};
-socket.onopen = () => socket.send(JSON.stringify({ type: 'Ping', timestamp: Date.now() }));
-// Call socket.close() when you no longer need updates.
-```
-
-Direct WebSocket frames are `{"type":"Data","data":<query result>}`; a `Ping` receives a `Pong` with the same timestamp. The standalone Node host accepts upgrades on its own; framework adapters need a separate mount, described in [WebSockets](../hosts/websockets.md).
-
-## Use the installed client
-
-The published `@cratis/arc` client subscribes through generated `ObservableQueryFor` proxies over the [multiplexed hub](observable-query-demultiplexer.md). The plain client defaults to the WebSocket hub. The `<Arc>` provider from `@cratis/arc.react` defaults to the SSE hub instead; both accept anonymous connections. Each subscription still passes through query authorization, so an anonymous caller can only observe queries that permit anonymous access. The default `<Arc>` configuration works for the [Tasks browser example](../getting-started/continue-in-the-browser.md) without switching transports.
-
-For the direct transports above, set these before subscribing:
-
-```typescript
-import { Globals } from '@cratis/arc';
-import { QueryTransportMethod } from '@cratis/arc/queries';
-
-Globals.queryDirectMode = true;
-Globals.queryTransportMethod = QueryTransportMethod.ServerSentEvents; // or QueryTransportMethod.WebSocket
-```
-
-Generated proxies carry the exact query name. The [proxy generator](../proxy-generation/index.md) emits them for model-bound observable queries.
+A browser can subscribe over direct server-sent events or a direct WebSocket, and the `@cratis/arc` client subscribes through generated proxies over a multiplexed hub. [Subscribe to an observable query](subscribing-to-observable-queries.md) shows each one.
 
 ## Without decorators
 
@@ -199,10 +160,11 @@ One route serves a snapshot and a stream. Return a source that has a current val
 
 ## Next step
 
-[Multiplexed observable queries](observable-query-demultiplexer.md) explains the hubs that generated clients use, and [Testing observable queries](../testing/observable-queries.md) shows how to collect emissions in a spec.
+[Subscribe to an observable query](subscribing-to-observable-queries.md) connects a browser or the `@cratis/arc` client to the route you just declared.
 
 ## Related
 
+- [Subscribe to an observable query](subscribing-to-observable-queries.md)
 - [Multiplexed observable queries](observable-query-demultiplexer.md)
 - [Observable emission guards](observable-query-emission-guards.md)
 - [Testing observable queries](../testing/observable-queries.md)
