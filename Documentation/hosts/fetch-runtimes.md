@@ -40,7 +40,7 @@ builder.add(Ping, Status);
 export const app = await builder.build();
 ```
 
-`POST /api/ping` with a JSON `{}` body returns `response: "pong"`; `GET /api/all` returns `data: ["ready"]`. The [Fetch scenario](../../scripts/fetch-runtime-scenario.mjs) runs these same pipeline shapes, including direct and hub SSE. Use your runtime's build tool to compile decorators and bundle dependencies. A neutral esbuild bundle externalizes **only** `node:async_hooks`; do not externalize `node:fs`, `node:crypto`, `ws`, or other Node modules.
+`POST /api/ping` with a JSON `{}` body returns `response: "pong"`; `GET /api/all` returns `data: ["ready"]`. The [Fetch scenario](https://github.com/Cratis/Arc.TypeScript/blob/main/scripts/fetch-runtime-scenario.mjs) runs these same pipeline shapes, including direct and hub SSE. Use your runtime's build tool to compile decorators and bundle dependencies. A neutral esbuild bundle externalizes **only** `node:async_hooks`; do not externalize `node:fs`, `node:crypto`, `ws`, or other Node modules.
 
 ### Bun
 
