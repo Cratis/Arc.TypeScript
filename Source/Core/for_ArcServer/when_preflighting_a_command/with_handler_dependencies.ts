@@ -22,7 +22,7 @@ describe('when preflighting a command with handler dependencies', () => {
             scopes: [() => ({ begin: () => { calls.push('begin'); }, complete: () => { calls.push('complete'); } })],
             provide: () => { calls.push('provide'); return 1; }, handle: () => { calls.push('handle'); return 2; } })] });
         try {
-            validationSuccess = (await server.executeCommand('Save', {}, serviceContext('alpha'), true)).isSuccess;
+            validationSuccess = (await server.validateCommand('Save', {}, serviceContext('alpha'))).isSuccess;
             validationCalls = [...calls];
             response = (await server.executeCommand('Save', {}, serviceContext('alpha'))).response;
             executionCalls = [...calls];

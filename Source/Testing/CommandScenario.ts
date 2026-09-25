@@ -33,13 +33,13 @@ export class CommandScenario<T extends object> {
     withAllowedValidationSeverity(severity: Severity): this { this.#host.withAllowedValidationSeverity(severity); return this; }
 
     /** Execute values or an instance; return the actual pipeline result with focused assertions. */
-    async execute(command: T | Partial<T>): Promise<ScenarioCommandResult> { return this.run(command, false); }
+    async execute(command: T | Partial<T>): Promise<ScenarioCommandResult> { return this.run(command, 'execute'); }
     /** Run validation without invoking provide or handle. */
-    async validate(command: T | Partial<T>): Promise<ScenarioCommandResult> { return this.run(command, true); }
+    async validate(command: T | Partial<T>): Promise<ScenarioCommandResult> { return this.run(command, 'validate'); }
     /** Dispose application-owned services. Safe to call more than once. */
     dispose(): Promise<void> { return this.#host.dispose(); }
 
-    private async run(command: T | Partial<T>, validateOnly: boolean): Promise<ScenarioCommandResult> {
+    private async run(command: T | Partial<T>, action: 'execute' | 'validate'): Promise<ScenarioCommandResult> {
         const application = await this.#host.application();
         const instance = command instanceof this.#type ? command : Object.assign(Reflect.construct(this.#type, []) as T, command);
         const matches = application.server.commands.filter(item => item.name === this.#type.name);
@@ -47,7 +47,9 @@ export class CommandScenario<T extends object> {
         const operation = matches[0]!;
         const input = this.#host.serializationRoundTrip ? wireRoundTrip(instance) : encodeWireValue(instance);
         const name = [operation.namespace, operation.name].filter(Boolean).join('.');
-        const result = await application.server.executeCommand(name, input, this.#host.execution(), validateOnly);
+        const context = this.#host.execution();
+        const result = action === 'validate' ? await application.server.validateCommand(name, input, context) :
+            await application.server.executeCommand(name, input, context);
         if (this.#host.serializationRoundTrip && result.response !== undefined) result.response = wireRoundTrip(result.response);
         return withCommandAssertions(result);
     }

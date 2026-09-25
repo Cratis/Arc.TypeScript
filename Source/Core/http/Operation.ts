@@ -17,5 +17,8 @@ export interface Operation extends DescriptorBase {
     /** Built-in endpoints are served and documented, but not emitted as application client proxies. */
     readonly internal?: boolean;
     readonly schema: z.ZodType;
-    run(input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly?: boolean): Promise<CommandResult | QueryResult>;
+    /** Execute the command or query through its registered pipeline. */
+    run(input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<CommandResult | QueryResult>;
+    /** Validate a command without running provide, handle, or execution scopes. */
+    validateCommand?(input: unknown, context: ExecutionContext): Promise<CommandResult>;
 }

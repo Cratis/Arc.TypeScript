@@ -35,6 +35,7 @@ import type { ResolvedConnectionContext } from './queries/observable/ResolvedCon
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
 import { observe } from './execution/observability.js';
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
+enum OperationMode { Execute, Validate }
 export class ArcServer {
     readonly commands: readonly Operation[];
     readonly queries: readonly Operation[];
@@ -150,11 +151,15 @@ export class ArcServer {
         return outcome.value;
     }
 
-    private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly = false): Promise<CommandResult | QueryResult> {
+    private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions,
+        mode = OperationMode.Execute): Promise<CommandResult | QueryResult> {
         if (operation.kind === 'command' && CommandOperationBoundary.attempt(this))
             return Promise.resolve(commandResult(context, { exceptionMessages: ['Nested commands are unsupported in command operations'] }));
         const run = () => this.runOwned(context, async () => {
-            try { return await operation.run(input, context, options, validateOnly); }
+            try {
+                if (mode === OperationMode.Validate) return await operation.validateCommand!(input, context);
+                return await operation.run(input, context, options);
+            }
             catch (error) {
                 const result = operation.kind === 'command'
                     ? commandResult(context, { exceptionMessages: [String(error)] })
@@ -169,7 +174,8 @@ export class ArcServer {
             recordFailure(result, error, previous);
             return result;
         });
-        const name = operation.kind === 'command' ? validateOnly ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute' : 'cratis.arc.query.perform';
+        const name = operation.kind === 'query' ? 'cratis.arc.query.perform' :
+            mode === OperationMode.Validate ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute';
         const qualified = operation.fullyQualifiedName;
         const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
         const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
@@ -222,19 +228,33 @@ export class ArcServer {
         return this.#hub.webSocket(request, transport, native, resolved);
     }
 
-    /** Execute a decorated command instance through the ordinary direct-call pipeline. */
-    async execute(command: object, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
+    private operationFor(command: object): Operation {
         const type = command.constructor;
         if (!ownMetadata(type as never).command) throw new Error(`Not an Arc command: ${type.name}`);
         const matches = this.commands.filter(item => item.name === type.name);
         if (matches.length !== 1) throw new Error(`Ambiguous or unregistered Arc command: ${type.name}`);
-        const operation = matches[0]!;
-        return this.executeCommand(operation.fullyQualifiedName, encode(command), context, validateOnly);
+        return matches[0]!;
     }
-    async executeCommand(name: string, input: unknown, context: ExecutionContext, validateOnly = false): Promise<CommandResult> {
+
+    /** Execute a decorated command instance through the ordinary direct-call pipeline. */
+    async execute(command: object, context: ExecutionContext): Promise<CommandResult> {
+        return this.executeCommand(this.operationFor(command).fullyQualifiedName, encode(command), context);
+    }
+    /** Validate a decorated command without running provide, handle, or execution scopes. */
+    async validate(command: object, context: ExecutionContext): Promise<CommandResult> {
+        return this.validateCommand(this.operationFor(command).fullyQualifiedName, encode(command), context);
+    }
+    /** Execute a registered command by its fully qualified name. */
+    async executeCommand(name: string, input: unknown, context: ExecutionContext): Promise<CommandResult> {
         const operation = this.#commandsByName.get(name);
         if (!operation) throw new Error(`Unknown command: ${name}`);
-        return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, validateOnly) as Promise<CommandResult>;
+        return this.runScoped(operation, input, Object.freeze({ ...context })) as Promise<CommandResult>;
+    }
+    /** Validate a registered command by its fully qualified name, without running its handler. */
+    async validateCommand(name: string, input: unknown, context: ExecutionContext): Promise<CommandResult> {
+        const operation = this.#commandsByName.get(name);
+        if (!operation) throw new Error(`Unknown command: ${name}`);
+        return this.runScoped(operation, input, Object.freeze({ ...context }), undefined, OperationMode.Validate) as Promise<CommandResult>;
     }
     async performQuery(name: string, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<QueryResult> {
         const operation = this.#queriesByName.get(name);
@@ -251,7 +271,9 @@ export class ArcServer {
             identitySchema: this.#identitySchema,
             hubHttp: (incoming, context) => this.#hub.http(incoming, context),
             runProvider: (context, callback) => this.runProvider(context, callback),
-            runScoped: (operation, input, context, options, validateOnly) => this.runScoped(operation, input, context, options, validateOnly),
+            runScoped: (operation, input, context, options) => this.runScoped(operation, input, context, options),
+            validateCommand: (operation, input, context) => this.runScoped(operation, input, context, undefined,
+                OperationMode.Validate) as Promise<CommandResult>,
             openSession: (name, input, context, options, admission) => this.#sessions.openSession(name, input, context, options, admission),
             reserveSession: (session, context) => this.#sessions.reserveSession(session, context)
         }, request, native);

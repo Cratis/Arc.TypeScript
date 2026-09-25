@@ -43,7 +43,8 @@ export interface RequestBindings {
     readonly identitySchema: Record<string, unknown> | undefined;
     hubHttp(request: Request, native?: NativeRequestContext): Promise<Response>;
     runProvider<T>(context: ExecutionContext, callback: () => T | Promise<T>): Promise<T>;
-    runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly?: boolean): Promise<CommandResult | QueryResult>;
+    runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<CommandResult | QueryResult>;
+    validateCommand(operation: Operation, input: unknown, context: ExecutionContext): Promise<CommandResult>;
     openSession(name: string, input: unknown, context: ExecutionContext, options: QueryOptions | undefined, admission: 'subscription' | 'snapshot'): Promise<ObservableQuerySession>;
     reserveSession(session: ObservableQuerySession, context: ExecutionContext): void;
 }
@@ -195,7 +196,8 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                             return send(outcome.result, outcome.code);
                         } finally { await session.close(); }
                     }
-                    const result = await bindings.runScoped(operation, input, context, options, isValidation);
+                    const result = isValidation ? await bindings.validateCommand(operation, input, context) :
+                        await bindings.runScoped(operation, input, context, options);
                     if (hasFailure(result) && !await logFailure(originalFailure(result))) return serverFailure();
                     if (result.exceptionMessages.length) {
                         if (!exposeExceptionDetails(server.options)) {

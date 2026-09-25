@@ -80,7 +80,7 @@ const context = {
     correlationId: crypto.randomUUID(), principal: undefined, tenantId: 'acme',
     signal: new AbortController().signal, allowedSeverity: Severity.Warning
 };
-const validation = await server.executeCommand('Write', { text: 'hello' }, context, true);
+const validation = await server.validateCommand('Write', { text: 'hello' }, context);
 const result = await server.executeCommand('Write', { text: 'hello' }, context);
 console.log(validation.isSuccess, result.response, created); // true ['hello'] 1
 await server.dispose();

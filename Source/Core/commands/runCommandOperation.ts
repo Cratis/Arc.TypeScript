@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
 import type { ArcOptions } from '../ArcOptions.js';
+import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { CommandDefinition } from './CommandDefinition.js';
 import type { CommandResult } from './CommandResult.js';
 import type { ValidationResult } from '../validation/ValidationResult.js';
@@ -46,13 +47,11 @@ function failure(context: CommandContext, error: unknown, previous?: CommandResu
     recordFailure(result, error, previous);
     return result;
 }
+enum CommandOperationMode { Execute, Validate }
+
 /** Compile a command into the shared direct and HTTP execution pipeline. */
 export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string, options: ArcOptions = {}): Operation {
-    return {
-        ...definition, kind: 'command', route, fullyQualifiedName: fullyQualifiedName(definition),
-        dynamicAuthorization: typeof definition.authorize === 'function',
-        inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
-        async run(input, execution, _options, validateOnly): Promise<CommandResult> {
+    const invoke = async (input: unknown, execution: ExecutionContext, mode: CommandOperationMode): Promise<CommandResult> => {
             if (!await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input)) return commandResult(execution, { isAuthorized: false });
             const parsed = definition.schema.safeParse(input);
             if (!parsed.success) return commandResult(execution, { validationResults: malformed(execution) });
@@ -78,7 +77,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                     return result;
                 }
                 if (issues.length) return commandResult(context, { validationResults: issues });
-                if (validateOnly) return commandResult(context);
+                if (mode === CommandOperationMode.Validate) return commandResult(context);
                 const scopes: CommandExecutionScope[] = [];
                 let result: CommandResult = commandResult(context);
                 let journal: CommandOperationExecution | undefined;
@@ -157,6 +156,12 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 } catch (error) { return failure(context, error); }
             };
             return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
-        }
+    };
+    return {
+        ...definition, kind: 'command', route, fullyQualifiedName: fullyQualifiedName(definition),
+        dynamicAuthorization: typeof definition.authorize === 'function',
+        inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
+        run: (input, execution) => invoke(input, execution, CommandOperationMode.Execute),
+        validateCommand: (input, execution) => invoke(input, execution, CommandOperationMode.Validate)
     };
 }
