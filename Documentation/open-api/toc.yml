@@ -1,2 +1,4 @@
 - name: OpenAPI
   href: index.md
+- name: How types appear in the document
+  href: schemas.md

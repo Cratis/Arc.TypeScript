@@ -1,5 +1,11 @@
 - name: Overview
   href: index.md
+- name: Set up proxy generation
+  href: getting-started.md
+- name: Use generated proxies in React
+  href: frontend-usage.md
+- name: What the generator writes
+  href: generated-code.md
 - name: Configuration
   href: configuration.md
 - name: Generated artifact metadata

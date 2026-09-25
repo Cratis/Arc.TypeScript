@@ -3,6 +3,8 @@ title: Tenant resolvers
 description: Select a tenant from a header, query string, trusted claim, fixed value, or verified subdomain, in the order you choose, with optional required and membership checks.
 ---
 
+Where does the tenant come from: a header your gateway sets, a claim in the user's token, or the `acme` in `acme.example.com`? Pick the source, or an ordered list of sources, that matches how your callers arrive.
+
 Set `tenancy.resolverType` for one .NET-compatible source, or `tenancy.sources` for an ordered list. The first nonempty result wins. Do not set both. A header or query-string value is a **selection**, not proof of authority.
 
 ## Sources
@@ -39,5 +41,6 @@ Never use `development` or `fixed` to accept a browser-supplied tenant without v
 
 ## Related
 
+- [Storage isolation](isolation.md) for where the resolved tenant sends data
 - [Native principal](../hosts/native-principal.md) for supplying a verified authority
 - [Authentication](../core/authentication.md)

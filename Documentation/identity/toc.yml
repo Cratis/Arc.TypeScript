@@ -1,4 +1,12 @@
 - name: Identity details
   href: index.md
+- name: How identity details are served
+  href: provider-flow.md
+- name: Show identity in a React frontend
+  href: frontend.md
+- name: Identity across services
+  href: topologies.md
+- name: Simulate a signed-in user locally
+  href: local-development.md
 - name: Development users and tenants
   href: development-users-and-tenants.md

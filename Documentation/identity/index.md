@@ -1,18 +1,42 @@
 ---
 title: Identity
-description: Give the frontend the current user's name, roles, and application details through /.cratis/me, and understand why the identity cookie is display data only.
+description: Give the frontend the signed-in user's name, roles, and application details through /.cratis/me, and keep that display data apart from authentication and authorization.
 ---
 
-A frontend wants to show "Hello, Ada" and hide buttons Ada cannot use, without calling a separate user service. Arc's identity endpoint returns the authenticated caller together with details your application adds, and sets a cookie the published `@cratis/arc` client reads.
+Ada signs in to your task application. The header should say "Hello, Ada", the Archive button should only appear for editors, and the page should know which customer she is working for. Without help you end up writing a `/me` route, repeating the role list in the frontend, and deciding by hand what the browser may cache.
+
+Arc gives you one endpoint for that job. You write a small provider that turns the authenticated caller into the details your UI needs. Arc serves the result at `GET /.cratis/me` and sets a cookie that the published `@cratis/arc` client reads, so every component can ask "who is this?" without another request.
+
+## Three jobs, three places
+
+Identity details sit next to two other concerns. Keep them apart, because each one trusts different evidence:
+
+| Job | Question | Where it lives |
+| --- | --- | --- |
+| Authentication | Who is calling? | [Authentication handlers](../core/authentication.md) or a [native principal](../hosts/native-principal.md) |
+| Authorization | May this caller run this command or query? | [Decorators and policies](../core/authorization.md) on each operation |
+| Identity details | What should the UI show about this caller? | An identity details provider, served at `/.cratis/me` |
+
+```mermaid
+flowchart LR
+    Request[Request with a credential] --> Authn[Authentication handler]
+    Authn --> Principal[Verified principal]
+    Principal --> Authz[Operation authorization]
+    Principal --> Provider[Identity details provider]
+    Provider --> Me["/.cratis/me JSON and cookie"]
+    Me --> UI[Frontend display]
+```
+
+The provider only ever sees a principal that authentication already verified. Nothing it returns flows back into authorization.
 
 ## Provide identity details
 
-Write a provider class and add or discover it with the builder:
+Write a provider class and let discovery find it, or add it with `builder.add(...)`:
 
-```typescript
+```typescript title="Features/Identity/GreetingDetails.ts"
 import { field } from '@cratis/fundamentals';
 import {
-    ArcApplication, identityDetailsProvider,
+    identityDetailsProvider,
     type ExecutionContext, type IdentityDetailsProvider, type Principal
 } from '@cratis/arc.core';
 
@@ -30,42 +54,34 @@ export class GreetingDetails implements IdentityDetailsProvider {
 }
 ```
 
-With a verified [authentication handler](../core/authentication.md) that recognizes Ada, `GET /.cratis/me` answers:
+`detailsType` tells Arc the shape of the details, so it can validate what `provide` returns, describe it at `/.cratis/identity-details/schema`, and let the [proxy generator](../proxy-generation/index.md) emit a matching frontend class.
+
+With an [authentication handler](../core/authentication.md) that recognizes Ada and a request for tenant `acme`, `GET /.cratis/me` answers:
 
 ```json
-{"id":"ada","name":"Ada","isAuthenticated":true,"isAuthorized":true,"roles":["reader"],"details":{"greeting":"Hello Ada (no tenant)"}}
+{"id":"ada","name":"Ada","isAuthenticated":true,"isAuthorized":true,"roles":["Editor"],"details":{"greeting":"Hello Ada (acme)"}}
 ```
 
-and sets `.cratis-identity=<base64>; Path=/; SameSite=Lax`, with `Secure` when the trusted transport is HTTPS.
-
-The provider declares its details shape either as `detailsType`, a class with `@field` declarations, or as a Zod `schema`. The details returned by `provide` must match it.
-
-## Choose how to register the provider
-
-- A class marked `@identityDetailsProvider()`, added with `builder.add(...)` or found by `builder.discover(...)`. Arc constructs one per request, so its constructor must take no arguments; unlike .NET, there is no constructor injection here.
-- An object in the `identityDetails` option: `{ schema, provide }` or `{ detailsType, provide }`. An explicit option wins, and cannot be combined with a discovered provider.
-- More than one discovered provider without an explicit option fails at build.
-
-## The endpoint's answers
-
-| Situation | `GET /.cratis/me` |
-| --- | --- |
-| No provider configured | Not mapped |
-| Anonymous caller | 401 |
-| `provide` returns `undefined` | 403 |
-| `provide` throws or rejects, or the encoded cookie would exceed 4096 bytes | Generic 500, no cookie |
-| Otherwise | 200 with the identity JSON and the cookie |
-
-Every answer carries `Cache-Control: no-store`. The provider runs in the current execution context with its own scoped services, even on denial or error. `GET /.cratis/identity-details/schema` returns the details JSON Schema; see [Introspection](../introspection/identity-details-schema.md).
-
-The JSON response keeps Unicode. The cookie escapes non-ASCII characters before Base64 encoding, so the client's `JSON.parse(atob(cookie))` recovers names and details, including emoji. Cookie bytes are not guaranteed to match .NET's JSON escaping.
+The same response sets `.cratis-identity=<base64>; Path=/; SameSite=Lax`. The `id`, `name`, and `roles` come from the verified principal. Only `details` comes from your provider, and Arc runs it again on every call to `/.cratis/me`.
 
 :::danger[The identity cookie is not a credential]
-`.cratis-identity` is unsigned and readable by JavaScript. It exists so the frontend can display the user. Never use it to authenticate or authorize anything; Arc itself never does.
+`.cratis-identity` is unsigned and readable by JavaScript. It exists so the frontend can display the user. Never use it to authenticate or authorize anything; Arc itself never reads it.
 :::
 
-## Related
+## What you have so far
 
-- [Development users and tenants](development-users-and-tenants.md)
-- [Authentication](../core/authentication.md)
-- [Frontend identity](/arc/frontend/) on the shared Arc pages
+- Authentication decides who the caller is. Your provider only adds display details.
+- `/.cratis/me` returns the principal plus those details, and caches them in a cookie for the frontend.
+- Commands and queries keep their own authorization. Hiding a button in the UI protects nothing.
+
+## Go further
+
+| Topic | What it covers |
+| --- | --- |
+| [How identity details are served](provider-flow.md) | Registration choices, every `/.cratis/me` answer, the cookie format, and how caching works |
+| [Show identity in a React frontend](frontend.md) | `useIdentity`, `RequireRole`, typed details, and refreshing after a change |
+| [Identity across services](topologies.md) | One service, several services behind a gateway, or a dedicated identity service |
+| [Simulate a signed-in user locally](local-development.md) | Try different users, roles, and tenants on a loopback development host |
+| [Development users and tenants](development-users-and-tenants.md) | Fixture lists for local user and tenant pickers |
+
+Next, read [how identity details are served](provider-flow.md) to see what happens between the request and the cookie.

@@ -3,75 +3,58 @@ title: Proxy generation
 description: Generate typed @cratis/arc frontend proxies, React hooks, and client validation from your decorated TypeScript commands and read models.
 ---
 
-A frontend that calls your commands and queries through hand-written `fetch` calls drifts from the server the first time someone renames a field. `arc-proxygenerator` reads your TypeScript project and writes typed proxies for the published `@cratis/arc` client: command and query classes, React hooks, models, and the client-safe part of your validators, with the same routes the server serves.
+A frontend that calls your commands and queries through hand-written `fetch` calls drifts from the server the first time someone renames a field. The route changes, a required property becomes optional, and nothing fails until a user clicks the button.
 
-It reads source through the TypeScript compiler API. It never imports or runs your application, and it never talks to a running server.
+`arc-proxygenerator` removes that drift. It reads your TypeScript project and writes typed proxies for the published `@cratis/arc` client: command and query classes, React hooks, models, and the client-safe part of your validators, all with the routes the server serves. Rename a field on the server, regenerate, and the frontend compiler shows you every place that needs to change.
 
 :::note[Source preview]
 `@cratis/arc.proxygenerator` is not published to npm. Run its CLI from a clone of this repository after `yarn build`.
 :::
 
-## Generate proxies for the Tasks sample
+## How it works
 
-```sh
-yarn install --immutable
-yarn build
-mkdir -p my-app/frontend/src/generated
-node Source/Tools/ProxyGenerator/dist/cli.js \
-  --project "$PWD/Samples/Tasks/tsconfig.json" \
-  --artifacts "$PWD/Samples/Tasks/Features" \
-  --output "$PWD/my-app/frontend/src/generated" \
-  --use-generated-metadata \
-  --use-proxy-file-suffix
+```mermaid
+flowchart LR
+    Source["Decorated TypeScript<br/>@command, @readModel, validators"] --> Analyzer["arc-proxygenerator<br/>TypeScript compiler API"]
+    Analyzer --> Proxies["Proxies, models, hooks,<br/>client validators"]
+    Proxies --> Frontend["Frontend build<br/>@cratis/arc, @cratis/arc.react"]
+    Analyzer -. optional .-> Metadata["Generated artifact metadata<br/>for the server"]
 ```
 
-The output folder must exist. You get one file per artifact, in folders that follow the namespace, plus a barrel per folder:
+The generator reads source through the TypeScript compiler API. It never imports or runs your application, and it never talks to a running server. That makes it safe to run in CI and in watch mode, and it means everything it knows comes from your declarations: decorators, `@field` types, return types, and validator rules.
 
-```text
-Tasks/Listing/AllTasks.proxy.ts
-Tasks/Listing/ObserveAllTasks.proxy.ts
-Tasks/Listing/TaskById.proxy.ts
-Tasks/Listing/TaskItem.proxy.ts
-Tasks/Listing/index.ts
-Tasks/Registration/RegisterTask.proxy.ts
-Tasks/Registration/index.ts
-```
+It walks the artifacts folder with the same rules as `builder.discover()`, so `for_*` and `given` folders and `index.ts` files are skipped there too. Route options such as `--api-prefix` and `--segments-to-skip` must match the server's [endpoint mapping](../core/endpoint-mapping.md), because the generator cannot ask the server which routes it chose.
 
-The Tasks sample's `generate-proxies` script (`yarn workspace @cratis/arc.core.sample.tasks generate-proxies`) writes the same files to its ignored `dist/proxies` and compiles them.
+## What you receive
 
-## What a proxy looks like
+- **Commands**: a class per command with typed properties, `execute()`, the route, client-side validation, and a React `use()` hook.
+- **Queries**: a class per query method, snapshot or observable, with a parameters interface when the query takes arguments, sort helpers, and React hooks including paging.
+- **Models**: classes with `@field` metadata, so the client can turn JSON into `Guid` values, dates, and nested models. A concept arrives as its underlying type.
+- **Identity details**: the `detailsType` of an [identity details provider](../identity/provider-flow.md), ready for `useIdentity`.
+- **Barrels**: an `index.ts` per folder, unless you turn them off.
+- **Server metadata**, optionally: with `--metadata`, a module the server registers with `useGeneratedMetadata` to infer service and argument bindings. See [Generated artifact metadata](generated-artifact-metadata.md).
 
-An excerpt of the generated `RegisterTask.proxy.ts`:
-
-```typescript
-export class RegisterTask extends Command<IRegisterTask, Guid> implements IRegisterTask {
-    readonly route: string = '/api/tasks/registration/register-task';
-    readonly validation: CommandValidator = new RegisterTaskValidator();
-    // ...properties, change tracking, and the React hook follow
-}
-```
-
-The `TaskId` concept arrives in the frontend as its underlying `Guid`, and the validator carries the literal `notEmpty` and `maxLength` rules from `RegisterTaskValidator`. Your frontend creates a `RegisterTask`, sets `id` and `title`, and calls `execute()`, or uses `RegisterTask.use()` in a React component. See [Frontend](/arc/frontend/) on the shared Arc pages for the client side.
+[What the generator writes](generated-code.md) shows each of these for the Library sample.
 
 ## Compatibility
 
-The generated proxies compile against `@cratis/arc` and `@cratis/arc.react` 22.19.1 with `@cratis/fundamentals`, in strict `Bundler` mode with `skipLibCheck: false`. `yarn test:client-generation` builds the workspace, generates the Tasks proxies, compiles them, and runs commands, queries with arguments, paging, sorting, observable snapshots, and hub updates against live model-bound Express, Fastify, and Hono servers.
+The generated proxies target `@cratis/arc` and `@cratis/arc.react` 22.19.1 with `@cratis/fundamentals`, compiled in strict `Bundler` mode with `skipLibCheck: false`.
 
-Imports between generated files are extensionless by default, for Vite and other bundlers. Use `--js-import-specifiers` for native Node ESM after compilation. `NodeNext` consumer compilation is not supported with the published client declarations.
+Imports between generated files are extensionless by default, which suits Vite and other bundlers. Use `--js-import-specifiers` for native Node ESM after compilation. `NodeNext` consumer compilation is not supported with the published client declarations.
 
 ## Limits
 
-The analyzer keys generated models by namespace and class name, so two `Item` models in separate folders produce separate files; generated references use aliased imports if those names collide in one file. An exported class marked `@identityDetailsProvider()` can also contribute its `detailsType` or concrete `provide()` result model without an HTTP endpoint. Source-only identity provider configuration outside the artifacts root is not analyzed.
+The analyzer keys generated models by namespace and class name, so two `Item` models in separate folders produce separate files, and generated references use aliased imports if those names collide in one file. An exported class marked `@identityDetailsProvider()` contributes its `detailsType` or concrete `provide()` result model without an HTTP endpoint. Source-only identity provider configuration outside the artifacts root is not analyzed.
 
 For client preferences, `@command({ treatWarningsAsErrors: true })` emits the command flag. `@query({ httpMethod: QueryHttpMethod.Query, treatWarningsAsErrors: true })` emits `setHttpMethod(QueryHttpMethod.Query)` and the query flag; import the enum from `@cratis/arc.core`. `Get` and `Auto` are also supported. These settings affect the generated client, not the server's acceptance of requests. The HTTP server still caps `X-Allowed-Severity` at Warning. Dynamic decorator options cannot be emitted safely and fail generation.
 
-Compared with Arc's .NET generator, this does not yet reproduce every template byte-for-byte; generator output has a different license/header and import layout. Nullable command types and interface-only model mode have compile coverage only, not live-client equivalence. Do not treat this output as complete .NET proxy parity; the [capability reference](../reference/capabilities.md#proxies-introspection-and-tooling) tracks the details.
+The output does not reproduce the .NET generator's templates byte for byte: the file header and import layout differ. Nullable command types and interface-only model mode compile, but have not been compared against a live client. The [capability reference](../reference/capabilities.md#proxies-introspection-and-tooling) tracks what is verified.
 
-## Continue
+## Choose your next step
 
-- [Configuration](configuration.md): every CLI option.
-- [Generated artifact metadata](generated-artifact-metadata.md): infer server bindings and validate them before startup.
-- [Type mapping](type-mapping.md): which TypeScript types become which client types.
-- [Validation rules](validation.md): which validator rules reach the client.
-- [File index tracking](file-index-tracking.md): ownership headers, barrels, and stale-file cleanup.
-- [Low-level manifest](low-level-manifest.md): proxies for `defineCommand` and `defineQuery`.
+1. [Set up proxy generation](getting-started.md) for your backend and a dedicated frontend folder.
+2. [Use the proxies in React](frontend-usage.md): commands, queries, paging, and live updates.
+3. Look up [what the generator writes](generated-code.md), [type mapping](type-mapping.md), and [validation rules](validation.md).
+4. Adjust [configuration](configuration.md) when your routes or folder layout differ from the defaults.
+
+For specialized output, see [generated artifact metadata](generated-artifact-metadata.md), [file index tracking](file-index-tracking.md), and the [low-level manifest](low-level-manifest.md) for `defineCommand` and `defineQuery`.
