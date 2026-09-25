@@ -10,6 +10,7 @@ import { TaskRecord } from '../given/TaskRecord.js';
 should();
 describe('when resolving a collection with a tenant', given(a_tenant_collection, context => {
     let databaseName: string;
+    let collectionMatches: boolean;
     beforeEach(async () => {
         const builder = ArcApplication.createBuilder();
         builder.withMongoDB({ client: context.client, database: 'tasks', readModels: [TaskRecord] });
@@ -17,9 +18,10 @@ describe('when resolving a collection with a tenant', given(a_tenant_collection,
         const scope = application.server.services.createScope(executionContext('acme'));
         try {
             const collection = await scope.resolve(mongoCollection(TaskRecord));
-            collection.native.should.equal(context.collection);
+            collectionMatches = Object.is(collection.native, context.collection);
             databaseName = context.db.firstCall.args[0]!;
         } finally { await scope.dispose(); await application.dispose(); }
     });
     it('should use the tenant-specific database', () => { databaseName.should.equal('tasks+acme'); });
+    it('should resolve the configured collection', () => { collectionMatches.should.equal(true); });
 }));

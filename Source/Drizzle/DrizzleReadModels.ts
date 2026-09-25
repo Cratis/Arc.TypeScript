@@ -4,7 +4,8 @@ import { asc, desc, getTableColumns } from 'drizzle-orm';
 import type { Column, SQL, Table } from 'drizzle-orm';
 import { InvalidQuerySort, queryPage } from '@cratis/arc.core';
 import type { QueryOptions, QueryPage } from '@cratis/arc.core';
-import type { DrizzleDatabase, DrizzleFilter } from './DrizzleOptions.js';
+import type { DrizzleDatabase } from './DrizzleDatabase.js';
+import type { DrizzleFilter } from './DrizzleFilter.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
 
 // Each Drizzle driver implements these query-builder operations and maps selected columns on execute.

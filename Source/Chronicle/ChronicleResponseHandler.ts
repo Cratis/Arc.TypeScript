@@ -13,7 +13,7 @@ import { eventRoutingFor } from './eventRouting.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { EventSourceIdResponse } from './eventSourceIdResponse.js';
 import { eventForEventSourceId, isRoutedEvent } from './eventForEventSourceId.js';
-import { AggregateRootCommitResult } from './AggregateRoot.js';
+import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
 function eventLike(value: unknown): boolean {
     return typeof value === 'object' && value !== null && (isRoutedEvent(value) || hasEventType(value.constructor));
 }

@@ -4,7 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { a_tenant_collection, executionContext, type Task } from '../given/a_tenant_collection.js';
 import { capture_error, should_reject_with_error } from '../given/should_reject_with_error.js';
-import type { MongoPageFindOptions } from '../../MongoReadModels.js';
+import type { MongoPageFindOptions } from '../../MongoPageFindOptions.js';
 
 should();
 describe('when paging with unsupported sort', given(a_tenant_collection, context => {

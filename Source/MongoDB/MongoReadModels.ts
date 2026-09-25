@@ -6,11 +6,7 @@ import { ObjectId } from 'mongodb';
 import type { CountDocumentsOptions, Document, Filter, FindOptions, WithId } from 'mongodb';
 import type { MongoPage } from './MongoPage.js';
 import type { MongoReadModelsOptions } from './MongoReadModelsOptions.js';
-
-/** Paged reads accept ordered field directions; MongoDB's other sort forms are not supported here. */
-export type MongoPageFindOptions<T extends Document> = Omit<FindOptions<T>, 'sort' | 'skip' | 'limit'> & {
-    sort?: Readonly<Record<string, 1 | -1>>;
-};
+import type { MongoPageFindOptions } from './MongoPageFindOptions.js';
 
 /** Read-only access to an application-owned collection in an explicitly resolved tenant database. */
 export class MongoReadModels<T extends Document, I> {

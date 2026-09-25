@@ -1,6 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { should } from 'vitest';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import WebSocket from 'ws';
@@ -8,7 +7,6 @@ import { ArcServer, AuthenticationStatus } from '@cratis/arc.core';
 import { cratisArc } from '../index.js';
 import { given } from '../given.js';
 
-should();
 for (const order of ['before', 'after'] as const) {
     class an_arc_host {
         readonly app = Fastify();
@@ -20,6 +18,9 @@ for (const order of ['before', 'after'] as const) {
 
     describe(`when closing with open hub WebSocket and SSE connections and the WebSocket plugin ${order} Arc`, given(an_arc_host, context => {
         let closed: boolean;
+        let status: number;
+        let firstEventReceived: boolean;
+        let foreignRouteStatus: number;
         beforeEach(async () => {
             if (order === 'before') await context.app.register(websocket);
             await context.app.register(cratisArc, { arc: context.arc, webSockets: true });
@@ -31,13 +32,13 @@ for (const order of ['before', 'after'] as const) {
                 context.socket!.once('error', reject);
             });
             const sse = await fetch(context.app.listeningOrigin + '/.cratis/queries/sse');
-            sse.status.should.equal(200);
+            status = sse.status;
             context.reader = sse.body!.getReader();
-            (await context.reader.read()).done.should.equal(false);
+            firstEventReceived = !(await context.reader.read()).done;
             await new Promise<void>((resolve, reject) => {
                 const rejected = new WebSocket(context.app.listeningOrigin.replace('http:', 'ws:') + '/not-arc');
                 rejected.once('unexpected-response', (request, response) => {
-                    response.statusCode!.should.equal(404);
+                    foreignRouteStatus = response.statusCode!;
                     response.resume();
                     request.destroy();
                     resolve();
@@ -57,6 +58,11 @@ for (const order of ['before', 'after'] as const) {
             await context.reader?.cancel().catch(() => {});
             await context.arc.dispose();
         });
-        it('should finish closing the host without client-initiated disconnects', () => { closed.should.equal(true); });
+        it('should finish closing the host without client-initiated disconnects', () => {
+            status.should.equal(200);
+            firstEventReceived.should.equal(true);
+            foreignRouteStatus.should.equal(404);
+            closed.should.equal(true);
+        });
     }));
 }

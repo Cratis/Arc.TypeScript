@@ -15,7 +15,7 @@ describe('when paging projected authors with multiple entries', () => {
         Object.assign(new Author(), { id: AuthorId.create(), name: new AuthorName('Alice') })
     ];
     scenario.services.addScoped(ChronicleReadModels, () => ({
-        getStore: async () => ({ readModels: { getInstances: async () => authors } })
+        getAll: async () => authors
     }) as unknown as ChronicleReadModels);
     let result: Awaited<ReturnType<typeof scenario.perform>>;
     beforeAll(async () => {
