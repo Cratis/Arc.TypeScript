@@ -3,8 +3,8 @@
 import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { an_operation_command, ProbeOperation } from '../given/an_operation_command.js';
-import { denied, rejected } from '../../results/index.js';
-import { tuple } from '../../results/tuple.js';
+import { denied, rejected } from '../../commands/Outcome.js';
+import { tuple } from '../../commands/tuple.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 for (const [name, value] of [

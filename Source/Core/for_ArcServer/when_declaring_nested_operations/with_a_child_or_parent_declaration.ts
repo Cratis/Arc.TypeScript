@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { given } from '../../given.js';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 class Effect extends CommandOperation {

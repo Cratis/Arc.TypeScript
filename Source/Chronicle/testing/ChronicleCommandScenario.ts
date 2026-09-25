@@ -4,7 +4,7 @@ import { CommandScenario, type ScenarioCommandResult } from '@cratis/arc.testing
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import { EventSequenceNumber, type AppendOptions, type AppendResult, type EventForEventSourceId } from '@cratis/chronicle/eventSequences';
 type ClassType<T extends object = object> = new () => T;
-import '../index.js';
+import '../withChronicle.js';
 
 interface Appended { readonly tenant: string; readonly source: string; readonly event: object;
     readonly eventSourceType?: string; readonly eventStreamType?: string; readonly eventStreamId?: string;

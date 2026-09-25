@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.drizzle",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -29,7 +29,7 @@
     "README.md"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.23.0",
+    "@cratis/arc.core": "^0.24.0",
     "@cratis/fundamentals": "^7.19.6",
     "drizzle-orm": "^0.45.0"
   },

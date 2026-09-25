@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { ExecutionContext } from '@cratis/arc.core';
+import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import type { DrizzleOptions } from './DrizzleOptions.js';
 import { DrizzleReadModels } from './DrizzleReadModels.js';
 import { DrizzleHandle } from './DrizzleHandle.js';
@@ -42,8 +43,8 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
     return builder;
 }
 
-declare module '@cratis/arc.core' {
-    interface ArcApplicationBuilder {
+declare module '@cratis/arc.core/fetch' {
+    interface ArcBuilderExtensions {
         /** Attach Drizzle after importing @cratis/arc.drizzle. */
         withDrizzle(options: DrizzleOptions): this;
     }
@@ -51,5 +52,8 @@ declare module '@cratis/arc.core' {
 
 ArcApplicationBuilder.registerExtension('drizzle', withDrizzle);
 ArcApplicationBuilder.prototype.withDrizzle = function (options: DrizzleOptions) {
+    return this.extend('drizzle', options);
+};
+FetchArcApplicationBuilder.prototype.withDrizzle = function (options: DrizzleOptions) {
     return this.extend('drizzle', options);
 };

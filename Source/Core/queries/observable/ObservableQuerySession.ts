@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 import type { QueryResult } from '../QueryResult.js';
-import { hasFailure, originalFailure } from '../../results/failureTracking.js';
-import { queryResult } from '../../results/index.js';
+import { hasFailure, originalFailure } from '../../execution/failureTracking.js';
+import { queryResult } from '../createQueryResult.js';
 import { requestContext } from '../../execution/RequestContextStore.js';
 import { withServices } from '../../dependencyInjection/ServiceScope.js';
 import type { ObservableSource } from './ObservableSource.js';
@@ -12,7 +12,7 @@ import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
 import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
 import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
 import { clonePrincipal } from './clonePrincipal.js';
-import { beginSubscription, observe } from '../../observability.js';
+import { beginSubscription, observe } from '../../execution/observability.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
 export class ObservableQuerySession {

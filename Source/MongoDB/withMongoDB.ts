@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ArcApplicationBuilder, serviceToken } from '@cratis/arc.core';
 import type { ExecutionContext } from '@cratis/arc.core';
+import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import { MongoClientFactory } from './MongoClientFactory.js';
 import { MongoCollection } from './MongoCollection.js';
 import { MongoReadModelForCommandResolver } from './MongoReadModelForCommandResolver.js';
@@ -44,8 +45,8 @@ export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBO
     return builder;
 }
 
-declare module '@cratis/arc.core' {
-    interface ArcApplicationBuilder {
+declare module '@cratis/arc.core/fetch' {
+    interface ArcBuilderExtensions {
         /** Attach MongoDB after importing @cratis/arc.mongodb. */
         withMongoDB(options: MongoDBOptions): this;
     }
@@ -53,5 +54,8 @@ declare module '@cratis/arc.core' {
 
 ArcApplicationBuilder.registerExtension('mongodb', withMongoDB);
 ArcApplicationBuilder.prototype.withMongoDB = function (options: MongoDBOptions) {
+    return this.extend('mongodb', options);
+};
+FetchArcApplicationBuilder.prototype.withMongoDB = function (options: MongoDBOptions) {
     return this.extend('mongodb', options);
 };

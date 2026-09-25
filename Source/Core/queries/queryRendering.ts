@@ -1,12 +1,14 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { QueryOptions } from './QueryOptions.js';
 import type { QueryResult } from './QueryResult.js';
 import { isQueryPage } from './QueryPage.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
-import { emptyPaging, malformed, queryResult } from '../results/index.js';
+import { emptyPaging } from './emptyPaging.js';
+import { malformed } from '../http/malformed.js';
+import { queryResult } from './createQueryResult.js';
 
 function compareValues(left: unknown, right: unknown): number {
     if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime();

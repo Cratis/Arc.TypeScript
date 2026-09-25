@@ -22,7 +22,7 @@ describe('when preflighting a command with missing cyclic or captive dependencie
         ], commands: [missing, cycleA, singleton].map((token, index) => defineCommand({ name: `Action${index}`, schema: z.object({}), handlerDependencies: [token],
             validate: () => { calls.push('validate'); return []; }, provide: () => { calls.push('provide'); }, handle: () => { calls.push('handle'); } })) });
         try {
-            const outcomes = await Promise.all([0, 1, 2].map(index => server.executeCommand(`Action${index}`, {}, serviceContext('alpha'), true)));
+            const outcomes = await Promise.all([0, 1, 2].map(index => server.validateCommand(`Action${index}`, {}, serviceContext('alpha'))));
             reasons = outcomes.map(result => result.validationResults[0]?.reason);
             successes = outcomes.map(result => result.isSuccess);
         } finally { await server.dispose(); }

@@ -28,7 +28,8 @@ try {
 
 | Method | Runs |
 | --- | --- |
-| `executeCommand(name, input, context?, validateOnly?)` | The direct command pipeline; `context` overrides the scenario's default context fields |
+| `executeCommand(name, input, context?)` | The direct command pipeline; `context` overrides the scenario's default context fields |
+| `validateCommand(name, input, context?)` | Authorization and validation without running the command handler |
 | `performQuery(name, input, context?, options?)` | The direct query pipeline, with optional paging and sorting |
 | `handle(request)` | The full HTTP pipeline, authenticating with the configured handlers |
 

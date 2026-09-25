@@ -14,8 +14,13 @@ export class ArcScenario {
         return { correlationId: randomUUID(), principal: undefined, tenantId: undefined,
             signal: new AbortController().signal, allowedSeverity: Severity.Warning, ...this.context, ...overrides };
     }
-    executeCommand(name: string, input: unknown, context: Partial<ExecutionContext> = {}, validateOnly = false): Promise<CommandResult> {
-        return this.server.executeCommand(name, input, this.execution(context), validateOnly);
+    /** Execute a registered command using the scenario's trusted context. */
+    executeCommand(name: string, input: unknown, context: Partial<ExecutionContext> = {}): Promise<CommandResult> {
+        return this.server.executeCommand(name, input, this.execution(context));
+    }
+    /** Validate a registered command without executing its handler. */
+    validateCommand(name: string, input: unknown, context: Partial<ExecutionContext> = {}): Promise<CommandResult> {
+        return this.server.validateCommand(name, input, this.execution(context));
     }
     performQuery(name: string, input: unknown, context: Partial<ExecutionContext> = {}, options?: QueryOptions): Promise<QueryResult> {
         return this.server.performQuery(name, input, this.execution(context), options);

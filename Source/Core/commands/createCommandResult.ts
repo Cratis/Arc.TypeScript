@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { CommandResult } from '../commands/CommandResult.js';
+import type { CommandResult } from './CommandResult.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 
 export function commandResult<T>(context: ExecutionContext, values: Partial<CommandResult<T>> = {}): CommandResult<T> {

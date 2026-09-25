@@ -3,7 +3,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { IEventStore } from '@cratis/chronicle';
 import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
-import { recordFailure, type CommandContext, type CommandResult } from '@cratis/arc.core';
+import type { CommandContext, CommandResult } from '@cratis/arc.core';
+import { recordFailure } from '@cratis/arc.core/hosting';
 import type { CommandCommitDisposition } from '@cratis/arc.core';
 import { checkResults } from './ChronicleCommand.js';
 import type { AggregateRoot } from './AggregateRoot.js';

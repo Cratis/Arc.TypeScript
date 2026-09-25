@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { ArcServer } from '@cratis/arc.core';
+import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import type { Constructor } from '@cratis/fundamentals';
 import { ChronicleArtifacts } from './ChronicleArtifacts.js';
 import { ChronicleReadModels } from './ChronicleReadModels.js';
@@ -43,8 +44,8 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     return builder;
 }
 
-declare module '@cratis/arc.core' {
-    interface ArcApplicationBuilder {
+declare module '@cratis/arc.core/fetch' {
+    interface ArcBuilderExtensions {
         /** Attach Chronicle after importing @cratis/arc.chronicle. */
         withChronicle(options: Partial<ChronicleRegistration>): this;
     }
@@ -52,5 +53,8 @@ declare module '@cratis/arc.core' {
 
 ArcApplicationBuilder.registerExtension('chronicle', withChronicle);
 ArcApplicationBuilder.prototype.withChronicle = function (options: Partial<ChronicleRegistration>) {
+    return this.extend('chronicle', options);
+};
+FetchArcApplicationBuilder.prototype.withChronicle = function (options: Partial<ChronicleRegistration>) {
     return this.extend('chronicle', options);
 };

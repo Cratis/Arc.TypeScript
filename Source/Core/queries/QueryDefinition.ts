@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { QueryFilter } from './QueryFilter.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { QueryOptions } from './QueryOptions.js';
