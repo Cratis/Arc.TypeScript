@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { isRegisteredEvent, hasEventType } from '@cratis/chronicle/events';
 import { getSubjectPropertyName } from '@cratis/chronicle/compliance';
 import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
-import type { CommandContext, CommandResponseValueHandler } from '@cratis/arc.core';
+import { acknowledgeCommandCommit, type CommandContext, type CommandResponseValueHandler } from '@cratis/arc.core';
 import { checkResults } from './ChronicleCommand.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
@@ -83,6 +83,7 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         const results = await store.eventLog.appendMany(entries, options);
         const outcome = checkResults(results, entries.length);
         if (!outcome) {
+            acknowledgeCommandCommit(context);
             if (value instanceof AggregateRootCommitResult) value.aggregate.stage(entries.length);
             await waitForProjectionCompletion(results, this.runtime.options.completionTimeoutMs, context.signal);
         }

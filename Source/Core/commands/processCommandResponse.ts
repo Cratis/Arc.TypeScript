@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { isArcTuple } from './ArcTuple.js';
 import { throwIfCanceled } from '../execution/throwIfCanceled.js';
+import { hasAcknowledgedCommandCommit } from './acknowledgeCommandCommit.js';
 import { isOutcome, type Outcome } from './Outcome.js';
 import { commandResult } from './createCommandResult.js';
 import type { CommandResult } from './CommandResult.js';
@@ -30,6 +31,7 @@ export async function processCommandResponse(context: CommandContext, leaves: re
     for (const value of ordinary) if (!control(value)) {
         const matches: CommandResponseValueHandler[] = [];
         for (const handler of handlers) {
+            if (context.signal.aborted && hasAcknowledgedCommandCommit(context)) break;
             throwIfCanceled(context, 'Command canceled');
             const canHandle = await handler.canHandle(context, value);
             throwIfCanceled(context, 'Command canceled');
@@ -60,8 +62,10 @@ export async function processCommandResponse(context: CommandContext, leaves: re
     if (!operationsPresent || authorized && !validation.length) outer: for (const value of ordinary) {
         if (control(value) || value === context.response) continue;
         for (const handler of matching.get(value) ?? []) {
+            if (context.signal.aborted && hasAcknowledgedCommandCommit(context)) break outer;
             throwIfCanceled(context, 'Command canceled');
             const handled = await handler.handle(context, value);
+            if (!isOutcome(handled) && context.signal.aborted && hasAcknowledgedCommandCommit(context)) break outer;
             throwIfCanceled(context, 'Command canceled');
             if (!isOutcome(handled)) continue;
             if (handled.kind === 'denied') { authorized = false; reason = handled.reason ?? ''; break outer; }

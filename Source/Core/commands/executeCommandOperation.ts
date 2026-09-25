@@ -7,6 +7,7 @@ import { recordFailure } from '../execution/failureTracking.js';
 import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { isOutcome } from './Outcome.js';
+import { hasAcknowledgedCommandCommit } from './acknowledgeCommandCommit.js';
 import type { CommandDefinition } from './CommandDefinition.js';
 import type { CommandContext } from './CommandContext.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
@@ -104,6 +105,12 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
     if (!result.isSuccess) return { result, prepared: false };
     throwIfCanceled(context, 'Command canceled');
     const handled = await definition.handle(value, context, provided);
+    if (context.signal.aborted && (hasAcknowledgedCommandCommit(context) ||
+        !options.commandResponseValueHandlers?.length && (handled === undefined || handled === null ||
+            ['string', 'number', 'boolean'].includes(typeof handled)))) {
+        // The handler finished; preserve its plain result without starting response handlers after cancellation.
+        return { result: commandResult(context, { response: handled }), prepared: true };
+    }
     throwIfCanceled(context, 'Command canceled');
     const { result: response, journal, failure } = await prepareCommandResponse(handled, context, scopes, options);
     return { result: response, journal, prepared: true, failure };
@@ -159,7 +166,6 @@ export async function executeCommandOperation<S extends z.ZodType, T>(definition
             const handled = await handle(definition, value, context, scopes, options);
             ({ result, journal } = handled);
             if (handled.failure) throw handled.failure.error;
-            throwIfCanceled(context, 'Command canceled');
             if (handled.prepared) {
                 if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
                 if (definition.clientOutput && result.isSuccess)
