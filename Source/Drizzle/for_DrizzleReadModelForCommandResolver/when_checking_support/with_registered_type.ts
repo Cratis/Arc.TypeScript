@@ -7,11 +7,10 @@ import { TaskRecord } from '../../for_DrizzleReadModels/given/TaskRecord.js';
 import { a_sqlite_database } from '../../for_DrizzleReadModels/given/a_sqlite_database.js';
 
 should();
-describe('when checking support for a registered model', given(a_sqlite_database, context => {
+describe('when checking support for a registered model', given(a_sqlite_database, () => {
     let supported: boolean;
     beforeEach(() => {
-        const resolver = new DrizzleReadModelForCommandResolver({ dialect: 'sqlite', database: {},
-            readModels: [{ type: TaskRecord, table: context.table }] });
+        const resolver = new DrizzleReadModelForCommandResolver(new Set([TaskRecord]));
         supported = resolver.supports(TaskRecord);
     });
     it('should claim the model', () => { supported.should.equal(true); });

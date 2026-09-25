@@ -8,11 +8,10 @@ import { a_sqlite_database } from '../../for_DrizzleReadModels/given/a_sqlite_da
 
 should();
 class Unregistered {}
-describe('when checking support for an unregistered model', given(a_sqlite_database, context => {
+describe('when checking support for an unregistered model', given(a_sqlite_database, () => {
     let supported: boolean;
     beforeEach(() => {
-        const resolver = new DrizzleReadModelForCommandResolver({ dialect: 'sqlite', database: {},
-            readModels: [{ type: TaskRecord, table: context.table }] });
+        const resolver = new DrizzleReadModelForCommandResolver(new Set([TaskRecord]));
         supported = resolver.supports(Unregistered);
     });
     it('should not claim the model', () => { supported.should.equal(false); });

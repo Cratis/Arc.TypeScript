@@ -68,7 +68,7 @@ export class DrizzleReadModels<T extends object> {
         return (await this.select(filter, undefined, 1))[0];
     }
 
-    /** Find by the single declared primary key, converting the command key through the model and column codecs. */
+    /** Find by the single declared primary key, binding a typed key for custom columns and a primitive for plain columns. */
     async findById(key: string): Promise<T | null> {
         if (this.keys.length !== 1) throw new Error('Drizzle command read models require a single primary key');
         const column = this.keys[0]!;

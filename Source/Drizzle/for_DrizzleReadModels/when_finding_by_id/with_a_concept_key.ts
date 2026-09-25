@@ -7,7 +7,7 @@ import { conceptCodec } from '../../ColumnCodec.js';
 import { sqliteColumn } from '../../columns.js';
 import { DrizzleReadModels } from '../../DrizzleReadModels.js';
 import { given } from '../../given.js';
-import { a_sqlite_database } from '../../for_DrizzleReadModels/given/a_sqlite_database.js';
+import { a_sqlite_database } from '../given/a_sqlite_database.js';
 import { ConceptTask } from '../given/ConceptTask.js';
 import { TaskId } from '../given/TaskId.js';
 
@@ -28,6 +28,7 @@ describe('when finding a Drizzle row by a GUID concept key', given(a_sqlite_data
     });
     afterEach(() => context.close());
     it('should pass a typed concept through the column encoder', () => {
+        should().exist(record);
         record!.title.should.equal('concept row');
         record!.id.should.be.instanceOf(TaskId);
     });

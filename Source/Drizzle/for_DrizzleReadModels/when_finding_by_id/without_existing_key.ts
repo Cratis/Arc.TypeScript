@@ -3,15 +3,15 @@
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { DrizzleReadModels } from '../../DrizzleReadModels.js';
 import { given } from '../../given.js';
-import { TaskRecord } from '../../for_DrizzleReadModels/given/TaskRecord.js';
-import { a_command_with_sqlite } from '../given/a_command_with_sqlite.js';
+import { TaskRecord } from '../given/TaskRecord.js';
+import { a_sqlite_database } from '../given/a_sqlite_database.js';
 
 should();
-describe('when finding a missing Drizzle model by command key', given(a_command_with_sqlite, context => {
+describe('when finding a missing Drizzle model by id', given(a_sqlite_database, context => {
     let record: TaskRecord | null;
     beforeEach(async () => {
         await context.establish();
-        record = await new DrizzleReadModels(context.sqlite.database, context.sqlite.table, TaskRecord)
+        record = await new DrizzleReadModels(context.database, context.table, TaskRecord)
             .findById('22112233-4455-6677-8899-aabbccddeeff');
     });
     afterEach(() => context.close());

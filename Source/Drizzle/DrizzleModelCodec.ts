@@ -36,13 +36,26 @@ export class DrizzleModelCodec<T extends object> {
         }
         return model;
     }
-    /** Convert the command's string key to the declared field type before Drizzle encodes its column. */
+    /** Convert a command key to the type expected by its Drizzle column. */
     keyValue(name: string, key: string): unknown {
         const field = this.fields.find(candidate => candidate.name === name);
         if (!field) throw new Error(`Drizzle model ${this.type.name} requires @field metadata for primary key: ${name}`);
-        const primitive = field.type === Number || field.type.prototype instanceof ConceptAs && field.type.valueType === Number ?
-            Number(key) : field.type === Date ? new Date(key) : key;
-        return this.convert(field, primitive);
+        const valueType = field.type.prototype instanceof ConceptAs ? field.type.valueType : field.type;
+        let primitive: unknown = key;
+        if (valueType === Number) {
+            const number = Number(key);
+            if (!/^-?\d+$/.test(key) || !Number.isSafeInteger(number)) throw new TypeError('Invalid Drizzle number key');
+            primitive = number;
+        } else if (valueType === Guid) {
+            if (!Guid.isGuid(key)) throw new TypeError('Invalid Drizzle Guid key');
+            primitive = Guid.parse(key);
+        } else if (valueType === Date) {
+            primitive = new Date(key);
+        }
+        const typed = this.convert(field, primitive);
+        if (this.columns[name]!.columnType.endsWith('CustomColumn')) return typed;
+        const unwrapped = typed instanceof ConceptAs ? typed.value : typed;
+        return unwrapped instanceof Guid ? unwrapped.toString() : unwrapped;
     }
     private convert(field: WireField, value: unknown): unknown {
         if (field.type === String || field.type === Number || field.type === Boolean || field.type === Date) {
