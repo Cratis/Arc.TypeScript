@@ -78,8 +78,7 @@ export class DrizzleReadModels<T extends object> {
 
     /** Push a typed predicate, count, sort and page into SQL; never load the unbounded result before paging. */
     async queryPage(filter: DrizzleFilter, options: QueryOptions): Promise<QueryPage<T>> {
-        if (!options.paging) throw new Error('Drizzle queryPage requires options.paging');
-        const { page, pageSize } = options.paging;
+        const { page, pageSize } = options.paging ?? { page: 0, pageSize: this.maxPageSize };
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize < 1 ||
             pageSize > this.maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid Drizzle page');
         this.order(options.sorting);

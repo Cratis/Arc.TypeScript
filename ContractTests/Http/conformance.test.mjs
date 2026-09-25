@@ -212,6 +212,12 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('QUERY binds case-insensitive structured arguments and disables caching', 'QUERY', '/api/items/by-id', { arguments: { ID: 2 } }, {
             status: 200, body: query(200, { data: { id: 2, name: 'Grace' } }), headers: { 'cache-control': 'no-store' }
         }, {}, ['cache-control']);
+        await parity('GET int32 parsing accepts leading zeros', 'GET', '/api/items?pageSize=02', undefined, {
+            status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) })
+        });
+        await parity('GET int32 parsing accepts a leading plus and whitespace', 'GET', '/api/items?pageSize=%20%2B2%20', undefined, {
+            status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) })
+        });
         await parity('GET pages array with counts', 'GET', '/api/items?page=0&pageSize=2', undefined, {
             status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) })
         });
@@ -225,11 +231,16 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             '/api/items?page=0&pageSize=2&sortBy=name&sortDirection=desc', undefined,
             { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }) },
             { status: 200, body: query(200, { data: [items[2], items[1]], paging: paging(0, 2, 3, 2) }) });
-        await queryCount('item query count before rejected requests', 4);
+        await queryCount('item query count before rejected requests', 6);
         await queryParity('QUERY rejects invalid sort direction with owning member',
             { sorting: { field: 'name', direction: 'sideways' } }, { status: 400, body: badDirection('sorting.direction') });
         await parity('GET rejects negative page with a paging rule', 'GET', '/api/items?page=-1&pageSize=2', undefined,
             { status: 400, body: pagingRule('Page number must be greater than or equal to 0', 'Page') });
+        await parity('GET reports Page then Size for both invalid paging values', 'GET', '/api/items?page=-1&pageSize=0', undefined,
+            { status: 400, body: query(400, { validationResults: [
+                { severity: 3, message: 'Page number must be greater than or equal to 0', members: ['Page'], reason: 'rule' },
+                { severity: 3, message: 'Page size must be greater than 0', members: ['Size'], reason: 'rule' }
+            ] }) });
         for (const size of [0, -1]) {
             await parity(`GET rejects pageSize=${size} with a paging rule`, 'GET', `/api/items?page=0&pageSize=${size}`, undefined,
                 { status: 400, body: pagingRule('Page size must be greater than 0', 'Size') });
@@ -257,15 +268,47 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 200, body: query(200, { data: items }) });
         await queryParity('QUERY paging with only pageSize defaults page to zero', { paging: { pageSize: 2 } },
             { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }) });
-        await queryCount('item query count before malformed QUERY bodies', 14);
+        await queryParity('QUERY ignores unknown envelope members', { extra: 'ignored' },
+            { status: 200, body: query(200, { data: items }) });
+        await queryParity('QUERY ignores unknown paging members', { paging: { pageSize: 2, extra: 1 } },
+            { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }) });
+        await queryParity('QUERY ignores unknown sorting members', { sorting: { field: 'name', direction: 'desc', extra: 1 } },
+            { status: 200, body: query(200, { data: [...items].reverse() }) });
+        await queryParity('QUERY direction without field is unpaged and unsorted', { sorting: { direction: 'desc' } },
+            { status: 200, body: query(200, { data: items }) });
+        await queryCount('item query count before malformed QUERY bodies', 20);
         for (const [name, body] of [
             ['invalid JSON', '{'], ['array body', []], ['wrong-typed paging', { paging: 'wrong' }],
             ['wrong-typed sorting', { sorting: 'wrong' }], ['wrong-typed arguments', { arguments: [] }],
             ['nonnumeric page', { paging: { page: 'no', pageSize: 2 } }],
+            ['nonnumeric page without size', { paging: { page: 'no' } }],
             ['page beyond int32', { paging: { page: 2147483648, pageSize: 2 } }],
             ['pageSize beyond int32', { paging: { page: 0, pageSize: 2147483648 } }]
         ]) await readerDifference(`QUERY ${name}: .NET and TypeScript redacted exception texts differ`, body);
-        await queryCount('malformed QUERY bodies did not execute item query handler', 14);
+        await queryCount('malformed QUERY bodies did not execute item query handler', 20);
+        await divergence('QUERY rejects invalid sorting field only in TypeScript', 'QUERY', '/api/items',
+            { sorting: { field: 'name!', direction: 'asc' } },
+            { status: 500, body: query(500, { exceptionMessages: netReaderFailure.exceptionMessages }),
+                headers: { 'cache-control': 'no-store' } },
+            { status: 400, body: query(400, { validationResults: [malformedTypeScript] }), headers: { 'cache-control': 'no-store' } },
+            {}, ['cache-control']);
+        await divergence('QUERY rejects undeclared argument names only in TypeScript', 'QUERY', '/api/items',
+            { arguments: { extra: 'ignored' } },
+            { status: 200, body: query(200, { data: items }), headers: { 'cache-control': 'no-store' } },
+            { status: 400, body: query(400, { validationResults: [malformedTypeScript] }), headers: { 'cache-control': 'no-store' } },
+            {}, ['cache-control']);
+        await divergence('QUERY null page and size default only in TypeScript', 'QUERY', '/api/items',
+            { paging: { page: null, pageSize: null } },
+            { status: 400, body: netReaderFailure, headers: { 'cache-control': 'no-store' } },
+            { status: 200, body: query(200, { data: items }), headers: { 'cache-control': 'no-store' } },
+            {}, ['cache-control']);
+        for (const [name, body] of [
+            ['decimal integer token', '{"paging":{"pageSize":2.0}}'],
+            ['exponent integer token', '{"paging":{"pageSize":2e0}}']
+        ]) await divergence(`QUERY ${name}: TypeScript accepts JSON numeric normalization`, 'QUERY', '/api/items', body,
+            { status: 400, body: netReaderFailure, headers: { 'cache-control': 'no-store' } },
+            { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }),
+                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
         await divergence('GET sort: .NET 22.23.0 ignores even an invalid direction (#2758); TypeScript rejects it', 'GET',
             '/api/items?sortBy=name&sortDirection=sideways', undefined,
             { status: 200, body: query(200, { data: items }) },
@@ -318,6 +361,11 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 normalize(ts, { randomCorrelation: true, headers: [correlationHeader, 'content-type'] }));
         });
         await count('invalid correlation validation did not execute handler', 2);
+        await divergence('QUERY oversized body hits the TypeScript-only hosting limit', 'QUERY', '/api/items',
+            { extra: 'x'.repeat(1024 * 1024) },
+            { status: 200, body: query(200, { data: items }), headers: { 'cache-control': 'no-store' } },
+            { status: 400, body: query(400, { validationResults: [malformedTypeScript] }), headers: { 'cache-control': 'no-store' } },
+            {}, ['cache-control']);
     } finally {
         await Promise.all([typescript?.stop(), dotnet.stop()]);
     }

@@ -38,10 +38,9 @@ export class MongoReadModels<T extends Document, I> {
         return collection.findOne({ $and: [filter, { _id: id }] } as Filter<T>, { signal: context.signal });
     }
 
-    /** Require Arc's actual paging options; never fabricate a request or silently ignore sorting. */
+    /** Read a bounded first page when Arc has no paging; never silently ignore sorting. */
     async queryPage(context: ExecutionContext, input: I, options: QueryOptions,
         findOptions?: MongoPageFindOptions<T>): Promise<QueryPage<WithId<T>>> {
-        if (!options?.paging) throw new Error('MongoDB queryPage requires options.paging');
         const sorting = options.sorting;
         if (sorting && sorting.direction !== 'asc' && sorting.direction !== 'desc')
             throw new TypeError('MongoDB sorting direction must be asc or desc');
@@ -50,7 +49,8 @@ export class MongoReadModels<T extends Document, I> {
         const sort = sorting ? { [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {})
                 .filter(([field]) => field !== sorting.field)) } : findOptions?.sort;
-        const page = await this.page(context, input, options.paging, { ...findOptions, sort });
+        const page = await this.page(context, input, options.paging ?? { page: 0, pageSize: this.options.maxPageSize ?? 100 },
+            { ...findOptions, sort });
         return createQueryPage(page.items, page.paging.totalItems, sorting);
     }
 

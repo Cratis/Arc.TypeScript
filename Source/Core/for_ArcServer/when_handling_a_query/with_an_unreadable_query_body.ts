@@ -12,7 +12,8 @@ describe('when handling a query with an unreadable QUERY body', () => {
     const perform = sinon.spy(() => [{ name: 'Ada' }]);
     const server = new ArcServer({ queries: [defineQuery({ name: 'Items', schema: z.object({}), perform })] });
     let response: Response;
-    let result: { isValid: boolean; hasExceptions: boolean; exceptionMessages: string[]; validationResults: unknown[] };
+    let result: { isValid: boolean; hasExceptions: boolean; exceptionMessages: string[];
+        exceptionStackTrace: string; validationResults: unknown[] };
     beforeEach(async () => {
         response = (await server.handle(new Request('http://localhost/api/items', {
             method: 'QUERY', headers: { 'content-type': 'application/json' }, body: '{'
@@ -22,11 +23,10 @@ describe('when handling a query with an unreadable QUERY body', () => {
     afterAll(() => server.dispose());
     it('should reject the request', () => response.status.should.equal(400));
     it('should disable caching', () => response.headers.get('cache-control')!.should.equal('no-store'));
-    it('should return a redacted exception envelope', () => {
-        result.isValid.should.equal(true);
-        result.hasExceptions.should.equal(true);
-        result.exceptionMessages.should.deep.equal(['An unexpected error occurred']);
-        result.validationResults.should.deep.equal([]);
-    });
+    it('should remain valid', () => result.isValid.should.equal(true));
+    it('should report an exception', () => result.hasExceptions.should.equal(true));
+    it('should redact the exception', () => result.exceptionMessages.should.deep.equal(['An unexpected error occurred']));
+    it('should omit the stack trace', () => result.exceptionStackTrace.should.equal(''));
+    it('should not report validation results', () => result.validationResults.should.deep.equal([]));
     it('should not execute the handler', () => perform.called.should.be.false);
 });

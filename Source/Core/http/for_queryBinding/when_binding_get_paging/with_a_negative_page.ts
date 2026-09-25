@@ -12,8 +12,8 @@ describe('when binding GET paging with a negative page', () => {
         try { getQuery(new URL('http://localhost/api/items?page=-1&pageSize=2'), z.object({})); }
         catch (error) { failure = error as QueryValidationError; }
     });
-    it('should report the owning paging rule', () => {
-        failure.should.be.instanceOf(QueryValidationError);
-        failure.result.should.deep.equal({ severity: 3, message: 'Page number must be greater than or equal to 0', members: ['Page'], reason: 'rule' });
-    });
+    it('should reject with a paging validation error', () => failure.should.be.instanceOf(QueryValidationError));
+    it('should report the owning paging rule', () => failure.results.should.deep.equal([
+        { severity: 3, message: 'Page number must be greater than or equal to 0', members: ['Page'], reason: 'rule' }
+    ]));
 });

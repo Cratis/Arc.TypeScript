@@ -42,13 +42,13 @@ With `Catalog` registered as a singleton, `GET /api/all?pageSize=2&sortBy=name&s
 | Request | Meaning |
 | --- | --- |
 | GET `pageSize` of 1 or more | Page `page` (zero-based, default 0) of that size |
-| GET `pageSize` of 0 or negative, or `page` negative with a valid positive size | 400 with a paging rule (`Size` or `Page`) |
-| GET nonnumeric or out-of-int32 `page`/`pageSize` | Defaults to page 0 or unpaged, respectively |
+| GET `pageSize` of 0 or negative, or `page` negative with any integer size | 400 with a paging rule (`Size` or `Page`); both invalid values report `Page` then `Size` |
+| GET nonnumeric or out-of-int32 `page`/`pageSize` | Defaults to page 0 or unpaged, respectively; leading zeros, `+`, and surrounding whitespace are accepted |
 | `QUERY` `paging.pageSize` of 1 or more | Page `paging.page` of that size |
 | `QUERY` with nonpositive `pageSize`, or without `pageSize` | Unpaged; a page without a size is ignored |
-| `QUERY` with nonnumeric or out-of-int32 paging values | 400 with a redacted exception envelope; the handler does not run |
+| `QUERY` with nonnumeric or out-of-int32 paging values | 400 exception envelope (redacted unless `exposeExceptionDetails`); even a page without a size must be an integer; the handler does not run |
 | `sortBy` or `sorting.field` | Sort by that field. The name must start with a letter and contain only letters, digits, and `_`. |
-| `sortDirection` or `sorting.direction` | `asc`, `ascending`, `desc`, or `descending`, in any case; `asc` by default. A direction without a field answers 400. |
+| `sortDirection` or `sorting.direction` | `asc`, `ascending`, `desc`, or `descending`, in any case; `asc` by default. A QUERY direction without a field is ignored; GET rejects it. |
 
 Invalid directions answer 400 with `malformedRequest` and the `sortDirection` (GET) or `sorting.direction` (`QUERY`) member. Page offsets are clamped to the signed 32-bit maximum before slicing in memory, so large valid page and size values cannot overflow the offset. Providers that cut their own pages must apply equivalent bounds before using the offset in their data source.
 
@@ -64,7 +64,7 @@ Loading every row to page it in memory does not scale. Add `queryOptions()` to r
 - A request that asks for sorting answers 400 unless you pass the applied sort as the third argument, `queryPage(items, totalItems, sorting)`, confirming your data source sorted it. Arc never re-sorts a page it did not cut.
 - `queryPage` throws when `totalItems` is negative, not a safe integer, or smaller than the number of items; the query then fails with a 500.
 
-The [MongoDB](../../mongodb/paging.md) and [Drizzle](../../sql/paging.md) integrations return such pages for you, with sorting pushed into the database.
+The [MongoDB](../../mongodb/paging.md) and [Drizzle](../../sql/paging.md) integrations return such pages for you, with sorting pushed into the database. Without paging, their `queryPage` reads at most the configured maximum page size. If more rows exist, the renderer rejects the incomplete unpaged result with 400 rather than returning a misleading partial list.
 
 ## Related
 

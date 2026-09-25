@@ -17,7 +17,7 @@ Against the running Tasks sample, this answers 200 with the task in `data` and `
 
 ## The body
 
-The body is a JSON object with at most three properties; any other property answers 400:
+The body is a JSON object with three recognized properties. Unknown members of the envelope, paging, and sorting objects are ignored:
 
 ```json
 { "arguments": { "tags": ["urgent"] }, "paging": { "page": 0, "pageSize": 10 }, "sorting": { "field": "title", "direction": "desc" } }
@@ -26,10 +26,10 @@ The body is a JSON object with at most three properties; any other property answ
 | Property | Meaning |
 | --- | --- |
 | `arguments` | Parsed as JSON, so numbers, booleans, arrays, and objects keep their types. Names match case-insensitively, as with GET |
-| `paging` | Only `page` and `pageSize`. `pageSize: 0`, or no `pageSize`, means unpaged |
-| `sorting` | Only `field` and `direction` |
+| `paging` | `page` and `pageSize`. Nonpositive or missing `pageSize` means unpaged. |
+| `sorting` | `field` and `direction`; a direction without a field is ignored. |
 
-Paging and sorting follow the same rules as GET; see [Paging and sorting](model-bound/paging.md).
+GET and QUERY have different paging rules; see the [request table](model-bound/paging.md#request-parameters). Undeclared argument names are rejected by TypeScript (unlike .NET).
 
 ## Turn it off
 

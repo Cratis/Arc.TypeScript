@@ -5,41 +5,45 @@ import type { PageRequest } from '../queries/PageRequest.js';
 import type { QueryOptions } from '../queries/QueryOptions.js';
 import type { SortRequest } from '../queries/SortRequest.js';
 import { BadRequest } from './BadRequest.js';
+import { UnreadableQueryBody } from './UnreadableQueryBody.js';
 import type { ValidationResult } from '../validation/ValidationResult.js';
 
 export class QueryValidationError extends BadRequest {
-    constructor(readonly result: ValidationResult) { super(); }
+    constructor(readonly results: ValidationResult[]) { super(); }
 }
 
 const maxInt32 = 2_147_483_647;
 function getInteger(value: unknown, fallback: number): number {
-    if (typeof value !== 'string' || !/^-?(0|[1-9][0-9]*)$/.test(value)) return fallback;
+    if (typeof value !== 'string' || !/^[+-]?\d+$/.test(value.trim())) return fallback;
     const parsed = Number(value);
     return Number.isInteger(parsed) && parsed >= -maxInt32 - 1 && parsed <= maxInt32 ? parsed : fallback;
 }
 function bodyInteger(value: unknown, fallback: number): number {
     if (value === undefined || value === null) return fallback;
-    if (typeof value !== 'number' || !Number.isInteger(value) || value < -maxInt32 - 1 || value > maxInt32) throw new BadRequest();
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < -maxInt32 - 1 || value > maxInt32)
+        throw new UnreadableQueryBody();
     return value;
 }
 function pagingRule(message: string, member: string): never {
-    throw new QueryValidationError({ severity: 3, message, members: [member], reason: 'rule' });
+    throw new QueryValidationError([{ severity: 3, message, members: [member], reason: 'rule' }]);
 }
 function sort(field: unknown, direction: unknown, member: string): SortRequest | undefined {
     if (field == null || field === '') return undefined;
     if (typeof field !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(field)) throw new BadRequest();
     const normalized = typeof direction === 'string' ? direction.toLowerCase() : direction == null ? 'asc' : '';
     if (!['asc', 'ascending', 'desc', 'descending'].includes(normalized)) {
-        throw new QueryValidationError({ severity: 3, message: 'The sort direction is not a recognized value.', members: [member], reason: 'malformedRequest' });
+        throw new QueryValidationError([{ severity: 3, message: 'The sort direction is not a recognized value.',
+            members: [member], reason: 'malformedRequest' }]);
     }
     return { field, direction: normalized.startsWith('desc') ? 'desc' : 'asc' };
 }
 function asObject(value: unknown): Record<string, unknown> {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new BadRequest();
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new UnreadableQueryBody();
     return value as Record<string, unknown>;
 }
 function unwrap(schema: z.ZodType): z.ZodType {
-    while (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault || schema instanceof z.ZodNullable) schema = schema.unwrap() as z.ZodType;
+    while (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault || schema instanceof z.ZodNullable)
+        schema = schema.unwrap() as z.ZodType;
     return schema;
 }
 function coerce(value: string, schema: z.ZodType): unknown {
@@ -99,21 +103,26 @@ export function getQuery(url: URL, schema: z.ZodType, observable = false): { inp
     const paging: PageRequest | undefined = pageSize === undefined ? undefined : {
         page: getInteger(page, 0), pageSize: getInteger(pageSize, 0)
     };
-    if (paging && paging.pageSize > 0 && paging.page < 0) pagingRule('Page number must be greater than or equal to 0', 'Page');
-    if (pageSize !== undefined && getInteger(pageSize, 1) <= 0) pagingRule('Page size must be greater than 0', 'Size');
+    const errors: ValidationResult[] = [];
+    if (paging && paging.page < 0) errors.push({ severity: 3, message: 'Page number must be greater than or equal to 0',
+        members: ['Page'], reason: 'rule' });
+    if (pageSize !== undefined && getInteger(pageSize, 1) <= 0) errors.push({ severity: 3,
+        message: 'Page size must be greater than 0', members: ['Size'], reason: 'rule' });
+    if (errors.length) throw new QueryValidationError(errors);
     if (direction !== undefined && field === undefined) throw new BadRequest();
-    return { input: bind(schema, args, true), options: { paging: paging?.pageSize ? paging : undefined, sorting: sort(field, direction, 'sortDirection') } };
+    return { input: bind(schema, args, true), options: {
+        paging: paging?.pageSize ? paging : undefined, sorting: sort(field, direction, 'sortDirection')
+    } };
 }
 export function structuredQuery(value: unknown, schema: z.ZodType): { input: unknown; options: QueryOptions } {
     const envelope = asObject(value);
-    if (Object.keys(envelope).some(key => !['arguments', 'paging', 'sorting'].includes(key))) throw new BadRequest();
     const pagingObject = envelope.paging === undefined ? undefined : asObject(envelope.paging);
     const sortingObject = envelope.sorting === undefined ? undefined : asObject(envelope.sorting);
-    if (pagingObject && Object.keys(pagingObject).some(key => !['page', 'pageSize'].includes(key))) throw new BadRequest();
-    if (sortingObject && Object.keys(sortingObject).some(key => !['field', 'direction'].includes(key))) throw new BadRequest();
     const size = bodyInteger(pagingObject?.pageSize, 0);
-    const paging = size > 0 ? { page: bodyInteger(pagingObject?.page, 0), pageSize: size } : undefined;
+    const page = bodyInteger(pagingObject?.page, 0);
+    const paging = size > 0 ? { page, pageSize: size } : undefined;
     if (paging && paging.page < 0) pagingRule('Page number must be greater than or equal to 0', 'Page');
-    if (sortingObject?.direction !== undefined && sortingObject.field === undefined) throw new BadRequest();
-    return { input: bind(schema, envelope.arguments === undefined ? {} : asObject(envelope.arguments), false), options: { paging, sorting: sort(sortingObject?.field, sortingObject?.direction, 'sorting.direction') } };
+    return { input: bind(schema, envelope.arguments === undefined ? {} : asObject(envelope.arguments), false), options: {
+        paging, sorting: sort(sortingObject?.field, sortingObject?.direction, 'sorting.direction')
+    } };
 }

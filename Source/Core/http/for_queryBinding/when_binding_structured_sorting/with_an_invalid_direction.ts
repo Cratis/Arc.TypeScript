@@ -12,9 +12,9 @@ describe('when binding structured sorting with an invalid direction', () => {
         try { structuredQuery({ sorting: { field: 'name', direction: 'sideways' } }, z.object({})); }
         catch (error) { failure = error as QueryValidationError; }
     });
-    it('should report the owning sort direction', () => {
-        failure.should.be.instanceOf(QueryValidationError);
-        failure.result.should.deep.equal({ severity: 3, message: 'The sort direction is not a recognized value.',
-            members: ['sorting.direction'], reason: 'malformedRequest' });
-    });
+    it('should reject with a validation error', () => failure.should.be.instanceOf(QueryValidationError));
+    it('should report the owning sort direction', () => failure.results.should.deep.equal([
+        { severity: 3, message: 'The sort direction is not a recognized value.',
+            members: ['sorting.direction'], reason: 'malformedRequest' }
+    ]));
 });

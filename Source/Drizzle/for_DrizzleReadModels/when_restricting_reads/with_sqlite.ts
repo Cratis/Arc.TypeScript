@@ -47,7 +47,7 @@ describe('when restricting read-only SQL access', given(a_sqlite_database, conte
         await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: 0, pageSize: 2 } }), 'Invalid Drizzle page');
         await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: Number.MAX_SAFE_INTEGER, pageSize: 2 } }),
             'Invalid Drizzle page');
-        await shouldRejectWithMessage(models.queryPage(undefined, {}), 'requires options.paging');
+        (await models.queryPage(undefined, {})).items.should.have.lengthOf(1);
         (() => new DrizzleReadModels(context.database, context.table, TaskRecord, 10001)).should.throw('maxPageSize');
     });
     it('should order descending with a primary-key tie-breaker', async () => {

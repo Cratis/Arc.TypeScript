@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { BadRequest } from './BadRequest.js';
+import { UnreadableQueryBody } from './UnreadableQueryBody.js';
 
 function clean(value: unknown, depth = 0): unknown {
     if (depth > 32) throw new BadRequest();
@@ -16,9 +17,9 @@ function clean(value: unknown, depth = 0): unknown {
     }
     return value;
 }
-export async function body(request: Request, limit: number): Promise<unknown> {
+export async function body(request: Request, limit: number, query = false): Promise<unknown> {
     if (Number(request.headers.get('content-length')) > limit) throw new BadRequest();
-    if (!request.body) throw new BadRequest();
+    if (!request.body) throw query ? new UnreadableQueryBody() : new BadRequest();
     const reader = request.body.getReader();
     const chunks: Uint8Array[] = [];
     let bytes = 0;
@@ -31,11 +32,13 @@ export async function body(request: Request, limit: number): Promise<unknown> {
             chunks.push(value);
         }
     } finally { await reader.cancel(); }
+    const combined = new Uint8Array(bytes);
+    let offset = 0;
+    for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.byteLength; }
+    let parsed: unknown;
     try {
-        const combined = new Uint8Array(bytes);
-        let offset = 0;
-        for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.byteLength; }
         const text = new TextDecoder('utf-8', { fatal: true }).decode(combined);
-        return clean(JSON.parse(text) as unknown);
-    } catch { throw new BadRequest(); }
+        parsed = JSON.parse(text) as unknown;
+    } catch { throw query ? new UnreadableQueryBody() : new BadRequest(); }
+    return clean(parsed);
 }
