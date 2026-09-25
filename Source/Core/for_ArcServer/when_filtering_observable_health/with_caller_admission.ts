@@ -15,8 +15,8 @@ describe('when filtering observable health by caller at admission', () => {
     let denial: number;
     let deniedSubscription: number;
     let allowed: { totalConnections: number };
-    let other: { totalConnections: number };
     let emissions: number;
+    let ownHealth: { totalConnections: number };
     beforeEach(async () => {
         names = [];
         ordinaryNames = [];
@@ -56,12 +56,10 @@ describe('when filtering observable health by caller at admission', () => {
         await hubReader.read();
         // The hub connection publishes a health change without re-admitting the health stream.
         const updated = await reader.read();
-        const ownHealth = JSON.parse(new TextDecoder().decode(updated.value).slice(6)).data as { totalConnections: number };
-        ownHealth.totalConnections.should.equal(1);
+        ownHealth = JSON.parse(new TextDecoder().decode(updated.value).slice(6)).data as { totalConnections: number };
         emissions = names.filter(name => name === 'QueryHealth.ObserveHealth').length;
         await hubReader.cancel();
         await reader.cancel();
-        other = { totalConnections: 0 };
     });
     afterEach(async () => { await server.dispose(); });
     it('should deny the caller on snapshot and direct SSE', () => {
@@ -73,8 +71,8 @@ describe('when filtering observable health by caller at admission', () => {
         emissions.should.equal(3);
         ordinaryNames.should.deep.equal(['QueryHealth.ObserveHealth']);
     });
-    it('should not include another caller in the allowed snapshot', () => {
+    it('should show the allowed caller connection after admission', () => {
         allowed.totalConnections.should.equal(0);
-        other.totalConnections.should.equal(0);
+        ownHealth.totalConnections.should.equal(1);
     });
 });
