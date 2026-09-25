@@ -2,16 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 import type { ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
+import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
 import type { EventContext } from '@cratis/chronicle/events';
 
 type EventClass<T extends object = object> = new (...args: never[]) => T;
 export const rehydrateAggregate = Symbol('rehydrate aggregate');
-
-/** The aggregate's pending events, committed by the command's Chronicle scope. */
-export class AggregateRootCommitResult {
-    constructor(readonly aggregate: AggregateRoot, readonly events: readonly EventForEventSourceId[],
-        readonly scopes: Readonly<Record<string, ConcurrencyScope>>, readonly start: number) {}
-}
 
 /** Rehydrated state and pending events for one Chronicle event source. */
 export class AggregateRoot {

@@ -30,7 +30,7 @@ handle() {
 }
 ```
 
-This excerpt is from the package's [scenario spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/for_ChronicleCommandScenario/when_executing/with_returned_events.ts). The explicit route, subject, occurred time, and tags override command defaults. The value is branded, so an ordinary DTO with `event` and `eventSourceId` fields is never mistaken for an event. The SDK's `@tag` and `@tags` on event classes still apply.
+This excerpt is from the package's [scenario spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/testing/for_ChronicleCommandScenario/when_executing/with_returned_events.ts). The explicit route, subject, occurred time, and tags override command defaults. The value is branded, so an ordinary DTO with `event` and `eventSourceId` fields is never mistaken for an event. The SDK's `@tag` and `@tags` on event classes still apply.
 
 ## Set command defaults with decorators
 

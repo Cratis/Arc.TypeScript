@@ -4,12 +4,12 @@ import { field } from '@cratis/fundamentals';
 import { ChronicleReadModels } from '@cratis/arc.chronicle';
 import { argument, query, readModel, service } from '@cratis/arc.core';
 import type { Observable } from 'rxjs';
+import { map } from 'rxjs';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { BookAdded } from '../Registration/Registration.js';
 import { AuthorId } from '../../Authors/AuthorId.js';
 import { BookId } from '../BookId.js';
 import { BookTitle } from '../BookTitle.js';
-import { observeProjected } from '../../observeProjected.js';
 
 @readModel()
 @fromEvent(BookAdded)
@@ -20,7 +20,7 @@ export class Book {
 
     @query({ observable: true }, argument('authorId', AuthorId), service(ChronicleReadModels))
     static booksForAuthor(authorId: AuthorId, models: ChronicleReadModels): Observable<Book[]> {
-        return observeProjected(models, Book, book => book.id.toString(),
-            book => book.authorId.toString() === authorId.toString());
+        return models.observeAll(Book, book => book.id.toString()).pipe(
+            map(books => books.filter(book => book.authorId.toString() === authorId.toString())));
     }
 }

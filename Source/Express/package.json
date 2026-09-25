@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.express",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -36,6 +36,7 @@
     "express": "^5.0.0"
   },
   "devDependencies": {
+    "@cratis/arc.testing": "workspace:^",
     "express": "^5.1.0",
     "zod": "^4.1.0"
   }
