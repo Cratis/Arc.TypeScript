@@ -6,13 +6,15 @@ import { command, key, CommandValidator, validator } from '@cratis/arc.core';
 import { AuthorId } from '../../Authors/AuthorId.js';
 import { BookId } from '../BookId.js';
 import { BookTitle } from '../BookTitle.js';
-import { Books } from '../Books.js';
 
-@eventType('LibraryBookAdded')
+@eventType()
 export class BookAdded {
     @field(AuthorId) authorId: AuthorId;
     @field(BookTitle) title: BookTitle;
-    constructor(authorId: AuthorId, title: BookTitle) { this.authorId = authorId; this.title = title; }
+    constructor(authorId: AuthorId = AuthorId.create(), title: BookTitle = new BookTitle('')) {
+        this.authorId = authorId;
+        this.title = title;
+    }
 }
 
 @command()
@@ -21,9 +23,7 @@ export class AddBook {
     @field(AuthorId) authorId!: AuthorId;
     @field(BookTitle) title!: BookTitle;
 
-    async handle(books: Books): Promise<void> {
-        await books.add(this.bookId, this.authorId, this.title, new BookAdded(this.authorId, this.title));
-    }
+    handle(): BookAdded { return new BookAdded(this.authorId, this.title); }
 }
 
 @validator(AddBook)

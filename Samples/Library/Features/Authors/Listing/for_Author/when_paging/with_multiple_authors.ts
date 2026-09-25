@@ -1,21 +1,24 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { QueryScenario } from '@cratis/arc.testing';
+import { ChronicleReadModels } from '@cratis/arc.chronicle';
 import { AuthorId } from '../../../AuthorId.js';
 import { AuthorName } from '../../../AuthorName.js';
-import { Authors } from '../../../Authors.js';
 import { Author } from '../../Listing.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
-describe('when paging authors with multiple entries', () => {
-    const authors = new Authors();
+describe('when paging projected authors with multiple entries', () => {
     const scenario = QueryScenario.for<{ id: string; name: string }[]>(Author, 'authorsPage');
     scenario.extend(builder => builder.useGeneratedMetadata(metadata));
-    scenario.services.addSingleton(Authors, authors);
+    const authors = [
+        Object.assign(new Author(), { id: AuthorId.create(), name: new AuthorName('Zora') }),
+        Object.assign(new Author(), { id: AuthorId.create(), name: new AuthorName('Alice') })
+    ];
+    scenario.services.addScoped(ChronicleReadModels, () => ({
+        getStore: async () => ({ readModels: { getInstances: async () => authors } })
+    }) as unknown as ChronicleReadModels);
     let result: Awaited<ReturnType<typeof scenario.perform>>;
     beforeAll(async () => {
-        await authors.register(AuthorId.create(), new AuthorName('Zora'));
-        await authors.register(AuthorId.create(), new AuthorName('Alice'));
         result = await scenario.perform({}, { paging: { page: 0, pageSize: 1 }, sorting: { field: 'name', direction: 'asc' } });
     });
     afterAll(async () => { await scenario.dispose(); });

@@ -1,34 +1,24 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { CommandScenario, ObservableQueryScenario } from '@cratis/arc.testing';
+import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
 import { AuthorId } from '../../../../Authors/AuthorId.js';
 import { BookId } from '../../../BookId.js';
 import { BookTitle } from '../../../BookTitle.js';
-import { BookTitleValidator } from '../../../BookTitleValidator.js';
-import { Books } from '../../../Books.js';
-import { Book } from '../../../Listing/Listing.js';
-import { AddBook, AddBookValidator } from '../../Registration.js';
-import { metadata } from '../../../../generatedMetadata.js';
+import { BookTitleValidator } from '../../../BookTitle.js';
+import { AddBook, AddBookValidator, BookAdded } from '../../Registration.js';
 
 describe('when adding a book for an author', () => {
-    const books = new Books();
-    const command = CommandScenario.for(AddBook, AddBookValidator, BookTitleValidator);
-    const query = ObservableQueryScenario.for<{ id: string; title: string }[]>(Book, 'booksForAuthor');
-    command.extend(builder => builder.useGeneratedMetadata(metadata));
-    query.extend(builder => builder.useGeneratedMetadata(metadata));
-    command.services.addSingleton(Books, books);
-    query.services.addSingleton(Books, books);
+    const scenario = ChronicleCommandScenario.for(AddBook, BookAdded, AddBookValidator, BookTitleValidator);
     const authorId = AuthorId.create();
-    let result: Awaited<ReturnType<typeof command.execute>>;
-    let listing: Awaited<ReturnType<typeof query.collect>>;
+    const bookId = BookId.create();
+    let result: Awaited<ReturnType<typeof scenario.execute>>;
     beforeAll(async () => {
-        result = await command.execute({ bookId: BookId.create(), authorId, title: new BookTitle('Parable of the Sower') });
-        listing = await query.collect(1, 5000, { authorId: authorId.toString() });
+        result = await scenario.execute({ bookId, authorId, title: new BookTitle('Parable of the Sower') });
     });
-    afterAll(async () => { await command.dispose(); await query.dispose(); });
-    it('should return the book for its author', () => {
+    afterAll(async () => { await scenario.dispose(); });
+    it('should append the book with its author and title', () => {
         result.shouldBeSuccessful();
-        listing.emissions[0]?.isSuccess.should.equal(true);
-        listing.emissions[0]?.data?.[0]?.title.should.equal('Parable of the Sower');
+        result.shouldHaveAppendedEvent(BookAdded, bookId.toString(),
+            event => event.authorId.toString() === authorId.toString() && event.title.value === 'Parable of the Sower');
     });
 });

@@ -3,34 +3,13 @@
 import express from 'express';
 import { ArcApplication } from '@cratis/arc.core';
 import { cratisArc } from '@cratis/arc.express';
-import '@cratis/arc.mongodb';
-import '@cratis/arc.chronicle';
-import { ChronicleReadModels } from '@cratis/arc.chronicle';
-import { mongoCollection } from '@cratis/arc.mongodb';
-import { Authors } from './Features/Authors/Authors.js';
-import { Author } from './Features/Authors/Listing/Listing.js';
-import { Books } from './Features/Books/Books.js';
-import { Book } from './Features/Books/Listing/Listing.js';
+import { withChronicle } from '@cratis/arc.chronicle';
 import { metadata } from './Features/generatedMetadata.js';
 
-const mongoUrl = process.env.MONGODB_URL;
-const chronicleUrl = process.env.CHRONICLE_URL;
-if (mongoUrl && chronicleUrl) throw new Error('Select either MONGODB_URL or CHRONICLE_URL');
 const builder = ArcApplication.createBuilder({ development: true, nativePrincipal: true,
     resolveTenant: () => 'Default', allowedOrigins: ['http://127.0.0.1:5173'] });
 builder.useGeneratedMetadata(metadata);
-if (chronicleUrl) {
-    builder.withChronicle({ connectionString: chronicleUrl, eventStore: 'Library' });
-    builder.services.addScoped(Authors, async scope => new Authors(undefined, await scope.resolve(ChronicleReadModels), Author));
-    builder.services.addScoped(Books, async scope => new Books(undefined, await scope.resolve(ChronicleReadModels), Book));
-} else if (mongoUrl) {
-    builder.withMongoDB({ server: mongoUrl, database: 'Library', readModels: [Author, Book] });
-    builder.services.addScoped(Authors, async scope => new Authors(await scope.resolve(mongoCollection(Author))));
-    builder.services.addScoped(Books, async scope => new Books(await scope.resolve(mongoCollection(Book))));
-} else {
-    builder.services.addSingleton(Authors, () => new Authors());
-    builder.services.addSingleton(Books, () => new Books());
-}
+withChronicle(builder, process.env.CHRONICLE_URL ? { connectionString: process.env.CHRONICLE_URL } : {});
 await builder.discover(new URL('./Features/', import.meta.url));
 const application = await builder.build();
 const host = express();

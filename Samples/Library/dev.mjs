@@ -11,7 +11,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const workspace = join(root, '../..');
 const compiler = join(workspace, 'node_modules/.bin/tsc');
 execFileSync(compiler, ['-b', join(workspace, 'Source/Core'), join(workspace, 'Source/Express'),
-    join(workspace, 'Source/MongoDB'), join(workspace, 'Source/Tools/ProxyGenerator')], { stdio: 'inherit' });
+    join(workspace, 'Source/Chronicle'), join(workspace, 'Source/Tools/ProxyGenerator')], { stdio: 'inherit' });
 execFileSync('yarn', ['generate-proxies'], { cwd: root, stdio: 'inherit' });
 mkdirSync(join(root, 'Web/src/generated'), { recursive: true });
 const generator = join(workspace, 'Source/Tools/ProxyGenerator/dist/cli.js');

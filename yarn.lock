@@ -188,7 +188,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/arc.mongodb@workspace:Source/MongoDB, @cratis/arc.mongodb@workspace:^":
+"@cratis/arc.mongodb@workspace:Source/MongoDB":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.mongodb@workspace:Source/MongoDB"
   dependencies:
@@ -253,7 +253,6 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
-    "@cratis/arc.mongodb": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
     "@cratis/chronicle": "npm:6.7.0"
     "@cratis/fundamentals": "npm:7.19.6"

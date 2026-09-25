@@ -20,22 +20,6 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 yarn workspace @cratis/arc.sample.library build
-container_id=$(docker run -d --name "arc-library-mongo-$$" -p 127.0.0.1::27017 mongo:7.0 --replSet rs0 --bind_ip_all)
-ready=0
-for attempt in $(seq 1 60); do
-    if docker exec "$container_id" mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})' >/dev/null 2>&1; then break; fi
-    sleep 1
-done
-for attempt in $(seq 1 60); do
-    if [ "$(docker exec "$container_id" mongosh --quiet --eval 'db.hello().isWritablePrimary')" = 'true' ]; then ready=1; break; fi
-    sleep 1
-done
-if [ "$ready" -ne 1 ]; then printf '%s\n' 'Library MongoDB replica set was not ready' >&2; exit 2; fi
-port=$(docker port "$container_id" 27017/tcp)
-MONGODB_URL="mongodb://127.0.0.1:${port##*:}/?replicaSet=rs0&directConnection=true" CHRONICLE_URL='' \
-    node --import tsx --test --test-force-exit Samples/Library/e2e.test.mjs
-cleanup
-
 container_id=$(docker run -d --name "arc-library-chronicle-$$" -p 127.0.0.1::35000 cratis/chronicle:latest-development)
 port=$(docker port "$container_id" 35000/tcp)
 ready=0
@@ -43,6 +27,10 @@ for attempt in $(seq 1 90); do
     if curl -kfsS --max-time 2 "https://localhost:${port##*:}/" >/dev/null 2>&1; then ready=1; break; fi
     sleep 1
 done
-if [ "$ready" -ne 1 ]; then printf '%s\n' 'Library Chronicle kernel was not ready' >&2; exit 2; fi
-CHRONICLE_URL="chronicle://localhost:${port##*:}" MONGODB_URL='' \
+if [ "$ready" -ne 1 ]; then
+    printf '%s\n' 'Library Chronicle kernel was not ready' >&2
+    docker logs "$container_id" >&2
+    exit 2
+fi
+CHRONICLE_URL="chronicle://localhost:${port##*:}" \
     node --import tsx --test --test-force-exit Samples/Library/e2e.test.mjs

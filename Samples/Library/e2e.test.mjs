@@ -13,7 +13,6 @@ import { RegisterAuthor } from './Web/src/generated/Authors/Registration/Registe
 import { AuthorsPage } from './Web/src/generated/Authors/Listing/AuthorsPage.proxy.ts';
 import { AllAuthors } from './Web/src/generated/Authors/Listing/AllAuthors.proxy.ts';
 import { AddBook } from './Web/src/generated/Books/Registration/AddBook.proxy.ts';
-import { BooksForAuthor } from './Web/src/generated/Books/Listing/BooksForAuthor.proxy.ts';
 
 const socket = createServer();
 socket.listen(0, '127.0.0.1');
@@ -70,34 +69,24 @@ test('generated client proxies register, page and relate a book over Express', {
         throw new Error(`Library projection did not catch up: ${JSON.stringify(last)}; ${output}`);
     };
     await awaitResult(() => page.perform(), result => result.data.some(item => item.name === author.name));
-    if (process.env.CHRONICLE_URL) {
-        const { ChronicleClient, ChronicleOptions } = await import('@cratis/chronicle');
-        const { AuthorWelcomed } = await import('./dist/Features/Authors/Registration/Registration.js');
-        const client = new ChronicleClient(ChronicleOptions.fromConnectionString(process.env.CHRONICLE_URL,
-            { discoveryPatterns: [] }));
-        try {
-            const store = await client.getEventStore('Library', 'Default');
-            await awaitResult(async () => ({ data: await store.eventLog.getForEventSourceIdAndEventTypes(
-                authorId.toString(), [AuthorWelcomed]) }), result => result.data.length > 0);
-        } finally { await client.dispose(); }
-    }
-    const live = new AllAuthors();
-    live.setOrigin(origin);
-    await awaitResult(() => process.env.CHRONICLE_URL ?
-        globalThis.fetch(`${origin}/api/authors/listing/all-authors?waitForFirstResult=true`).then(response => response.json()) :
-        live.perform(), result => result.data.some(item => item.name === author.name));
+    const duplicate = new RegisterAuthor();
+    duplicate.setOrigin(origin);
+    duplicate.id = Guid.create();
+    duplicate.name = author.name;
+    const duplicateResult = await duplicate.execute();
+    assert.equal(duplicateResult.isSuccess, false, 'Chronicle should reject a duplicate author name');
+    assert.equal(duplicateResult.validationResults?.some(issue => issue.reason === 'constraintViolation'), true,
+        JSON.stringify(duplicateResult));
+    await awaitResult(() => globalThis.fetch(`${origin}/api/authors/listing/all-authors?waitForFirstResult=true`)
+        .then(response => response.json()), result => result.data.some(item => item.name === author.name));
     const addBook = new AddBook();
     addBook.setOrigin(origin);
     addBook.bookId = Guid.create();
     addBook.authorId = authorId;
     addBook.title = 'Kindred';
     assert.equal((await addBook.execute()).isSuccess, true, output);
-    const books = new BooksForAuthor();
-    books.setOrigin(origin);
-    await awaitResult(() => process.env.CHRONICLE_URL ?
-        globalThis.fetch(`${origin}/api/books/listing/books-for-author?authorId=${authorId}&waitForFirstResult=true`)
-            .then(response => response.json()) : books.perform({ authorId }),
-    result => result.data.some(item => item.title === 'Kindred'));
+    await awaitResult(() => globalThis.fetch(`${origin}/api/books/listing/books-for-author?authorId=${authorId}&waitForFirstResult=true`)
+        .then(response => response.json()), result => result.data.some(item => item.title === 'Kindred'));
     const secondName = `N. K. Jemisin ${Guid.create()}`;
     const observed = new AllAuthors();
     observed.setOrigin(origin);
