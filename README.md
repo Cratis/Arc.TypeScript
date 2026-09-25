@@ -69,7 +69,7 @@ yarn build
 yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
-The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line. The [Library sample](Samples/Library/README.md) adds a React client and optional MongoDB or Chronicle mode; see [Vertical slices](Documentation/vertical-slices.md) for its file layout.
+The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line. The [Library sample](Samples/Library/README.md) adds Chronicle event sourcing, projected read models, and a React client; it requires an owned development kernel. See [Vertical slices](Documentation/vertical-slices.md) for its file layout.
 
 ## What works and what does not
 
