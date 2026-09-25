@@ -9,7 +9,7 @@ A client rarely wants every row. It asks for one page, in an order. Arc handles 
 
 When a query returns an array, Arc sorts it, then pages it:
 
-```typescript
+```typescript title="Product.ts"
 import { field } from '@cratis/fundamentals';
 import { query, queryOptions, queryPage, readModel, service, type QueryOptions } from '@cratis/arc.core';
 

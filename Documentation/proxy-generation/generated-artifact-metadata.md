@@ -13,19 +13,7 @@ yarn build
 
 The script passes `--project`, `--artifacts`, `--output`, and `--metadata Samples/Tasks/Features/generatedMetadata.ts` to `arc-proxygenerator`. The generated module is TypeScript, checked into the sample, and compiled along with the artifacts. `yarn build` checks its content against the current source and fails with a **regenerate artifact metadata** message when it is missing, changed, or stale. `yarn ci` checks the committed module before regenerating, so stale metadata fails CI. Run the generator before a `tsx` development server or Vitest run that uses the artifacts; do not rely on the test runner to discover erased types.
 
-Import the generated module and install it **before** discovery or `add()`:
-
-```typescript
-import { ArcApplication } from '@cratis/arc.core';
-import { metadata } from './Features/generatedMetadata.js';
-import { Tasks } from './Features/Tasks/Tasks.js';
-
-const builder = ArcApplication.createBuilder();
-builder.useGeneratedMetadata(metadata);
-builder.services.addSingleton(Tasks);
-await builder.discover(new URL('./Features/', import.meta.url));
-const app = await builder.build();
-```
+Import the generated module and install it **before** discovery or `add()`, as in the [Tasks bootstrap](../getting-started/index.md#see-what-started-the-server). The `builder.useGeneratedMetadata(metadata)` call must precede `builder.discover(...)`.
 
 Now the [sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/Registration.ts) uses `handle(tasks: Tasks)` without `@inject(Tasks)`, and a read-model method can use `@query() static taskById(id: TaskId, tasks: Tasks)`. Arc analyzes argument names and positions, concrete service classes (including nullable services, which receive `null` when unregistered), nullable/optional fields, validator targets, and the declared observable return. A union of two concrete service classes needs an explicit token. Keep `@field(Type)` on every wire property: that is the Cratis runtime schema convention, not redundant generated metadata. `provide()` still supplies one unmarked value as the first `handle()` argument; typed `provided(Type)` remains available for explicitly bound additional values.
 

@@ -19,7 +19,13 @@ flowchart LR
 
 ## A command
 
-```typescript
+```typescript title="Features/Tasks/Registration/Registration.ts"
+import { field } from '@cratis/fundamentals';
+import { command } from '@cratis/arc.core';
+import { TaskId } from '../TaskId.js';
+import { TaskTitle } from '../TaskTitle.js';
+import { Tasks } from '../Tasks.js';
+
 @command()
 export class RegisterTask {
     @field(TaskId) id!: TaskId;

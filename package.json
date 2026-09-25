@@ -20,6 +20,8 @@
     "docs:lint": "markdownlint-cli2",
     "docs:snippets": "python3 Documentation/validate-client-snippets.py",
     "docs:snippets:self-test": "python3 Documentation/validate-client-snippets.py --self-test",
+    "docs:examples": "python3 Documentation/validate-page-examples.py",
+    "docs:examples:self-test": "python3 Documentation/validate-page-examples.py --self-test",
     "test:client-generation": "yarn build && yarn test:client-generation:verify",
     "test:client-generation:verify": "yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn tsc -p ContractTests/Http/modelBound/tsconfig.json && yarn tsc -p ContractTests/Client/tsconfig.json && node --test ContractTests/Client/*.test.mjs",
     "test:decorator-types": "yarn build && yarn tsc -p ContractTests/Typecheck/tsconfig.json",
@@ -37,7 +39,7 @@
     "set-version": "node scripts/set-version.mjs",
     "test": "vitest run",
     "specs": "yarn test",
-    "ci": "yarn tsc -b Source/Core Source/Testing Source/Chronicle Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
+    "ci": "yarn tsc -b Source/Core Source/Testing Source/Chronicle Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && yarn docs:examples:self-test && yarn docs:examples && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
   },
   "devDependencies": {
     "@cratis/arc.react": "22.19.1",

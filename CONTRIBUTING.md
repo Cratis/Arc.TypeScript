@@ -63,7 +63,8 @@ The gate runs, in order:
 7. The legacy-decorator and decorator-type contract checks (`yarn test:legacy-decorators`, `yarn test:decorator-types`).
 8. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
 9. The shared-docs snippet gate: `yarn docs:snippets:self-test` proves the gate still catches planted mistakes, then `yarn docs:snippets` checks every file in `Documentation/client-snippets` and compiles each TypeScript snippet against the built packages. With a sibling `../Arc` checkout it also compares the snippet ids with the `<ArcBackendTabs>` macros on the shared Arc pages; pass `--arc-documentation <path>` to point at another checkout.
-10. The release guard specs (`node --test scripts/for_release/*.test.mjs`) and the workspace version consistency check (`yarn set-version --check`).
+10. The product-page example gate: `yarn docs:examples:self-test` plants a TypeScript type error and proves it is rejected; `yarn docs:examples` compiles opted-in TypeScript fences on product pages against built workspace packages. A complete fence uses Expressive Code's `title="path/to/file.ts"` metadata and its page/title pair is listed in `Documentation/validate-page-examples.py` (`PAGES`). Fences on the same page form one module tree, so relative imports resolve. Add sample-backed fixtures there when a page assumes files from a sample. Leave partial excerpts out of `PAGES`. Run `yarn build` first.
+11. The release guard specs (`node --test scripts/for_release/*.test.mjs`) and the workspace version consistency check (`yarn set-version --check`).
 
 Run a single step while you work, and the whole gate before you push. Add or update a spec for every behavior you change.
 
