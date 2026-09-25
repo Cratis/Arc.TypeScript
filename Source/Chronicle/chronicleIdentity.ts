@@ -9,6 +9,7 @@ export function chronicleIdentity(value: unknown, label: string): string | undef
     if (typeof primitive !== 'string' && typeof primitive !== 'number' && typeof primitive !== 'bigint' &&
         typeof primitive !== 'boolean' && !(primitive instanceof Guid)) throw new Error(`The command provided an invalid ${label}`);
     const text = String(primitive);
+    if (text === '') return undefined;
     if (!text.trim()) throw new Error(`The command provided an invalid ${label}`);
     return text;
 }

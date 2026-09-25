@@ -59,7 +59,7 @@ Arc's `@readModel()` exposes the queries. Chronicle infers the same class as its
 
 ## Consistency
 
-- **Projections are eventually consistent.** A command can succeed before its read model has updated. A client that reads right after a command can see the old state. An observable query catches up on its own.
+- **Active projections are eventually consistent by default.** A command can succeed before its read model has updated. A client that reads right after a command can see the old state. An observable query catches up on its own. For a passive on-demand read or a bounded observer wait after a command, see [Read consistency](../../queries/read-consistency.md).
 - **The first list can miss a change.** `observeAll` and `observeById` read a snapshot, then subscribe to changes. A change that lands between the two is missed until the next change. Use `watch(Type)` and reconcile from the store when you need gap-free observation.
 - **Everything is tenant-scoped.** Reads use the current execution's tenant as the namespace, like appends.
 

@@ -22,3 +22,5 @@
   href: renderers.md
 - name: Read-model interception
   href: read-model-interception.md
+- name: Chronicle read consistency
+  href: read-consistency.md
