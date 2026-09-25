@@ -23,7 +23,7 @@ export function validateMetadata(type: ClassType): void {
     if (metadata.queryMethods?.size && !metadata.readModel) throw new Error(`@query requires @readModel: ${type.name}`);
     for (const name of metadata.methodAuthorization?.keys() ?? []) {
         if (!queryNames.has(name) && !(validCommand && name === 'handle')) {
-            throw new Error(`Authorization on ${type.name}.${name} requires @query or a command handle()`);
+            throw new Error(`Authorization on ${type.name}.${name} requires @query`);
         }
     }
     for (const name of metadata.methodRoutes?.keys() ?? []) {
