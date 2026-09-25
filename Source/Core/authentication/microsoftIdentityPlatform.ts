@@ -32,8 +32,9 @@ export function microsoftIdentityPlatform(): AuthenticationHandler {
         if (id === null || name === null || encoded === null) return { status: AuthenticationStatus.Anonymous };
         try {
             if (!id || !encoded || encoded.length > 64 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new Error('Invalid principal');
-            const bytes = Buffer.from(encoded, 'base64');
-            if (bytes.toString('base64') !== encoded) throw new Error('Invalid principal');
+            const decoded = atob(encoded);
+            if (btoa(decoded) !== encoded) throw new Error('Invalid principal');
+            const bytes = Uint8Array.from(decoded, character => character.charCodeAt(0));
             const payload: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
             const client = principalSchema.parse(payload);
             const claims: Record<string, string> = Object.create(null) as Record<string, string>;

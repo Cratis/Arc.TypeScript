@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { randomUUID } from 'node:crypto';
+import { utf8Bytes } from '../../http/utf8Bytes.js';
 import type { ArcServer } from '../../ArcServer.js';
 import { BadRequest } from '../../http/BadRequest.js';
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
@@ -19,7 +19,7 @@ import { recordObservableCleanupFailure } from './observableCleanupFailures.js';
 
 /** Owns bounded, revision-aware subscriptions on one physical WS or SSE connection. */
 export class HubConnection {
-    readonly id = randomUUID();
+    readonly id = crypto.randomUUID();
     readonly establishedAt = new Date().toISOString();
     readonly #states: SubscriptionRevisions;
     readonly #subscriptions = new Map<string, HubSubscription>();
@@ -60,7 +60,7 @@ export class HubConnection {
     /** Process a bounded WS control frame without letting one slow producer block later revisions. */
     async accept(raw: string): Promise<void> {
         try {
-            if (Buffer.byteLength(raw) > this.server.observableLimits.inboundFrameBytes) throw new BadRequest();
+            if (utf8Bytes(raw) > this.server.observableLimits.inboundFrameBytes) throw new BadRequest();
             const frame: unknown = JSON.parse(raw);
             if (!frame || typeof frame !== 'object' || Array.isArray(frame)) throw new BadRequest();
             const message = frame as Record<string, unknown>;

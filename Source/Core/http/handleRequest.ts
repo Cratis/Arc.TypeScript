@@ -13,6 +13,7 @@ import { resolveConfiguredTenant } from '../tenancy/resolveConfiguredTenant.js';
 import { tenantId } from '../tenancy/tenantId.js';
 import { BadRequest } from './BadRequest.js';
 import { body } from './body.js';
+import { utf8Bytes } from './utf8Bytes.js';
 import { getQuery, structuredQuery } from './queryBinding.js';
 import { commandResult, malformed, queryResult, status } from '../results/index.js';
 import { allowedSeverity } from '../validation/allowedSeverity.js';
@@ -127,8 +128,8 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                             const serialized = JSON.stringify(identity);
                             // atob() in the existing client decodes bytes as Latin-1, not UTF-8.
                             const cookieJson = serialized.replace(/[\u007f-\uffff]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
-                            const cookie = `.cratis-identity=${Buffer.from(cookieJson, 'ascii').toString('base64')}; Path=/; SameSite=Lax${trustedNative?.secure === true ? '; Secure' : ''}`;
-                            if (Buffer.byteLength(cookie) > 4096) throw new Error('Identity details too large');
+                            const cookie = `.cratis-identity=${btoa(cookieJson)}; Path=/; SameSite=Lax${trustedNative?.secure === true ? '; Secure' : ''}`;
+                            if (utf8Bytes(cookie) > 4096) throw new Error('Identity details too large');
                             return { serialized, cookie };
                         }));
                         if (json === undefined) return send({ error: 'Forbidden' }, 403);
@@ -144,7 +145,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                                 ? z.array(z.object({ microsoftIdentity: z.object({ identityProvider: z.string().max(256), userId: z.string().max(256), userDetails: z.string().max(256), userRoles: z.array(z.string().max(256)).max(64), claims: z.array(z.object({ typ: z.string().max(256), val: z.string().max(256) })).max(64) }), details: z.unknown().optional() })).max(100)
                                 : z.array(z.object({ id: z.string().max(256), name: z.string().max(256) })).max(100);
                             const serialized = JSON.stringify(schema.parse(values));
-                            if (Buffer.byteLength(serialized) > 32 * 1024) throw new Error('Discovery output too large');
+                            if (utf8Bytes(serialized) > 32 * 1024) throw new Error('Discovery output too large');
                             return serialized;
                         });
                         return new Response(json, { status: 200, headers: new Headers({ ...Object.fromEntries(headers), 'content-type': 'application/json; charset=utf-8' }) });

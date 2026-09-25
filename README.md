@@ -1,6 +1,6 @@
 # Arc for TypeScript
 
-**The [Arc](https://github.com/Cratis/Arc) CQRS server for Node.js: define commands and queries in TypeScript and serve them over the same HTTP contract as Arc on .NET.**
+**The [Arc](https://github.com/Cratis/Arc) CQRS server for TypeScript: define commands and queries and serve them over the same HTTP contract as Arc on .NET.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/1182595891576717413?label=Discord&logo=discord&logoColor=white)](https://discord.gg/kt4AMpV8WV)
@@ -8,7 +8,7 @@
 > [!IMPORTANT]
 > **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections and Drizzle SQL queries, a bounded source-based client generator, and an experimental Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
 
-Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js as idiomatic TypeScript, not as a line-by-line port.
+Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js and Fetch API hosts as idiomatic TypeScript, not as a line-by-line port.
 
 ## A command and a query
 
@@ -42,7 +42,7 @@ export class TaskItem {
 
 | Package | Folder | Contents |
 | --- | --- | --- |
-| `@cratis/arc.core` | [`Source/Core`](Source/Core) | `ArcApplication`, the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
+| `@cratis/arc.core` | [`Source/Core`](Source/Core) | Node's `ArcApplication` (the unchanged root import) and the separate `@cratis/arc.core/fetch` entry for explicitly registered artifacts on Fetch hosts; the `@command`, `@readModel`, `@query` and authorization decorators, `CommandValidator`, `QueryValidator`, `ConceptValidator` and `ModelValidator`, `ArcServer`, `defineCommand`, `defineQuery`, the command and query pipelines, explicit services, authentication handlers, identity details, tenancy, results, introspection, OpenAPI, `exportClientManifest`, and the standalone Node host (`createArcNodeHandler`, `runArc`) with public static files and SPA fallback. |
 | `@cratis/arc.express` | [`Source/Express`](Source/Express) | `cratisArc(arc)` Express middleware with `.injectWebSocket(listener)` for WebSockets; deprecated `mountExpress*` aliases |
 | `@cratis/arc.fastify` | [`Source/Fastify`](Source/Fastify) | `app.register(cratisArc, { arc })` (WebSockets by default) for Fastify 5; deprecated `mountFastify*` aliases |
 | `@cratis/arc.hono` | [`Source/Hono`](Source/Hono) | `app.use(cratisArc(arc))` for Hono 4; `serveCratisArc` for Node WebSockets; deprecated `mountHono*` aliases |
@@ -54,7 +54,7 @@ export class TaskItem {
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.withChronicle` (deprecated `addChronicle`) appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.6.0 imports natively; an opt-in kernel suite covers aggregate replay and reactor commands. Full .NET transaction parity remains unverified. |
 | `@cratis/cratis` | [`Source/Cratis`](Source/Cratis) | **Experimental source preview.** `CratisApplication.createBuilder()` and `builder.addCratis()` compose Arc and a Chronicle client without installing authentication; not yet published to npm. |
 
-Every package manifest is at version 0.19.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The core, host adapter, MongoDB, and Drizzle packages need Node.js 22 or later. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.20.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The default core entry, host adapters, MongoDB, and Drizzle packages need Node.js 22 or later. The Fetch entry has a neutral bundle with `node:async_hooks` as its only Node import; its command, query, and SSE paths ran in Deno 2.9.7, while Bun, Cloudflare Workers, and Next.js deployments remain unverified. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -101,7 +101,7 @@ The documentation is published on the Cratis site and lives in [`Documentation`]
 
 - [Get started](Documentation/getting-started/index.md) and [Your first command](Documentation/getting-started/your-first-command.md): run the Tasks sample and read it file by file.
 - [Coming from Express and NestJS](Documentation/coming-from-express-and-nestjs.md): map the code you write today to Arc.
-- [Hosting overview](Documentation/overview.md), [Arc.Core and the standalone host](Documentation/core/index.md), and [host adapters](Documentation/hosts/index.md) for Express, Fastify, and Hono.
+- [Hosting overview](Documentation/overview.md), [Arc.Core and the standalone host](Documentation/core/index.md), [host adapters](Documentation/hosts/index.md), and [Fetch API runtimes](Documentation/hosts/fetch-runtimes.md) for Bun, Deno, Cloudflare Workers, and Next.js route handlers.
 - [Commands](Documentation/commands/index.md) and [Queries](Documentation/queries/index.md), including validation, outcomes, operations, paging, and observable queries.
 - [Authorizing commands and queries](Documentation/authorizing-commands-and-queries.md), [authentication](Documentation/core/authentication.md), [identity](Documentation/identity/index.md), and [tenancy](Documentation/tenancy/index.md).
 - [Concepts](Documentation/concepts.md), [dependency injection](Documentation/dependency-injection.md), and [configuration](Documentation/configuration/index.md).

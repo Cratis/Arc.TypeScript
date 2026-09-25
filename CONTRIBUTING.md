@@ -61,7 +61,7 @@ It runs, in order:
 7. The legacy-decorator and decorator-type contract checks (`yarn test:legacy-decorators`, `yarn test:decorator-types`).
 8. Markdown lint for the README files and `Documentation` (`yarn docs:lint`).
 9. The shared-docs snippet gate: `yarn docs:snippets:self-test` proves the gate still catches planted mistakes, then `yarn docs:snippets` checks every file in `Documentation/client-snippets` and compiles each TypeScript snippet against the built packages. With a sibling `../Arc` checkout it also compares the snippet ids with the `<ArcBackendTabs>` macros on the shared Arc pages; pass `--arc-documentation <path>` to point at another checkout.
-10. The release guard specs (`node --test scripts/for_release/*.test.mjs`).
+10. The release guard specs (`node --test scripts/for_release/*.test.mjs`) and the workspace version consistency check (`yarn set-version --check`).
 
 Run a single step while you work, and the whole gate before you push. Add or update a spec for every behavior you change.
 
@@ -92,7 +92,7 @@ A hosted run does not replace local verification. The hosted CI workflow is star
 - Write the pull request description as release notes for the people who will use the change. It describes the change, not the checks you ran.
 - Maintainers merge with a merge commit. History is never squashed, rebased, or force-pushed.
 - Label each pull request with its semantic-versioning impact: `major`, `minor`, or `patch`, or `no-release` when nothing a consumer can observe changes.
-- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration, not private since v0.12.0, stays experimental. [Preview a TypeScript release](Documentation/contributing/releases.md) describes the release preview that exists today.
+- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration, not private since v0.12.0, stays experimental. Before preparing a source preview, run `yarn set-version <MAJOR.MINOR.PATCH>` to update versioned workspace manifests, internal non-workspace dependency ranges, the three preview statements, and `yarn.lock`; run `yarn set-version --check` afterward. Major bumps require `--allow-major` and human approval. See [Preview a TypeScript release](Documentation/contributing/releases.md) for the full procedure.
 - **A `major` release needs full parity and a human merge.** No `major` release happens until full parity with Arc on .NET is verified and a maintainer explicitly merges it. Major releases are never merged automatically.
 
 ## AI-assisted contributions

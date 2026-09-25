@@ -24,7 +24,6 @@ import { isObservableOperation } from './queries/observable/ObservableOperation.
 import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
 import { ObservableSessions } from './queries/ObservableSessions.js';
-import { closeNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
 import { ObservableLimits } from './queries/observable/ObservableLimits.js';
 import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
 import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
@@ -43,6 +42,8 @@ export class ArcServer {
     /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
     readonly #ownsServices: boolean;
+    /** @internal Optional Node WebSocket bridge shutdown. */
+    closeWebSockets?: () => Promise<void>;
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #hub: ObservableQueryHub;
     readonly #sessions: ObservableSessions;
@@ -170,7 +171,7 @@ export class ArcServer {
         this.#sessions.markDisposed();
         const activeHubConnections = this.#hub.connections.length;
         const hubClosing = this.#hub.dispose();
-        const closing = closeNodeWebSockets(this);
+        const closing = this.closeWebSockets?.();
         const sessions = this.#sessions.sessions;
         if (!sessions.length && !closing && !activeHubConnections) {
             if (this.#ownsServices) await this.services.dispose();

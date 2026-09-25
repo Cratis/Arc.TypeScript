@@ -120,6 +120,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
     };
     owned.set(host, dispose);
     bridges.set(arc, owned);
+    arc.closeWebSockets = () => closeNodeWebSockets(arc) ?? Promise.resolve();
     return dispose;
 }
 
