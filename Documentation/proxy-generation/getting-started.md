@@ -16,7 +16,7 @@ yarn install --immutable
 yarn build
 ```
 
-The CLI is then `Source/Tools/ProxyGenerator/dist/cli.js`. Run it with `node`.
+The CLI is then `Source/Tools/ProxyGenerator/dist/cli.js`. Run it with `node`. For a backend outside the clone, install the packed generator as a development dependency instead; [Create an application](../getting-started/create-an-application.md#generate-the-metadata) shows the install and a matching script.
 
 ## Choose a dedicated output folder
 
@@ -42,6 +42,8 @@ execFileSync(process.execPath, [join(root, '../../Source/Tools/ProxyGenerator/di
     '--output', join(root, 'Web/src/generated'), '--metadata', join(root, 'Features/generatedMetadata.ts'),
     '--use-proxy-file-suffix'], { stdio: 'inherit' });
 ```
+
+The CLI rejects relative paths, so the script builds every path from its own location.
 
 | Option | Why it is here |
 | --- | --- |

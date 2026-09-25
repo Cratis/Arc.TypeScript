@@ -6,7 +6,7 @@ description: Mount Arc in Express, Fastify, Hono, or a Fetch API host; know whic
 Your team already runs a web framework, with its middleware, health checks, and deployment story. You do not want a second server for Arc. A host adapter mounts the Arc application into the framework you have and leaves every route Arc does not own to that framework.
 
 :::note[Source preview]
-The adapters are not published to npm. Build a clone of this repository with `yarn build`, then either put your application under `Samples/` in that clone and reference the adapters with the `workspace:^` protocol, as `Samples/Tasks/package.json` references the core, or install packed tarballs. See [Packages](../reference/packages.md).
+The adapters are not published to npm. Pack the adapter you need from a built clone of this repository and install the tarball in your project, or put your application under `Samples/` in the clone and reference the adapter with the `workspace:^` protocol. [Create an application](../getting-started/create-an-application.md) shows both paths, and [Packages](../reference/packages.md) lists the package names.
 :::
 
 ## Before you start

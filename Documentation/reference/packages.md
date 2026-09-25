@@ -6,7 +6,9 @@ description: The packages this repository builds, what each exports, their peer 
 Every package in this repository is at version 0.29.0, the version of the source preview. **None is published to npm.** They ship ES modules only. Clone this repository, run `yarn install` and `yarn build`, and then use the packages in one of two ways:
 
 - **Inside the clone.** Put your application in a folder under `Samples/`, which the root `workspaces` list includes, and reference the packages with the `workspace:^` protocol, as [`Samples/Tasks/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/package.json) does. `workspace:^` resolves only inside this repository's Yarn workspace.
-- **In your own project.** Run `yarn pack` in each package folder you need and install the tarballs with your package manager. `yarn check:consumers` installs packed packages this way to check NodeNext and Bundler consumers.
+- **In your own project.** Pack each package you need with `yarn workspace <package> pack --out <file>` and install the tarballs with npm. Use `yarn pack`: it rewrites `workspace:^` dependencies to version ranges, and `npm pack` does not. `yarn check:consumers` installs packed packages this way to check NodeNext and Bundler consumers.
+
+[Create an application](../getting-started/create-an-application.md) walks through both paths, from an empty folder to a running command and query.
 
 ## Server packages
 

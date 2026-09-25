@@ -7,7 +7,7 @@ Low-level `defineCommand` and `defineQuery` definitions have Zod schemas, not de
 
 ## Declare explicit output shapes
 
-Create `export-clients.mjs` in a project that depends on the workspace packages and `zod`:
+Create `export-clients.mjs` in a project that depends on `@cratis/arc.core` and `zod`. Install the Arc package from a packed tarball or use it inside the clone's workspace; see [Create an application](../getting-started/create-an-application.md).
 
 ```js
 import { writeFile } from 'node:fs/promises';

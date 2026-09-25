@@ -5,7 +5,7 @@ description: Declare a Drizzle table and an Arc read model, serve a paged query 
 
 This page serves a SQL table through an Arc query. It uses SQLite through `sql.js`, which runs in WebAssembly and needs no native build, so you can follow it on any machine. The code follows the package's [SQLite fixture](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/a_sqlite_database.ts). PostgreSQL works the same way with its own Drizzle driver.
 
-Install `drizzle-orm` 0.45 and a Drizzle driver, here `sql.js`, next to `@cratis/arc.core` and `@cratis/arc.drizzle` from this source workspace. The Arc packages are not published to npm.
+Install `drizzle-orm` 0.45 and a Drizzle driver, here `sql.js`, next to `@cratis/arc.core` and `@cratis/arc.drizzle`. The Arc packages are not published to npm: install tarballs packed from a clone, or work inside the clone's workspace, as [Create an application](../getting-started/create-an-application.md) shows.
 
 ## Declare the table and the model
 

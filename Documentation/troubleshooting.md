@@ -1,9 +1,19 @@
 ---
 title: Troubleshooting
-description: Fix the common Arc for TypeScript problems with decorators and compilers, module resolution, discovery, host adapters, authentication, and generated clients.
+description: Fix the common Arc for TypeScript problems with installation, decorators and compilers, generated metadata, module resolution, discovery, host adapters, authentication, and generated clients.
 ---
 
 Each entry names the symptom, the usual cause, and the fix, with a link to the page that has the full contract.
+
+## Installation
+
+### Installing Arc outside the clone fails
+
+`npm install @cratis/arc.core` fails with `404 Not Found`, or installing a tarball fails with `Unsupported URL Type "workspace:": workspace:^`. The Arc packages are not published to npm, and a `workspace:^` dependency resolves only inside this repository's Yarn workspace. Build a clone, pack the packages you need with `yarn workspace <package> pack`, and install the tarballs. Do not use `npm pack`: it leaves the internal `workspace:^` dependencies in the packed manifest, and the tarball fails with the second error. See [Create an application](getting-started/create-an-application.md).
+
+### Corepack is missing
+
+`corepack enable` fails with `command not found`. Node.js 25 and later no longer include Corepack. Install it with `npm install --global corepack`, then run `corepack enable` again. The repository pins its Yarn version in `package.json`, and Corepack selects that version.
 
 ## Decorators and compilers
 
@@ -13,7 +23,7 @@ In standard decorator mode, `@inject(...)` and `@query(...)` type-check the meth
 
 ### "SyntaxError: Invalid or unexpected token" at a decorator when running .ts directly
 
-Node.js type stripping removes types but does not transform decorators, so `node file.ts` fails at the first `@`. Compile first with `tsc` (the sample's `yarn build`) or with esbuild, which lowers standard decorators for `target: "es2022"`, and run the emitted JavaScript.
+Node.js type stripping removes types but does not transform decorators, so `node file.ts` fails at the first `@`. Compile first with `tsc` (the sample's `yarn build`) or with esbuild, which lowers standard decorators for `target: "es2022"`, and run the emitted JavaScript. During development, run the source with `tsx watch`, as [Create an application](getting-started/create-an-application.md#run-the-development-loop) does.
 
 ### Decorators do nothing, or metadata is missing, in Vitest or Vite
 
@@ -36,6 +46,12 @@ Fix it one of two ways:
 - List the tokens yourself: `@inject(Tasks)` on `handle()`, and `@query(argument('id', TaskId), service(Tasks))` in parameter order on a query.
 
 Default and rest parameters always need explicit tokens. In legacy `experimentalDecorators` mode with `emitDecoratorMetadata`, an empty `@inject()` or a bare `@query()` infers class-valued parameters from `design:paramtypes`; a parameter it cannot infer fails with `Unresolvable parameter on <Type>.<method>; use explicit tokens`. See [Dependency injection](dependency-injection.md#decorator-modes).
+
+### The server stops with stale generated artifact metadata
+
+`builder.useGeneratedMetadata(metadata)` throws `Stale generated artifact metadata for <Type>; regenerate artifact metadata`, or `arc-proxygenerator --check-metadata` fails with `Stale or missing generated artifact metadata: <file>; regenerate artifact metadata`. An artifact changed after the metadata module was generated, for example a field or the number of `handle()` parameters. A query method added since the last run fails as `Missing parameter metadata for <Type>.<method>` instead, described above.
+
+Run the generator again with the same options. While you develop, keep it running with `--watch` beside your `tsx` process; `tsx` may restart once with the old module before the generator finishes. Reordering parameters without changing their count goes undetected, so regenerate after every artifact edit and gate CI with `--check-metadata`. See [Generate artifact metadata](proxy-generation/generated-artifact-metadata.md).
 
 ## Module resolution
 
