@@ -56,9 +56,7 @@ export class RegisterCustomer {
 
 This command fragment assumes a `CustomerRegistered` event type in your application.
 
-:::caution[A GUID-valued subject field is ignored]
-Arc reads a `@subject()` field only when its value is a string or a concept that wraps a string. A field holding a Fundamentals `Guid`, or a concept wrapping one, is skipped without an error, and the subject falls through to the next source. Declare the field as a string, or implement `getSubject()` and return `this.personId.toString()`.
-:::
+A `@subject()` field can hold a string, Fundamentals `Guid`, or a concept wrapping a primitive or `Guid`; Arc converts it to the string Chronicle stores. Unsupported objects fail the command rather than silently falling back to the event source ID.
 
 ## Set a fixed subject
 
@@ -70,7 +68,7 @@ For each event a command returns, the integration takes the first of:
 
 1. the `subject` on an [`eventForEventSourceId`](event-metadata.md#override-one-event) entry;
 2. `getSubject()` on the command;
-3. a `@subject()` field holding a string or string concept;
+3. a `@subject()` field holding a string, `Guid`, or supported concept;
 4. `@eventSubject(...)` on the command;
 5. the event's event source ID.
 

@@ -45,8 +45,8 @@ a request with `{ "orderId": "po-26", "supplier": "ACME", "amount": 1234.56 }` a
 The rules behind that table:
 
 - The command's class name is always recorded, under `Command`.
-- Each field whose value is a string, number, or boolean is recorded as `Value.<field>`, converted to a string and cut at 1,024 characters.
-- Every other value is left out: [concepts](../../concepts.md), `Guid`, `Date`, arrays, and nested objects. A command whose fields are all concepts records only its name.
+- String, number, boolean, bigint, and [concept](../../concepts.md) values wrapping those primitives are recorded as `Value.<field>`, converted to a string and cut at 1,024 characters. Concepts wrapping `Guid` are recorded as the GUID string.
+- Fundamentals `Guid`, `DateOnly`, `TimeOnly`, and `TimeSpan` values are recorded as strings; `Date` is recorded in UTC ISO-8601 form. Arrays and other nested objects are left out. Mark sensitive concepts `@pii()` or fields `@notAudited()`; their raw values must not be written to this permanent chain.
 - The event also carries the correlation ID of the request and, as its identity, the signed-in principal, or Chronicle's system identity for an anonymous caller.
 
 When commands run inside other commands, every event in the batch carries the chain of the outermost command; see [Transactional commands](transactional-commands.md#causation-in-a-batch). Commands a reactor returns get a `ReactorEvent` entry for the triggering event ahead of their own; see [Returning commands from a reactor](../reactors/command-side-effects.md).

@@ -7,7 +7,8 @@
     "dev": "node dev.mjs",
     "generate-proxies": "node generate-proxies.mjs",
     "build": "yarn generate-proxies && ../../node_modules/.bin/tsc -b && yarn workspace @cratis/arc.sample.library.web build",
-    "test:e2e": "bash run-integration.sh"
+    "test:e2e": "bash run-integration.sh",
+    "test:kernel": "bash ../../Source/Chronicle/run-kernel-scenarios.sh"
   },
   "dependencies": {
     "@cratis/arc.chronicle": "workspace:^",

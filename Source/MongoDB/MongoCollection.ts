@@ -8,6 +8,7 @@ import type { MongoCollectionOptions } from './MongoCollectionOptions.js';
 import { MongoDocumentCodec } from './MongoDocumentCodec.js';
 import { MongoObservation } from './MongoObservation.js';
 import { MongoObservable } from './MongoObservable.js';
+import { retryRead } from './retryRead.js';
 
 /** Tenant-bound model collection. The underlying driver collection remains available for writes. */
 export class MongoCollection<T extends object> {
@@ -27,12 +28,13 @@ export class MongoCollection<T extends object> {
     }
     /** Find models matching an application-owned filter. */
     async find(filter: Filter<Document> = {}, options?: FindOptions): Promise<T[]> {
-        const documents = await this.native.find(filter, { ...options, signal: this.context.signal }).toArray();
+        const documents = await retryRead(() => this.native.find(filter, { ...options, signal: this.context.signal }).toArray(), this.context.signal);
         return documents.map(document => this.codec.deserialize(document));
     }
     /** Read a model by its declared key. */
     async findById(id: unknown): Promise<T | null> {
-        const document = await this.native.findOne({ _id: this.codec.id(id) } as Filter<Document>, { signal: this.context.signal });
+        const document = await retryRead(() => this.native.findOne({ _id: this.codec.id(id) } as Filter<Document>,
+            { signal: this.context.signal }), this.context.signal);
         return document ? this.codec.deserialize(document) : null;
     }
     /** Count and page in MongoDB, using only fields declared in the model for client sorting. */
@@ -50,14 +52,18 @@ export class MongoCollection<T extends object> {
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {}).filter(([name]) => name !== field)),
             ...(field === '_id' ? {} : { _id: 1 as const }) } :
             { ...findOptions?.sort, ...(!findOptions?.sort || !Object.hasOwn(findOptions.sort, '_id') ? { _id: 1 as const } : {}) };
-        const total = await this.native.countDocuments(filter, { collation: findOptions?.collation, session: findOptions?.session,
-            signal: this.context.signal } as Parameters<typeof this.native.countDocuments>[1]);
-        const documents = await this.native.find(filter, { ...findOptions, sort, signal: this.context.signal })
-            .skip(page * pageSize).limit(pageSize).toArray();
+        const total = await retryRead(() => this.native.countDocuments(filter, { collation: findOptions?.collation,
+            session: findOptions?.session, signal: this.context.signal } as Parameters<typeof this.native.countDocuments>[1]),
+        this.context.signal);
+        const documents = await retryRead(() => this.native.find(filter, { ...findOptions, sort, signal: this.context.signal })
+            .skip(page * pageSize).limit(pageSize).toArray(), this.context.signal);
         return queryPage(documents.map(document => this.codec.deserialize(document)), total, sorting);
     }
-    private async readObservable(filter: Filter<Document>): Promise<T[]> {
-        const documents = await this.native.find(filter, { signal: this.context.signal }).limit(this.#maxObservableItems + 1).toArray();
+    /** Read a bounded snapshot for joined observation. */
+    async readForObservation(filter: Filter<Document> = {}): Promise<T[]> {
+        if (this.context.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        const documents = await retryRead(() => this.native.find(filter, { signal: this.context.signal })
+            .limit(this.#maxObservableItems + 1).toArray(), this.context.signal);
         if (documents.length > this.#maxObservableItems) throw new RangeError('MongoDB observation exceeds maxObservableItems');
         return documents.map(document => this.codec.deserialize(document));
     }
@@ -87,14 +93,18 @@ export class MongoCollection<T extends object> {
     }
     /** Open an async-iterable observation for consumers that do not use RxJS. */
     observeIterable(filter: Filter<Document> = {}): Promise<MongoObservation<T[]>> {
-        return this.openObservation(() => this.readObservable(filter), []);
+        return this.openObservation(() => this.readForObservation(filter), []);
     }
     /** Open an async-iterable keyed observation for consumers that do not use RxJS. */
     observeByIdIterable(id: unknown): Promise<MongoObservation<T | null>> {
         const filter = { _id: this.codec.id(id) } as Filter<Document>;
-        const read = () => this.native.findOne(filter, { signal: this.context.signal })
+        const read = () => retryRead(() => this.native.findOne(filter, { signal: this.context.signal }), this.context.signal)
             .then(document => document ? this.codec.deserialize(document) : null);
         return this.openObservation(read, [{ $match: { 'documentKey._id': filter._id } }]);
+    }
+    /** Refuse to join a collection from a different tenant or execution scope. */
+    belongsTo(databaseName: string, context: ExecutionContext): boolean {
+        return this.database.databaseName === databaseName && this.context === context;
     }
     /** End all observations with the owning Arc execution scope. */
     async [Symbol.asyncDispose](): Promise<void> {

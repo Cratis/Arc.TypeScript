@@ -66,7 +66,7 @@ Each emission then holds the first ten tasks by title, and `paging.totalItems` c
 
 - A full list is capped at 1,000 documents by default; `maxObservableItems` raises the cap to at most 10,000. A list that exceeds the cap, on the first read or on any later one, fails the subscription instead of sending a partial list.
 - A standalone MongoDB server is rejected with `MongoDB observe requires a replica set with change streams`. Replica sets and sharded clusters support change streams.
-- Joined observation across collections is not available.
+- For several collections, use [joined observation](joined-observe.md); each collection has its own snapshot cap.
 
 ## When the stream fails
 
@@ -81,3 +81,4 @@ To recover, subscribe again. A new subscription opens a new change stream and re
 - [Observable queries](../queries/observable-queries.md)
 - [Paging](paging.md)
 - [MongoDB](index.md)
+- [Change-stream watcher](change-stream-watcher.md)
