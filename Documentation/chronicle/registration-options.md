@@ -15,7 +15,7 @@ builder.withChronicle({ connectionString: 'chronicle://localhost:35000', eventSt
 
 Importing `@cratis/arc.chronicle` adds the `withChronicle` method to the Node builder and to the Fetch API builder from `@cratis/arc.core/fetch`. The package also exports the function `withChronicle(builder, options)`, which does the same; the [Library sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/main.ts) uses that form.
 
-Call it before `discover(...)` or `add(...)`. The integration watches each registration and records the event types, projections, reducers, reactors, and constraints it sees. An artifact registered earlier never reaches Chronicle.
+Call it before or after `discover(...)`. The integration records the event types, projections, reducers, reactors, and constraints discovered by Arc, including artifacts discovered earlier. For Chronicle-only artifacts passed to `add(...)`, call `withChronicle` first: Arc otherwise rejects them without an Arc decorator.
 
 ## Options
 

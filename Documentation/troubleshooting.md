@@ -119,13 +119,17 @@ The proxy generator fails with `Ambiguous model name: <Namespace>.<Name>` when t
 
 ## Chronicle
 
+### Commands or queries fail after registering Chronicle late
+
+`withChronicle` can run before or after `discover()`: Arc replays discovered artifact types to Chronicle when you register it. If routes still fail, check that the relevant event types and read models are exported beneath the discovery root. When using `add()` for Chronicle-only artifacts, call `withChronicle` first so `add()` recognizes them. See [Add event sourcing](chronicle/add-event-sourcing.md).
+
 ### A command or query that uses Chronicle never answers
 
 The Chronicle kernel is not running, or not reachable at the connection string's address. The server starts without it, and the SDK keeps trying to connect, so the request waits instead of failing. It completes once the kernel is up. Check the kernel's health; see [Start a development kernel](chronicle/add-event-sourcing.md#start-a-development-kernel).
 
 ### Chronicle commands and queries answer 500 with "An unexpected error occurred"
 
-Check that `withChronicle` runs before `discover(...)` or `add(...)`. The integration only sees artifacts registered after it, so an event type or projection registered earlier never reaches Chronicle. See [Registration options](chronicle/registration-options.md).
+Check that event types and projections are exported beneath the discovery root. If `add(...)` registers Chronicle-only artifacts, call `withChronicle` first so Arc recognizes them. See [Registration options](chronicle/registration-options.md).
 
 ### Every command waits for the full completion timeout, then answers 500
 

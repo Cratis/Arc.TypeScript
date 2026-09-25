@@ -66,7 +66,7 @@ export class ChronicleReadModels {
                 emit();
                 observation = this.watch(type).subscribe({
                     next: change => {
-                        if (id !== undefined && change.key !== id) return;
+                        if (!change.key || (id !== undefined && change.key !== id)) return;
                         if (change.removed) current.delete(change.key);
                         else current.set(change.key, change.readModel);
                         emit();
@@ -84,6 +84,8 @@ export class ChronicleReadModels {
     /** Iterate Chronicle changes without RxJS. */
     async *watchIterable<T>(type: Constructor<T>): AsyncIterable<ReadModelChangeset<T>> {
         for await (const change of (await this.getStore()).readModels.watch(type)) {
+            // Older Chronicle SDKs can emit an empty-key subscription marker before the first change.
+            if (!change.key) continue;
             markKernelReleased(change.readModel);
             yield change;
         }
