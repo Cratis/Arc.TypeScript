@@ -25,9 +25,11 @@ export async function dispatchToArc(
         method: request.method, headers: new Headers(request.headers as Record<string, string>), body, signal
     };
     if (body) init.duplex = 'half';
-    const result = await server.handle(new Request(new URL(path + search, 'http://arc.invalid'), init), () => ({
-        ...options.native?.(request), secure: request.socket instanceof TLSSocket && request.socket.encrypted === true
-    }));
+    const result = await server.handle(new Request(new URL(path + search, 'http://arc.invalid'), init), () => {
+        const native = options.native?.(request);
+        return { ...native, remoteAddress: native?.remoteAddress ?? request.socket.remoteAddress,
+            secure: request.socket instanceof TLSSocket && request.socket.encrypted === true };
+    });
     if (!result) {
         response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'x-content-type-options': 'nosniff' });
         response.end('Not Found');
