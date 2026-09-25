@@ -106,7 +106,15 @@ function readSettings(file: string): Section {
     }
     if (invalidJson) throw new Error(`Invalid JSON configuration in ${file}${invalidPosition ? ` at position ${invalidPosition}` : ''}`);
     if (!isSection(raw)) throw new Error(`Cratis configuration in ${file} must be an object`);
-    return normalize(raw) as Section;
+    // Other applications' settings may contain duplicate or incompatible keys: do not bind them.
+    const roots = Object.entries(raw).filter(([key]) => key.toLowerCase() === 'cratis');
+    if (roots.length > 1) throw new Error('Duplicate configuration key: Cratis');
+    const cratis = roots[0]?.[1];
+    if (cratis === undefined) return {};
+    if (!isSection(cratis)) return { Cratis: cratis };
+    const sections = Object.fromEntries(Object.entries(cratis).filter(([key]) =>
+        ['arc', 'chronicle', 'mongodb'].includes(key.toLowerCase())));
+    return normalize({ Cratis: sections }) as Section;
 }
 /** Read appsettings.json, its environment variant and double-underscore environment overrides (Node only). */
 export function loadConfiguration(file: string | URL = 'appsettings.json', env: NodeJS.ProcessEnv = process.env,
