@@ -164,12 +164,15 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 ['fixed tenant ignores a conflicting header', { 'X-Cratis-Tenant-ID': 'header-tenant' }, 'fixed-tenant']
             ]],
             ['claim', [
-                ['verified claim overrides a conflicting header', { 'X-Fixture-Role': 'Admin', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'claim-tenant'],
+                ['verified claim overrides a conflicting header',
+                    { 'X-Fixture-Role': 'Admin', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'claim-tenant'],
                 ['unverified claim header cannot select the tenant', { 'X-Cratis-Tenant-ID': 'claim-tenant' }, '[NotSet]']
             ]],
             ['subdomain', [
-                ['single-label subdomain overrides the header', { Host: 'acme.example.test', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'acme'],
-                ['unrelated host falls back to the header', { Host: 'other.test', 'X-Cratis-Tenant-ID': 'fallback-tenant' }, 'fallback-tenant']
+                ['single-label subdomain overrides the header',
+                    { Host: 'acme.example.test', 'X-Cratis-Tenant-ID': 'header-tenant' }, 'acme'],
+                ['unrelated host falls back to the header',
+                    { Host: 'other.test', 'X-Cratis-Tenant-ID': 'fallback-tenant' }, 'fallback-tenant']
             ]]
         ]) {
             await t.test(`${mode} tenant resolution`, async subtest => {

@@ -3,7 +3,8 @@
 
 import express from 'express';
 import { z } from 'zod';
-import { ArcApplication, AuthenticationStatus, CurrentValueSubject, defineCommand, defineObservableQuery, defineQuery, currentContext, rejected, tuple, validation } from '@cratis/arc.core';
+import { ArcApplication, AuthenticationStatus, CurrentValueSubject, currentContext, defineCommand, defineObservableQuery,
+    defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
 import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
 import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
@@ -57,7 +58,8 @@ const throwFailure = defineCommand({
 });
 const inputCases = defineCommand({
     name: 'InputCases', path: '/api/input-cases', authorization: anonymous,
-    schema: z.object({ count: z.number().int().min(-2147483648).max(2147483647), state: z.union([z.literal(0), z.literal(1)]), rate: z.number() }),
+    schema: z.object({ count: z.number().int().min(-2147483648).max(2147483647),
+        state: z.union([z.literal(0), z.literal(1)]), rate: z.number() }),
     validate: ({ rate }) => rate > 0 ? [] : [validation('Rate must be positive', ['rate'])],
     handle: ({ count }) => { inputCaseExecutions++; return count; }
 });
@@ -136,12 +138,14 @@ const authentication = request => {
     if (role === null) return { status: AuthenticationStatus.Anonymous };
     if (role !== 'Reader' && role !== 'Admin') return { status: AuthenticationStatus.Failed };
     return { status: AuthenticationStatus.Authenticated, principal: {
-        id: 'fixture-user', name: 'fixture-user', roles: [role], isAuthenticated: true, claims: { sub: 'fixture-user', tenant_id: 'claim-tenant' }
+        id: 'fixture-user', name: 'fixture-user', roles: [role], isAuthenticated: true,
+        claims: { sub: 'fixture-user', tenant_id: 'claim-tenant' }
     } };
 };
 const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric, inputCases],
-    queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, throwingQuery, byId, all, privateItems], tenancy,
+    queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, throwingQuery,
+        byId, all, privateItems], tenancy,
     observableQueries: [currentStream, pendingStream, delayedStream, completedStream], authentication: [authentication], development: false,
     identityDetails: { schema: z.object({ greeting: z.string() }), provide: principal =>
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
