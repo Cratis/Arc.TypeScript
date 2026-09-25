@@ -1,6 +1,5 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { z } from 'zod';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { ExecutionContext } from './execution/ExecutionContext.js';
 import type { QueryOptions } from './queries/QueryOptions.js';
@@ -10,9 +9,9 @@ import { ownMetadata } from './reflection/ownMetadata.js';
 import { withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
 import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
 import type { ClassType } from './reflection/ClassType.js';
-import { encode, objectSchema } from './reflection/wireSchema.js';
+import { encode } from './reflection/wireSchema.js';
 import type { NativeRequestContext } from './http/NativeRequestContext.js';
-import { validateTenancy } from './tenancy/validateTenancy.js';
+import { validateOptions, validateRegistryOptions, validateTransportOptions } from './validateOptions.js';
 import { handleRequest } from './http/handleRequest.js';
 import { createRouteTable } from './http/createRouteTable.js';
 import { renderOpenApi } from './openApi/renderOpenApi.js';
@@ -58,47 +57,14 @@ export class ArcServer {
 
     constructor(options: ArcOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
         this.#generatedMetadata = generatedMetadata;
-        const detailsSchema = options.identityDetails?.schema ?? (options.identityDetails?.detailsType
-            ? objectSchema(options.identityDetails.detailsType) : undefined);
-        this.options = detailsSchema && options.identityDetails ? {
-            ...options, identityDetails: { ...options.identityDetails, schema: detailsSchema }
-        } : options;
-        if (options.correlationId?.httpHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationId?.httpHeader))
-            throw new Error('Invalid correlation header');
-        if (options.commandCompensationTimeoutMs !== undefined &&
-            (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
-                options.commandCompensationTimeoutMs > 4_294_967_294))
-            throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
-        validateTenancy(options.tenancy);
-        if (options.nativePrincipal && options.authentication?.length) throw new Error('Native principal and Arc authentication handlers cannot be combined');
-        if (options.identityDetails && (!(detailsSchema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function'))
-            throw new Error('Identity details require a provider schema');
-        if ((options.developmentUsers || options.developmentTenants) && !options.development) throw new Error('Discovery providers require development mode');
-        this.#identitySchema = detailsSchema ? z.toJSONSchema(detailsSchema) : undefined;
-        this.observableLimits = new ObservableLimits(options);
-        if (options.query?.allowedOrigins !== undefined && !Array.isArray(options.query?.allowedOrigins) &&
-            typeof options.query?.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');
-        if (Array.isArray(options.query?.allowedOrigins) && options.query?.allowedOrigins.some(origin => {
-            if (typeof origin !== 'string') return true;
-            try {
-                const parsed = new URL(origin);
-                return parsed.origin !== origin || !['http:', 'https:'].includes(parsed.protocol);
-            } catch { return true; }
-        })) throw new Error('Invalid allowed Origin');
+        const validated = validateOptions(options);
+        this.options = validated.options;
+        this.#identitySchema = validated.identitySchema;
+        this.observableLimits = validated.observableLimits;
         this.#ownsServices = !(options.services instanceof ServiceRegistry);
         this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
-        for (const token of [...options.queryRenderers ?? [], ...options.readModelInterceptors ?? []]) {
-            if (this.services.registration(token).lifetime === 'singleton')
-                throw new Error(`Query renderer or read-model interceptor ${this.services.registration(token).token.name} must not be singleton`);
-        }
-        if (options.hosting?.maxBodyBytes !== undefined &&
-            (!Number.isSafeInteger(options.hosting.maxBodyBytes) || options.hosting.maxBodyBytes <= 0))
-            throw new Error('Invalid maximum body size');
-        if (options.query?.keepAliveIntervalMs !== undefined &&
-            (!Number.isSafeInteger(options.query?.keepAliveIntervalMs) || options.query?.keepAliveIntervalMs < 0 ||
-                options.query?.keepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
-        if (options.query?.enableObservableHealth !== undefined && typeof options.query?.enableObservableHealth !== 'boolean')
-            throw new Error('Invalid observable health option');
+        validateRegistryOptions(options, this.services);
+        validateTransportOptions(options);
         const table = createRouteTable(options, context => this.#hub.observeHealth(context));
         this.commands = table.commands;
         this.queries = table.queries;
