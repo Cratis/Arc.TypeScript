@@ -4,6 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { Severity } from '@cratis/arc.core';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { DrizzleReadModelForCommandResolver } from '../../DrizzleReadModelForCommandResolver.js';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { given } from '../../given.js';
 import { TaskRecord } from '../../for_DrizzleReadModels/given/TaskRecord.js';
 import { a_builder } from '../../for_withDrizzle/given/a_builder.js';
@@ -16,7 +17,7 @@ describe('when checking support with several column primary keys', given(a_build
     });
     let supported: boolean;
     beforeEach(async () => {
-        context.builder.withDrizzle({ dialect: 'sqlite', database: {}, readModels: [{ type: TaskRecord, table }] });
+        context.builder.withDrizzle({ dialect: DrizzleDialect.SQLite, database: {}, readModels: [{ type: TaskRecord, table }] });
         const app = await context.builder.build();
         const scope = app.server.services.createScope({ tenantId: 'default', principal: undefined, allowedSeverity: Severity.Warning,
             signal: new AbortController().signal, correlationId: crypto.randomUUID() });

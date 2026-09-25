@@ -3,6 +3,7 @@
 import { beforeEach, describe, it, should } from 'vitest';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { given } from '../../given.js';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { TaskRecord } from '../../for_DrizzleReadModels/given/TaskRecord.js';
 import { a_builder } from '../given/a_builder.js';
 import '../../index.js';
@@ -14,7 +15,7 @@ describe('when registering several column primary keys for queries', given(a_bui
     });
     let registered: typeof context.builder;
     beforeEach(() => {
-        registered = context.builder.withDrizzle({ dialect: 'sqlite', database: {},
+        registered = context.builder.withDrizzle({ dialect: DrizzleDialect.SQLite, database: {},
             readModels: [{ type: TaskRecord, table }] });
     });
     it('should retain the query registration', () => { registered.should.equal(context.builder); });
