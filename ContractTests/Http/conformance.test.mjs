@@ -200,6 +200,23 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 } finally { await Promise.all([ts?.stop(), net.stop()]); }
             });
         }
+        for (const [mode, path] of [['execute', '/api/filter-parity-command'],
+            ['validate', '/api/filter-parity-command/validate']]) {
+            const response = mode === 'execute' ? { response: 'allow-valid' } : {};
+            await parity(`command filter ${mode} denies before validation`, 'POST', path, { value: 'deny-invalid' }, {
+                status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+            });
+            await parity(`command filter ${mode} denies valid input`, 'POST', path, { value: 'deny-valid' }, {
+                status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+            });
+            await parity(`command filter ${mode} allows invalid input`, 'POST', path, { value: 'allow-invalid' }, {
+                status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Value is invalid',
+                    members: ['value'], reason: 'rule' }] })
+            });
+            await parity(`command filter ${mode} allows valid input`, 'POST', path, { value: 'allow-valid' }, {
+                status: 200, body: command(200, response)
+            });
+        }
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });

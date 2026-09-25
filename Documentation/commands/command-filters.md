@@ -1,13 +1,45 @@
 ---
 title: Command filters
-description: Validate low-level defineCommand and defineQuery definitions with validate callbacks and shared filters, and keep Zod schemas for shape only.
+description: Authorize or validate all commands with scoped pipeline filters, or validate selected low-level definitions with callbacks.
 ---
 
-Low-level definitions made with `defineCommand` and `defineQuery` do not use validator classes. They take a `validate` callback and a list of `filters`, which run in the same pipeline stage as model-bound validators. Use a filter when one rule applies to many low-level operations: you write it once and list it on each definition that needs it.
+Arc provides two kinds of command filter. Global filters apply to every command, including `@command()` classes and low-level definitions. Per-definition `CommandFilter<T>` callbacks apply only to the `defineCommand` definitions that list them. The two APIs have different result types and ordering semantics; `CommandFilter<T>` remains unchanged.
 
-:::caution[Filters apply only to low-level definitions]
-A filter runs only for the `defineCommand` or `defineQuery` definitions that list it. There is no global filter that runs for every command, and `@command()` classes cannot take filters at all. This differs from Arc on .NET, where an `ICommandFilter` runs for every model-bound command. See [Cross-cutting rules for model-bound commands](#cross-cutting-rules-for-model-bound-commands) for what to use instead.
-:::
+## Global command filters
+
+Use `AuthorizationCommandFilter` for access decisions and `CommandPipelineFilter` for ordinary result fragments. The global ordinary contract has a different name because `CommandFilter<T>` already names the per-definition validation callback. Register separate groups with `addAuthorizationCommandFilter` and `addCommandPipelineFilter`, or discover decorated classes with `@authorizationCommandFilter()` and `@commandPipelineFilter()`. The builder resolves each service from the command's operation scope; register explicit tokens as scoped or transient services.
+
+```typescript title="command-gates.ts"
+import { ArcApplication, authorizationCommandFilter, commandPipelineFilter, commandFilterResult,
+    unauthorizedCommandResult, validation, type AuthorizationCommandFilter,
+    type CommandPipelineFilter, type CommandContext, type CommandResult } from '@cratis/arc.core';
+
+@authorizationCommandFilter()
+export class TenantGate implements AuthorizationCommandFilter {
+    onExecution(context: CommandContext): CommandResult | void {
+        if (!context.tenantId) return unauthorizedCommandResult(context, 'A tenant is required');
+    }
+}
+
+@commandPipelineFilter()
+class TitleGate implements CommandPipelineFilter {
+    onExecution(context: CommandContext): CommandResult | void {
+        if (typeof context.command === 'object' && context.command !== null &&
+            'title' in context.command && context.command.title === '') {
+            return commandFilterResult(context, { validationResults: [validation('A title is required', ['title'])] });
+        }
+    }
+}
+
+export const builder = ArcApplication.createBuilder();
+builder.add(TenantGate, TitleGate);
+```
+
+A denial answers 403 with `isAuthorized: false` and an optional `authorizationFailureReason`; validation answers 400. Authorization filters always run first regardless of registration order. Within each group registration order is preserved. Each nonempty result fragment merges into the current result; the first unsuccessful result stops the chain. Validation severity is applied afterward, so even a filtered-out warning can stop subsequent filters. A thrown filter fails the operation; it never permits handling to continue. Both execute and `/validate` run both groups, before validator or handler dependencies and before scopes, `provide()`, or `handle()`. `/validate` never starts execution scopes.
+
+## Per-definition callbacks
+
+Low-level definitions made with `defineCommand` and `defineQuery` do not use validator classes. They take a `validate` callback and a list of `filters`, which run in the same pipeline stage as model-bound validators. List a shared callback on each definition that needs it; these callbacks still aggregate all results without short-circuiting.
 
 ## Validate and share a filter
 
@@ -44,18 +76,9 @@ Arc converts every schema to JSON Schema at startup. Types without a JSON repres
 
 The caller gets 400 with one result: reason `validatorFailed`, message `Validation failed`, and no members. The exception text is never sent; the original error goes to the `logger` option. When the request was already cancelled, the failure is reported as an exception instead.
 
-## Cross-cutting rules for model-bound commands
+## Choose the right extension point
 
-When a rule should apply to many `@command()` classes, pick the mechanism by what the rule is about:
-
-| The rule is about | Use | Runs on `/validate` |
-| --- | --- | --- |
-| Who may call a group of commands | A named policy with `builder.addAuthorizationPolicy(name, policy)` and `@authorize({ policy: name })` on each command; see [Authorization policies](../core/authorization.md) | Yes |
-| A value that appears in many commands | A [concept validator](../concepts.md#validate-a-concept-everywhere), which runs wherever the concept is a field | Yes |
-| One command's input | A [`CommandValidator`](command-validation.md) per command | Yes |
-| Wrapping every command's execution, such as ambient state or timing | `builder.addCommandExecutionRunner(...)`; see [Command execution scopes](command-execution-scopes.md) | No; it runs only after validation passes |
-
-Each of these is opted into per command or per value, except the execution runner, which runs for every validated command. Nothing runs a validation rule for every command automatically, so a new command is not covered by a rule you wrote for the others until you declare it.
+Use declared authorization or a named policy for a command-specific access rule, a concept validator for a value used in many commands, and `CommandValidator` for one model-bound command. Use a global authorization filter when a new command must inherit a cross-cutting denial without opting into a policy. Use an ordinary global filter for cross-cutting validation. Command execution runners and scopes wrap execution only; they are not access gates.
 
 ## Related
 

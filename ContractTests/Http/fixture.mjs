@@ -6,6 +6,9 @@ import { z } from 'zod';
 import { ArcApplication, AuthenticationStatus, CurrentValueSubject, currentContext, defineCommand, defineObservableQuery,
     defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
+import { FilterParityCommand } from './modelBound/dist/FilterParityCommand.js';
+import { FilterParityCommandValidator } from './modelBound/dist/FilterParityCommandValidator.js';
+import { FilterParityAuthorizationFilter } from './modelBound/dist/FilterParityAuthorizationFilter.js';
 import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
 import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
 import { ModelBoundLookup } from './modelBound/dist/ModelBoundLookup.js';
@@ -151,7 +154,8 @@ const builder = ArcApplication.createBuilder({
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
     generatedApis: { segmentsToSkipForRoute: 1 }
 });
-builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
+builder.add(FilterParityCommand, FilterParityCommandValidator, FilterParityAuthorizationFilter,
+    ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
     PolicyItems, RateLookup, AnonymousClassCases, AuthorizationOverride, MethodRoleCases, RoleCases);
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));
