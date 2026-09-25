@@ -2,3 +2,5 @@
   href: index.md
 - name: Tenant resolvers
   href: resolvers.md
+- name: Storage isolation
+  href: isolation.md
