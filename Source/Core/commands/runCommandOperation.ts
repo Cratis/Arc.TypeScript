@@ -61,7 +61,9 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         }
         if (context.signal.aborted) return commandFailure(context, context.signal.reason ?? new Error('Command canceled'));
         const execute = () => executeCommandOperation(definition, parsed.data, context, options, mode === CommandOperationMode.Validate);
-        return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
+        const result = await (options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute());
+        return result.isSuccess && context.signal.aborted ?
+            commandFailure(context, context.signal.reason ?? new Error('Command canceled'), result) : result;
     };
     return {
         ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: operationName,
