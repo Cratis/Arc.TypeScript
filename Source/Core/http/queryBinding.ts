@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '../queries/SortDirection.js';
 import { z } from 'zod';
 import type { PageRequest } from '../queries/PageRequest.js';
 import type { QueryOptions } from '../queries/QueryOptions.js';
@@ -16,9 +17,9 @@ function integer(value: unknown, fallback: number): number {
 function sort(field: unknown, direction: unknown): SortRequest | undefined {
     if (field == null || field === '') return undefined;
     if (typeof field !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(field)) throw new BadRequest();
-    const normalized = typeof direction === 'string' ? direction.toLowerCase() : direction == null ? 'asc' : '';
-    if (!['asc', 'ascending', 'desc', 'descending'].includes(normalized)) throw new BadRequest();
-    return { field, direction: normalized.startsWith('desc') ? 'desc' : 'asc' };
+    const normalized = typeof direction === 'string' ? direction.toLowerCase() : direction == null ? SortDirection.Ascending : '';
+    if (![SortDirection.Ascending, 'ascending', SortDirection.Descending, 'descending'].includes(normalized)) throw new BadRequest();
+    return { field, direction: normalized.startsWith(SortDirection.Descending) ? SortDirection.Descending : SortDirection.Ascending };
 }
 function asObject(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new BadRequest();

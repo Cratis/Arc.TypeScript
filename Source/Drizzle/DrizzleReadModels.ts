@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '@cratis/arc.core';
 import { asc, desc, getTableColumns } from 'drizzle-orm';
 import type { Column, SQL, Table } from 'drizzle-orm';
 import { InvalidQuerySort, queryPage } from '@cratis/arc.core';
@@ -39,11 +40,11 @@ export class DrizzleReadModels<T extends object> {
     private get db(): ReadDatabase { return this.database as ReadDatabase; }
 
     private order(sorting?: QueryOptions['sorting']): SQL[] {
-        if (sorting && (sorting.direction !== 'asc' && sorting.direction !== 'desc' ||
+        if (sorting && (sorting.direction !== SortDirection.Ascending && sorting.direction !== SortDirection.Descending ||
             !this.codec.sortableFields.has(sorting.field)))
             throw new InvalidQuerySort(`Unknown Drizzle model field: ${sorting.field}`);
         const sortColumn = sorting ? this.columns[sorting.field]! : this.keys[0]!;
-        return [sorting?.direction === 'desc' ? desc(sortColumn) : asc(sortColumn),
+        return [sorting?.direction === SortDirection.Descending ? desc(sortColumn) : asc(sortColumn),
             ...this.keys.filter(key => key !== sortColumn).map(key => asc(key))];
     }
 

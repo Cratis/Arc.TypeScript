@@ -14,6 +14,7 @@ export { queryPage } from './QueryPage.js';
 export { InvalidQuerySort } from './InvalidQuerySort.js';
 export type { QueryPage } from './QueryPage.js';
 export type { SortRequest } from './SortRequest.js';
+export { SortDirection } from './SortDirection.js';
 export type { QueryResult } from './QueryResult.js';
 export { defineQuery } from './defineQuery.js';
 export * from './observable/index.js';

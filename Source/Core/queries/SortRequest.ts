@@ -1,3 +1,4 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-export interface SortRequest { field: string; direction: 'asc' | 'desc' }
+import { SortDirection } from './SortDirection.js';
+export interface SortRequest { field: string; direction: SortDirection }

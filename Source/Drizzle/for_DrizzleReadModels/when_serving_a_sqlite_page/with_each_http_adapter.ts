@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { createServer, type Server } from 'node:http';
 import express from 'express';
 import fastify from 'fastify';
@@ -25,7 +26,7 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
         beforeEach(async () => {
             await context.establish();
             const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } });
-            builder.add(TaskQueries).withDrizzle({ dialect: 'sqlite', database: context.database,
+            builder.add(TaskQueries).withDrizzle({ dialect: DrizzleDialect.SQLite, database: context.database,
                 readModels: [{ type: TaskRecord, table: context.table }] });
             const application = await builder.build();
             let listener: Server | undefined;

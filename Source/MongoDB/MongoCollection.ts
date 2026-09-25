@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '@cratis/arc.core';
 import { queryPage } from '@cratis/arc.core';
 import type { ExecutionContext, QueryOptions, QueryPage } from '@cratis/arc.core';
 import type { ChangeStream, Collection, Db, Document, Filter, FindOptions, Timestamp } from 'mongodb';
@@ -45,10 +46,10 @@ export class MongoCollection<T extends object> {
         if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize <= 0 ||
             pageSize > this.#maxPageSize || !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid MongoDB page');
         const sorting = options.sorting;
-        if (sorting && sorting.direction !== 'asc' && sorting.direction !== 'desc')
+        if (sorting && sorting.direction !== SortDirection.Ascending && sorting.direction !== SortDirection.Descending)
             throw new TypeError('MongoDB sorting direction must be asc or desc');
         const field = sorting ? this.codec.fieldName(sorting.field) : undefined;
-        const sort = field && sorting ? { [field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
+        const sort = field && sorting ? { [field]: sorting.direction === SortDirection.Ascending ? 1 as const : -1 as const,
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {}).filter(([name]) => name !== field)),
             ...(field === '_id' ? {} : { _id: 1 as const }) } :
             { ...findOptions?.sort, ...(!findOptions?.sort || !Object.hasOwn(findOptions.sort, '_id') ? { _id: 1 as const } : {}) };

@@ -1,5 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '@cratis/arc.core';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { Pool } from 'pg';
 import postgres from 'postgres';
@@ -22,12 +24,12 @@ class RichRecord {
     @field(Object) details!: { label: string };
 }
 const table = pgTable('tasks', {
-    id: pgColumn(guidCodec('postgresql'))('id').primaryKey(),
+    id: pgColumn(guidCodec(DrizzleDialect.PostgreSQL))('id').primaryKey(),
     title: text('title').notNull(),
-    name: pgColumn(conceptCodec(TaskName, 'string', 'postgresql'))('name').notNull(),
+    name: pgColumn(conceptCodec(TaskName, 'string', DrizzleDialect.PostgreSQL))('name').notNull(),
     date: pgColumn(dateOnlyCodec)('date').notNull(),
     time: pgColumn(timeOnlyCodec)('time').notNull(),
-    details: pgColumn(jsonCodec('postgresql', value => {
+    details: pgColumn(jsonCodec(DrizzleDialect.PostgreSQL, value => {
         if (!value || typeof value !== 'object' || typeof Reflect.get(value, 'label') !== 'string')
             throw new Error('Invalid details');
         return value as { label: string };
@@ -60,7 +62,7 @@ describe('when reading PostgreSQL with both supported drivers', () => {
             ]);
             const models = new DrizzleReadModels(db, table, RichRecord);
             const page = await models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
-                sorting: { field: 'title', direction: 'asc' } });
+                sorting: { field: 'title', direction: SortDirection.Ascending } });
             page.items[0]!.title.should.equal('a');
             page.items[0]!.id.should.be.instanceOf(Guid);
             page.items[0]!.name.should.be.instanceOf(TaskName);

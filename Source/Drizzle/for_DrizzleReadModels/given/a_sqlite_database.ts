@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import initSqlJs from 'sql.js';
 import type { Database } from 'sql.js';
 import { drizzle } from 'drizzle-orm/sql-js';
@@ -12,7 +13,7 @@ import { sqliteColumn } from '../../columns.js';
 export class a_sqlite_database {
     native!: Database;
     readonly table = sqliteTable('tasks', {
-        id: sqliteColumn(guidCodec('sqlite'))('id').primaryKey(),
+        id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
         title: text('title').notNull()
     });
     database!: ReturnType<typeof drizzle>;
