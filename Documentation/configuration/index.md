@@ -5,7 +5,7 @@ description: Configure Arc through its grouped ArcOptions tree, appsettings.json
 
 The same application runs on your laptop, in CI, and in production. The route prefix stays put, but the tenant source, the exception detail, and the listener address change between them. You want those differences in configuration, not in `if` statements around your startup code.
 
-Arc reads every setting from one `ArcOptions` object. You can fill it from `appsettings.json`, environment variables, and code, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](https://github.com/Cratis/Arc/blob/main/Documentation/backend/csharp/configuration/index.md): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
+Arc reads every setting from one `ArcOptions` object. You can fill it from `appsettings.json`, environment variables, and code, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](/arc/backend/csharp/configuration/): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
 
 ## What each entry point reads
 
