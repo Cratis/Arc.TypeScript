@@ -44,7 +44,10 @@ You can also register tokens using `ArcOptions.authorizationQueryFilters` and `.
 `builder.addAuthorizationQueryFilter(token)` and `.addQueryPipelineFilter(token)`. Register explicit tokens as scoped
 or transient services. Within each group the order is ArcOptions tokens, then explicit builder calls, then decorated
 classes in `add()` order. A token registered more than once runs once; a token in both groups fails at build.
-An unsuccessful fragment stops that group and skips subsequent stages. Invalid fragments and thrown filters fail closed
+An unsuccessful fragment stops that group and skips subsequent stages. As with global command filters, Arc applies
+`context.allowedSeverity` to each normalized fragment before deciding whether to stop: a filtered-out warning cannot
+skip a later authorization filter. Denial always stops the chain and exposes no validation details. This TypeScript
+severity-before-short-circuit behavior intentionally differs from .NET global filters. Invalid fragments and thrown filters fail closed
 with 500. Omitted fragment fields retain their defaults; supplied authorization and readiness must be boolean, and validation severity must be a `Severity` value. The existing per-definition `QueryFilter<T>` callbacks remain separate and collect validation results
 at the validator stage. If cancellation occurs while a filter, validator dependency or callback, or performer dependency is pending, Arc waits for it to settle, fails the request without starting later stages or the snapshot/observable query producer, and releases its operation scope. Already-running callbacks are not interrupted.
 

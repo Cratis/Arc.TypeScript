@@ -29,7 +29,9 @@ export async function runQueryFilters(context: QueryContext, options: ArcOptions
             checkCancellation();
             if (fragment !== undefined) {
                 const merged = mergeFilterFragment(result, fragment);
-                result = queryResult(context, merged);
+                result = queryResult(context, { ...merged,
+                    validationResults: merged.validationResults.filter(item => item.severity > context.allowedSeverity)
+                });
             }
             if (!result.isSuccess) break;
         }
