@@ -15,7 +15,7 @@ export class ArcApplication {
     /** Begin registering artifacts and services for an Arc application. */
     static createBuilder(options: ArcBuilderOptions = {}): ArcApplicationBuilder {
         const { configuration, ...code } = options;
-        const settings = configuration === false ? {} : loadConfiguration(configuration?.file, configuration?.env);
+        const settings = configuration === false ? {} : loadConfiguration(configuration?.file, configuration?.env, code.logger);
         return new ArcApplicationBuilder({ ...settings.Cratis?.Arc, ...code,
             generatedApis: { ...settings.Cratis?.Arc?.generatedApis, ...code.generatedApis } }, settings);
     }

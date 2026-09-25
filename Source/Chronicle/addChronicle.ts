@@ -15,7 +15,9 @@ import { ChronicleCommandScope } from './ChronicleCommandScope.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
 export function withChronicle(builder: ArcApplicationBuilder, options: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
-    const registration = { ...builder.configuration.Cratis?.Chronicle, ...options };
+    const configured = { ...builder.configuration.Cratis?.Chronicle };
+    if (options.client || options.connectionString) delete configured.connectionString;
+    const registration = { ...configured, ...options };
     if (!registration.eventStore || (!registration.connectionString && !registration.client) ||
         (registration.connectionString && registration.client)) throw new Error('Chronicle requires eventStore and exactly one of connectionString or client');
     const artifacts = new ChronicleArtifacts();

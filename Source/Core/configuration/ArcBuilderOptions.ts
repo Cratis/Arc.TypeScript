@@ -4,5 +4,5 @@ import type { ArcServerOptions } from '../ArcServerOptions.js';
 
 /** Node builder options; disable config or select a file/environment without affecting the Fetch dispatcher. */
 export type ArcBuilderOptions = ArcServerOptions & {
-    configuration?: false | { file?: string; env?: NodeJS.ProcessEnv };
+    configuration?: false | { file?: string | URL; env?: NodeJS.ProcessEnv };
 };

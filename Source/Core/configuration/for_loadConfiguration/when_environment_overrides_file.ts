@@ -12,9 +12,10 @@ class a_configuration_environment {
 describe('when environment overrides are provided', given(a_configuration_environment, context => {
     let configuration: ReturnType<typeof loadConfiguration>;
     beforeEach(() => {
-        configuration = loadConfiguration(new URL('../../../../Samples/Tasks/appsettings.json', import.meta.url).pathname, context.variables);
+        configuration = loadConfiguration(new URL('./given/appsettings.json', import.meta.url), context.variables);
     });
     it('should coerce boolean values', () => { configuration.Cratis?.Arc?.development?.should.equal(false); });
     it('should coerce numeric values', () => { configuration.Cratis?.Arc?.maxBodyBytes?.should.equal(512); });
     it('should bind the OpenAPI version', () => { configuration.Cratis?.Arc?.openApiVersion?.should.equal('2.0.0'); });
+    it('should preserve string-valued event store IDs', () => { configuration.Cratis?.Chronicle?.eventStore?.should.equal('2024'); });
 }));

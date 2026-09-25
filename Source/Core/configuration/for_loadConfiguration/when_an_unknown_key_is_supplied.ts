@@ -6,17 +6,17 @@ import { loadConfiguration } from '../loadConfiguration.js';
 
 should();
 class an_unknown_setting {
-    readonly variables = { CRATIS__ARC__UNKNOWN: 'secret' };
+    readonly variables = { CRATIS__ARC__UNKNOWN: 'secret', Cratis__Chronicle__Storage__Type: 'MongoDB' };
+    readonly warnings: string[] = [];
 }
 
 describe('when an unknown environment key is supplied', given(an_unknown_setting, context => {
-    let failure: Error | undefined;
     beforeEach(() => {
-        try { loadConfiguration('/nonexistent/appsettings.json', context.variables); }
-        catch (error) { failure = error as Error; }
+        loadConfiguration('/nonexistent/appsettings.json', context.variables, error => context.warnings.push(String(error)));
     });
-    it('should report the unknown key without exposing its value', () => {
-        failure!.message.should.contain('UNKNOWN');
-        failure!.message.should.not.contain('secret');
+    it('should warn about unknown keys without exposing their values', () => {
+        context.warnings.join(' ').should.contain('UNKNOWN');
+        context.warnings.join(' ').should.contain('Storage');
+        context.warnings.join(' ').should.not.contain('secret');
     });
 }));

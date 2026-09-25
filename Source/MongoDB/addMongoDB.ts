@@ -13,7 +13,9 @@ import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
 export const mongoClientFactory = serviceToken<MongoClientFactory>('MongoClientFactory');
 
 export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBOptions): ArcApplicationBuilder {
-    const options = { ...builder.configuration.Cratis?.MongoDB, ...configured };
+    const settings = { ...builder.configuration.Cratis?.MongoDB };
+    if (configured.client || configured.server || configured.serverResolver) delete settings.server;
+    const options = { ...settings, ...configured };
     if (!options.database && !options.databaseNameResolver) throw new Error('MongoDB requires database or databaseNameResolver');
     const factory = new MongoClientFactory(options);
     builder.services.addSingleton(mongoClientFactory, () => factory);
