@@ -89,9 +89,9 @@ const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-Importing `@cratis/arc.chronicle` adds `withChronicle` to the builder. Call it **before** `discover`: the integration records each event type and projection as it is registered, and hands them to Chronicle when it connects. The application connects when a command or query first needs Chronicle, and Chronicle creates the `MyArcApp` event store then. Events and read models go to the namespace of the request's tenant; this application resolves no tenant, so they go to the `Default` namespace.
+Importing `@cratis/arc.chronicle` adds `withChronicle` to the builder. Call it before or after `discover`: the integration records each discovered event type and projection, including those discovered earlier, and hands them to Chronicle when it connects. The application connects when a command or query first needs Chronicle, and Chronicle creates the `MyArcApp` event store then. Events and read models go to the namespace of the request's tenant; this application resolves no tenant, so they go to the `Default` namespace.
 
-`chronicle://localhost:35000` without credentials uses the SDK's development client and accepts the kernel's self-signed certificate. That fits a local kernel only. [Registration options](registration-options.md) shows how to read the connection from `appsettings.json` or environment variables, and how to pass a client you create yourself.
+Call `withChronicle` before `add()` for Chronicle-only artifacts: without an Arc decorator, `add()` rejects them until Chronicle is registered. `chronicle://localhost:35000` without credentials uses the SDK's development client and accepts the kernel's self-signed certificate. That fits a local kernel only. [Registration options](registration-options.md) shows how to read the connection from `appsettings.json` or environment variables, and how to pass a client you create yourself.
 
 The notes slices keep working unchanged. A command that returns no event is not affected by Chronicle.
 
@@ -258,7 +258,7 @@ This stops and removes the kernel container and the volumes the image created fo
 - **A command or query that needs Chronicle does not answer.** The kernel is not running or not reachable at `localhost:35000`. The server starts without it, and the SDK keeps trying to connect, so the request waits instead of failing. It completes once the kernel is healthy. Run `docker compose ps` and the health check.
 - **The server stops with `Chronicle requires eventStore and exactly one of connectionString or client`.** `withChronicle` got no event store, no connection, or both a connection string and a client. See [Registration options](registration-options.md).
 - **The command answers HTTP 400 with a `constraintViolation` or `concurrencyViolation` reason.** Chronicle rejected the append, and nothing was stored. See [Concurrency](commands/concurrency.md).
-- **`register-author` and `all-authors` answer HTTP 500 with `An unexpected error occurred`.** Check that `withChronicle` runs before `discover`. An event type or projection registered before it never reaches Chronicle.
+- **`register-author` and `all-authors` answer HTTP 500 with `An unexpected error occurred`.** Check that event types and projections are exported beneath the discovery root. For Chronicle-only artifacts passed to `add()`, call `withChronicle` before `add()`.
 
 ## Next steps
 

@@ -9,6 +9,7 @@ import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { after, test } from 'node:test';
 import { Guid } from '@cratis/fundamentals';
+import { Globals } from '@cratis/arc';
 import { RegisterAuthor } from './Web/src/generated/Authors/Registration/RegisterAuthor.proxy.js';
 import { AuthorsPage } from './Web/src/generated/Authors/Listing/AuthorsPage.proxy.js';
 import { AllAuthors } from './Web/src/generated/Authors/Listing/AllAuthors.proxy.js';
@@ -88,6 +89,9 @@ test('generated client proxies register, page and relate a book over Express', {
     await awaitResult(() => globalThis.fetch(`${origin}/api/books/listing/books-for-author?authorId=${authorId}&waitForFirstResult=true`)
         .then(response => response.json()), result => result.data.some(item => item.title === 'Kindred'));
     const secondName = `N. K. Jemisin ${Guid.create()}`;
+    // Delta mode omits data on updates; legacy mode carries both the full snapshot and changeSet.
+    const previousTransferMode = Globals.observableQueryTransferMode;
+    Globals.observableQueryTransferMode = 'legacy';
     const observed = new AllAuthors();
     observed.setOrigin(origin);
     let first;
@@ -96,17 +100,31 @@ test('generated client proxies register, page and relate a book over Express', {
     const initial = new Promise(resolve => { first = resolve; });
     const next = new Promise(resolve => { updated = resolve; });
     const subscription = observed.subscribe(result => {
-        emissions.push({ length: result.data?.length, success: result.isSuccess, changeSet: result.changeSet, exceptions: result.exceptionMessages });
+        emissions.push({ length: result.data?.length, success: result.isSuccess, changeSet: result.changeSet,
+            exceptions: result.exceptionMessages, missingName: result.data?.some(item => !item.name) });
         if (result.data.some(item => item.name === author.name)) first(result);
         if (result.changeSet?.added.some(item => item.name === secondName)) updated(result);
     });
     try {
-        await Promise.race([initial, setTimeout(4000, undefined, { ref: false }).then(() => { throw new Error('No initial author emission'); })]);
+        const initialResult = await Promise.race([initial, setTimeout(4000, undefined, { ref: false })
+            .then(() => { throw new Error('No initial author emission'); })]);
+        assert.deepEqual(initialResult.data.map(item => item.name), [author.name]);
         const second = new RegisterAuthor();
         second.setOrigin(origin);
         second.id = Guid.create();
         second.name = secondName;
         assert.equal((await second.execute()).isSuccess, true, output);
-        assert.equal((await Promise.race([next, setTimeout(12000, undefined, { ref: false }).then(() => { throw new Error(`No live author update: ${JSON.stringify(emissions)}`); })])).changeSet.added.some(item => item.name === secondName), true);
-    } finally { subscription.unsubscribe(); observed.dispose(); }
+        const updatedResult = await Promise.race([next, setTimeout(12000, undefined, { ref: false })
+            .then(() => { throw new Error(`No live author update: ${JSON.stringify(emissions)}`); })]);
+        assert.deepEqual(updatedResult.changeSet.added.map(item => item.name), [secondName]);
+        assert.deepEqual(updatedResult.data.map(item => item.name).sort(), [author.name, secondName].sort());
+        assert.equal(emissions.some(emission => emission.missingName), false, `Missing author name: ${JSON.stringify(emissions)}`);
+        const fullList = await awaitResult(() => globalThis.fetch(`${origin}/api/authors/listing/all-authors?waitForFirstResult=true`)
+            .then(response => response.json()), result => result.data.some(item => item.name === secondName));
+        assert.deepEqual(fullList.data.map(item => item.name).sort(), [author.name, secondName].sort());
+    } finally {
+        subscription.unsubscribe();
+        observed.dispose();
+        Globals.observableQueryTransferMode = previousTransferMode;
+    }
 });

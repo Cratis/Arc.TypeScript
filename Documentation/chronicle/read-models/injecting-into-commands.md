@@ -54,7 +54,7 @@ export class ReserveBook {
 }
 ```
 
-Register the command, the events, and `Book` with `builder.add(...)` or `builder.discover(...)` after `withChronicle`. `ReserveBook` for a book in the catalog appends `BookReserved` with the book's title. For a book that is not, it answers 400 with `Book was not found for the command key`, and `handle()` never runs.
+Register the command, the events, and `Book` with `builder.add(...)` after `withChronicle`, or use `builder.discover(...)` before or after it. `ReserveBook` for a book in the catalog appends `BookReserved` with the book's title. For a book that is not, it answers 400 with `Book was not found for the command key`, and `handle()` never runs.
 
 `Book` is a Chronicle read model because `@fromEvent` projects it. Add Arc's `@readModel()` and queries when clients should read it too; see [Chronicle read models](index.md).
 
@@ -105,7 +105,7 @@ Choose optional when absence is a state your rule handles, such as "register onl
 
 ## Which read models qualify
 
-- Chronicle resolves a type only when it is a read model in the application's Chronicle catalog: projected with `@fromEvent` or other model-bound projection decorators, or targeted by a projection or reducer, and registered after `withChronicle`.
+- Chronicle resolves a type only when it is a read model in the application's Chronicle catalog: projected with `@fromEvent` or other model-bound projection decorators, or targeted by a projection or reducer, and registered through `discover()` (in either order) or `add()` after `withChronicle`.
 - A MongoDB read model listed in `withMongoDB({ readModels })` is loaded the same way, from its collection; see [MongoDB](../../mongodb/index.md). Exactly one integration may own a type: `build()` fails when none or two claim it.
 - The Drizzle integration does not resolve command read models.
 

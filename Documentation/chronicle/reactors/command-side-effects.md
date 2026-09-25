@@ -47,7 +47,7 @@ export class CatalogIndexer {
 }
 ```
 
-Register all four with `builder.add(...)` or `builder.discover(...)` after `withChronicle`. When a `BookAdded` is appended, Chronicle calls `bookAdded`, and Arc executes `IndexBook`: authorization, validation, `provide()`, `handle()`, and the append of `BookIndexed`. The book ID comes from the triggering event's context, not from the event payload.
+Register all four with `builder.add(...)` after `withChronicle`, or with `builder.discover(...)` in either order. When a `BookAdded` is appended, Chronicle calls `bookAdded`, and Arc executes `IndexBook`: authorization, validation, `provide()`, `handle()`, and the append of `BookIndexed`. The book ID comes from the triggering event's context, not from the event payload.
 
 ## Who runs the command
 
