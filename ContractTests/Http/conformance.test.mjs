@@ -542,6 +542,53 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 normalize(ts, { randomCorrelation: true, headers: [correlationHeader, 'content-type'] }));
         });
         await count('invalid correlation validation did not execute handler', 2);
+        const alternateId = '22222222-2222-4222-8222-222222222222';
+        for (const [name, method, path, body, netExpected, tsExpected, headers] of [
+            ['command 400', 'POST', '/api/input-cases', { count: 'bad', state: 1, rate: 1 },
+                command(400, { validationResults: [malformedDotNet] }, alternateId),
+                command(400, { validationResults: [malformedTypeScript] }, alternateId)],
+            ['query 400', 'GET', '/api/query-case/find?value=', undefined,
+                query(400, { validationResults: [rule] }, alternateId), query(400, { validationResults: [rule] }, alternateId)],
+            ['command 403', 'POST', '/api/admin-echo', { value: 'ok' },
+                command(403, {}, alternateId), command(403, {}, alternateId), { 'X-Fixture-Role': 'Reader' }],
+            ['query 403', 'GET', '/api/items/private', undefined,
+                query(403, {}, alternateId), query(403, {}, alternateId), { 'X-Fixture-Role': 'Reader' }],
+            ['command 500', 'POST', '/api/throw-failure', {},
+                command(500, { exceptionMessages: netReaderFailure.exceptionMessages }, alternateId),
+                command(500, { exceptionMessages: tsReaderFailure.exceptionMessages }, alternateId)],
+            ['query 500', 'GET', '/api/query-case/fail', undefined,
+                query(500, { exceptionMessages: netReaderFailure.exceptionMessages }, alternateId),
+                query(500, { exceptionMessages: tsReaderFailure.exceptionMessages }, alternateId)],
+            ['query 202', 'GET', '/api/fixture-stream/pending', undefined,
+                query(202, { isReady: false }, alternateId), query(202, { isReady: false }, alternateId)]
+        ]) {
+            await t.test(`supplied correlation ID echoes on ${name}`, async () => {
+                const [net, ts] = await send(method, path, body, { 'X-Correlation-ID': alternateId, ...headers });
+                for (const [label, actual, expected] of [['.NET', net, netExpected], ['TypeScript', ts, tsExpected]]) {
+                    assert.equal(actual.status, Number(name.split(' ')[1]), label);
+                    assert.deepEqual(actual.body, expected, label);
+                    assert.equal(actual.headers[correlationHeader], alternateId, label);
+                }
+            });
+        }
+        for (const [name, incoming] of [['zero UUID', '00000000-0000-0000-0000-000000000000'], ['missing header', undefined]]) {
+            for (const [status, method, path, body, envelope] of [
+                [400, 'POST', '/api/echo-value/validate', { value: '' }, command(400, { validationResults: [rule] }, '<generated UUID>')],
+                [202, 'GET', '/api/fixture-stream/pending', undefined, query(202, { isReady: false }, '<generated UUID>')]
+            ]) {
+                await t.test(`${name} generates correlated ${status} envelope`, async () => {
+                    const headers = incoming === undefined ? {} : { 'X-Correlation-ID': incoming };
+                    const [net, ts] = await Promise.all([
+                        request(dotnet.url, method, path, body, headers), request(typescript.url, method, path, body, headers)
+                    ]);
+                    for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
+                        const normalized = normalize(actual, { randomCorrelation: true, headers: [correlationHeader, 'content-type'] });
+                        assert.equal(actual.status, status, label);
+                        assert.deepEqual(normalized.body, envelope, label);
+                    }
+                });
+            }
+        }
         await divergence('QUERY oversized body hits the TypeScript-only hosting limit', 'QUERY', '/api/items',
             { extra: 'x'.repeat(1024 * 1024) },
             { status: 200, body: query(200, { data: items }), headers: { 'cache-control': 'no-store' } },
