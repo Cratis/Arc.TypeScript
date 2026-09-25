@@ -42,6 +42,7 @@ export class ArcApplicationBuilder {
     readonly #readModelInterceptors: ServiceIdentifier<ReadModelInterceptor>[] = [];
     readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
+    readonly #observedTypes = new Set<ClassType>();
     readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
     readonly #commandScopes: (() => CommandExecutionScope)[] = [];
     readonly #builtObservers: ((server: ArcServer) => void)[] = [];
@@ -102,9 +103,10 @@ export class ArcApplicationBuilder {
         this.#readModelResolvers.push(token);
         return this;
     }
-    /** Admit and observe integration-owned artifacts alongside Arc's own artifacts. */
+    /** Admit and observe integration-owned artifacts, including types discovered before the observer was added. */
     addArtifactObserver(observer: (type: ClassType) => boolean): this {
         this.#artifactObservers.push(observer);
+        for (const type of this.#observedTypes) observer(type);
         return this;
     }
     /** Wrap validated command execution in an ordered asynchronous context. */
@@ -148,6 +150,7 @@ export class ArcApplicationBuilder {
         });
     }
     protected register(type: ClassType, namespace: string): boolean {
+        this.#observedTypes.add(type);
         let external = false;
         for (const observer of this.#artifactObservers) if (observer(type)) external = true;
         const metadata = ownMetadata(type);

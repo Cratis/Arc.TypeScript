@@ -29,7 +29,7 @@ await app.run();
 
 Importing `@cratis/arc.chronicle` installs the typed `withChronicle` builder method, so `@cratis/arc.core` keeps no dependency on Chronicle. The exported function `withChronicle(builder, options)` does the same; the [Library sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/main.ts) uses that form.
 
-Call `withChronicle` **before** you discover or add artifacts. The integration watches each registration and records every event type, projection, reducer, reactor, and constraint it sees in a catalog for this application. An artifact registered earlier never reaches Chronicle.
+You can call `withChronicle` before or after `discover()`. The integration records every discovered event type, projection, reducer, reactor, and constraint in a catalog for this application, including those discovered before registration. Call it before `add()` when adding Chronicle-only artifacts, because `add()` rejects types without an Arc decorator until Chronicle is registered.
 
 :::caution[Development credentials]
 The connection string above uses the SDK's development credentials and accepts the kernel's self-signed certificate. In production, provide real credentials and `skipTlsValidation=false`.

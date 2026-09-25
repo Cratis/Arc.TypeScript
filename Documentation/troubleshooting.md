@@ -119,6 +119,10 @@ The proxy generator fails with `Ambiguous model name: <Namespace>.<Name>` when t
 
 ## Chronicle
 
+### Commands or queries fail after registering Chronicle late
+
+`withChronicle` can run before or after `discover()`: Arc replays discovered artifact types to Chronicle when you register it. If routes still fail, check that the relevant event types and read models are exported beneath the discovery root. When using `add()` for Chronicle-only artifacts, call `withChronicle` first so `add()` recognizes them. See [Add event sourcing](chronicle/add-event-sourcing.md).
+
 ### Decorated events or read models fail at load
 
 The Chronicle SDK needs `reflect-metadata`. Import it first in your entry point. See [Add event sourcing](chronicle/add-event-sourcing.md).

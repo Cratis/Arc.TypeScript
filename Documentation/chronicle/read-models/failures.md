@@ -42,7 +42,7 @@ A projection runs after the event is appended. A command sent straight after the
 
 `build()` checks every `commandReadModel(Type)` binding in `handle()` and `provide()` before the application serves anything. A type needs exactly one owner:
 
-- **Chronicle** owns a type that is a read model in its catalog: projected with `@fromEvent` or another projection decorator, or targeted by a projection or reducer, and registered **after** `withChronicle`. A class registered before `withChronicle`, or not registered at all, is not in the catalog.
+- **Chronicle** owns a type that is a read model in its catalog: projected with `@fromEvent` or another projection decorator, or targeted by a projection or reducer, and registered through `discover()` or `add()`. Discovery can run before or after `withChronicle`; a class not registered at all is not in the catalog.
 - **MongoDB** owns a type listed in `withMongoDB({ readModels })`.
 - An application can add its own `ReadModelForCommandResolver` with `builder.addReadModelForCommandResolver(...)`.
 

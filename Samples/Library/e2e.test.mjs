@@ -101,12 +101,19 @@ test('generated client proxies register, page and relate a book over Express', {
         if (result.changeSet?.added.some(item => item.name === secondName)) updated(result);
     });
     try {
-        await Promise.race([initial, setTimeout(4000, undefined, { ref: false }).then(() => { throw new Error('No initial author emission'); })]);
+        const initialResult = await Promise.race([initial, setTimeout(4000, undefined, { ref: false })
+            .then(() => { throw new Error('No initial author emission'); })]);
+        assert.deepEqual(initialResult.data.map(item => item.name), [author.name]);
         const second = new RegisterAuthor();
         second.setOrigin(origin);
         second.id = Guid.create();
         second.name = secondName;
         assert.equal((await second.execute()).isSuccess, true, output);
-        assert.equal((await Promise.race([next, setTimeout(12000, undefined, { ref: false }).then(() => { throw new Error(`No live author update: ${JSON.stringify(emissions)}`); })])).changeSet.added.some(item => item.name === secondName), true);
+        const updatedResult = await Promise.race([next, setTimeout(12000, undefined, { ref: false })
+            .then(() => { throw new Error(`No live author update: ${JSON.stringify(emissions)}`); })]);
+        assert.deepEqual(updatedResult.changeSet.added.map(item => item.name), [secondName]);
+        const fullList = await awaitResult(() => globalThis.fetch(`${origin}/api/authors/listing/all-authors?waitForFirstResult=true`)
+            .then(response => response.json()), result => result.data.some(item => item.name === secondName));
+        assert.deepEqual(fullList.data.map(item => item.name).sort(), [author.name, secondName].sort());
     } finally { subscription.unsubscribe(); observed.dispose(); }
 });

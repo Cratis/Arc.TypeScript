@@ -66,7 +66,7 @@ export class ChronicleReadModels {
                 emit();
                 observation = this.watch(type).subscribe({
                     next: change => {
-                        if (id !== undefined && change.key !== id) return;
+                        if (!change.key || (id !== undefined && change.key !== id)) return;
                         if (change.removed) current.delete(change.key);
                         else current.set(change.key, change.readModel);
                         emit();

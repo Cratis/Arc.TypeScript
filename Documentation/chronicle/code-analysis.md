@@ -27,7 +27,7 @@ The Arc rules that do exist are listed in [Code analysis](../code-analysis/index
 The unchecked rows are the ones a reviewer has to catch:
 
 - a reactor or command that appends through the SDK instead of returning events;
-- an application that returns events but never calls `withChronicle`, or calls it after registering artifacts;
+- an application that returns events but never calls `withChronicle`;
 - a command meant to append to an existing entity that returns an ID in a tuple instead of `eventSourceIdResponse`.
 
 ## Related
