@@ -3,7 +3,8 @@
 import { BadRequest } from '../../http/BadRequest.js';
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 import type { QueryResult } from '../QueryResult.js';
-import { queryResult, status } from '../../results/index.js';
+import { queryResult } from '../createQueryResult.js';
+import { status } from '../../http/status.js';
 import type { ObservableQuerySession } from './ObservableQuerySession.js';
 
 /** Only query routes consume these reserved parameters. Maximum wait bounds retained subscriptions. */

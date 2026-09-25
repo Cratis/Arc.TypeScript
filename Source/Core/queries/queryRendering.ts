@@ -6,7 +6,9 @@ import type { QueryOptions } from './QueryOptions.js';
 import type { QueryResult } from './QueryResult.js';
 import { isQueryPage } from './QueryPage.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
-import { emptyPaging, malformed, queryResult } from '../results/index.js';
+import { emptyPaging } from './emptyPaging.js';
+import { malformed } from '../http/malformed.js';
+import { queryResult } from './createQueryResult.js';
 
 function compareValues(left: unknown, right: unknown): number {
     if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime();

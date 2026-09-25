@@ -3,7 +3,7 @@
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 import type { QueryResult } from '../QueryResult.js';
 import { hasFailure, originalFailure } from '../../execution/failureTracking.js';
-import { queryResult } from '../../results/index.js';
+import { queryResult } from '../createQueryResult.js';
 import { requestContext } from '../../execution/RequestContextStore.js';
 import { withServices } from '../../dependencyInjection/ServiceScope.js';
 import type { ObservableSource } from './ObservableSource.js';

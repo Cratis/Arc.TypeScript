@@ -6,7 +6,7 @@ import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
 import { serviceToken } from '../../dependencyInjection/ServiceToken.js';
 import { tuple } from '../../commands/tuple.js';
-import { denied, rejected, response } from '../../results/index.js';
+import { denied, rejected, response } from '../../commands/Outcome.js';
 import type { CommandContext } from '../../commands/CommandContext.js';
 import type { CommandResponseValueHandler } from '../../commands/CommandResponseValueHandler.js';
 import type { CommandResult } from '../../commands/CommandResult.js';

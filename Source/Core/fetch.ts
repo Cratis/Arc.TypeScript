@@ -34,4 +34,3 @@ export { routeFor, includeRouteName } from './http/createRouteTable.js';
 export type { NativeRequestContext } from './http/NativeRequestContext.js';
 export type { Operation } from './http/Operation.js';
 export * from './introspection/index.js';
-export * from './results/index.js';

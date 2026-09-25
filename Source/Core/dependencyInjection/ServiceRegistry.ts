@@ -50,7 +50,9 @@ export class ServiceRegistry {
     }
     get disposed(): boolean { return this.#state !== ServiceRegistryState.Running; }
     get singletonFailed(): boolean { return this.#singletonFailed; }
+    /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
+    /** @internal Poison the registry after a singleton factory failure. */
     markSingletonFailure(): void {
         if (this.#singletonFailed) return;
         this.#singletonFailed = true;
@@ -119,6 +121,7 @@ export class ServiceRegistry {
     hasRegistration(identifier: ServiceIdentifier<unknown>): boolean {
         return this.#registrations.has(normalizeServiceToken(identifier).key);
     }
+    /** @internal Retrieve a declaration without constructing its service. */
     registration(identifier: ServiceIdentifier<unknown>): ServiceRegistration<unknown> {
         const token = normalizeServiceToken(identifier);
         if (!token || typeof token.key !== 'symbol' || typeof token.name !== 'string')

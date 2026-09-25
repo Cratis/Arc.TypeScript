@@ -34,4 +34,3 @@ export * from './execution/index.js';
 export * from './dependencyInjection/index.js';
 export * from './http/index.js';
 export * from './introspection/index.js';
-export * from './results/index.js';
