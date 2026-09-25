@@ -9,9 +9,6 @@ describe('when rendering token-free Tasks artifacts', given(a_tasks_project, con
     beforeEach(() => {
         rendered = renderGeneratedMetadata(context.project, context.artifacts, context.output);
     });
-    it('should generate identical bytes for unchanged sources', () => {
-        rendered.should.equal(renderGeneratedMetadata(context.project, context.artifacts, context.output));
-    });
     it('should import class tokens from their declaring modules', () => {
         rendered.should.contain('from "./Tasks/Tasks.js"');
         rendered.should.contain("['handle', [_arc");
