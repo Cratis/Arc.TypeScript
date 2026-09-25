@@ -19,6 +19,8 @@ import { cratisArc } from '@cratis/arc.express';
 
 let executions = 0;
 let queryExecutions = 0;
+let inputCaseExecutions = 0;
+let queryCaseExecutions = 0;
 const items = Object.freeze([{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }, { id: 3, name: 'Linus' }]);
 const valueSchema = z.object({ value: z.string() });
 const anonymous = { anonymous: true };
@@ -52,6 +54,30 @@ const echoMetric = defineCommand({
 const throwFailure = defineCommand({
     name: 'ThrowFailure', path: '/api/throw-failure', schema: z.object({}), authorization: anonymous,
     handle: () => { throw new Error('Private fixture failure detail'); }
+});
+const inputCases = defineCommand({
+    name: 'InputCases', path: '/api/input-cases', authorization: anonymous,
+    schema: z.object({ count: z.number().int().min(-2147483648).max(2147483647), state: z.union([z.literal(0), z.literal(1)]), rate: z.number() }),
+    validate: ({ rate }) => rate > 0 ? [] : [validation('Rate must be positive', ['rate'])],
+    handle: ({ count }) => { inputCaseExecutions++; return count; }
+});
+const inputCaseCount = defineQuery({
+    name: 'Current', namespace: 'InputCaseCount', path: '/api/input-case-count', schema: z.object({}), authorization: anonymous,
+    perform: () => ({ count: inputCaseExecutions })
+});
+const queryCaseCount = defineQuery({
+    name: 'Current', namespace: 'QueryCaseCount', path: '/api/query-case-count', schema: z.object({}), authorization: anonymous,
+    perform: () => ({ count: queryCaseExecutions })
+});
+const queryCase = defineQuery({
+    name: 'Find', namespace: 'QueryCase', path: '/api/query-case/find', schema: z.object({ value: z.string() }),
+    authorization: anonymous,
+    validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
+    perform: ({ value }) => { queryCaseExecutions++; return { value }; }
+});
+const throwingQuery = defineQuery({
+    name: 'Fail', namespace: 'QueryCase', path: '/api/query-case/fail', schema: z.object({}), authorization: anonymous,
+    perform: () => { throw new Error('Private fixture failure detail'); }
 });
 const echoCount = defineQuery({
     name: 'Current', namespace: 'EchoCount', path: '/api/echo-count', schema: z.object({}), authorization: anonymous,
@@ -98,7 +124,8 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, queryCount, tenantEcho, byId, all, privateItems], tenancy,
+    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric, inputCases],
+    queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, throwingQuery, byId, all, privateItems], tenancy,
     observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false,
     identityDetails: { schema: z.object({ greeting: z.string() }), provide: principal =>
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },

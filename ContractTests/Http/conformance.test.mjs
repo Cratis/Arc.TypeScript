@@ -271,6 +271,45 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
         }
         await count('malformed and wrong-typed commands did not execute handler', 1);
+        const inputCount = (name, value) => parity(name, 'GET', '/api/input-case-count', undefined,
+            { status: 200, body: query(200, { data: { count: value } }) });
+        await inputCount('input handler has not run', 0);
+        for (const [name, body] of [
+            ['null input', null],
+            ['wrong-typed integer input', { count: 'not-an-integer', state: 1, rate: 1 }],
+            ['int32 overflow input', { count: 2147483648, state: 1, rate: 1 }],
+            ['wrong-typed concept input', { count: 1, state: 1, rate: 'wrong' }]
+        ]) {
+            await divergence(`${name} has different malformed input text`, 'POST', '/api/input-cases', body,
+                { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+            await inputCount(`${name} did not reach the handler`, 0);
+        }
+        await divergence('unknown enum value is rejected during input binding', 'POST', '/api/input-cases',
+            { count: 1, state: 99, rate: 1 },
+            { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+            { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+        await inputCount('unknown enum value did not reach the handler', 0);
+        await parity('invalid concept input is rejected before execution', 'POST', '/api/input-cases',
+            { count: 1, state: 1, rate: 0 }, { status: 400, body: command(400, { validationResults: [
+                { severity: 3, message: 'Rate must be positive', members: ['rate'], reason: 'rule' }
+            ] }) });
+        await inputCount('invalid concept input did not reach the handler', 0);
+        await parity('valid input executes once', 'POST', '/api/input-cases', { count: 5, state: 1, rate: 1 },
+            { status: 200, body: command(200, { response: 5 }) });
+        await inputCount('valid input reached the handler once', 1);
+        const queryCaseCount = (name, value) => parity(name, 'GET', '/api/query-case-count', undefined,
+            { status: 200, body: query(200, { data: { count: value } }) });
+        await queryCaseCount('query performer has not run', 0);
+        await parity('query validator returns a full rejection envelope', 'GET', '/api/query-case/find?value=', undefined,
+            { status: 400, body: query(400, { validationResults: [rule] }) });
+        await queryCaseCount('query validator did not execute the performer', 0);
+        await parity('valid query invokes the performer', 'GET', '/api/query-case/find?value=ok', undefined,
+            { status: 200, body: query(200, { data: { value: 'ok' } }) });
+        await queryCaseCount('valid query executed exactly once', 1);
+        await divergence('throwing query performer redacts different message text', 'GET', '/api/query-case/fail', undefined,
+            { status: 500, body: query(500, { exceptionMessages: netReaderFailure.exceptionMessages }) },
+            { status: 500, body: query(500, { exceptionMessages: tsReaderFailure.exceptionMessages }) });
         await parity('authenticated Reader denied before validation leaks', 'POST', '/api/admin-echo', { value: '' }, {
             status: 403, body: command(403)
         }, { 'X-Fixture-Role': 'Reader' });

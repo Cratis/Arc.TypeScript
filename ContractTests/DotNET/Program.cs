@@ -28,6 +28,8 @@ builder.Logging.ClearProviders();
 builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
 builder.Services.AddSingleton<HttpFixture.EchoExecutions>();
 builder.Services.AddSingleton<HttpFixture.QueryExecutions>();
+builder.Services.AddSingleton<HttpFixture.InputCaseExecutions>();
+builder.Services.AddSingleton<HttpFixture.QueryCaseExecutions>();
 builder.Services.AddArcAuthorizationPolicy<HttpFixture.FixtureAdminPolicy>("FixtureAdmin");
 builder.Services.AddAuthentication("Fixture")
     .AddScheme<AuthenticationSchemeOptions, HttpFixture.FixtureAuthentication>("Fixture", _ => { });
