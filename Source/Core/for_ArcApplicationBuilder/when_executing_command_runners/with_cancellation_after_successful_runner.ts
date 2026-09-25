@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
-import { ArcApplication, command, Severity } from '../../index.js';
+import { ArcApplication, acknowledgeCommandCommit, command, Severity } from '../../index.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 import { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
 import { CommandOperationCompensation } from '../../commands/CommandOperationCompensation.js';
@@ -62,4 +62,37 @@ for (const runnerFails of [false, true])
             JSON.stringify(result).should.not.contain('operationOutcomes');
         });
     }
+});
+
+describe('when an inline business commit was acknowledged before runner cancellation', () => {
+    let application: FetchArcApplication;
+    let result: CommandResult;
+    beforeEach(async () => {
+        const started = deferred<void>();
+        const pending = deferred<void>();
+        const controller = new AbortController();
+        const builder = ArcApplication.createBuilder();
+        builder.add(RunAfterAbort);
+        builder.addCommandExecutionRunner(async (context, execute) => {
+            const completed = await execute();
+            acknowledgeCommandCommit(context);
+            started.release();
+            await pending.promise;
+            return completed;
+        });
+        application = await builder.build();
+        const running = application.server.executeCommand('RunAfterAbort', {}, {
+            correlationId: 'runner-committed', principal: undefined, tenantId: undefined,
+            allowedSeverity: Severity.Warning, signal: controller.signal
+        });
+        await started.promise;
+        controller.abort(new Error('canceled'));
+        pending.release();
+        result = await running;
+    });
+    afterEach(async () => { await application.dispose(); });
+    it('should retain the successful response after an acknowledged inline commit', () => {
+        result.isSuccess.should.equal(true);
+        result.response!.should.equal('done');
+    });
 });

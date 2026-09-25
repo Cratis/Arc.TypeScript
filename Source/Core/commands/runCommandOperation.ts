@@ -15,6 +15,8 @@ import { createCommandContext } from './createCommandContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
 import { commandFailure, executeCommandOperation } from './executeCommandOperation.js';
 import { setCommandRecovery } from './commandRecovery.js';
+import { CommandCommitDisposition } from './CommandCommitDisposition.js';
+import { hasAcknowledgedCommandCommit } from './acknowledgeCommandCommit.js';
 import { runCommandFilters } from './runCommandFilters.js';
 import type { CommandContext } from './CommandContext.js';
 import { withOperationName } from '../execution/withOperationName.js';
@@ -63,7 +65,11 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         if (context.signal.aborted) return commandFailure(context, context.signal.reason ?? new Error('Command canceled'));
         const execute = () => executeCommandOperation(definition, parsed.data, context, options, mode === CommandOperationMode.Validate);
         const result = await (options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute());
-        if (result.isSuccess && context.signal.aborted) {
+        // A runner settling after cancellation may report failure only when recovery proves no business commit occurred.
+        // Without a journal, inline effects (including Chronicle appends) may already be irreversible.
+        const disposition = result.recovery?.commitDisposition;
+        if (result.isSuccess && context.signal.aborted && !hasAcknowledgedCommandCommit(context) &&
+            (disposition === CommandCommitDisposition.NoCommit || disposition === CommandCommitDisposition.NotCommitted)) {
             const failure = commandFailure(context, context.signal.reason ?? new Error('Command canceled'), result);
             if (result.recovery !== undefined && result.operationOutcomes !== undefined)
                 setCommandRecovery(failure, result.recovery, result.operationOutcomes);

@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { defineCommand, isOutcome, rejected, validation } from '@cratis/arc.core';
+import { acknowledgeCommandCommit, defineCommand, isOutcome, rejected, validation } from '@cratis/arc.core';
 import type { CommandDefinition, ExecutionContext, Outcome, ValidationResult } from '@cratis/arc.core';
 import type { AppendOptions, AppendResult, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
 import type { z } from 'zod';
@@ -91,6 +91,8 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
             : await store.eventLog.appendMany([...events], { correlationId: context.correlationId });
         const failure = checkResults(results, events.length);
         if (failure) return failure;
+        // The append is acknowledged: a later cancellation cannot undo it or erase its response.
+        acknowledgeCommandCommit(context);
         await waitForProjectionCompletion(results, completionTimeoutMs, context.signal);
         return commandResponse;
     }
