@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { afterEach, beforeEach, describe, expect, it, should } from 'vitest';
+import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { field, Guid } from '@cratis/fundamentals';
@@ -10,6 +10,11 @@ import { a_sqlite_database } from '../given/a_sqlite_database.js';
 import { TaskRecord } from '../given/TaskRecord.js';
 
 should();
+const shouldRejectWithMessage = async (promise: Promise<unknown>, message: string): Promise<void> => {
+    const error = await promise.then(() => null, reason => reason as Error);
+    should().exist(error);
+    error!.message.should.contain(message);
+};
 class TitleOnly { @field(String) title!: string; }
 describe('when restricting read-only SQL access', given(a_sqlite_database, context => {
     beforeEach(() => context.establish());
@@ -21,28 +26,28 @@ describe('when restricting read-only SQL access', given(a_sqlite_database, conte
         context.native.run('create table hidden (id text primary key, title text, secret text)');
         context.native.run("insert into hidden values ('00112233-4455-6677-8899-aabbccddeeff', 'a', 'private')");
         const models = new DrizzleReadModels(context.database, hidden, TaskRecord);
-        await expect(models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
-            sorting: { field: 'secret', direction: 'asc' } })).rejects.toThrow('Unknown Drizzle model field: secret');
+        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
+            sorting: { field: 'secret', direction: 'asc' } }), 'Unknown Drizzle model field: secret');
         const row = await models.findOne(undefined);
         row!.title.should.equal('a');
         Object.hasOwn(row!, 'secret').should.equal(false);
     });
     it('should not expose an undeclared primary key as a client sort field', async () => {
         const models = new DrizzleReadModels(context.database, context.table, TitleOnly);
-        await expect(models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
-            sorting: { field: 'id', direction: 'asc' } })).rejects.toThrow('Unknown Drizzle model field: id');
+        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: 0, pageSize: 1 },
+            sorting: { field: 'id', direction: 'asc' } }), 'Unknown Drizzle model field: id');
         (await models.findOne(undefined))!.title.should.equal('z');
     });
     it('should cap unpaged reads and reject invalid pages', async () => {
         const models = new DrizzleReadModels(context.database, context.table, TaskRecord, 1);
-        await expect(models.find(undefined)).rejects.toThrow('Drizzle find exceeds maxPageSize');
+        await shouldRejectWithMessage(models.find(undefined), 'Drizzle find exceeds maxPageSize');
         (await models.findOne(eq(context.table.title, 'a')))!.title.should.equal('a');
-        expect(await models.findOne(eq(context.table.title, 'missing'))).toBeUndefined();
-        await expect(models.queryPage(undefined, { paging: { page: -1, pageSize: 1 } })).rejects.toThrow('Invalid Drizzle page');
-        await expect(models.queryPage(undefined, { paging: { page: 0, pageSize: 2 } })).rejects.toThrow('Invalid Drizzle page');
-        await expect(models.queryPage(undefined, { paging: { page: Number.MAX_SAFE_INTEGER, pageSize: 2 } }))
-            .rejects.toThrow('Invalid Drizzle page');
-        await expect(models.queryPage(undefined, {})).rejects.toThrow('requires options.paging');
+        should().equal(await models.findOne(eq(context.table.title, 'missing')), undefined);
+        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: -1, pageSize: 1 } }), 'Invalid Drizzle page');
+        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: 0, pageSize: 2 } }), 'Invalid Drizzle page');
+        await shouldRejectWithMessage(models.queryPage(undefined, { paging: { page: Number.MAX_SAFE_INTEGER, pageSize: 2 } }),
+            'Invalid Drizzle page');
+        await shouldRejectWithMessage(models.queryPage(undefined, {}), 'requires options.paging');
         (() => new DrizzleReadModels(context.database, context.table, TaskRecord, 10001)).should.throw('maxPageSize');
     });
     it('should order descending with a primary-key tie-breaker', async () => {

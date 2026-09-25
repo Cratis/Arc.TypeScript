@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { beforeEach, describe, expect, it, should } from 'vitest';
+import { beforeEach, describe, it } from 'vitest';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { ArcApplication, Severity } from '@cratis/arc.core';
 import '../../index.js';
@@ -9,7 +9,10 @@ import { given } from '../../given.js';
 import { TaskRecord } from '../../for_DrizzleReadModels/given/TaskRecord.js';
 import { a_builder } from '../given/a_builder.js';
 
-should();
+const shouldRejectWithCause = async (promise: Promise<unknown>, message: string): Promise<void> => {
+    const error = await promise.should.be.rejected as Error & { cause: Error };
+    error.cause.message.should.equal(message);
+};
 const identity = (tenantId?: string) => ({ tenantId, principal: undefined, allowedSeverity: Severity.Warning,
     signal: new AbortController().signal, correlationId: crypto.randomUUID() });
 describe('when configuring tenant SQL access', given(a_builder, context => {
@@ -31,21 +34,21 @@ describe('when configuring tenant SQL access', given(a_builder, context => {
         context.builder.withDrizzle({ dialect: 'sqlite', database: {} });
         const app = await context.builder.build();
         const scope = app.server.services.createScope(identity());
-        try { await expect(scope.resolve(drizzleDatabase())).rejects.toMatchObject({ cause: { message: 'A tenant is required for Drizzle access' } }); }
+        try { await shouldRejectWithCause(scope.resolve(drizzleDatabase()), 'A tenant is required for Drizzle access'); }
         finally { await scope.dispose(); await app.dispose(); }
     });
     it('should reject a non-default tenant with a single database', async () => {
         context.builder.withDrizzle({ dialect: 'sqlite', database: {} });
         const app = await context.builder.build();
         const scope = app.server.services.createScope(identity('other'));
-        try { await expect(scope.resolve(drizzleDatabase())).rejects.toMatchObject({ cause: { message: 'Drizzle database is only available for the default tenant' } }); }
+        try { await shouldRejectWithCause(scope.resolve(drizzleDatabase()), 'Drizzle database is only available for the default tenant'); }
         finally { await scope.dispose(); await app.dispose(); }
     });
     it('should reject a resolver that returns no database', async () => {
         context.builder.withDrizzle({ dialect: 'sqlite', databaseFactory: () => undefined as never });
         const app = await context.builder.build();
         const scope = app.server.services.createScope(identity('other'));
-        try { await expect(scope.resolve(drizzleDatabase())).rejects.toMatchObject({ cause: { message: 'Drizzle tenant database resolver returned no database' } }); }
+        try { await shouldRejectWithCause(scope.resolve(drizzleDatabase()), 'Drizzle tenant database resolver returned no database'); }
         finally { await scope.dispose(); await app.dispose(); }
     });
     it('should pass a normalized tenant to the factory', async () => {
