@@ -9,9 +9,9 @@ Arc for TypeScript discovers what your application exposes from decorators on yo
 
 | Decorator | Valid on | Effect | .NET |
 | --- | --- | --- | --- |
-| `@command({ namespace? })` | class | Marks a command; Arc exposes it and calls its instance `handle()` | `[Command]` |
+| `@command({ namespace?, treatWarningsAsErrors? })` | class | Marks a command; Arc exposes it and calls its instance `handle()`. `treatWarningsAsErrors` sets the generated client's flag | `[Command]` |
 | `@readModel({ namespace? })` | class | Marks a read model; its `@query()` static methods become queries | `[ReadModel]` |
-| `@query(options?, ...descriptors)` | public static method of a read model | Marks a query; `options` is `{ observable?, argumentsModel? }` | Static method on a `[ReadModel]` |
+| `@query(options?, ...descriptors)` | public static method of a read model | Marks a query; `options` is `{ observable?, argumentsModel?, httpMethod?, treatWarningsAsErrors? }`. `httpMethod` takes a `QueryHttpMethod` member and, like `treatWarningsAsErrors`, sets a generated client preference | Static method on a `[ReadModel]` |
 | `@validator(Target)` | class extending `CommandValidator`, `QueryValidator`, `ConceptValidator`, or `ModelValidator` | Associates the validator with its exact target type | Discovered `AbstractValidator<T>` |
 
 ## Fields
@@ -32,7 +32,7 @@ Arc for TypeScript discovers what your application exposes from decorators on yo
 | --- | --- | --- | --- |
 | `@path('/api/...')` | command or read-model class, `@query()` method | Overrides the derived route | `[Path]` |
 
-There is no equivalent of `[QueryHttpMethod]` or `[FromRequest]`: queries accept GET and `QUERY`, and arguments bind from the query string or `QUERY` body.
+The counterpart of `[QueryHttpMethod]` is the `httpMethod` option: `@query({ httpMethod: QueryHttpMethod.Query })`, with `QueryHttpMethod` from `@cratis/arc.core`, makes the [generated client](proxy-generation/index.md#limits) send `QUERY`. `Get` and `Auto` are the other members. The option does not change the server, which accepts GET and `QUERY` unless `generatedApis.enableQueryHttpMethod` is `false`. There is no equivalent of `[FromRequest]`: arguments bind from the query string or `QUERY` body.
 
 ## Authorization
 

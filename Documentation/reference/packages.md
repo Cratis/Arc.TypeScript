@@ -3,7 +3,10 @@ title: Packages
 description: The packages this repository builds, what each exports, their peer dependencies and Node.js requirements, and how they relate to the published @cratis/arc client.
 ---
 
-Every package in this repository is at version 0.30.0, the version of the source preview. **None is published to npm**; reference them from a clone with the `workspace:^` protocol. They ship ES modules only.
+Every package in this repository is at version 0.30.0, the version of the source preview. **None is published to npm.** They ship ES modules only. Clone this repository, run `yarn install` and `yarn build`, and then use the packages in one of two ways:
+
+- **Inside the clone.** Put your application in a folder under `Samples/`, which the root `workspaces` list includes, and reference the packages with the `workspace:^` protocol, as [`Samples/Tasks/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/package.json) does. `workspace:^` resolves only inside this repository's Yarn workspace.
+- **In your own project.** Run `yarn pack` in each package folder you need and install the tarballs with your package manager. `yarn check:consumers` installs packed packages this way to check NodeNext and Bundler consumers.
 
 ## Server packages
 
@@ -25,7 +28,7 @@ Every package in this repository is at version 0.30.0, the version of the source
 
 | Package | Folder | Exports |
 | --- | --- | --- |
-| `@cratis/arc.proxygenerator` | `Source/Tools/ProxyGenerator` | The `arc-proxygenerator` CLI, `analyzeSource`, `renderSource`, `generateFromSource`, and the manifest path's `renderClientManifest` and `generateClient` |
+| `@cratis/arc.proxygenerator` | `Source/Tools/ProxyGenerator` | The `arc-proxygenerator` CLI, `analyzeSource`, `renderSource`, `generateFromSource`, `renderGeneratedMetadata`, and the manifest path's `renderClientManifest` and `generateClient` |
 | `@cratis/eslint-plugin-arc-core` | `Source/CodeAnalysis` | ESLint 10 rules and the `recommended` and `recommended-type-checked` presets; peers `eslint` `^10.0.0` and `@typescript-eslint/parser` `^8.70.0` |
 
 ## Node.js

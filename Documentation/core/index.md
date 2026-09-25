@@ -8,7 +8,7 @@ Not every service needs a web framework. A worker that exposes a few commands, o
 `@cratis/arc.core` is the whole Arc application model: the command and query pipelines, validation, authorization, services, and the result envelope. It also carries a small Node host, so an application can serve its routes, and a built frontend, without Express, Fastify, or Hono. When you do use one of those frameworks, the same application mounts in it unchanged; see [Host adapters](../hosts/index.md).
 
 :::note[Source preview]
-`@cratis/arc.core` is not published to npm. Use it from a clone of this repository with the `workspace:^` protocol, as `Samples/Tasks/package.json` does.
+`@cratis/arc.core` is not published to npm. Use it inside a clone of this repository with the `workspace:^` protocol, as `Samples/Tasks/package.json` does, or install a packed tarball. See [Packages](../reference/packages.md).
 :::
 
 ## Run a built application
@@ -18,8 +18,10 @@ Not every service needs a web framework. A worker that exposes a few commands, o
 ```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
+import { metadata } from './Features/generatedMetadata.js';
 
-const builder = ArcApplication.createBuilder({ development: true });
+const builder = ArcApplication.createBuilder();
+builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
 export const app = await builder.build();

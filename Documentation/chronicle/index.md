@@ -99,7 +99,7 @@ The `@key()` field names the event source, so the registration lands in that aut
 
 - A command's events go to one event log in one event store. There is no transaction across other stores or external calls.
 - An event appended directly through the SDK inside `handle()` is outside the command's batch.
-- Arc does not release encrypted personal data when it serves a read model. See [Compliance](compliance.md).
+- Read models you read through Chronicle arrive already decrypted. Arc releases encrypted personal data at its query edge only for a protected Chronicle read model that a query returns as an instance of its exact class, read directly from MongoDB. Raw documents, derived subtypes, and mapped objects are served as stored unless you call `readModels.release` yourself. See [Compliance](compliance.md).
 - The TypeScript SDK has no replay exclusion for reactors, so a reactor that returns commands must tolerate running again.
 - No `ARCCHR` analyzers exist for TypeScript. See [Code analysis](code-analysis.md).
 

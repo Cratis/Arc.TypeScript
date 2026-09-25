@@ -12,11 +12,11 @@ Arc for TypeScript does not integrate with another dependency injection containe
 The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) gives its command and queries one shared, in-memory repository:
 
 ```typescript
-const builder = ArcApplication.createBuilder({ development: true });
+const builder = ArcApplication.createBuilder();
 builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
-const app = await builder.build();
+export const app = await builder.build();
 ```
 
 | Registration | Lifetime |
