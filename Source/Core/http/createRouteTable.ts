@@ -34,9 +34,9 @@ export function includeRouteName(item: { namespace?: string; routeNamespace?: st
 export function createRouteTable(options: ArcServerOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
     commands: readonly Operation[]; queries: readonly Operation[]; routes: ReadonlyMap<string, Operation>; endpoints: ReadonlyMap<string, string>
 } {
-        const prefix = options.generatedApis?.routePrefix ?? options.prefix ?? 'api';
+        const prefix = options.generatedApis?.routePrefix ?? 'api';
         if (prefix && !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(prefix)) throw new Error('Unsafe Arc prefix');
-        const skip = options.generatedApis?.segmentsToSkipForRoute ?? options.segmentsToSkip ?? 0;
+        const skip = options.generatedApis?.segmentsToSkipForRoute ?? 0;
         if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid namespace segments to skip');
         for (const item of [...options.commands ?? [], ...options.queries ?? [], ...options.observableQueries ?? []]) {
             if (item.clientOutput) {
@@ -54,8 +54,8 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 if (new Set(folded).size !== folded.length) throw new Error(`Ambiguous Arc argument names: ${item.name}`);
             }
         }
-        const includeCommandName = options.generatedApis?.includeCommandNameInRoute ?? options.includeCommandNameInRoute;
-        const includeQueryName = options.generatedApis?.includeQueryNameInRoute ?? options.includeQueryNameInRoute;
+        const includeCommandName = options.generatedApis?.includeCommandNameInRoute;
+        const includeQueryName = options.generatedApis?.includeQueryNameInRoute;
         const commandDefinitions = options.commands ?? [];
         const queryDefinitions = [...options.queries ?? [], ...options.observableQueries ?? []];
         const commands = commandDefinitions.map(item => commandOperation(item, routeFor(item, prefix, skip,

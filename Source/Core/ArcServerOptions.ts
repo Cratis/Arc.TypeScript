@@ -86,14 +86,6 @@ export interface ArcServerOptions {
     observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
     /** Convention-based API route configuration. */
     generatedApis?: GeneratedApiOptions;
-    /** @deprecated Use generatedApis.routePrefix. */
-    prefix?: string;
-    /** @deprecated Use generatedApis.segmentsToSkipForRoute. */
-    segmentsToSkip?: number;
-    /** @deprecated Use generatedApis.includeCommandNameInRoute. */
-    includeCommandNameInRoute?: boolean;
-    /** @deprecated Use generatedApis.includeQueryNameInRoute. */
-    includeQueryNameInRoute?: boolean;
     enableQueryMethod?: boolean;
     /** Version advertised in the OpenAPI info object (defaults to 0.1.0). */
     openApiVersion?: string;
@@ -108,7 +100,6 @@ export interface ArcServerOptions {
     authorizationPolicies?: Readonly<Record<string, AuthorizationPolicyRegistration>>;
     development?: boolean;
     logger?: (error: unknown, correlationId: string) => void;
-    identityDetailsSchema?: Record<string, unknown>;
     identityDetails?: IdentityDetailsProvider;
     /** Exclusive with authentication handlers. The adapter must supply a host-verified principal. */
     nativePrincipal?: boolean;

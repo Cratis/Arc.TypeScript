@@ -69,8 +69,8 @@ export class ArcServer {
             throw new Error('Compensation timeout must be positive and at most 4294967294 milliseconds');
         validateTenancy(options.tenancy);
         if (options.nativePrincipal && options.authentication?.length) throw new Error('Native principal and Arc authentication handlers cannot be combined');
-        if (options.identityDetails && (!(detailsSchema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function' || options.identityDetailsSchema))
-            throw new Error('Identity details require a provider schema; legacy schema cannot be combined');
+        if (options.identityDetails && (!(detailsSchema instanceof z.ZodType) || typeof options.identityDetails.provide !== 'function'))
+            throw new Error('Identity details require a provider schema');
         if ((options.developmentUsers || options.developmentTenants) && !options.development) throw new Error('Discovery providers require development mode');
         this.#identitySchema = detailsSchema ? z.toJSONSchema(detailsSchema) : undefined;
         this.observableLimits = new ObservableLimits(options);

@@ -85,7 +85,7 @@ const authentication = request => {
 };
 const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems],
-    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, segmentsToSkip: 1
+    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, generatedApis: { segmentsToSkipForRoute: 1 }
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,

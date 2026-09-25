@@ -73,7 +73,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
             'http.route': operation?.route ?? path }, async () => {
         if (introspection && request.method !== 'GET') return new Response(null, { status: 405, headers: new Headers({ ...Object.fromEntries(headers), allow: 'GET' }) });
         if (introspection && path !== '/.cratis/me' && path !== '/.cratis/users' && path !== '/.cratis/tenants') {
-            if (path === '/.cratis/identity-details/schema') return send(bindings.identitySchema ?? server.options.identityDetailsSchema ?? {}, 200);
+            if (path === '/.cratis/identity-details/schema') return send(bindings.identitySchema ?? {}, 200);
             if (path === '/openapi.json') return send(server.openApi(), 200);
             return send((path === '/.cratis/commands' ? server.commands : server.queries).map(item => ({
                 name: item.name, namespace: item.namespace ?? '', route: item.route, type: item.name,

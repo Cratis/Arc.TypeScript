@@ -26,7 +26,7 @@ export function nodeHandler(
 ): (request: IncomingMessage, response: ServerResponse) => void {
     validateOptions(options);
     const root = options.staticFiles?.root ? resolve(options.staticFiles.root) : undefined;
-    const prefix = server.options.prefix ?? 'api';
+    const prefix = server.options.generatedApis?.routePrefix ?? 'api';
     const wellKnown = options.staticFiles?.wellKnown ?? [];
     const configuredTypes = Object.fromEntries(Object.entries(options.staticFiles?.contentTypes ?? {})
         .map(([extension, type]) => [extension.toLowerCase(), type]));
