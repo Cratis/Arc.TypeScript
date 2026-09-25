@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { QueryOptions } from './QueryOptions.js';
 import type { Operation } from '../http/Operation.js';
@@ -22,7 +22,7 @@ export class ObservableSessions {
     #openingSnapshots = 0;
     #disposed = false;
 
-    constructor(private readonly options: ArcServerOptions, private readonly services: ServiceRegistry,
+    constructor(private readonly options: ArcOptions, private readonly services: ServiceRegistry,
         private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>) {}
 
     get sessions(): readonly ObservableQuerySession[] {

@@ -1,14 +1,14 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Operation } from '../http/Operation.js';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
 import { isObservableOperation } from '../queries/observable/ObservableOperation.js';
 import { resultSchema } from './resultSchema.js';
 import { isJwtBearer } from '../authentication/jwtBearer.js';
 
 /** Render the GET representation of Arc routes. The QUERY method has no OpenAPI path-item equivalent. */
-export function renderOpenApi(commands: readonly Operation[], queries: readonly Operation[], options: ArcServerOptions = {}): Record<string, unknown> {
+export function renderOpenApi(commands: readonly Operation[], queries: readonly Operation[], options: ArcOptions = {}): Record<string, unknown> {
     const paths: Record<string, Record<string, unknown>> = {};
     const named = Object.entries(options.authenticationSchemes ?? {}).filter(([, handler]) => isJwtBearer(handler)).map(([name]) => name);
     const defaultBearer = named.includes('bearer') ? 'arcBearer' : 'bearer';

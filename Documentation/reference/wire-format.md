@@ -46,6 +46,6 @@ explicit numeric conversion and serializes wire values without using the
 process locale. Array sorting currently uses JavaScript's `localeCompare`:
 it is not equivalent to .NET invariant-culture collation. Specify provider
 sorting when stable cross-platform order matters. The optional
-`ArcServerOptions.correlationHeader` chooses the ingress **and response**
+`ArcOptions.correlationHeader` chooses the ingress **and response**
 header name (default `X-Correlation-ID`); invalid/non-UUID IDs are replaced.
 It does not change W3C `traceparent` propagation or instrument foreign routes.

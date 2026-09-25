@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import type { QueryDefinition } from './QueryDefinition.js';
 import type { QueryResult } from './QueryResult.js';
 import type { ValidationResult } from '../validation/ValidationResult.js';
@@ -25,7 +25,7 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
     return json;
 }
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
-    observable = false, serverOptions: ArcServerOptions = {}): Operation {
+    observable = false, serverOptions: ArcOptions = {}): Operation {
     return {
         ...definition, kind: 'query', route, fullyQualifiedName: fullyQualifiedName(definition),
         dynamicAuthorization: typeof definition.authorize === 'function',

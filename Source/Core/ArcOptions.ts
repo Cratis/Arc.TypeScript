@@ -29,7 +29,7 @@ import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 /** Options shared by the low-level Arc server and model-bound application builder. */
-export interface ArcServerOptions {
+export interface ArcOptions {
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
     /** Ordered, scoped server-only response value handlers. */
     commandResponseValueHandlers?: readonly ServiceIdentifier<CommandResponseValueHandler>[];

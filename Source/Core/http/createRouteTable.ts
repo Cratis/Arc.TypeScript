@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import type { Operation } from './Operation.js';
 import { fullyQualifiedName } from './fullyQualifiedName.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
@@ -31,7 +31,7 @@ export function includeRouteName(item: { namespace?: string; routeNamespace?: st
     return includeName || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
         (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
 }
-export function createRouteTable(options: ArcServerOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
+export function createRouteTable(options: ArcOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
     commands: readonly Operation[]; queries: readonly Operation[]; routes: ReadonlyMap<string, Operation>; endpoints: ReadonlyMap<string, string>
 } {
         const prefix = options.generatedApis?.routePrefix ?? 'api';
@@ -46,7 +46,7 @@ export function createRouteTable(options: ArcServerOptions, observeHealth: (cont
                 inspectClientInput(item.schema, id);
             }
             validateAuthorization(item.authorization, item.name, options.authorizationPolicies ?? {}, options.authenticationSchemes ?? {});
-            if (options.observableQueries?.includes(item as NonNullable<ArcServerOptions['observableQueries']>[number]) &&
+            if (options.observableQueries?.includes(item as NonNullable<ArcOptions['observableQueries']>[number]) &&
                 authorizationRequirements(item.authorization).some(requirement => requirement.schemes?.length))
                 throw new InvalidAuthorizationConfiguration(`Authentication schemes on observable query '${item.name}' require per-subscription authentication, which the hub does not support.`);
             if (item.schema instanceof z.ZodObject) {

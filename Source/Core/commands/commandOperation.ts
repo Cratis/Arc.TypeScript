@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import type { CommandDefinition } from './CommandDefinition.js';
 import type { CommandResult } from './CommandResult.js';
 import type { ValidationResult } from '../validation/ValidationResult.js';
@@ -47,7 +47,7 @@ function failure(context: CommandContext, error: unknown, previous?: CommandResu
     return result;
 }
 /** Compile a command into the shared direct and HTTP execution pipeline. */
-export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string, options: ArcServerOptions = {}): Operation {
+export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string, options: ArcOptions = {}): Operation {
     return {
         ...definition, kind: 'command', route, fullyQualifiedName: fullyQualifiedName(definition),
         dynamicAuthorization: typeof definition.authorize === 'function',

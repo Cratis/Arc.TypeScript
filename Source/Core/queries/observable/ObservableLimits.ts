@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ArcServerOptions } from '../../ArcServerOptions.js';
+import type { ArcOptions } from '../../ArcOptions.js';
 
 /** One immutable, validated set of transport budgets shared by admission and adapters. */
 export class ObservableLimits {
@@ -18,7 +18,7 @@ export class ObservableLimits {
     readonly handshakeTimeoutMs: number;
     readonly shutdownTimeoutMs: number;
 
-    constructor(options: ArcServerOptions) {
+    constructor(options: ArcOptions) {
         const bound = (value: number | undefined, fallback: number, maximum: number, name: string): number => {
             const result = value ?? fallback;
             if (!Number.isSafeInteger(result) || result < 1 || result > maximum)

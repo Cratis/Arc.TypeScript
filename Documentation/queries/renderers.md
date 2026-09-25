@@ -36,7 +36,7 @@ builder.add(PendingItemsRenderer); // Or register a service and call addQueryRen
 The renderer and subsequent [read-model interceptors](read-model-interception.md)
 resolve in the same request/subscription scope. They also run for each
 observable emission, including a current-value snapshot. Register tokens in
-`ArcServerOptions.queryRenderers` and `readModelInterceptors` when using the
+`ArcOptions.queryRenderers` and `readModelInterceptors` when using the
 lower-level `ArcServer` directly. With no matching renderer, Arc's existing
 array/`queryPage`/scalar behavior applies. This does **not** automatically
 push SQL or MongoDB sorting and paging into a provider: the renderer must own

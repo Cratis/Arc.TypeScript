@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
-import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { ArcOptions } from './ArcOptions.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
 import { ArcApplicationServices } from './ArcApplicationServices.js';
 import { FetchArcApplication } from './FetchArcApplication.js';
@@ -55,7 +55,7 @@ export class ArcApplicationBuilder {
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     protected generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
-    constructor(private readonly options: ArcServerOptions = {}, readonly configuration: CratisConfiguration = {}) {}
+    constructor(private readonly options: ArcOptions = {}, readonly configuration: CratisConfiguration = {}) {}
     /** Install an optional integration registered by its explicit package import. */
     extend<T>(name: string, options: T): this {
         const extension = ArcApplicationBuilder.extensions().get(name);

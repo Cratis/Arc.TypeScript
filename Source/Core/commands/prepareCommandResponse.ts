@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ArcServerOptions } from '../ArcServerOptions.js';
+import type { ArcOptions } from '../ArcOptions.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { CommandContext } from './CommandContext.js';
 import type { CommandExecutionScope } from './CommandExecutionScope.js';
@@ -11,7 +11,7 @@ import { CommandOperationExecution } from './CommandOperationExecution.js';
 import { flattenCommandResponse, processCommandResponse } from './processCommandResponse.js';
 /** Classify the response, preflight all declarations, then invoke scoped value handlers. */
 export async function prepareCommandResponse(value: unknown, context: CommandContext, scopes: readonly CommandExecutionScope[],
-    options: ArcServerOptions) {
+    options: ArcOptions) {
     const leaves = flattenCommandResponse(value);
     const declarations = leaves.flatMap(item => isCommandOperation(item) ? [item] :
         isCommandOperations(item) ? [...item.values] : []);

@@ -5,7 +5,7 @@ import type { CommandResult } from './commands/CommandResult.js';
 import type { ExecutionContext } from './execution/ExecutionContext.js';
 import type { QueryOptions } from './queries/QueryOptions.js';
 import type { QueryResult } from './queries/QueryResult.js';
-import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { ArcOptions } from './ArcOptions.js';
 import { ownMetadata } from './reflection/ownMetadata.js';
 import { withGeneratedMetadata } from './reflection/registerGeneratedMetadata.js';
 import type { ArtifactMetadata } from './reflection/ArtifactMetadata.js';
@@ -42,7 +42,7 @@ export class ArcServer {
     readonly #queriesByName: ReadonlyMap<string, Operation>;
     /** All root-owned endpoints and their allowed methods. Adapters use this for raw path dispatch. */
     readonly endpoints: ReadonlyMap<string, string>;
-    readonly options: ArcServerOptions;
+    readonly options: ArcOptions;
     readonly services: ServiceRegistry;
     /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
@@ -54,7 +54,7 @@ export class ArcServer {
     readonly #sessions: ObservableSessions;
     readonly #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
 
-    constructor(options: ArcServerOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
+    constructor(options: ArcOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
         this.#generatedMetadata = generatedMetadata;
         const detailsSchema = options.identityDetails?.schema ?? (options.identityDetails?.detailsType
             ? objectSchema(options.identityDetails.detailsType) : undefined);

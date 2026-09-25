@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
-import type { ArcServerOptions } from '../../ArcServerOptions.js';
+import type { ArcOptions } from '../../ArcOptions.js';
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 import type { QueryOptions } from '../QueryOptions.js';
 import type { QueryResult } from '../QueryResult.js';
@@ -20,7 +20,7 @@ export interface ObservableOperation extends Operation {
 }
 
 export function observableOperation<S extends z.ZodType, T>(
-    definition: ObservableQueryDefinition<S, T>, route: string, settings: ArcServerOptions = {}
+    definition: ObservableQueryDefinition<S, T>, route: string, settings: ArcOptions = {}
 ): ObservableOperation {
     const startup = queryOperation({ ...definition, clientOutput: undefined, perform: definition.observe }, route, true, settings);
     return {
