@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ClientAuthentication } from './ClientAuthentication.js';
 import { z } from 'zod';
 import type { ArcServer } from '../ArcServer.js';
 import type { ClientField } from './ClientField.js';
@@ -86,7 +87,9 @@ export function validateClientManifest(value: unknown): ClientManifest {
             fail(at, 'queryName contradicts qualified ID');
         if (!Array.isArray(raw.roles) || raw.roles.length > 128 || raw.roles.some(role => typeof role !== 'string' || !role || role.length > 256)) fail(at, 'invalid roles');
         if (typeof raw.dynamicAuthorization !== 'boolean') fail(at, 'missing dynamic authorization flag');
-        if (!['anonymous', 'authenticated', 'default'].includes(raw.authentication as string) || raw.authentication === 'anonymous' && raw.roles.length || raw.authentication === 'default' && raw.roles.length)
+        if (!Object.values(ClientAuthentication).includes(raw.authentication as ClientAuthentication) ||
+            raw.authentication === ClientAuthentication.Anonymous && raw.roles.length ||
+            raw.authentication === ClientAuthentication.Default && raw.roles.length)
             fail(at, 'authentication contradicts effective roles');
         const input = fields(raw.input, `${at}.input`, 0);
         if (raw.kind !== 'command' && input.some(field => reservedQueryArguments.has(field.name.toLowerCase()) ||
@@ -174,9 +177,10 @@ export function exportClientManifest(server: ArcServer): ClientManifest {
             ...(operation.kind === 'query' ? { queryName: id } : {}),
             roles: [...new Set((operation.authorization?.requirements ?? [operation.authorization])
                 .flatMap(requirement => requirement?.roles ?? []))],
-            authentication: operation.authorization?.anonymous ? 'anonymous' :
+            authentication: operation.authorization?.anonymous ? ClientAuthentication.Anonymous :
                 operation.authorization?.authenticated || operation.authorization?.requirements?.some(requirement => requirement.authenticated || requirement.roles?.length || requirement.policy || requirement.schemes?.length) ||
-                    operation.authorization?.roles?.length || operation.authorization?.policy || operation.authorization?.schemes?.length ? 'authenticated' : 'default',
+                    operation.authorization?.roles?.length || operation.authorization?.policy ||
+                        operation.authorization?.schemes?.length ? ClientAuthentication.Authenticated : ClientAuthentication.Default,
             dynamicAuthorization: operation.dynamicAuthorization === true,
             input, output: operation.clientOutput.output
         };
