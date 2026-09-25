@@ -43,7 +43,7 @@ Build filters from trusted values with Drizzle's operators, which bind parameter
 | Tie-breaker | The primary key, ascending, so pages stay stable when sort values repeat |
 | Selected columns | Only the model's declared fields and the primary key; other columns are never read |
 
-The client's sort field is matched against the declared fields and never becomes SQL text. A table needs at least one column marked `.primaryKey()`. A composite key declared only through Drizzle's table extras does not mark individual columns, so the adapter cannot use it as a tie-breaker, and registration fails.
+The client's sort field is matched against the declared fields and never becomes SQL text. PostgreSQL 16 and MySQL 8.4 live checks exercise count, sorted pages, and decoded columns; MySQL also checks tie-breaking, invalid sort rejection, and `QueryPagingRequired` limits. A table needs at least one column marked `.primaryKey()`. A composite key declared only through Drizzle's table extras does not mark individual columns, so the adapter cannot use it as a tie-breaker, and registration fails.
 
 ## Unpaged reads
 
