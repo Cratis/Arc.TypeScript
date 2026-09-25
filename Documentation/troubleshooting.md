@@ -119,9 +119,21 @@ The proxy generator fails with `Ambiguous model name: <Namespace>.<Name>` when t
 
 ## Chronicle
 
-### Decorated events or read models fail at load
+### A command or query that uses Chronicle never answers
 
-The Chronicle SDK needs `reflect-metadata`. Import it first in your entry point. See [Add event sourcing](chronicle/add-event-sourcing.md).
+The Chronicle kernel is not running, or not reachable at the connection string's address. The server starts without it, and the SDK keeps trying to connect, so the request waits instead of failing. It completes once the kernel is up. Check the kernel's health; see [Start a development kernel](chronicle/add-event-sourcing.md#start-a-development-kernel).
+
+### Chronicle commands and queries answer 500 with "An unexpected error occurred"
+
+Check that `withChronicle` runs before `discover(...)` or `add(...)`. The integration only sees artifacts registered after it, so an event type or projection registered earlier never reaches Chronicle. See [Registration options](chronicle/registration-options.md).
+
+### Every command waits for the full completion timeout, then answers 500
+
+The application sets `completionTimeoutMs`, and it has a projection or reactor that does not handle the appended event type. Chronicle waits for every observer on the event log, so the wait times out although the events were appended. This is [Cratis/Chronicle#4132](https://github.com/Cratis/Chronicle/issues/4132). Remove `completionTimeoutMs`, or see [Make the command wait](chronicle/add-event-sourcing.md#make-the-command-wait). A kernel test scenario behaves the same way; see [Register only the observers the scenario needs](testing/chronicle-kernel.md#register-only-the-observers-the-scenario-needs).
+
+### Do I need to import reflect-metadata?
+
+Not for the Chronicle SDK 6.7. It depends on `reflect-metadata`, and each of its modules that reads decorator metadata imports it. Importing it first in your entry point is harmless. A browser frontend that uses the Arc client packages still imports it; see [Set up proxy generation](proxy-generation/getting-started.md).
 
 ## Related
 
