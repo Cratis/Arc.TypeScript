@@ -11,4 +11,5 @@ export type { DrizzleDatabase } from './DrizzleDatabase.js';
 export type { DrizzleFilter } from './DrizzleFilter.js';
 export type { ColumnCodec } from './ColumnCodec.js';
 export { conceptCodec, guidCodec, dateOnlyCodec, timeOnlyCodec, timeSpanCodec, jsonCodec } from './ColumnCodec.js';
+export { ConceptCodecKind } from './ConceptCodecKind.js';
 export { pgColumn, mysqlColumn, sqliteColumn } from './columns.js';

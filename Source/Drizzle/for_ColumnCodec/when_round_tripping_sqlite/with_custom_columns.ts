@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { DrizzleDialect } from '../../DrizzleDialect.js';
+import { ConceptCodecKind } from '../../ConceptCodecKind.js';
 import { describe, it, should } from 'vitest';
 import initSqlJs from 'sql.js';
 import { drizzle } from 'drizzle-orm/sql-js';
@@ -21,9 +22,9 @@ describe('when round-tripping SQLite custom columns', () => {
         try {
             const records = sqliteTable('records', {
                 id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
-                conceptId: sqliteColumn(conceptCodec(TaskId, 'guid', DrizzleDialect.SQLite))('concept_id').notNull(),
-                name: sqliteColumn(conceptCodec(TaskName, 'string', DrizzleDialect.SQLite))('name').notNull(),
-                score: sqliteColumn(conceptCodec(TaskScore, 'number', DrizzleDialect.SQLite))('score').notNull(),
+                conceptId: sqliteColumn(conceptCodec(TaskId, ConceptCodecKind.Guid, DrizzleDialect.SQLite))('concept_id').notNull(),
+                name: sqliteColumn(conceptCodec(TaskName, ConceptCodecKind.String, DrizzleDialect.SQLite))('name').notNull(),
+                score: sqliteColumn(conceptCodec(TaskScore, ConceptCodecKind.Number, DrizzleDialect.SQLite))('score').notNull(),
                 date: sqliteColumn(dateOnlyCodec)('date').notNull(),
                 time: sqliteColumn(timeOnlyCodec)('time').notNull(),
                 span: sqliteColumn(timeSpanCodec)('span').notNull(),

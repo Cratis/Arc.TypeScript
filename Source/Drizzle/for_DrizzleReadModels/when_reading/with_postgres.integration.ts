@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { SortDirection } from '@cratis/arc.core';
 import { DrizzleDialect } from '../../DrizzleDialect.js';
+import { ConceptCodecKind } from '../../ConceptCodecKind.js';
 import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { Pool } from 'pg';
 import postgres from 'postgres';
@@ -26,7 +27,7 @@ class RichRecord {
 const table = pgTable('tasks', {
     id: pgColumn(guidCodec(DrizzleDialect.PostgreSQL))('id').primaryKey(),
     title: text('title').notNull(),
-    name: pgColumn(conceptCodec(TaskName, 'string', DrizzleDialect.PostgreSQL))('name').notNull(),
+    name: pgColumn(conceptCodec(TaskName, ConceptCodecKind.String, DrizzleDialect.PostgreSQL))('name').notNull(),
     date: pgColumn(dateOnlyCodec)('date').notNull(),
     time: pgColumn(timeOnlyCodec)('time').notNull(),
     details: pgColumn(jsonCodec(DrizzleDialect.PostgreSQL, value => {
