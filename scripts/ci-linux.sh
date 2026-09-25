@@ -23,4 +23,4 @@ trap cleanup EXIT
 
 git clone --quiet --no-local --single-branch --branch "$branch" "$PWD" "$clone"
 docker run --rm --name "$container" --mount "type=bind,src=$clone,dst=/workspace" --workdir /workspace node:22.19.0 \
-    sh -lc 'corepack enable && yarn install --immutable && yarn ci'
+    sh -lc 'apt-get update -qq && apt-get install -y -qq --no-install-recommends lsof && corepack enable && yarn install --immutable && yarn ci'
