@@ -20,7 +20,9 @@ The [Library suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/L
 ```typescript
 const scenario = ChronicleKernelScenario.for(AddBook, [BookAdded, Book, AddBookValidator, BookTitleValidator]);
 try {
-    await scenario.given.events({ eventSourceId: 'source-1', event: new BookAdded(authorId, title) });
+    const seededId = BookId.create();
+    await scenario.given.events({ eventSourceId: seededId.toString(), event: new BookAdded(authorId, title) });
+    await scenario.shouldHaveReadModel(Book, seededId.toString());
     const result = await scenario.execute({ bookId, authorId, title });
     result.shouldBeSuccessful();
     result.shouldHaveAppendedEvent(BookAdded, bookId.toString());
