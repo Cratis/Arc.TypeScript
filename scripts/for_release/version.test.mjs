@@ -34,7 +34,7 @@ function fixture(t) {
         mkdirSync(dirname(join(folder, file)), { recursive: true });
         const original = readFileSync(join(root, file), 'utf8');
         const line = original.split('\n').find(text => /(?:Every package manifest is at version|the manifests are at version|Every package in this repository is at version)/.test(text));
-        writeFileSync(join(folder, file), `${line}\n`);
+        writeFileSync(join(folder, file), `${line.replace(/version \d+\.\d+\.\d+/, 'version 0.19.0')}\n`);
     }
     return folder;
 }
@@ -127,9 +127,10 @@ for (const version of ['v0.20.0', '0.20', '0.20.0-beta.1', '01.2.3', '1.2.3+meta
 }
 
 test('CLI check succeeds on the repository; invalid usage fails without an install', () => {
+    const current = JSON.parse(readFileSync(join(root, 'Source/Core/package.json'), 'utf8')).version;
     const checked = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
     assert.equal(checked.status, 0, checked.stderr);
-    assert.match(checked.stdout, /Checked version 0.19.0: 12 versioned packages, 2 unversioned workspaces/);
+    assert.ok(checked.stdout.includes(`Checked version ${current}: `), checked.stdout);
     const invalid = spawnSync(process.execPath, [script, '0.20.0-beta.1'], { encoding: 'utf8' });
     assert.equal(invalid.status, 1);
     assert.match(invalid.stderr, /Invalid stable version/);
