@@ -1,2 +1,6 @@
 - name: Read models
   href: index.md
+- name: Read models in commands
+  href: injecting-into-commands.md
+- name: When resolution fails
+  href: failures.md

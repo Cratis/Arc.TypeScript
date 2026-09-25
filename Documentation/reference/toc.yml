@@ -9,3 +9,7 @@
       href: packages.md
     - name: Wire format
       href: wire-format.md
+    - name: Diagnostics
+      href: diagnostics.md
+    - name: Glossary
+      href: glossary.md

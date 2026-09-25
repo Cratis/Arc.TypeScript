@@ -3,7 +3,7 @@ title: Development users and tenants
 description: Offer fixture users and tenants to local development tooling through /.cratis/users and /.cratis/tenants, and keep them out of production.
 ---
 
-Local development tools, such as a user or tenant picker, need something to pick from. Arc serves two anonymous discovery routes for that, which return nothing until you opt in with fixture data.
+Local development tools, such as a user or tenant picker, need something to pick from. Hard-coding that list in the tool means it drifts from your application. Arc serves two anonymous discovery routes instead, which return nothing until you opt in with fixture data from your own code.
 
 ## Opt in
 
@@ -38,7 +38,16 @@ Both routes are anonymous. Never return secrets, production user inventories, or
 
 Tenant resolution is separate: listing a tenant here does not select or authorize it. See [Tenancy](../tenancy/index.md).
 
+:::caution[Tenancy rules apply to these routes too]
+The discovery routes resolve a tenant like every other request. With `tenancy.required`, an anonymous request without a tenant answers 400. With `tenancy.membershipClaim`, a request that names a tenant answers 403, because an anonymous caller has no membership claim. Leave `required` off in the local configuration that serves a picker.
+:::
+
+## What a picker does with the list
+
+A tool such as [Lens](/tools/lens/) reads both routes to fill its pickers, then sends identity and tenant headers with your application's requests. Arc only turns those identity headers into a principal when you registered `microsoftIdentityPlatform()`. [Simulate a signed-in user locally](local-development.md) shows that setup on a loopback host.
+
 ## Related
 
 - [Identity](index.md)
+- [Simulate a signed-in user locally](local-development.md)
 - [Tenant resolvers](../tenancy/resolvers.md)

@@ -103,9 +103,12 @@ Evidence paths are relative to the repository root. Spec folders follow `for_<Su
 
 | Capability | Status | TypeScript contract | Evidence |
 | --- | --- | --- | --- |
-| [MongoDB](../mongodb/index.md) | Bounded | Tenant-scoped collections with BSON mapping, .NET-compatible naming policies, database-side paging, change-stream observation, and command read models. No transactions, joined observation, resilience middleware, or driver metrics. | `Source/MongoDB/for_MongoCollection`, `.../for_MongoDocumentCodec`, `.../for_MongoReadModels`, `bash Source/MongoDB/run-integration.sh` (live replica set, Docker) |
-| [SQL with Drizzle](../sql/index.md) | Bounded | Tenant-scoped Drizzle handles, column codecs, and SQL count, sort, and page for model-bound queries. SQLite and PostgreSQL tested with real databases; MySQL and observation not verified. No migrations, change tracking, transactions, or command read models. | `Source/Drizzle/for_DrizzleReadModels`, `.../for_ColumnCodec`, `.../for_DrizzleModelCodec`, `Source/Drizzle/when_reading_postgres.integration.ts` |
-| [Chronicle](../chronicle/index.md) | Experimental | Not private since v0.12.0. `withChronicle` appends returned model-bound events through a response value handler, resolves Chronicle read models by command key, and batches nested returned events. SDK 6.7.0 loads in native Node ESM. Keyed aggregates and returned reactor commands are experimental; full .NET parity is unverified. | `Source/Chronicle/for_ChronicleResponseHandler`, `.../for_ChronicleUnitOfWork`, `.../for_ChronicleCommandScenario`, `bash Source/Chronicle/run-integration.sh` (live kernel, Docker) |
+| [MongoDB](../mongodb/index.md) | Bounded | Tenant-scoped collections with BSON mapping, .NET-compatible naming policies, database-side paging, change-stream observation, and command read models; `Cratis:MongoDB:{Server,Database}` configuration binding. No transactions, joined observation, reconnect policy, geospatial serializers, resilience middleware, or driver metrics. See [how it is checked](#mongodb-checks). | `Source/MongoDB/for_MongoCollection`, `.../for_MongoDocumentCodec`, `.../for_MongoReadModels`, `.../for_withMongoDB`, `bash Source/MongoDB/run-integration.sh` (live replica set, Docker) |
+| [SQL with Drizzle](../sql/index.md) | Bounded | Tenant-scoped Drizzle handles, column codecs, and SQL count, sort, and page for model-bound queries. SQLite and PostgreSQL tested with real databases; MySQL not run against a live server. No observation, migrations, change tracking, transactions, or command read models. See [how it is checked](#sql-checks). | `Source/Drizzle/for_DrizzleReadModels`, `.../for_ColumnCodec`, `.../for_DrizzleModelCodec`, `.../for_withDrizzle`, `bash Source/Drizzle/run-integration.sh` (live PostgreSQL 16, Docker) |
+| [Chronicle](../chronicle/index.md) | Experimental | Not published to npm. `withChronicle` appends returned model-bound events through a response value handler, with routing, subject, and causation resolved from the command; resolves Chronicle read models by command key and in validators; batches nested returned events; and executes Arc commands returned from reactors through the SDK 6.7.0 result hook. SDK 6.7.0 loads in native Node ESM. Keyed aggregates and returned reactor commands are experimental; full .NET parity is unverified. See [how it is checked](#chronicle-checks). | `Source/Chronicle/for_ChronicleResponseHandler`, `.../for_ChronicleUnitOfWork`, `.../for_ChronicleReadModelForCommandResolver`, `.../for_reactorCommandResultHandler`, `.../for_AggregateRoot`, `.../for_ChronicleCommandScenario`, `bash Source/Chronicle/run-integration.sh` (live kernel, Docker) |
+| [Chronicle compliance](../chronicle/compliance.md) | Bounded | Subject resolution on appends and `@notAudited` and `@pii` exclusion from the causation chain are supported. Releasing encrypted read-model values on queries or in command read models is not implemented. | `Source/Chronicle/for_ChronicleResponseHandler/when_returning_an_event/with_sensitive_command_fields.ts`, `Source/Chronicle/testing/for_ChronicleCommandScenario` |
+| Reactor replay exclusion | Not implemented | The TypeScript SDK has no `[OnceOnly]` or `[Replay]`; reactor handlers, including returned commands, must tolerate re-delivery. | |
+| [Chronicle code analysis](../chronicle/code-analysis.md) | Not implemented | No `ARCCHR` lint rules; the page maps each .NET diagnostic to N/A, a runtime check, or no check. | |
 | Transactions and units of work | Experimental | Chronicle stages returned and aggregate-applied events from nested commands in one tenant, correlation, and event store, and sends one `appendMany` after the outer command succeeds. It participates in Arc command-operation failure handling; it is not a transaction across stores or immediate SDK appends. | `Source/Chronicle/for_ChronicleUnitOfWork`, `Source/Chronicle/for_ChronicleCommandScope` |
 
 ## Testing
@@ -120,7 +123,7 @@ Evidence paths are relative to the repository root. Spec folders follow `for_<Su
 | --- | --- | --- | --- |
 | Express 5, Fastify 5, and Hono 4 adapters | Supported | `cratisArc` accepts an `ArcServer` or built `ArcApplication`: Express middleware plus listener attach; Fastify plugin registers HTTP and WS in either shared-plugin order; Hono sub-app plus Node serving helper. The host keeps listener ownership. See [Host adapters](../hosts/index.md). | `Source/Express/for_cratisArc`, `Source/Fastify/for_cratisArc`, `Source/Hono/for_cratisArc`, `ContractTests/Client/observable-origin.test.mjs` |
 | Node configuration and Fetch dispatch | Bounded | The default `@cratis/arc.core` entry keeps Node file configuration, discovery, HTTP host, static files, and WebSocket upgrades; `app.fetch(request)` answers 404 on non-Arc paths and `app.handle(request)` falls through. The separate `@cratis/arc.core/fetch` entry registers artifacts without file discovery or configuration and serves commands, queries, and SSE. A neutral bundle allows only `node:async_hooks`; its pipeline scenarios pass in a restricted VM and Deno 2.9.7. Bun, Cloudflare Workers, and Next.js deployments have not been exercised. See [Fetch API runtimes](../hosts/fetch-runtimes.md). | `Source/Core/configuration/for_loadConfiguration`, `Source/Core/for_FetchArcApplication`, `yarn check:fetch`, `yarn check:fetch:deno` |
-| Private Cratis composition | Experimental | Local `@cratis/cratis` composes Arc and Chronicle without installing an authentication handler. It is not published; the composition itself has not been exercised against a live kernel in this change. | `Source/Cratis` |
+| Cratis composition | Experimental | `@cratis/cratis` composes Arc and Chronicle without installing an authentication handler; `CratisApplication.createBuilder` and `builder.addCratis`. It is not published to npm, and the composition itself has not been exercised against a live kernel. | `Source/Cratis` |
 | Cancellation on client disconnect | Supported for Express, Fastify, and Node | Hono passes the signal of the request it received. | `Source/Express/for_cratisArc`, `Source/Fastify/for_cratisArc`, `Source/Core/http/for_createArcNodeHandler` |
 | Unsupported methods | Supported | 405 with `Allow` for methods that reach Arc; the standalone host rejects TRACE and CONNECT. | `ContractTests/Http/conformance.test.mjs`, `Source/Core/http/for_runArc` |
 | [Standalone host and static files](../core/index.md) | Bounded | HTTP or HTTPS listener or request handler, public files, SPA fallback, path base, cache validators, and graceful shutdown. No private file authorization, directory listing, multiple roots, or byte ranges. | `Source/Core/http/for_runArc`, `.../for_createArcNodeHandler`, `Source/Core/for_ArcApplication` |
@@ -141,6 +144,36 @@ Evidence paths are relative to the repository root. Spec folders follow `for_<Su
 - **Hosting defaults.** The Node host binds loopback by default. File discovery imports a dedicated artifacts folder, and moving a folder changes its derived route.
 - **Invalid GUID query arguments.** .NET 22.23.0 binds `Guid.Empty` and returns 200; TypeScript rejects the malformed UUID with 400.
 - **Sorting collation.** In-memory string sorting uses `localeCompare`, not .NET invariant-culture collation.
+
+## How the integrations are checked
+
+The integration pages describe behavior. This section records the checks behind it.
+
+### Chronicle checks
+
+The integration uses the published Chronicle TypeScript SDK, `@cratis/chronicle` 6.7.0, with `@cratis/fundamentals` 7.19.6; both load in native Node ESM with NodeNext resolution. The ordinary `yarn test` specs use typed substitutes and never start a kernel. An opt-in suite, `bash Source/Chronicle/run-integration.sh`, runs [`Source/Chronicle/Integration/live.test.mjs`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/live.test.mjs) against a real development kernel and checks:
+
+- returned-event batches, readback, and tenant isolation;
+- a reactor that returns an Arc command, executed in the triggering event's tenant;
+- before-first concurrency rejection, and aggregate rehydration, commit, and concurrency rejection;
+- operation compensation after a concurrency rejection;
+- command-key read models for existing and missing keys;
+- a projected read-model query, through a read-model interceptor;
+- all of it through real Express, Fastify, and Hono HTTP adapters.
+
+The suite needs Docker. Its image, `cratis/chronicle:latest-development`, is mutable, so pin a compatible image for reproducible deployment testing. Validator read models (`readModelForValidation`), subject resolution, and `@notAudited` are covered by substitute-based specs, not by the kernel suite. The [Library sample](../getting-started/library-sample.md) has its own kernel run, `bash Samples/Library/run-integration.sh`.
+
+### MongoDB checks
+
+`bash Source/MongoDB/run-integration.sh` starts a task-owned MongoDB 7 replica set in Docker and removes it afterward. The [integration spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/MongoDB/for_MongoCollection/when_observing_changes/with_a_replica_set.integration.ts) exercises initial snapshots, insertion, deletion, tenant isolation, dependency injection, and provider paging, and a [second spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/MongoDB/for_MongoCollection/when_serving_a_paged_query/with_each_http_adapter.integration.ts) serves sorted pages through Express, Fastify, and Hono. The script exits with 2 when Docker is not available, which means the check did not run. Unit specs cover the codec against .NET-shaped documents, naming policies, burst coalescing, the item cap, and stream failures.
+
+### SQL checks
+
+`yarn vitest run --project @cratis/arc.drizzle` runs the SQLite specs on `sql.js`. The [adapter HTTP spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_serving_a_sqlite_page/with_each_http_adapter.ts) serves a sorted page through Express, Fastify, and Hono and checks that an unknown sort field answers 400; the [tenant-isolation spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_paging_across_tenants/with_sqlite.ts) checks `databaseFactory` routing. `bash Source/Drizzle/run-integration.sh` runs the [PostgreSQL spec](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_reading/with_postgres.integration.ts) against PostgreSQL 16 in Docker and exits with 2 when Docker is not available. No check runs against MySQL.
+
+### Proxy generation checks
+
+The generated proxies compile against `@cratis/arc` and `@cratis/arc.react` 22.19.1 with `@cratis/fundamentals`, in strict `Bundler` mode with `skipLibCheck: false`. `yarn test:client-generation` builds the workspace, generates the Tasks proxies, compiles them, and runs commands, queries with arguments, paging, sorting, observable snapshots, and hub updates against live model-bound Express, Fastify, and Hono servers. Nullable command types and interface-only model mode have compile coverage only, not live-client equivalence.
 
 ## Shared Arc page examples
 

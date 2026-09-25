@@ -1,12 +1,36 @@
 ---
 title: SQL with Drizzle
-description: Serve model-bound queries from application-owned Drizzle databases on SQLite and PostgreSQL, and know what the integration deliberately leaves to you.
+description: Serve model-bound queries from application-owned Drizzle databases on SQLite and PostgreSQL, with SQL-side paging, column codecs, and tenant routing, and know what the integration deliberately leaves to you.
 ---
 
-`@cratis/arc.drizzle` connects Arc queries to application-owned Drizzle databases. It supports SQLite and PostgreSQL with executable database checks; MySQL uses the same SQL query path but has **not** been exercised against a live MySQL server. This is a source preview, not a published npm package.
+Your read models live in SQL tables. Every query needs the right database for the tenant, a page and a total count computed in SQL rather than in memory, sorting that a client cannot turn into SQL injection, and conversions for GUIDs, concepts, and dates. `@cratis/arc.drizzle` does that on top of [Drizzle](https://orm.drizzle.team), while your application keeps its schema, its migrations, and its connections.
 
-Use [Get started](getting-started.md) to wire one SQLite database into an Arc read model. Then choose [column conversions](column-types.md), [tenant routing](tenancy.md), [read-only access](read-only.md), [paging and sorting](paging.md), or [migrations](migrations.md). [Observation](observing.md) describes the unsupported live-query boundary.
+:::note[Source preview]
+`@cratis/arc.drizzle` is not published to npm. SQLite and PostgreSQL are exercised against real databases. MySQL uses the same query path but has **not** been run against a live MySQL server. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the status and the checks behind it.
+:::
 
-Drizzle's typed, SQL-first schema and query builders let Arc share one read path across PostgreSQL, MySQL, and SQLite while your application retains its SQL and migration ownership. Kysely is a capable typed query builder but does not supply the same table/column mapping used here; Prisma emphasizes its own schema, client generation and migration workflow; TypeORM centers on entities, decorators and unit-of-work patterns rather than this explicit, read-only handle. These are trade-offs, not claims that one ORM replaces another.
+## What it provides
 
-Drizzle 0.45.x is pre-1.0 (1.0 is in beta). The peer dependency `^0.45.0` accepts compatible 0.45.x releases, **not** 0.46.x or 1.0; test and update this integration before changing the range. There is no Chronicle requirement or EF Core change tracker. Arc's .NET EF integration also offers SQL Server, spatial Point/LineString/Polygon types, multiple DbContexts and `BaseDbContext` automatic concept conversion; none of those features are ported here. Only one Drizzle database token can be registered per application; adding another `withDrizzle` registration fails at build with a duplicate service. Multiple tenants instead use `databaseFactory` to select one database per tenant.
+| Capability | Page |
+| --- | --- |
+| Register a database and read models with `withDrizzle`, serve a query, write from a command, and keep queries on a read-only handle | [Get started](getting-started.md) |
+| Store GUIDs, concepts, dates, times, durations, and JSON per dialect | [Column types](column-types.md) |
+| Count, sort, and page in SQL | [Paging and sorting](paging.md) |
+| Route each tenant to its own database | [Tenancy](tenancy.md) |
+
+## Why Drizzle
+
+Drizzle's typed, SQL-first table declarations and query builders let Arc share one read path across PostgreSQL, MySQL, and SQLite, while your application keeps ownership of its SQL and its migrations. Kysely is a capable typed query builder but does not supply the table and column mapping used here. Prisma centers on its own schema, client generation, and migration workflow. TypeORM centers on entities, decorators, and a unit of work rather than an explicit read-only handle. These are trade-offs, not claims that one ORM replaces another.
+
+Drizzle 0.45 is before 1.0. The peer dependency `^0.45.0` accepts 0.45 releases, **not** 0.46 or 1.0; the integration has to be tested and updated before that range changes.
+
+## What it does not do
+
+- **No schema management.** `withDrizzle` never creates tables, adds columns, or runs migrations. See [Own the schema](getting-started.md#own-the-schema).
+- **No live queries.** There is no `observe()`, and Arc does not refresh an observable query when a table changes. SQLite has no cross-process change notification here, and Drizzle does not announce writes. PostgreSQL `LISTEN`/`NOTIFY` would need managed triggers, a listener connection per tenant, resubscription after reconnects, a race-free first read, and tested shutdown; none of that is included. If your application has a reliable, tenant-scoped change source of its own, an Arc [observable query](../queries/observable-queries.md) can consume it. An in-process event after a command write does not see changes made by other processes.
+- **No command read models.** `commandReadModel(Type)` does not load SQL models by command key. A command can inject `drizzleReadModel(Type)` and read explicitly.
+- **No transactions or change tracking.** There is no unit of work shared with command execution. Use a Drizzle transaction in your command when several writes must succeed together.
+- **One registration per application.** A second `withDrizzle` fails at build with a duplicate service. Several tenants use one registration with `databaseFactory`.
+- **No EF-only features.** Arc on .NET's Entity Framework integration also has SQL Server, spatial Point, LineString, and Polygon types, several DbContexts, and automatic concept conversion in `BaseDbContext`. None of those are part of this package.
+
+Start with [Get started](getting-started.md).

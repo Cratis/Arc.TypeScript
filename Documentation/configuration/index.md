@@ -1,9 +1,22 @@
 ---
 title: Configuration
-description: Configure Arc through its grouped ArcOptions tree, appsettings.json, environment variables, or code.
+description: Configure Arc through its grouped ArcOptions tree, appsettings.json, environment variables, or code, add integrations through the builder, and see what each host reads.
 ---
 
-Arc reads its settings from one `ArcOptions` object. The TypeScript groups follow the same `Cratis:Arc` paths as [Arc on .NET](https://github.com/Cratis/Arc/blob/main/Documentation/backend/csharp/configuration/index.md): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`. Node-specific transport limits and registration hooks live in those groups or alongside them as noted below.
+The same application runs on your laptop, in CI, and in production. The route prefix stays put, but the tenant source, the exception detail, and the listener address change between them. You want those differences in configuration, not in `if` statements around your startup code.
+
+Arc reads every setting from one `ArcOptions` object. You can fill it from `appsettings.json`, environment variables, and code, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](https://github.com/Cratis/Arc/blob/main/Documentation/backend/csharp/configuration/index.md): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
+
+## What each entry point reads
+
+Where options come from depends on how you create the application. The host you mount it in does not matter: Express, Fastify, and Hono take an application that is already built. See the [hosting overview](../overview.md) for choosing a host.
+
+| Entry point | Reads `appsettings.json` and environment | Typical use |
+| --- | --- | --- |
+| `ArcApplication.createBuilder()` from `@cratis/arc.core` | Yes, unless you pass `configuration: false` | Node applications, with discovery and the standalone host |
+| `CratisApplication.createBuilder()` from `@cratis/cratis` | Yes, including `Cratis:Chronicle` | Arc and the experimental Chronicle integration in one call; see [Add event sourcing](../chronicle/add-event-sourcing.md) |
+| `ArcApplication.createBuilder()` from `@cratis/arc.core/fetch` | No, code options only | Fetch API runtimes without a filesystem; see [Fetch API runtimes](../hosts/fetch-runtimes.md) |
+| `new ArcServer(options)` | No, code options only | [Low-level definitions](../commands/low-level-definitions.md) and specs |
 
 ## Three ways to configure
 
@@ -37,6 +50,18 @@ Use `{ configuration: false }` to disable file and environment binding, or `{ co
 
 `new ArcServer(options)` uses code options only. It never reads a file or environment overrides. On a Fetch-only runtime, its default for exception exposure is false because there is no Node environment.
 
+## Add features through the builder
+
+Storage and event sourcing are optional packages. Importing one adds its method to the builder, and the method registers everything the integration needs:
+
+| Package | Builder method | Configuration it binds |
+| --- | --- | --- |
+| `@cratis/arc.mongodb` | `builder.withMongoDB({ ... })`; see [MongoDB](../mongodb/getting-started.md) | `Cratis:MongoDB:{Server,Database}` |
+| `@cratis/arc.drizzle` | `builder.withDrizzle({ ... })`; see [SQL with Drizzle](../sql/getting-started.md) | None; pass the database in code |
+| `@cratis/arc.chronicle`, experimental | `builder.withChronicle({ ... })`; see [Chronicle](../chronicle/index.md) | `Cratis:Chronicle:{ConnectionString,EventStore}` |
+
+Each package also exports a function form, such as `withMongoDB(builder, options)`, which does the same. Calling a method whose package you did not import fails where you call it, so a missing integration never degrades into a silent no-op. Configuration covers only serializable values. Clients, connection pools, and model classes are passed in code.
+
 ## The ArcOptions tree
 
 The paths below are relative to `Cratis:Arc` in configuration and camelCase in TypeScript. `.NET` settings with different value representations are called out explicitly. Unspecified options use the documented defaults.
@@ -44,6 +69,7 @@ The paths below are relative to `Cratis:Arc` in configuration and camelCase in T
 | Configuration path / TypeScript path | Default | Effect |
 | --- | --- | --- |
 | `ExposeExceptionDetails` / `exposeExceptionDetails` | `true` only when the effective environment is Development | Include original exception messages and stack traces in serialized HTTP results; otherwise redact them. This does not enable development discovery. |
+| `Development` / `development` | `false` | Enable the development user and tenant discovery providers. TypeScript-only; it does not change exception exposure. |
 | `CorrelationId:HttpHeader` / `correlationId.httpHeader` | `X-Correlation-ID` | Correlation ID request and response header. |
 | `Tenancy:ResolverType` / `tenancy.resolverType` | `header` when `tenancy` is present | Single `header`, `query`, `claim`, `subdomain`, `development`, or `fixed` source. |
 | `Tenancy:HttpHeader` / `tenancy.httpHeader` | `x-cratis-tenant-id` | Header source; also the fallback for `resolverType: 'subdomain'` or an ordered `['subdomain', 'header']` list. |
@@ -51,6 +77,8 @@ The paths below are relative to `Cratis:Arc` in configuration and camelCase in T
 | `Tenancy:QueryParameter` / `tenancy.queryParameter` | `tenantId` | Query-string source. |
 | `Tenancy:ClaimType` / `tenancy.claimType` | `tenant_id` | Claim source; only own string claims on authenticated principals count. |
 | `Tenancy:FixedTenantId` / `tenancy.fixedTenantId` | `development` | Fixed or development source. The .NET `DevelopmentTenantId` configuration name also binds this value; do not supply both names. |
+| `Tenancy:Required` / `tenancy.required` | `false` | Answer 400 when no tenant is selected. TypeScript-only. |
+| `Tenancy:MembershipClaim` / `tenancy.membershipClaim` | None | Require the selected tenant in this comma-separated own claim of an authenticated principal, or answer 403. TypeScript-only. |
 | `GeneratedApis:RoutePrefix` / `generatedApis.routePrefix` | `api` | Prefix for convention routes. |
 | `GeneratedApis:SegmentsToSkipForRoute` / `generatedApis.segmentsToSkipForRoute` | `0` | Leading namespace segments removed from generated routes. |
 | `GeneratedApis:IncludeCommandNameInRoute` / `generatedApis.includeCommandNameInRoute` | `true` | Append command names to convention routes. |
@@ -114,6 +142,20 @@ A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while
 | `identityDetails` | None | Registers `/.cratis/me`; see [Identity](../identity/index.md). |
 | `developmentUsers`, `developmentTenants` | None | Code-only anonymous discovery providers; require `development: true`. |
 
+## A note on CORS
+
+CORS is not an Arc option. Arc sends no `Access-Control-*` headers, and it answers a preflight `OPTIONS` request to a command or query route with 405 and an `Allow` header. A browser on another origin therefore cannot call Arc until something in front of it handles CORS.
+
+Choose one of these:
+
+- **Serve the frontend from the same origin.** Proxy `/api` and `/.cratis` through your dev server, as the Library sample's Vite configuration does, or serve the built frontend with [static files](../core/static-files.md).
+- **Use your web framework's CORS middleware**, mounted before Arc: `cors` for Express, `@fastify/cors` for Fastify, or `hono/cors` for Hono. The middleware answers the preflight and adds the headers to Arc's responses.
+- **Handle CORS at your ingress** in front of the standalone host, which has no middleware of its own.
+
+Arc accepts HTTP `QUERY` for queries by default. If cross-origin clients use it, add `QUERY` to the allowed methods; it is not a simple method, so the browser always sends a preflight. A client that only uses GET does not need it.
+
+WebSocket upgrades for observable queries are not covered by CORS. Arc checks their `Origin` against `query.allowedOrigins` itself; see [WebSockets](../hosts/websockets.md#origin-checks).
+
 ## Errors and logging
 
 The code-only `logger(error, correlationId)` receives the original error regardless of `exposeExceptionDetails`. A callback failure produces a 500 with `hasExceptions: true`; when exposure is off, HTTP callers receive `['An unexpected error occurred']` and no stack trace. Direct calls are neither redacted nor logged. If the logger throws or rejects, Arc attempts it once and returns a generic redacted 500. A handler failure and a scope cleanup failure arrive together as one `AggregateError`.
@@ -130,8 +172,27 @@ The code-only `logger(error, correlationId)` receives the original error regardl
 - authorization combines anonymous with restricted access, names an unknown policy or scheme, or combines `nativePrincipal` with `authentication`;
 - an input schema has case-insensitively duplicate property names or cannot become JSON Schema.
 
-The builder also rejects misplaced decorators, duplicate validator targets, missing service registrations, dependency cycles, and captive lifetimes.
+The builder also rejects misplaced decorators, duplicate validator targets, missing service registrations, dependency cycles, and captive lifetimes. A captive lifetime is a singleton that depends on a scoped service. It would keep the first request's instance forever, which in a multi-tenant application means the first tenant's data. Arc checks the declared graph without running any factory, so the check is safe in every environment.
 
 ## Low-level definition fields
 
 `defineCommand` and `defineQuery` share `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, `validatorDependencies`, and `clientOutput`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required); an observable query takes `observe` (required). See [Low-level definitions](../commands/low-level-definitions.md).
+
+## Upgrading from v0.21
+
+v0.22 grouped the flat options under the .NET configuration paths and renamed the options type. Code that still uses the old names no longer compiles:
+
+| Before v0.22 | Now |
+| --- | --- |
+| `ArcServerOptions` | `ArcOptions` |
+| `correlationHeader` | `correlationId.httpHeader` |
+| `tenantHeader` | `tenancy.httpHeader` |
+| `resolveTenant` | `tenancy.resolve` |
+| `enableQueryMethod` | `generatedApis.enableQueryHttpMethod` |
+| `openApiVersion` | `generatedApis.openApiVersion` |
+| `maxBodyBytes` | `hosting.maxBodyBytes` |
+| `observableKeepAliveIntervalMs` | `query.keepAliveIntervalMs` |
+| `allowedOrigins` | `query.allowedOrigins` |
+| `maxObservable*`, `observableHandshakeTimeoutMs`, `observableShutdownTimeoutMs`, `enableObservableHealth`, `observableEmissionGuards` | The same names under `query` |
+
+In `appsettings.json`, use the grouped paths from [the ArcOptions tree](#the-arcoptions-tree). A flat key such as `Cratis:Arc:CorrelationHeader` does not bind; with a `logger` configured, Arc reports it as an unknown key.

@@ -3,7 +3,9 @@ title: Arc.Core and the standalone Node host
 description: Run an Arc application on Node's own HTTP server, own the listener yourself, and shut it down without losing in-flight work.
 ---
 
-`@cratis/arc.core` is the whole Arc application model: the command and query pipelines, validation, authorization, services, and the result envelope. It also carries a small Node host, so an application can serve its routes, and a built frontend, without Express, Fastify, or Hono.
+Not every service needs a web framework. A worker that exposes a few commands, or a small application that serves its own frontend, would otherwise pull in Express only to listen on a port and shut down cleanly.
+
+`@cratis/arc.core` is the whole Arc application model: the command and query pipelines, validation, authorization, services, and the result envelope. It also carries a small Node host, so an application can serve its routes, and a built frontend, without Express, Fastify, or Hono. When you do use one of those frameworks, the same application mounts in it unchanged; see [Host adapters](../hosts/index.md).
 
 :::note[Source preview]
 `@cratis/arc.core` is not published to npm. Use it from a clone of this repository with the `workspace:^` protocol, as `Samples/Tasks/package.json` does.

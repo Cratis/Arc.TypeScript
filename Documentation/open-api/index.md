@@ -1,31 +1,39 @@
 ---
 title: OpenAPI
-description: Inspect command and query request and result envelopes at /openapi.json, and configure the advertised application version.
+description: Hand API consumers and tools an OpenAPI 3.1 description of every command and query at /openapi.json, with request schemas, result envelopes, and bearer security, without writing it by hand.
 ---
 
-Arc serves an OpenAPI 3.1 document at `GET /openapi.json`. Route paths follow [endpoint mapping](../core/endpoint-mapping.md). It describes registered commands as `POST` and queries as `GET`, including observable queries. Set `generatedApis.openApiVersion` when constructing the server or builder to advertise your application's version; the default remains `0.1.0`.
+A partner team wants to call your task API from Python. A QA engineer wants the endpoints in their API client. Your gateway wants a contract to validate against. Writing that description by hand means it is wrong the week after someone adds a field.
 
-```typescript
-const server = new ArcServer({ generatedApis: { openApiVersion: '2.3.0' } });
+Arc writes it for you. Every running Arc application serves an OpenAPI 3.1 document at `GET /openapi.json`, built from the same `@field` declarations and Zod schemas that bind requests. When the code changes, the document changes with it.
+
+## Fetch the document
+
+```bash
+curl http://127.0.0.1:3000/openapi.json
 ```
 
-Fetch the document with `curl http://127.0.0.1:3000/openapi.json`. The document is public; this endpoint does not run authentication handlers. Host an OpenAPI UI separately if needed. Arc does not bundle a Swagger or Scalar UI.
-
-## Operation descriptions
-
-For example, a registered `Tasks.Save` command on `/api/tasks/save` appears under `paths` with a `post` operation (excerpt):
+For the Tasks sample, with its generated metadata registered, the `RegisterTask` command appears under `paths` like this (excerpt, `responses` left out):
 
 ```json
-{
-  "openapi": "3.1.0",
-  "paths": {
-    "/api/tasks/save": {
-      "post": {
-        "operationId": "Tasks.Save",
-        "tags": ["Tasks"],
-        "responses": {
-          "200": { "description": "Result" },
-          "400": { "description": "Invalid request" }
+"/api/tasks/registration/register-task": {
+  "post": {
+    "operationId": "Tasks.Registration.RegisterTask",
+    "tags": ["Tasks.Registration"],
+    "summary": "Register a task.",
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "format": "uuid" },
+              "title": { "type": "string" }
+            },
+            "required": ["id", "title"]
+          }
         }
       }
     }
@@ -33,16 +41,53 @@ For example, a registered `Tasks.Save` command on `/api/tasks/save` appears unde
 }
 ```
 
-The full document also includes `info`, request and result schemas, and the other responses; fetch it from your running server rather than using this excerpt as a complete OpenAPI document.
+The summary is the JSDoc comment on the `RegisterTask` class. `TaskId` and `TaskTitle` are concepts, so they appear as the UUID string and the string they wrap. Fetch the document from your running server to see the responses in full.
 
-Each operation has a namespace-qualified `operationId`, a namespace tag, and a summary. Low-level definitions can provide `summary` directly. For model-bound artifacts, run the proxy generator with `--metadata` and register its output via `useGeneratedMetadata()` to supply JSDoc class and query-method summaries at runtime; otherwise the summary is empty. Command inputs use their JSON request schema; query arguments are GET parameters with required flags from the input schema. GET also accepts `page`, `pageSize`, `sortBy`, and `sortDirection` for many, paged, or unknown result cardinality (not known single-result queries); observable queries additionally accept `waitForFirstResult` and `waitForFirstResultTimeout` (fractional seconds greater than zero and at most 120). A bound argument with one of these names appears only once. Repeating an array argument sends multiple values under the same name.
+Nothing about this needs setup: the route exists as soon as the application runs. The document is public, and the endpoint does not run authentication handlers. Arc does not bundle a Swagger or Scalar UI; point one you host at `/openapi.json` if you want a browsable page.
 
-A 200 response has the Arc `CommandResult` or `QueryResult` envelope, with `response` or `data` when its source-declared result is available in registered generated artifact metadata. A paged query has an array-valued `data` and a `paging` object (`page`, `size`, `totalItems`, `totalPages`). Observable queries describe both the JSON snapshot and direct `text/event-stream` response, along with 202, 408, and 503. The 202, 408, and 503 responses also carry a JSON `QueryResult` envelope. The 400, 403, and 500 responses describe failure envelopes without typed `response` or `data`; actual error status can vary by request and authorization failure (including 401).
+## What each operation contains
 
-When no generated return metadata exists, the document **omits `response` or `data`** rather than guessing from the input schema or executing the handler. The result remains valid at runtime; only its response payload type is unavailable to OpenAPI. Decorated model results are converted using the same wire schema as inputs: concepts use their primitive value, and registered derived types have discriminated variants. A low-level definition can provide a summary but does not have a generated result type.
+- **Identity.** A namespace-qualified `operationId`, such as `Tasks.Registration.RegisterTask`, a tag for the namespace, and a summary. Route paths follow [endpoint mapping](../core/endpoint-mapping.md).
+- **Input.** A command's JSON request body schema, or a query's arguments as GET parameters, with `required` taken from the input schema. Queries that can return a list, or whose result type is unknown, also accept `page`, `pageSize`, `sortBy`, and `sortDirection`. Observable queries add `waitForFirstResult` and `waitForFirstResultTimeout`.
+- **Responses.** The Arc `CommandResult` or `QueryResult` envelope for 200, 400, 403, and 500. Observable queries also describe 202, 408, and 503, and a `text/event-stream` response. A paged result carries `paging` with `page`, `size`, `totalItems`, and `totalPages`.
+- **Security.** HTTP bearer security, when the operation authenticates with a `jwtBearer()` handler.
 
-Protected operations advertise HTTP bearer security only when the operation authenticates with a default `jwtBearer()` handler or explicitly selects a named JWT scheme; anonymous operations do not. A named-only handler does not authenticate operations using the default handlers. If a named scheme is called `bearer`, the default bearer component is called `arcBearer`. Arc cannot infer the protocol of a custom handler, so it does not advertise one as bearer. Native-principal authentication is supplied by the host and has no bearer scheme in this document.
+[How types appear in the document](schemas.md) shows how concepts, enums, optional fields, and result types are described.
 
-## Not included
+## Summaries and result types need generated metadata
 
-OpenAPI path items cannot represent the optional HTTP `QUERY` method. The document also omits command `/validate` routes, `/.cratis` endpoints, and standalone-host `pathBase` rewriting. For Arc-specific metadata endpoints, see [Introspection](../introspection/index.md).
+Arc reads your source only through the metadata it has at runtime. Two parts of the document depend on [generated artifact metadata](../proxy-generation/generated-artifact-metadata.md) registered with `useGeneratedMetadata()`:
+
+- **Summaries.** JSDoc on a command class or query method becomes the operation summary. Without metadata the summary is empty. A low-level definition sets `summary` directly.
+- **Result types.** The 200 envelope includes a typed `response` or `data` only when the metadata declares the return type. Without it, the document **omits** `response` or `data` rather than guess from the input schema or run the handler. The runtime result is the same; only its description is missing.
+
+The Tasks sample registers its metadata, so its `registerTask` response is described as a UUID string and `allTasks` as an array of `TaskItem`.
+
+## Set the advertised version
+
+`info.version` defaults to `0.1.0`. Set your application's version with `generatedApis.openApiVersion`, in code or as `Cratis:Arc:GeneratedApis:OpenApiVersion` in configuration:
+
+```typescript
+const server = new ArcServer({ generatedApis: { openApiVersion: '2.3.0' } });
+```
+
+## Bearer security
+
+An operation that requires authentication advertises HTTP bearer security when it authenticates with a default `jwtBearer()` handler, or explicitly selects a named JWT scheme. Anonymous operations advertise none. A named-only handler does not authenticate operations that use the default handlers. If a named scheme is called `bearer`, the default bearer component is called `arcBearer`.
+
+Arc cannot infer the protocol of a custom handler, so it never advertises one as bearer. A [native principal](../hosts/native-principal.md) is authenticated by the host and has no security scheme in this document.
+
+## What the document leaves out
+
+- **HTTP `QUERY`.** OpenAPI path items cannot represent it, so queries appear as GET only.
+- **Command `/validate` routes** and the `/.cratis` endpoints. [Introspection](../introspection/index.md) describes those.
+- **`pathBase`.** Paths are not rewritten for a standalone host `pathBase`.
+- **Every status the runtime can return.** A request can also answer 401, for example, which the operation does not list.
+
+## Recap
+
+- `GET /openapi.json` is always on, public, and generated from the same schemas that bind requests.
+- Register generated metadata to get summaries and typed results.
+- Set `generatedApis.openApiVersion` to advertise your version.
+
+Next, see [how types appear in the document](schemas.md).
