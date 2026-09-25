@@ -5,6 +5,8 @@ import { dirname, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { z } from 'zod';
 import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { CratisConfiguration } from './configuration/loadConfiguration.js';
+import type { IntegrationOptions } from './ArcBuilderIntegrationOptions.js';
 import { ArcApplicationServices } from './ArcApplicationServices.js';
 import { ArcApplication } from './ArcApplication.js';
 import { ArcServer } from './ArcServer.js';
@@ -35,6 +37,7 @@ import type { ReadModelForCommandResolver } from './commands/ReadModelForCommand
 import { readModelArgument } from './commands/modelBound/readModel.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
+import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
@@ -51,12 +54,49 @@ export class ArcApplicationBuilder {
     readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
     readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
+    readonly #commandScopes: (() => CommandExecutionScope)[] = [];
+    readonly #builtObservers: ((server: ArcServer) => void)[] = [];
     readonly #policies = new Map<string, AuthorizationPolicyRegistration>();
     readonly #identityProviders: ClassType[] = [];
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
-    constructor(private readonly options: ArcServerOptions = {}) {}
+    constructor(private readonly options: ArcServerOptions = {}, readonly configuration: CratisConfiguration = {}) {}
+    /** Install an optional integration registered by its explicit package import. */
+    extend<T>(name: string, options: T): this {
+        const extension = ArcApplicationBuilder.extensions().get(name);
+        if (!extension) throw new Error(`Import @cratis/arc.${name} before calling with${name[0]!.toUpperCase()}${name.slice(1)}()`);
+        extension(this, options);
+        return this;
+    }
+    /** Register an integration across independently loaded copies of the core package. */
+    static registerExtension<T>(name: string, install: (builder: ArcApplicationBuilder, options: T) => void): void {
+        const registry = this.extensions();
+        const existing = registry.get(name);
+        if (existing === install) return;
+        if (existing) throw new Error(`Conflicting Arc integration registration: ${name}`);
+        registry.set(name, install as (builder: ArcApplicationBuilder, options: unknown) => void);
+    }
+    private static extensions(): Map<string, (builder: ArcApplicationBuilder, options: unknown) => void> {
+        const key = Symbol.for('cratis.arc.builder.extensions');
+        const global = globalThis as typeof globalThis & { [key: symbol]: unknown };
+        if (!global[key]) global[key] = new Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>();
+        return global[key] as Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>;
+    }
+    /** Attach Arc and Chronicle after importing @cratis/cratis. */
+    addCratis(options?: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options ?? {}); }
+    /** Attach Chronicle after importing @cratis/arc.chronicle. */
+    withChronicle(options: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options); }
+    /** @deprecated Use withChronicle. */
+    addChronicle(options: IntegrationOptions<'chronicle'>): this { return this.withChronicle(options); }
+    /** Attach MongoDB after importing @cratis/arc.mongodb. */
+    withMongoDB(options: IntegrationOptions<'mongodb'>): this { return this.extend('mongodb', options); }
+    /** @deprecated Use withMongoDB. */
+    addMongoDB(options: IntegrationOptions<'mongodb'>): this { return this.withMongoDB(options); }
+    /** Attach Drizzle after importing @cratis/arc.drizzle. */
+    withDrizzle(options: IntegrationOptions<'drizzle'>): this { return this.extend('drizzle', options); }
+    /** @deprecated Use withDrizzle. */
+    addDrizzle(options: IntegrationOptions<'drizzle'>): this { return this.withDrizzle(options); }
     /** Install source-generated bindings before adding or discovering artifacts. */
     useGeneratedMetadata(metadata: GeneratedMetadata): this {
         if (this.#built || this.#artifacts.length) throw new Error('Register generated metadata before artifacts');
@@ -95,6 +135,16 @@ export class ArcApplicationBuilder {
     /** Wrap validated command execution in an ordered asynchronous context. */
     addCommandExecutionRunner(runner: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>): this {
         this.#commandRunners.push(runner);
+        return this;
+    }
+    /** Enroll an execution scope in every command, including decorated commands. */
+    addCommandExecutionScope(create: () => CommandExecutionScope): this {
+        this.#commandScopes.push(create);
+        return this;
+    }
+    /** Bind integrations that need the compiled server before any client observations begin. */
+    addBuiltObserver(observer: (server: ArcServer) => void): this {
+        this.#builtObservers.push(observer);
         return this;
     }
     /** Register a unique named authorization policy before building the application. */
@@ -195,6 +245,7 @@ export class ArcApplicationBuilder {
         const commandExecutionRunner = runners.length ? (context: CommandContext, execute: () => Promise<CommandResult>) =>
             runners.reduceRight<() => Promise<CommandResult>>((next, runner) => () => runner(context, next), execute)() : undefined;
         const server = new ArcServer({ ...this.options, commands, queries, observableQueries, commandExecutionRunner,
+            commandExecutionScopes: [...this.options.commandExecutionScopes ?? [], ...this.#commandScopes],
             identityDetails: this.options.identityDetails ?? discovered,
             authorizationPolicies: { ...this.options.authorizationPolicies, ...Object.fromEntries(this.#policies) },
             commandResponseValueHandlers: [...this.options.commandResponseValueHandlers ?? [], ...this.#responseHandlers],
@@ -204,7 +255,10 @@ export class ArcApplicationBuilder {
             readModelInterceptors: [...this.options.readModelInterceptors ?? [], ...this.#readModelInterceptors],
             readModelForCommandResolvers: [...this.options.readModelForCommandResolvers ?? [], ...this.#readModelResolvers],
             services: this.options.services && !Array.isArray(this.options.services) ? this.options.services : registrations }, this.#generatedMetadata);
-        try { await this.preflight(server, dependencies, validatorTypes); }
+        try {
+            await this.preflight(server, dependencies, validatorTypes);
+            for (const observer of this.#builtObservers) observer(server);
+        }
         catch (error) { await server.dispose(); throw error; }
         return new ArcApplication(server);
     }

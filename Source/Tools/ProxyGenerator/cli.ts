@@ -2,7 +2,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { readFile, stat } from 'node:fs/promises';
-import { watch } from 'node:fs';
+import { watch, watchFile, unwatchFile } from 'node:fs';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import { sourceProgram } from './sourceProgram.js';
 import { generateClient } from './generate.js';
@@ -72,7 +72,9 @@ async function main(): Promise<void> {
             let pending: Promise<void> = Promise.resolve();
             const schedule = () => {
                 if (timer) clearTimeout(timer);
+                else process.stdout.write('Watch change detected\n');
                 timer = setTimeout(() => {
+                    timer = undefined;
                     pending = pending.then(generate).catch(error => { console.error(error); process.exitCode = 1; });
                 }, 150);
             };
@@ -84,14 +86,21 @@ async function main(): Promise<void> {
             }), ...[...new Set(external.map(dirname))].map(directory => watch(directory, (_, filename) => {
                 if (filename && watched.has(resolve(directory, filename))) schedule();
             }))];
-            process.stdout.write(`Watching artifact sources (${watchers.length} directories)\n`);
+            // Directory notifications may be coalesced or missed on macOS; stat watched external files as a fallback.
+            const fileChanges = new Map([...watched].map(file => [file, (current: import('node:fs').Stats, previous: import('node:fs').Stats) => {
+                if (current.mtimeMs !== previous.mtimeMs || current.ctimeMs !== previous.ctimeMs || current.size !== previous.size || current.ino !== previous.ino) schedule();
+            }]));
+            for (const [file, listener] of fileChanges) watchFile(file, { interval: 250 }, listener);
+            const watchFailure = new Promise<void>((_, reject) => {
+                for (const watcher of watchers) watcher.on('error', reject);
+            });
+            process.stdout.write(`Watching artifact sources (${watchers.length} directories)\nWatch ready\n`);
             try {
-                await new Promise<void>((_, reject) => {
-                    for (const watcher of watchers) watcher.on('error', reject);
-                });
+                await watchFailure;
             } finally {
                 if (timer) clearTimeout(timer);
                 for (const watcher of watchers) watcher.close();
+                for (const [file, listener] of fileChanges) unwatchFile(file, listener);
                 await pending;
             }
         }

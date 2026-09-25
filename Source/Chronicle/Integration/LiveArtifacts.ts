@@ -2,15 +2,38 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
+import { reactor } from '@cratis/chronicle/reactors';
+import type { EventContext } from '@cratis/chronicle/events';
 import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
-import { command, key, readModel, query, argument, service, inject, commandReadModel } from '@cratis/arc.core';
+import { command, key, readModel, query, argument, service, inject, commandReadModel, commandContext, CommandOperation, tuple } from '@cratis/arc.core';
+import type { CommandContext } from '@cratis/arc.core';
+import { ChronicleRuntime } from '../ChronicleRuntime.js';
 import { ChronicleReadModels } from '../ChronicleReadModels.js';
 import { eventsWithConcurrencyScopes } from '../EventsWithConcurrencyScopes.js';
+import { AggregateRoot } from '../AggregateRoot.js';
+import { commandAggregate } from '../commandAggregate.js';
 import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 
 @eventType('ArcTypeScriptLiveCreated')
 export class LiveCreated { @field(String) name = ''; }
+
+@eventType('ArcTypeScriptLiveFollowedUp')
+export class LiveFollowedUp { @field(String) name = ''; }
+
+@command()
+export class FollowUpLive {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    handle(): LiveFollowedUp { return Object.assign(new LiveFollowedUp(), { name: this.name }); }
+}
+
+@reactor('ArcTypeScriptLiveCommandReactor')
+export class LiveCommandReactor {
+    liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
+        return Object.assign(new FollowUpLive(), { id: context.eventSourceId, name: event.name });
+    }
+}
 
 @command()
 export class CreateLive {
@@ -27,6 +50,57 @@ export class CreateLiveExactlyOnce {
         return eventsWithConcurrencyScopes([Object.assign(new LiveCreated(), { name: this.name })], {
             [this.id]: { eventSourceId: true, sequenceNumber: EventSequenceNumber.beforeFirst.value }
         });
+    }
+}
+
+export class LiveAggregate extends AggregateRoot {
+    count = 0;
+    constructor() { super(); this.on(LiveCreated, () => { this.count++; }); }
+}
+
+@command()
+export class AdvanceLive {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    @inject(commandAggregate(LiveAggregate))
+    handle(aggregate: LiveAggregate) {
+        if (aggregate.count !== 1) throw new Error('Live aggregate was not rehydrated');
+        aggregate.apply(Object.assign(new LiveCreated(), { name: this.name }));
+        return aggregate.commit();
+    }
+}
+
+@command()
+export class AdvanceLiveWithConcurrentAppend {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    @inject(commandAggregate(LiveAggregate), commandContext(), ChronicleRuntime)
+    async handle(aggregate: LiveAggregate, context: CommandContext, runtime: ChronicleRuntime) {
+        if (aggregate.count !== 1) throw new Error('Live aggregate was not rehydrated');
+        const store = await runtime.getStore(context);
+        const competing = await store.eventLog.append(this.id, Object.assign(new LiveCreated(), { name: 'competitor' }));
+        if (!competing.isSuccess) throw new Error('Competing append failed');
+        aggregate.apply(Object.assign(new LiveCreated(), { name: this.name }));
+        return aggregate.commit();
+    }
+}
+
+export let liveOperationExecuted = false;
+export let liveOperationCompensated = false;
+class LiveOperation extends CommandOperation {
+    execute(signal: AbortSignal) { signal.throwIfAborted(); liveOperationExecuted = true; }
+    compensate(failure: unknown, signal: AbortSignal) { void failure; signal.throwIfAborted(); liveOperationCompensated = true; }
+}
+@command()
+export class CreateLiveWithOperation {
+    @field(String) @key() id = '';
+    @field(String) name = '';
+    handle() {
+        liveOperationExecuted = false;
+        liveOperationCompensated = false;
+        return tuple(eventsWithConcurrencyScopes([Object.assign(new LiveCreated(), { name: this.name })], {
+            [this.id]: { eventSourceId: true, sequenceNumber: EventSequenceNumber.beforeFirst.value }
+        }), new LiveOperation());
     }
 }
 

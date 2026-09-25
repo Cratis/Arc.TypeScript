@@ -4,6 +4,8 @@
 export { ArcServer, currentContext } from './ArcServer.js';
 export { ArcApplication } from './ArcApplication.js';
 export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
+export type { ArcBuilderIntegrationOptions } from './ArcBuilderIntegrationOptions.js';
+export type { ArcBuilderOptions } from './configuration/ArcBuilderOptions.js';
 export { discoveryFiles } from './reflection/discoveryFiles.js';
 export { canonicalMetadataSignature } from './reflection/generatedMetadataSignature.js';
 export { optionalService } from './reflection/optionalService.js';

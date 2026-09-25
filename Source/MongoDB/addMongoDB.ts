@@ -9,18 +9,13 @@ import type { MongoDBOptions } from './MongoDBOptions.js';
 import { mongoCollection } from './collectionToken.js';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
 
-/** Register the MongoDB extension by importing this package. */
-declare module '@cratis/arc.core' {
-    interface ArcApplicationBuilder {
-        /** Register scoped, tenant-aware MongoDB collections for the supplied read models. */
-        addMongoDB(options: MongoDBOptions): this;
-    }
-}
-
 /** Public token for applications needing to resolve clients explicitly. */
 export const mongoClientFactory = serviceToken<MongoClientFactory>('MongoClientFactory');
 
-export function addMongoDB(builder: ArcApplicationBuilder, options: MongoDBOptions): ArcApplicationBuilder {
+export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBOptions): ArcApplicationBuilder {
+    const settings = { ...builder.configuration.Cratis?.MongoDB };
+    if (configured.client || configured.server || configured.serverResolver) delete settings.server;
+    const options = { ...settings, ...configured };
     if (!options.database && !options.databaseNameResolver) throw new Error('MongoDB requires database or databaseNameResolver');
     const factory = new MongoClientFactory(options);
     builder.services.addSingleton(mongoClientFactory, () => factory);
@@ -49,6 +44,10 @@ export function addMongoDB(builder: ArcApplicationBuilder, options: MongoDBOptio
     return builder;
 }
 
-ArcApplicationBuilder.prototype.addMongoDB = function (options: MongoDBOptions): ArcApplicationBuilder {
-    return addMongoDB(this, options);
-};
+declare module '@cratis/arc.core' {
+    interface ArcBuilderIntegrationOptions { mongodb: MongoDBOptions; }
+}
+
+/** @deprecated Use withMongoDB. */
+export const addMongoDB = withMongoDB;
+ArcApplicationBuilder.registerExtension('mongodb', withMongoDB);

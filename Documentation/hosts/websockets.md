@@ -3,28 +3,27 @@ title: WebSockets
 description: Mount WebSocket upgrades for observable queries in Express, Fastify, and Hono, authenticate them, and configure Origin checks and proxy trust.
 ---
 
-Observable queries stream over server-sent events on the ordinary HTTP route, which every adapter serves once mounted. WebSockets are different: an upgrade does not travel through the framework's request pipeline in the same way, so each adapter has a separate mount call. The standalone Node host handles upgrades itself; see [Arc.Core](../core/index.md#bring-your-own-node-server) for your own Node server.
-
-Mount the HTTP adapter first, as described on its page, then add the WebSocket step for your framework. `arc` below is the built `ArcApplication` from [Host adapters](index.md#before-you-start).
+Observable queries stream over server-sent events on the ordinary HTTP route. Fastify's plugin and Hono's Node serving helper also attach WebSocket upgrades in their setup call. Express needs a listener attach step because Express middleware does not see Node upgrades. The standalone Node host handles upgrades itself; see [Arc.Core](../core/index.md#bring-your-own-node-server) for your own Node server. `arc` below is the built `ArcApplication`.
 
 ## Express
 
 ```typescript title="server.ts"
 import express from 'express';
-import { mountExpress, mountExpressWebSockets } from '@cratis/arc.express';
+import { cratisArc } from '@cratis/arc.express';
 import { arc } from './arc.js';
 
 const app = express();
-mountExpress(app, arc);
+const middleware = cratisArc(arc);
+app.use(middleware);
 const listener = app.listen(3000, '127.0.0.1');
-const closeSockets = mountExpressWebSockets(listener, arc);
+const closeSockets = middleware.injectWebSocket(listener);
 ```
 
-Call `mountExpressWebSockets(listener, arc, native?)` on the listener returned by `app.listen()`, and `await closeSockets()` at shutdown. Express HTTP middleware does **not** run on Node `upgrade` requests: session, authentication, CORS, and rate-limiting middleware cannot authorize the socket. The optional `native` callback receives a raw `IncomingMessage`, not an Express request, so `trust proxy` and `req.protocol` do not apply. Authenticate upgrades with Arc authentication handlers or a trusted session lookup in that callback.
+Call `middleware.injectWebSocket(listener, native?)` on the listener returned by `app.listen()`, and `await closeSockets()` at shutdown. Express HTTP middleware does **not** run on Node `upgrade` requests: session, authentication, CORS, and rate-limiting middleware cannot authorize the socket. The optional `native` callback receives a raw `IncomingMessage`, not an Express request, so `trust proxy` and `req.protocol` do not apply. Authenticate upgrades with Arc authentication handlers or a trusted session lookup in that callback.
 
 ## Fastify
 
-Call `mountFastifyWebSockets(app, arc.server, native?)` **before** `mountFastify(app, arc)` and before `listen()`. If your application uses `@fastify/websocket`, register that plugin **before** `mountFastifyWebSockets`; Arc uses the registered plugin instead of adding another. Registering it afterward causes a duplicate decorator error at boot.
+Call `await app.register(cratisArc, { arc })` before listening (`webSockets` defaults to `true`; `cratisArc` comes from `@cratis/arc.fastify`). A shared `@fastify/websocket` can be registered before or after Arc; real upgrade checks cover both orders. A `prefix` in the registration scopes HTTP and WebSocket paths without changing Arc's generated routes.
 
 Fastify's `onRequest`, `preValidation`, and `preHandler` hooks run before the upgrade. `app.close()` disposes Arc-owned sockets and subscriptions, **not** the Arc application or its services; call `await arc.dispose()` separately.
 
@@ -32,18 +31,15 @@ Fastify's `onRequest`, `preValidation`, and `preHandler` hooks run before the up
 
 ```typescript title="server.ts"
 import { Hono } from 'hono';
-import { serve } from '@hono/node-server';
-import { mountHono, mountHonoWebSockets } from '@cratis/arc.hono';
+import { cratisArc, serveCratisArc } from '@cratis/arc.hono';
 import { arc } from './arc.js';
 
 const app = new Hono();
-mountHono(app, arc);
-const sockets = mountHonoWebSockets(app, arc.server);
-const listener = serve({ fetch: app.fetch, port: 3000, hostname: '127.0.0.1' });
-sockets.injectWebSocket(listener);
+app.use(cratisArc(arc));
+const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1' });
 ```
 
-Call `await sockets.dispose()` at shutdown, before disposing `arc`. If your application already has a `createNodeWebSocket({ app })` helper, pass it as the fourth argument, `mountHonoWebSockets(app, arc.server, native, helper)`, and call **only** `helper.injectWebSocket(listener)`: Arc does not own that shared listener. Ordinary GET requests pass through the WebSocket route to your handlers. Hono middleware runs for upgrades, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is needed only for this Node host; other Hono runtimes need their own verified bridge.
+Call `await hosted.dispose()` at shutdown, before disposing `arc`. If your application already has a `createNodeWebSocket({ app })` helper, the deprecated `mountHonoWebSockets` alias accepts it as a fourth argument; call **only** `helper.injectWebSocket(listener)` because Arc does not own that shared listener. Ordinary GET requests pass through the WebSocket route to your handlers. Hono middleware runs for upgrades, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is needed only for this Node host; other Hono runtimes need their own verified bridge.
 
 ## Frame limits
 
@@ -63,7 +59,7 @@ Each bridge checks exact raw paths and the configured `allowedOrigins` before ac
 Arc never trusts `X-Forwarded-*` by itself. A trusted `native` callback can set `secure` and `authority` when a verified proxy terminates TLS. Validate the proxy connection against a fixed list before reading forwarded values:
 
 ```typescript
-mountExpressWebSockets(listener, arc, request => {
+middleware.injectWebSocket(listener, request => {
     if (request.socket.remoteAddress !== '127.0.0.1') throw new Error('Untrusted proxy');
     const protocol = request.headers['x-forwarded-proto'];
     const host = request.headers['x-forwarded-host'];

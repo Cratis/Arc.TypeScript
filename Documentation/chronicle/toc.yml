@@ -8,3 +8,5 @@
   href: resolving-event-source-id.md
 - name: Read models
   href: read-models/toc.yml
+- name: Aggregates
+  href: aggregates/index.md

@@ -1,26 +1,46 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
-import { fastifyWebSocketMount } from './WebSocketMount.js';
+import { fastifyWebSocketMount, mountFastifyWebSockets } from './WebSocketMount.js';
 export { mountFastifyWebSockets } from './WebSocketMount.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
-/** The callback must use host-verified identity/authority, never request headers. */
+export interface CratisArcOptions {
+    arc: ArcServer | ArcApplication;
+    prefix?: string;
+    webSockets?: boolean;
+    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>;
+}
+/** One encapsulated Fastify registration for Arc HTTP and observable upgrades. */
+export const cratisArc: FastifyPluginAsync<CratisArcOptions> = async (app, options) => {
+    const server = 'server' in options.arc ? options.arc.server : options.arc;
+    const prefix = app.prefix || options.prefix || '';
+    if (options.webSockets !== false) mountFastifyWebSockets(app, server, options.native, prefix);
+    mountFastify(app, options.arc, options.native, prefix);
+};
+export default cratisArc;
+
+/** @deprecated Use app.register(cratisArc, { arc, webSockets: true }). */
 export function mountFastify(app: FastifyInstance, application: ArcServer | ArcApplication,
-    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
+    native?: (request: FastifyRequest) => NativeRequestContext | Promise<NativeRequestContext>, prefix = ''): void {
     const server = 'server' in application ? application.server : application;
     // Encapsulated parsers never replace the parent application's content-type behavior.
     const webSockets = fastifyWebSocketMount(app);
+    const streams = new Set<{ abort(): void }>();
+    app.addHook('preClose', () => {
+        for (const stream of streams) stream.abort();
+    });
     app.register(async scoped => {
         scoped.removeAllContentTypeParsers();
         scoped.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, payload, done) => done(null, payload));
         async function dispatch(request: FastifyRequest, reply: FastifyReply, path: string) {
             const rawPath = request.raw.url?.split('?')[0];
-            if (rawPath !== path) return reply.code(404).send();
+            const expected = `${prefix.replace(/\/$/, '')}${path}`;
+            if (rawPath !== expected) return reply.code(404).send();
             const controller = new AbortController();
             let streaming = false;
             const abort = () => controller.abort();
@@ -30,7 +50,10 @@ export function mountFastify(app: FastifyInstance, application: ArcServer | ArcA
             try {
                 const payload = request.body;
                 const body = Buffer.isBuffer(payload) ? new Uint8Array(payload) : undefined;
-                const incoming = new Request(new URL(request.raw.url ?? path, origin), {
+                const raw = request.raw.url ?? expected;
+                const url = new URL(raw, origin);
+                if (url.origin !== origin || url.pathname !== expected) return reply.code(400).send();
+                const incoming = new Request(new URL(`${path}${url.search}`, origin), {
                     method: request.method, headers: new Headers(request.headers as Record<string, string>),
                     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : body,
                     signal: controller.signal
@@ -46,7 +69,10 @@ export function mountFastify(app: FastifyInstance, application: ArcServer | ArcA
                 if (result.headers.get('content-type')?.startsWith('text/event-stream')) {
                     if (!result.body) throw new Error('Observable query stream has no response body');
                     streaming = true;
+                    const stream = { abort: () => { controller.abort(); reply.raw.destroy(); } };
+                    streams.add(stream);
                     reply.raw.once('close', () => {
+                        streams.delete(stream);
                         request.raw.off('aborted', abort);
                         reply.raw.off('close', onClose);
                     });

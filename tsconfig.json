@@ -22,6 +22,7 @@
     { "path": "Source/MongoDB" },
     { "path": "Source/Drizzle" },
     { "path": "Source/Chronicle" },
+    { "path": "Source/Cratis" },
     { "path": "Source/Testing" },
     { "path": "Source/Tools/ProxyGenerator" },
     { "path": "Samples/Tasks" },

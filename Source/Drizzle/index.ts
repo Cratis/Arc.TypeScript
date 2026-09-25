@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import './addDrizzle.js';
-export { addDrizzle } from './addDrizzle.js';
+export { withDrizzle, addDrizzle } from './addDrizzle.js';
 export { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 export { DrizzleHandle } from './DrizzleHandle.js';
 export { DrizzleReadModels } from './DrizzleReadModels.js';

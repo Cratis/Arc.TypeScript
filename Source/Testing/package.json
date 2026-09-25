@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.testing",
-  "version": "0.15.0",
+  "version": "0.19.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -23,7 +23,9 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md"
   ],
   "dependencies": {
     "@cratis/arc.core": "workspace:^"

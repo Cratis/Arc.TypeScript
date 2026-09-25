@@ -99,6 +99,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
         name, namespace: [metadata.namespace ?? namespace, type.name].filter(Boolean).join('.'),
         routeNamespace: metadata.namespace ?? namespace,
         path: metadata.methodRoutes?.get(name) ?? metadata.path,
+        summary: metadata.methodSummaries?.get(name), generatedReturn: declaration.result,
         authorization, schema: z.object(shape), wireOutput: true, wireType: type,
         wireInputSchema: z.toJSONSchema(z.object(shape), { io: 'input' }), handlerDependencies: services,
         validate: graph ? (input: unknown, context: { signal: AbortSignal; correlationId: string }) =>

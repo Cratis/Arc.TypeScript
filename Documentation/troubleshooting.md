@@ -65,7 +65,7 @@ The page's origin differs from the server's, so the `Origin` check refuses the u
 
 ### An observable query answers 202
 
-The source has no current value yet. Use `CurrentValueSubject.of(value)`, or ask with `waitForFirstResult=true`. An emission guard that suppresses the snapshot also answers 202. See [Using observable queries with curl](queries/using-observable-queries-with-curl.md).
+The source has no current value yet. Use RxJS `new BehaviorSubject(value)` for a current value, or ask with `waitForFirstResult=true`. An emission guard that suppresses the snapshot also answers 202. See [Using observable queries with curl](queries/using-observable-queries-with-curl.md).
 
 ## Security
 

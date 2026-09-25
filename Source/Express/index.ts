@@ -5,16 +5,18 @@ import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
-import type { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import type { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction, RequestHandler } from 'express';
 import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
-/** The callback must use host-verified identity/authority, never request headers. */
-export function mountExpress(app: Express, application: ArcServer | ArcApplication,
-    native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
+/** Return ordinary Express middleware; injectWebSocket() separately bridges listener upgrades. */
+export function cratisArc(application: ArcServer | ArcApplication,
+    native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): RequestHandler & {
+        injectWebSocket(host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void>;
+    } {
     const server = 'server' in application ? application.server : application;
-    app.use(async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
+    const middleware = async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
         const rawPath = request.originalUrl.split('?')[0] ?? '';
         if (!server.endpoints.has(rawPath)) return next();
         let url: URL;
@@ -52,10 +54,20 @@ export function mountExpress(app: Express, application: ArcServer | ArcApplicati
             request.off('aborted', abort);
             response.off('close', onClose);
         }
+    };
+    return Object.assign(middleware, {
+        injectWebSocket: (host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>) =>
+            attachNodeWebSockets(host, server, upgradeNative)
     });
 }
 
-/** Bridge upgrades on the listener returned by app.listen(); the Arc server owns protocol and shutdown. */
+/** @deprecated Use app.use(cratisArc(application)). */
+export function mountExpress(app: Express, application: ArcServer | ArcApplication,
+    native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): void {
+    app.use(cratisArc(application, native));
+}
+
+/** @deprecated Use cratisArc(application).injectWebSocket(listener). */
 export function mountExpressWebSockets(host: HttpServer, application: ArcServer | ArcApplication,
     native?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void> {
     return attachNodeWebSockets(host, 'server' in application ? application.server : application, native);

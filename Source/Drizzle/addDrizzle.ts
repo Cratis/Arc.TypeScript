@@ -9,16 +9,8 @@ import { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
 import { getTableColumns } from 'drizzle-orm';
 
-/** Register the optional Drizzle extension by importing this package. */
-declare module '@cratis/arc.core' {
-    interface ArcApplicationBuilder {
-        /** Register tenant-scoped SQL handles and read-only model queries. */
-        addDrizzle(options: DrizzleOptions): this;
-    }
-}
-
 /** An application retains ownership of its connections, pools, and migrations. */
-export function addDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptions): ArcApplicationBuilder {
+export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptions): ArcApplicationBuilder {
     if (!!options.database === !!options.databaseFactory) throw new Error('Drizzle requires exactly one of database or databaseFactory');
     if (!['postgresql', 'mysql', 'sqlite'].includes(options.dialect)) throw new Error('Unsupported Drizzle dialect');
     if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) ||
@@ -50,6 +42,10 @@ export function addDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptio
     return builder;
 }
 
-ArcApplicationBuilder.prototype.addDrizzle = function (options: DrizzleOptions): ArcApplicationBuilder {
-    return addDrizzle(this, options);
-};
+declare module '@cratis/arc.core' {
+    interface ArcBuilderIntegrationOptions { drizzle: DrizzleOptions; }
+}
+
+/** @deprecated Use withDrizzle. */
+export const addDrizzle = withDrizzle;
+ArcApplicationBuilder.registerExtension('drizzle', withDrizzle);

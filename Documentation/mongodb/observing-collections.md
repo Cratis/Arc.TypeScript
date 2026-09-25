@@ -7,12 +7,12 @@ A live list backed by MongoDB should update when a document changes, whichever p
 
 ```typescript
 @query({ observable: true }, service(tasks))
-static async changes(items: MongoCollection<TaskRecord>) {
+static changes(items: MongoCollection<TaskRecord>): Observable<TaskRecord[]> {
     return items.observe();
 }
 ```
 
-`items.observe(filter?)` returns full snapshots of the matching documents; `items.observeById(id)` returns one document, or `null` after it is deleted. Deleting the last matching document from a list appears as an empty list.
+`items.observe(filter?)` returns an RxJS `Observable` of full snapshots of the matching documents; `items.observeById(id)` emits one document, or `null` after it is deleted. Import `Observable` from `rxjs` (or use `import type`). For an async iterator instead, use `await items.observeIterable(filter?)` or `await items.observeByIdIterable(id)`. Deleting the last matching document from a list appears as an empty list.
 
 ## How observation works
 
@@ -21,7 +21,7 @@ static async changes(items: MongoCollection<TaskRecord>) {
 3. After queued changes, the query is recomputed, even for changes that do not affect the filter. Bursts may be coalesced.
 4. `observeById` filters the stream by document key, like Arc on .NET's `ObserveById` and `ObserveSingle`.
 
-Each subscriber owns its stream. Scope disposal, cancellation, or closing the iterator closes the cursor.
+Each observable instance opens one lazy change stream on its first snapshot read or subscription. Unsubscribe or dispose the Arc scope to close the cursor; the async-iterable API also closes on iterator return.
 
 ## Limits
 

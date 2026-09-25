@@ -16,6 +16,7 @@ import type { ClassType } from '../../reflection/ClassType.js';
 import type { WireType } from '../../reflection/WireType.js';
 import { decode, objectSchema } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
+import { withCommandValidationContext } from '../../validation/readModelForValidation.js';
 import type { CompiledCommand } from './CompiledCommand.js';
 /** Compile a decorated command onto the existing Arc command pipeline. */
 export function compileCommand(type: ClassType, namespace: string, graph?: ModelGraphValidator): CompiledCommand {
@@ -46,11 +47,13 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
     const schema = objectSchema(type as WireType);
     const definition: CommandDefinition<typeof schema, unknown> = {
         name: type.name, namespace: metadata.namespace ?? namespace, path: metadata.path, schema,
+        summary: metadata.summary, generatedReturn: metadata.handleResult,
         commandFactory: input => decode(type as WireType, input),
         authorization: metadata.authorization, wireInputSchema: z.toJSONSchema(schema, { io: 'input' }),
         handlerDependencies: commandServiceTokens([...tokens, ...provideTokens]),
         validate: graph ? async (input, context) =>
-            graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId) : undefined,
+            withCommandValidationContext(context as CommandContext, () =>
+                graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId)) : undefined,
         provide: hasProvider ? async (_input, context) => {
             const instance = (context as CommandContext).command as { provide(...parameters: unknown[]): unknown };
             const value = await instance.provide(...await resolveCommandArguments(provideTokens, context as CommandContext));

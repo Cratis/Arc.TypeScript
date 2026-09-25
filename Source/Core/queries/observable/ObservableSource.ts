@@ -3,5 +3,7 @@
 import type { CurrentValue } from './CurrentValue.js';
 import type { Subscribable } from './Subscribable.js';
 
-/** An observable producer may expose its current value for ordinary HTTP GET. */
-export type ObservableSource<T> = (AsyncIterable<T> | Subscribable<T>) & { current?(): CurrentValue<T> };
+/** RxJS observables satisfy Subscribable; async iterables and structural subscriptions need no RxJS types. */
+export type ObservableSource<T> = (AsyncIterable<T> | Subscribable<T>) & {
+    current?(): CurrentValue<T> | Promise<CurrentValue<T>>;
+};

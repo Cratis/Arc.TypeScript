@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.mongodb",
-  "version": "0.15.0",
+  "version": "0.19.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -23,16 +23,21 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "!dist/given.*",
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.15.0",
+    "@cratis/arc.core": "^0.19.0",
     "@cratis/fundamentals": "^7.19.6",
-    "mongodb": "^6.21.0"
+    "mongodb": "^6.21.0",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
     "@cratis/fundamentals": "7.19.6",
-    "mongodb": "^6.21.0"
+    "mongodb": "^6.21.0",
+    "rxjs": "^7.8.2"
   }
 }

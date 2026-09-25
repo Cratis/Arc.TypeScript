@@ -19,11 +19,13 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 
 | Option | Default | Server equivalent |
 | --- | --- | --- |
-| `--root-namespace <namespace>` | None | `discover(folder, { rootNamespace })` |
+| `--root-namespace <namespace>` | None | `discover(folder, { rootNamespace })`; also prefixes generated model folders |
 | `--segments-to-skip <n>` | `0` | `generatedApis.segmentsToSkipForRoute` |
 | `--api-prefix <prefix>` | `api` | `generatedApis.routePrefix` |
 | `--skip-command-name-in-route` | Off | `generatedApis.includeCommandNameInRoute: false` |
 | `--skip-query-name-in-route` | Off | `generatedApis.includeQueryNameInRoute: false` |
+
+**Changed for upgrades:** `--root-namespace App` now writes models under `App/...` rather than only changing their routes. For example, `Orders/Order.ts` becomes `App/Orders/Order.ts`; generation removes the old file unless `--skip-output-deletion` is set. Update direct model imports before regenerating.
 
 ## Output
 
@@ -37,7 +39,7 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 | `--metadata <file>` | Off | Generate server artifact metadata at the given absolute path and infer undecorated bindings |
 | `--use-generated-metadata` | Off | Infer the same bindings for client-only generation without publishing a metadata module |
 | `--check-metadata` | Off | Read-only check that a module passed with `--metadata` matches current source |
-| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate |
+| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; stdout reports `Watch ready` after the initial generation and watcher registration, then `Watch change detected` when an edit schedules regeneration; referenced external files are also polled to recover missed directory notifications |
 
 ## Programmatic use
 
