@@ -38,7 +38,7 @@ export class ObservableQueryHub {
 
     canAdmit(context: ExecutionContext): boolean {
         if (this.#disposed || this.#connections.size >= this.server.observableLimits.hubConnections) return false;
-        const key = observableCallerKey(context, false);
+        const key = observableCallerKey(context);
         return this.connections.filter(connection => connection.ownerKey === key).length <
             this.server.observableLimits.hubConnectionsPerCaller;
     }
@@ -82,7 +82,7 @@ export class ObservableQueryHub {
         }
     }
 
-    /** SSE opening is authenticated; an anonymous connection ID never authorizes control POSTs. */
+    /** SSE connections capture their caller so later control requests cannot cross identity boundaries. */
     async http(request: Request, native?: NativeRequestContext): Promise<Response> {
         const path = new URL(request.url).pathname;
         if (path === ssePath) {
@@ -109,8 +109,7 @@ export class ObservableQueryHub {
             if (!await originAllowed(request.headers.get('origin'), request, native, this.server.options))
                 return new Response(null, { status: 403 });
             const identity = await resolveConnectionContext(this.server, request, native);
-            if (identity.authenticationFailed || !identity.context.principal?.isAuthenticated)
-                return new Response(null, { status: 401 });
+            if (identity.authenticationFailed) return new Response(null, { status: 401 });
             if (!this.canAdmit(identity.context))
                 return new Response(null, { status: 503, headers: { 'retry-after': '1' } });
             const output = new SseHubTransport(this.server.observableLimits);
@@ -141,6 +140,8 @@ export class ObservableQueryHub {
             const contentType = request.headers.get('content-type');
             if (!contentType || !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(contentType))
                 return new Response(null, { status: 415 });
+            if (!await originAllowed(request.headers.get('origin'), request, native, this.server.options))
+                return new Response(null, { status: 403 });
             const maximum = Math.min(this.server.options.hosting?.maxBodyBytes ?? 1024 * 1024,
                 this.server.observableLimits.inboundFrameBytes);
             const payload = await body(request, maximum);
@@ -151,7 +152,7 @@ export class ObservableQueryHub {
             const connection = this.#connections.get(raw.connectionId);
             const identity = await resolveConnectionContext(this.server, request, native);
             if (!connection || connection.protocol !== 'SSE' || connection.closed || identity.authenticationFailed ||
-                !await this.sameCaller(connection, identity.context.principal?.id, identity.context.tenantId, request, native))
+                !this.sameCaller(connection, identity.context))
                 return new Response(null, { status: 404 });
             const revision = connection.revision(raw);
             const queryId = connection.queryId(raw.queryId);
@@ -169,11 +170,15 @@ export class ObservableQueryHub {
         }
     }
 
-    private async sameCaller(connection: HubConnection, id: string | undefined, tenant: string | undefined,
-        request: Request, native?: NativeRequestContext): Promise<boolean> {
-        const owner = connection.context.principal;
-        if (!owner?.isAuthenticated || !id || owner.id !== id || connection.context.tenantId !== tenant) return false;
-        return originAllowed(request.headers.get('origin'), request, native, this.server.options);
+    private sameCaller(connection: HubConnection, caller: ExecutionContext): boolean {
+        const owner = connection.context;
+        if (owner.tenantId !== caller.tenantId) return false;
+        const ownerAuthenticated = owner.principal?.isAuthenticated === true;
+        if (ownerAuthenticated !== (caller.principal?.isAuthenticated === true)) return false;
+        if (ownerAuthenticated) return !!caller.principal?.id && owner.principal?.id === caller.principal.id;
+        // Anonymous callers have no identity to distinguish them. Bind to the peer address when
+        // the host supplies one; never treat a missing address as equivalent to a known address.
+        return owner.remoteAddress === caller.remoteAddress;
     }
 
     private methodNotAllowed(allow: string): Response {

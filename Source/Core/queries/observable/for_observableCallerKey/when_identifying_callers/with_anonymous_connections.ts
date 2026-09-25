@@ -22,11 +22,11 @@ describe('when identifying callers with anonymous connections', () => {
         first = observableCallerKey(one);
         second = observableCallerKey(two);
         named = observableCallerKey({ ...anonymous(), principal: { id: 'anonymous', isAuthenticated: true, roles: [] } });
-        shared = observableCallerKey(one, false);
-        otherShared = observableCallerKey(two, false);
+        shared = observableCallerKey(one);
+        otherShared = observableCallerKey({ ...two, remoteAddress: '10.0.0.2' });
     });
 
-    it('should distinguish anonymous connections', () => { first.should.not.equal(second); });
+    it('should share a budget across anonymous connections from one address', () => { first.should.equal(second); });
     it('should distinguish authenticated principals named anonymous', () => { first.should.not.equal(named); });
-    it('should share a key when connection identity is disabled', () => { shared.should.equal(otherShared); });
+    it('should distinguish callers from different addresses', () => { shared.should.not.equal(otherShared); });
 });

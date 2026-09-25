@@ -74,7 +74,7 @@ for (const kind of ['express', 'fastify', 'hono']) {
                 { authorization: 'Bearer bad' }), 401);
             const sse = await openSse(listening.origin, listening.origin);
             try {
-                assert.equal((await subscribe(listening.origin, sse.connectionId, 'https://evil.example')).status, 404);
+                assert.equal((await subscribe(listening.origin, sse.connectionId, 'https://evil.example')).status, 403);
                 assert.equal((await subscribe(listening.origin, sse.connectionId, listening.origin)).status, 200);
             } finally { await sse.reader.cancel(); }
         } finally { await server.dispose(); await listening.close(); }
@@ -92,7 +92,7 @@ for (const kind of ['express', 'fastify', 'hono']) {
                 { authorization: 'Bearer alice' }), 403);
             const sse = await openSse(listening.origin, 'https://app.example.com');
             try {
-                assert.equal((await subscribe(listening.origin, sse.connectionId, listening.origin)).status, 404);
+                assert.equal((await subscribe(listening.origin, sse.connectionId, listening.origin)).status, 403);
                 assert.equal((await subscribe(listening.origin, sse.connectionId, 'https://app.example.com')).status, 200);
             } finally { await sse.reader.cancel(); }
         } finally { await server.dispose(); await listening.close(); }
