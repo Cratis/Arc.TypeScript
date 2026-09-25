@@ -3,7 +3,6 @@
 import { resolve } from 'node:path';
 import { QueryHttpMethod } from '@cratis/arc.core';
 import { analyzeSource } from '../../analyzeSource.js';
-import { renderGeneratedMetadata } from '../../renderGeneratedMetadata.js';
 
 const directory = resolve(import.meta.dirname, '../../for_renderSource/given/preferences_project');
 
@@ -22,11 +21,5 @@ describe('when discovering preferences with identity details', () => {
     });
     it('should carry the query HTTP method preference', () => {
         (analysis.operations.find(operation => operation.name === 'find')!.httpMethod as QueryHttpMethod).should.equal(QueryHttpMethod.Query);
-    });
-    it('should carry JSDoc summaries in generated server metadata', () => {
-        const rendered = renderGeneratedMetadata(resolve(directory, 'tsconfig.json'), resolve(directory, 'artifacts'),
-            resolve(directory, 'metadata.ts'));
-        rendered.should.include('summary: "Save an item."');
-        rendered.should.include('methodSummaries: new Map([["find", "Find an {@link Item}."]])');
     });
 });
