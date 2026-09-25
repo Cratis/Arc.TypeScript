@@ -122,7 +122,8 @@ export class ArcServer {
 
     /** Close observable sessions and owned services. */
     async dispose(): Promise<void> {
-        return disposeObservableServer(this.#hub, this.#sessions, this.closeWebSockets, this.services, this.#ownsServices);
+        return disposeObservableServer(this.#hub, this.#sessions,
+            this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined, this.services, this.#ownsServices);
     }
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */
     queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }

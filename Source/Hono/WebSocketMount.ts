@@ -14,7 +14,10 @@ type SocketBridge = { close(): void; completion: Promise<void> };
 type UpgradeHelper = ReturnType<typeof createNodeWebSocket>;
 
 async function prepareHandshake<E extends Env>(context: Context<E>, server: ArcServer, path: string,
-    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>) {
+    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): Promise<
+        { status: number } | { trusted: NativeRequestContext; request: Request;
+            prepared: Awaited<ReturnType<typeof prepareObservableUpgrade>> }
+    > {
     const raw = (context.env as { incoming?: {
         url?: string; socket?: { remoteAddress?: string; encrypted?: boolean }
     } } | undefined)?.incoming;
@@ -40,7 +43,8 @@ async function prepareHandshake<E extends Env>(context: Context<E>, server: ArcS
 }
 
 async function handleUpgrade<E extends Env>(context: Context<E>, next: Next, server: ArcServer, path: string, helper: UpgradeHelper,
-    sockets: Set<SocketBridge>, native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>) {
+    sockets: Set<SocketBridge>,
+    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): Promise<Response | void> {
     if (context.req.header('upgrade')?.toLowerCase() !== 'websocket') return next();
     const handshake = await prepareHandshake(context, server, path, native);
     if ('status' in handshake) return new Response(null, { status: handshake.status });

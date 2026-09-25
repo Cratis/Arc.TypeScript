@@ -13,6 +13,7 @@ import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { createCommandContext } from './createCommandContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
 import { commandFailure, executeCommandOperation } from './executeCommandOperation.js';
+import type { CommandContext } from './CommandContext.js';
 
 enum CommandOperationMode { Execute, Validate }
 
@@ -31,7 +32,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         } catch (error) {
             return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error);
         }
-        let context;
+        let context: CommandContext;
         try { context = await createCommandContext(definition.commandFactory?.(value) ?? value, execution, options); }
         catch (error) {
             return commandFailure({ ...execution, command: value, key: undefined, values: new CommandContextValues() }, error);

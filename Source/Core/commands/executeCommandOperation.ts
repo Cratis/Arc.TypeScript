@@ -31,7 +31,7 @@ function disposition(scopes: readonly CommandExecutionScope[], context: CommandC
     return value;
 }
 
-/** Preserve the failure and the preceding command result for scope cleanup. */
+/** Build a failed command result, merging any preceding result. */
 export function commandFailure(context: CommandContext, error: unknown, previous?: CommandResult): CommandResult {
     const result = commandResult(context, { isAuthorized: previous?.isAuthorized,
         validationResults: [...previous?.validationResults ?? [],
@@ -65,7 +65,9 @@ async function preflight<S extends z.ZodType, T>(definition: CommandDefinition<S
 }
 
 async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, value: z.output<S>, context: CommandContext,
-    scopes: CommandExecutionScope[], options: ArcOptions): Promise<{ result: CommandResult; journal?: CommandOperationExecution }> {
+    scopes: CommandExecutionScope[], options: ArcOptions): Promise<{
+        result: CommandResult; journal?: CommandOperationExecution; prepared: boolean
+    }> {
     await prepareDependencies(definition.handlerDependencies);
     for (const create of [...options.commandExecutionScopes ?? [], ...definition.scopes ?? []]) {
         const scope = create();
@@ -87,13 +89,10 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
             } else provided = provided.value;
         }
     }
-    if (!result.isSuccess) return { result };
-    const prepared = await prepareCommandResponse(await definition.handle(value, context, provided), context, scopes, options);
-    ({ result } = prepared);
-    const journal = prepared.journal;
-    if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
-    if (definition.clientOutput && result.isSuccess) result.response = assertClientOutput(definition.clientOutput.output, result.response);
-    return { result, journal };
+    if (!result.isSuccess) return { result, prepared: false };
+    const { result: response, journal } = await prepareCommandResponse(
+        await definition.handle(value, context, provided), context, scopes, options);
+    return { result: response, journal, prepared: true };
 }
 
 async function completeScopes<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, context: CommandContext,
@@ -141,16 +140,20 @@ export async function executeCommandOperation<S extends z.ZodType, T>(definition
         let source: 'response' | 'execution' | 'cancellation' | 'scope' = 'response';
         const snapshot = new CommandFailureSnapshot(context);
         try {
-            ({ result, journal } = await handle(definition, value, context, scopes, options));
-            if (result.isSuccess) {
+            const handled = await handle(definition, value, context, scopes, options);
+            ({ result, journal } = handled);
+            if (handled.prepared) {
+                if (definition.encodeResponse && result.isSuccess) result.response = definition.encodeResponse(result.response);
+                if (definition.clientOutput && result.isSuccess)
+                    result.response = assertClientOutput(definition.clientOutput.output, result.response);
                 snapshot.capture(result);
-                if (journal) {
-                    const before = disposition(scopes, context);
-                    if (before !== 'NoCommit' && before !== 'NotCommitted')
-                        throw new Error('Operations cannot start after an early, unknown, or mixed business commit');
-                    source = 'execution';
-                    await journal.execute(context);
-                }
+            }
+            if (journal && result.isSuccess) {
+                const before = disposition(scopes, context);
+                if (before !== 'NoCommit' && before !== 'NotCommitted')
+                    throw new Error('Operations cannot start after an early, unknown, or mixed business commit');
+                source = 'execution';
+                await journal.execute(context);
             }
         } catch (error) {
             source = context.signal.aborted ? 'cancellation' : source;

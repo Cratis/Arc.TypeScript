@@ -174,7 +174,7 @@ export class ArcApplicationBuilder {
     build(): Promise<FetchArcApplication> {
         return withGeneratedMetadata(this.generatedMetadata, () => this.buildRegistered());
     }
-    private buildRegistered(): Promise<FetchArcApplication> {
+    private async buildRegistered(): Promise<FetchArcApplication> {
         if (this.#built) throw new Error('Arc application builder can be built only once');
         this.#built = true;
         return buildRegistered({ options: this.options, services: this.services, artifacts: this.#artifacts,
