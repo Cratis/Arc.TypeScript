@@ -21,13 +21,20 @@ await once(socket, 'listening');
 const port = socket.address().port;
 await new Promise((resolve, reject) => socket.close(error => error ? reject(error) : resolve()));
 const host = spawn(process.execPath, ['dist/main.js'], { cwd: import.meta.dirname,
-    env: { ...process.env, PORT: String(port), MONGODB_URL: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    env: { ...process.env, PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'] });
 let output = '';
 host.stdout.on('data', chunk => { output += chunk; });
 host.stderr.on('data', chunk => { output += chunk; });
 after(async () => {
     host.kill('SIGTERM');
-    if (host.exitCode === null && host.signalCode === null) await once(host, 'exit');
+    if (host.exitCode === null && host.signalCode === null) {
+        const stopped = once(host, 'exit');
+        await Promise.race([stopped, setTimeout(2000)]);
+        if (host.exitCode === null && host.signalCode === null) {
+            host.kill('SIGKILL');
+            await stopped;
+        }
+    }
 });
 
 async function waitForServer() {
@@ -40,21 +47,45 @@ async function waitForServer() {
     throw new Error(`Library did not start: ${output}`);
 }
 
-test('generated client proxies register, page and relate a book over Express', { timeout: 15000 }, async () => {
+test('generated client proxies register, page and relate a book over Express', { timeout: 30000 }, async () => {
     await waitForServer();
     const origin = `http://127.0.0.1:${port}`;
     const authorId = Guid.create();
     const author = new RegisterAuthor();
     author.setOrigin(origin);
     author.id = authorId;
-    author.name = 'Octavia Butler';
-    assert.equal((await author.execute()).isSuccess, true, output);
+    author.name = `Octavia Butler ${authorId}`;
+    const registered = await author.execute();
+    assert.equal(registered.isSuccess, true, `${JSON.stringify(registered)}; ${output}`);
     const page = new AuthorsPage();
     page.setOrigin(origin);
-    assert.equal((await page.perform()).data[0]?.name, 'Octavia Butler');
+    const awaitResult = async (read, matches) => {
+        let last;
+        for (let attempt = 0; attempt < 60; attempt++) {
+            const result = await read();
+            last = result;
+            if (matches(result)) return result;
+            await setTimeout(250);
+        }
+        throw new Error(`Library projection did not catch up: ${JSON.stringify(last)}; ${output}`);
+    };
+    await awaitResult(() => page.perform(), result => result.data.some(item => item.name === author.name));
+    if (process.env.CHRONICLE_URL) {
+        const { ChronicleClient, ChronicleOptions } = await import('@cratis/chronicle');
+        const { AuthorWelcomed } = await import('./dist/Features/Authors/Registration/Registration.js');
+        const client = new ChronicleClient(ChronicleOptions.fromConnectionString(process.env.CHRONICLE_URL,
+            { discoveryPatterns: [] }));
+        try {
+            const store = await client.getEventStore('Library', 'Default');
+            await awaitResult(async () => ({ data: await store.eventLog.getForEventSourceIdAndEventTypes(
+                authorId.toString(), [AuthorWelcomed]) }), result => result.data.length > 0);
+        } finally { await client.dispose(); }
+    }
     const live = new AllAuthors();
     live.setOrigin(origin);
-    assert.equal((await live.perform()).data[0]?.name, 'Octavia Butler');
+    await awaitResult(() => process.env.CHRONICLE_URL ?
+        globalThis.fetch(`${origin}/api/authors/listing/all-authors?waitForFirstResult=true`).then(response => response.json()) :
+        live.perform(), result => result.data.some(item => item.name === author.name));
     const addBook = new AddBook();
     addBook.setOrigin(origin);
     addBook.bookId = Guid.create();
@@ -63,7 +94,11 @@ test('generated client proxies register, page and relate a book over Express', {
     assert.equal((await addBook.execute()).isSuccess, true, output);
     const books = new BooksForAuthor();
     books.setOrigin(origin);
-    assert.equal((await books.perform({ authorId })).data[0]?.title, 'Kindred');
+    await awaitResult(() => process.env.CHRONICLE_URL ?
+        globalThis.fetch(`${origin}/api/books/listing/books-for-author?authorId=${authorId}&waitForFirstResult=true`)
+            .then(response => response.json()) : books.perform({ authorId }),
+    result => result.data.some(item => item.title === 'Kindred'));
+    const secondName = `N. K. Jemisin ${Guid.create()}`;
     const observed = new AllAuthors();
     observed.setOrigin(origin);
     let first;
@@ -73,16 +108,16 @@ test('generated client proxies register, page and relate a book over Express', {
     const next = new Promise(resolve => { updated = resolve; });
     const subscription = observed.subscribe(result => {
         emissions.push({ length: result.data?.length, success: result.isSuccess, changeSet: result.changeSet, exceptions: result.exceptionMessages });
-        if (result.data.length === 1) first(result);
-        if (result.changeSet?.added.some(author => author.name === 'N. K. Jemisin')) updated(result);
+        if (result.data.some(item => item.name === author.name)) first(result);
+        if (result.changeSet?.added.some(item => item.name === secondName)) updated(result);
     });
     try {
         await Promise.race([initial, setTimeout(4000, undefined, { ref: false }).then(() => { throw new Error('No initial author emission'); })]);
         const second = new RegisterAuthor();
         second.setOrigin(origin);
         second.id = Guid.create();
-        second.name = 'N. K. Jemisin';
+        second.name = secondName;
         assert.equal((await second.execute()).isSuccess, true, output);
-        assert.equal((await Promise.race([next, setTimeout(4000, undefined, { ref: false }).then(() => { throw new Error(`No live author update: ${JSON.stringify(emissions)}`); })])).changeSet.added[0].name, 'N. K. Jemisin');
+        assert.equal((await Promise.race([next, setTimeout(12000, undefined, { ref: false }).then(() => { throw new Error(`No live author update: ${JSON.stringify(emissions)}`); })])).changeSet.added.some(item => item.name === secondName), true);
     } finally { subscription.unsubscribe(); observed.dispose(); }
 });

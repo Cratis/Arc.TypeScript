@@ -6,8 +6,7 @@ import { BookId } from '../../../BookId.js';
 import { BookTitle } from '../../../BookTitle.js';
 import { BookTitleValidator } from '../../../BookTitleValidator.js';
 import { Books } from '../../../Books.js';
-import { AddBook } from '../../AddBook.js';
-import { AddBookValidator } from '../../AddBookValidator.js';
+import { AddBook, AddBookValidator } from '../../Registration.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
 describe('when adding a book with an empty title', () => {

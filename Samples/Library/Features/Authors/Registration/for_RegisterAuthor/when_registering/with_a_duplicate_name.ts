@@ -4,8 +4,7 @@ import { CommandScenario } from '@cratis/arc.testing';
 import { AuthorId } from '../../../AuthorId.js';
 import { AuthorName } from '../../../AuthorName.js';
 import { Authors } from '../../../Authors.js';
-import { RegisterAuthor } from '../../RegisterAuthor.js';
-import { RegisterAuthorValidator } from '../../RegisterAuthorValidator.js';
+import { RegisterAuthor, RegisterAuthorValidator } from '../../Registration.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
 describe('when registering an author with a duplicate name', () => {

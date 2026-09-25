@@ -4,7 +4,7 @@ import { QueryScenario } from '@cratis/arc.testing';
 import { AuthorId } from '../../../AuthorId.js';
 import { AuthorName } from '../../../AuthorName.js';
 import { Authors } from '../../../Authors.js';
-import { Author } from '../../Author.js';
+import { Author } from '../../Listing.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
 describe('when paging authors with multiple entries', () => {

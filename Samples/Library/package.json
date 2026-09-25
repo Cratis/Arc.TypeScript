@@ -10,12 +10,15 @@
     "test:e2e": "node --import tsx --test e2e.test.mjs"
   },
   "dependencies": {
+    "@cratis/arc.chronicle": "workspace:^",
     "@cratis/arc.core": "workspace:^",
     "@cratis/arc.express": "workspace:^",
     "@cratis/arc.mongodb": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
+    "@cratis/chronicle": "6.7.0",
     "@cratis/fundamentals": "7.19.6",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "tsx": "^4.20.0",
