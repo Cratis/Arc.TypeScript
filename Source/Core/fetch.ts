@@ -4,6 +4,9 @@
 export { ArcServer, currentContext } from './ArcServer.js';
 export { FetchArcApplication as ArcApplication } from './FetchArcApplication.js';
 export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
+/** Integration packages augment this interface on the portable builder. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ArcBuilderExtensions {}
 export type { ArcBuilderIntegrationOptions } from './ArcBuilderIntegrationOptions.js';
 export { canonicalMetadataSignature } from './reflection/generatedMetadataSignature.js';
 export { optionalService } from './dependencyInjection/optionalService.js';

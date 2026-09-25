@@ -62,7 +62,7 @@ The builder also registers services that change pipeline behavior:
 | `addQueryRenderer(token)` | A renderer for provider-owned query results; see [Query renderers](../queries/renderers.md) |
 | `addReadModelInterceptor(token)` | A read-model transform; see [Read-model interception](../queries/read-model-interception.md) |
 
-After importing their packages, call `withMongoDB`, `withDrizzle`, or `withChronicle`. The old `add*` methods and standalone functions remain as deprecated aliases. The builder uses a `Symbol.for`-keyed extension registry rather than changing its prototype; importing an integration registers its install function even if the core is loaded twice. A missing integration fails at the call site. Configuration from `appsettings.json` is available to Chronicle and MongoDB, but model classes, clients, and authentication must be provided explicitly.
+After importing their packages, call `withMongoDB`, `withDrizzle`, or `withChronicle`. The old `add*` methods and standalone functions remain as deprecated aliases. Each integration adds its typed method to the portable builder prototype and registers its installer in a `Symbol.for`-keyed registry. The shared registry lets a builder loaded from another copy of core find the installer. A missing integration fails at the call site. Configuration from `appsettings.json` is available to Chronicle and MongoDB, but model classes, clients, and authentication must be provided explicitly.
 
 ## Run it, or mount it
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
 import type { ArcOptions } from './ArcOptions.js';
+import type { ArcBuilderExtensions } from './fetch.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
 import { ArcApplicationServices } from './dependencyInjection/ArcApplicationServices.js';
 import { FetchArcApplication } from './FetchArcApplication.js';
@@ -37,6 +38,10 @@ import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
+// Interface merging exposes integration-owned methods without depending on optional packages in core.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-unsafe-declaration-merging
+export interface ArcApplicationBuilder extends ArcBuilderExtensions {}
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class ArcApplicationBuilder {
     readonly services = new ArcApplicationServices();
     readonly #artifacts: Artifact[] = [];
