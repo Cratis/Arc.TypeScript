@@ -3,6 +3,7 @@
 import type { ExecutionContext } from '@cratis/arc.core';
 import { MongoClient } from 'mongodb';
 import type { MongoDBOptions } from './MongoDBOptions.js';
+import { monitorMongoDBClient } from './MongoDBClientMetrics.js';
 
 /** Owns URI-created clients only; never closes a caller-supplied client. */
 export class MongoClientFactory {
@@ -18,7 +19,11 @@ export class MongoClientFactory {
         const uri = this.options.serverResolver?.(context.tenantId.toLowerCase(), context) ?? this.options.server;
         if (!uri) throw new Error('MongoDB server resolver returned no server');
         let client = this.#clients.get(uri);
-        if (!client) { client = new MongoClient(uri); this.#clients.set(uri, client); }
+        if (!client) {
+            client = new MongoClient(uri, { monitorCommands: true });
+            monitorMongoDBClient(client, client.options.hosts.map(host => host.toString()).join(','));
+            this.#clients.set(uri, client);
+        }
         return client;
     }
     async [Symbol.asyncDispose](): Promise<void> {

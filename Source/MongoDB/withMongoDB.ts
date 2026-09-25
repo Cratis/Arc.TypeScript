@@ -1,10 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ArcApplicationBuilder, serviceToken } from '@cratis/arc.core';
-import type { ExecutionContext } from '@cratis/arc.core';
+import type { ExecutionContext, ServiceScope } from '@cratis/arc.core';
 import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import { MongoClientFactory } from './MongoClientFactory.js';
 import { MongoCollection } from './MongoCollection.js';
+import { MongoDBWatcher } from './MongoDBWatcher.js';
 import { MongoReadModelForCommandResolver } from './MongoReadModelForCommandResolver.js';
 import type { MongoDBOptions } from './MongoDBOptions.js';
 import { mongoCollection } from './collectionToken.js';
@@ -12,6 +13,8 @@ import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
 
 /** Public token for applications needing to resolve clients explicitly. */
 export const mongoClientFactory = serviceToken<MongoClientFactory>('MongoClientFactory');
+/** Scoped watcher: resolve it in the same tenant scope as the collections it observes. */
+export const mongoDBWatcher = serviceToken<MongoDBWatcher>('MongoDBWatcher');
 
 export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBOptions): ArcApplicationBuilder {
     const settings = { ...builder.configuration.Cratis?.MongoDB };
@@ -22,17 +25,24 @@ export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBO
     builder.services.addSingleton(mongoClientFactory, () => factory);
     builder.services.addScoped(MongoReadModelForCommandResolver, () => new MongoReadModelForCommandResolver(options));
     builder.addReadModelForCommandResolver(MongoReadModelForCommandResolver);
+    const resolveDatabase = async (scope: ServiceScope) => {
+        const context: ExecutionContext | undefined = scope.identity;
+        if (!context?.tenantId) throw new Error('A tenant is required for MongoDB access');
+        const tenantId = context.tenantId.toLowerCase();
+        const name = options.databaseNameResolver ? options.databaseNameResolver(tenantId, context) :
+            tenantId === 'default' ? options.database : `${options.database}+${tenantId}`;
+        if (!name) throw new Error('MongoDB database resolver returned no database');
+        const client = (await scope.resolve(mongoClientFactory)).get(context);
+        return { context, database: client.db(name) };
+    };
+    builder.services.addScoped(mongoDBWatcher, async scope => {
+        const { context, database } = await resolveDatabase(scope);
+        return new MongoDBWatcher(database, context);
+    });
     for (const type of options.readModels) {
         const token = mongoCollection(type);
         builder.services.addScoped(token, async scope => {
-            const context: ExecutionContext | undefined = scope.identity;
-            if (!context?.tenantId) throw new Error('A tenant is required for MongoDB access');
-            const tenantId = context.tenantId.toLowerCase();
-            const name = options.databaseNameResolver ? options.databaseNameResolver(tenantId, context) :
-                tenantId === 'default' ? options.database : `${options.database}+${tenantId}`;
-            if (!name) throw new Error('MongoDB database resolver returned no database');
-            const client = (await scope.resolve(mongoClientFactory)).get(context);
-            const database = client.db(name);
+            const { context, database } = await resolveDatabase(scope);
             const namingPolicy = options.namingPolicy ?? defaultMongoNamingPolicy;
             const collectionName = options.collectionName?.(type) ?? namingPolicy.collectionName(type);
             if (!collectionName) throw new Error('MongoDB collection name is required');

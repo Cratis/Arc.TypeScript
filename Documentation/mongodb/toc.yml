@@ -12,3 +12,9 @@
   href: paging.md
 - name: Observing collections
   href: observing-collections.md
+- name: Joined observation
+  href: joined-observe.md
+- name: Change-stream watcher
+  href: change-stream-watcher.md
+- name: Geospatial types
+  href: geospatial.md

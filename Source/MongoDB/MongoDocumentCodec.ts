@@ -1,10 +1,12 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs, DateOnly, DerivedType, Guid, TimeOnly, TimeSpan } from '@cratis/fundamentals';
+import { LineString, Point, Polygon } from '@cratis/fundamentals/geospatial';
 import { fieldsFor, InvalidQuerySort, wireName } from '@cratis/arc.core';
 import type { WireField } from '@cratis/arc.core';
 import { Binary, Decimal128, Long, ObjectId } from 'mongodb';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
+import { decodeGeometry, encodeGeometry } from './MongoGeoJSON.js';
 import type { MongoNamingPolicy } from './MongoNamingPolicy.js';
 import type { Document } from 'mongodb';
 
@@ -84,6 +86,10 @@ export class MongoDocumentCodec<T extends object> {
         if (value instanceof DateOnly) return new Date(`${(value as DateOnly).toString()}T12:00:00.000Z`);
         if (value instanceof TimeOnly) return new Date(`1970-01-01T${(value as TimeOnly).toString()}Z`);
         if (value instanceof TimeSpan) return (value as TimeSpan).toString();
+        if (type === Point || type === LineString || type === Polygon) {
+            if (!(value instanceof type)) throw new TypeError(`Expected MongoDB ${type.name}`);
+            return encodeGeometry(value as Point | LineString | Polygon);
+        }
         if (type === Date || type === String || type === Number || type === Boolean || type === ObjectId || type === Binary) return value;
         if (fieldsFor(type).length) {
             const runtime = (value as object).constructor as WireField['type'];
@@ -123,6 +129,7 @@ export class MongoDocumentCodec<T extends object> {
         if (type === DateOnly) return DateOnly.parse((value as Date).toISOString().slice(0, 10));
         if (type === TimeOnly) return TimeOnly.parse((value as Date).toISOString().slice(11, 23));
         if (type === TimeSpan) return TimeSpan.parse(value as string);
+        if (type === Point || type === LineString || type === Polygon) return decodeGeometry(type as typeof Point | typeof LineString | typeof Polygon, value);
         if (type === Number) {
             if (value instanceof Decimal128 || value instanceof Long) {
                 const number = Number(value.toString());
