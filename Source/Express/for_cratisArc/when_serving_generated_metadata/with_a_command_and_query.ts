@@ -12,7 +12,7 @@ import { TaskId } from '../../../../Samples/Tasks/Features/Tasks/TaskId.js';
 import { Tasks } from '../../../../Samples/Tasks/Features/Tasks/Tasks.js';
 import { TaskItem } from '../../../../Samples/Tasks/Features/Tasks/Listing/Listing.js';
 import { metadata } from '../../../../Samples/Tasks/Features/generatedMetadata.js';
-import { mountExpress } from '../../index.js';
+import { cratisArc } from '../../index.js';
 
 const sample = join(dirname(fileURLToPath(import.meta.url)), '../../../../Samples/Tasks');
 
@@ -32,7 +32,7 @@ describe('when serving generated command and query metadata over Express', () =>
         builder.add(RegisterTask, RegisterTaskValidator, TaskItem);
         application = await builder.build();
         const host = express();
-        mountExpress(host, application);
+        host.use(cratisArc(application));
         listener = createServer(host);
         await new Promise<void>(resolve => listener.listen(0, '127.0.0.1', resolve));
         const address = listener.address();

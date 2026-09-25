@@ -56,7 +56,7 @@ describe('when resolving a Chronicle read model by the command key', () => {
         find.resolves(author);
         getStore.callsFake(async (): Promise<IEventStore> => ({ readModels: { findInstanceById: find } }) as unknown as IEventStore);
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Authors', client: { getEventStore: getStore } as unknown as IChronicleClient });
+        builder.withChronicle({ eventStore: 'Authors', client: { getEventStore: getStore } as unknown as IChronicleClient });
         builder.add(RenameAuthor, RenameUsingEventSourceId, PrepareRename, PrepareAndHandle, FindOptionalAuthor, Author, AuthorAdded);
         application = await builder.build();
     });

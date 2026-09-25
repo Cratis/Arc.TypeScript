@@ -1,6 +1,6 @@
 ---
 title: MongoDB tenancy
-description: How addMongoDB chooses a database and server for each tenant, and what a single-tenant application configures.
+description: How withMongoDB chooses a database and server for each tenant, and what a single-tenant application configures.
 ---
 
 Every Arc execution resolves a tenant, and the MongoDB collection you inject belongs to that tenant's database. You decide the mapping; the package never falls back to a default database silently.

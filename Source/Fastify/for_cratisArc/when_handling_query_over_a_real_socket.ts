@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { connect } from 'node:net';
 import { z } from 'zod';
 import { ArcServer, defineQuery } from '@cratis/arc.core';
-import { mountFastify } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -29,7 +29,7 @@ describe('when handling QUERY over a real Fastify socket', () => {
                 received();
             }) })
         ] });
-        mountFastify(app, arc);
+        app.register(cratisArc, { arc: arc });
         await app.listen({ host: '127.0.0.1', port: 0 });
         const address = app.server.address();
         if (!address || typeof address === 'string') throw Error('No port');

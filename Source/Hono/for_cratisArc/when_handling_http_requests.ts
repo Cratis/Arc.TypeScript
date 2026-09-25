@@ -4,7 +4,7 @@ import { should } from 'vitest';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { mountHono } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -18,7 +18,7 @@ describe('when handling Hono HTTP requests', () => {
     beforeEach(async () => {
         const app = new Hono<{ Variables: { accountId: string }; Bindings: { API_TOKEN: string } }>();
         arc = new ArcServer({ commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }), handle: ({ value }) => value })] });
-        mountHono(app, arc);
+        app.use(cratisArc(arc));
         app.get('/foreign', c => c.text('foreign'));
         malformed = await app.request('/api/echo', { method: 'POST', body: '{' });
         valid = await app.request('/api/echo', { method: 'POST', body: '{"value":"hi"}' });

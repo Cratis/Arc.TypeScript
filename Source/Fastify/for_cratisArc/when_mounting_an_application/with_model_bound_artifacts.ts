@@ -3,7 +3,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ArcApplication } from '@cratis/arc.core';
 import { Echo } from '../../../Core/for_ArcApplicationBuilder/given/Echo.js';
-import { mountFastify } from '../../index.js';
+import { cratisArc } from '../../index.js';
 
 describe('when mounting a model-bound application in Fastify', () => {
     let server: FastifyInstance;
@@ -14,7 +14,7 @@ describe('when mounting a model-bound application in Fastify', () => {
         builder.add(Echo);
         application = await builder.build();
         server = Fastify();
-        mountFastify(server, application);
+        server.register(cratisArc, { arc: application });
         const url = await server.listen({ port: 0, host: '127.0.0.1' });
         response = await fetch(url + '/api/echo', { method: 'POST', body: '{"message":"from Fastify"}' });
     });

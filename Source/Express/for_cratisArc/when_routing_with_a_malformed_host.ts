@@ -6,7 +6,7 @@ import { connect } from 'node:net';
 import express from 'express';
 import { z } from 'zod';
 import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { mountExpress } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -22,7 +22,7 @@ describe('when routing with a malformed Host header', () => {
         handled = 0;
         const app = express();
         arc = new ArcServer({ commands: [defineCommand({ name: 'Delete', path: '/api/admin/delete', schema: z.object({}), handle: () => ++handled })] });
-        mountExpress(app, arc);
+        app.use(cratisArc(arc));
         app.get('/health', (_request, response) => response.end('healthy'));
         http = createServer(app);
         await new Promise<void>(resolve => http.listen(0, '127.0.0.1', resolve));

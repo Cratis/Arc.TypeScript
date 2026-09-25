@@ -209,9 +209,9 @@ import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
 import express from 'express';
 import fastify from 'fastify';
 import { Hono } from 'hono';
-import { cratisArc as expressArc, mountExpress } from '@cratis/arc.express';
-import fastifyArc, { mountFastify } from '@cratis/arc.fastify';
-import { cratisArc as honoArc, mountHono } from '@cratis/arc.hono';
+import { cratisArc as expressArc } from '@cratis/arc.express';
+import fastifyArc from '@cratis/arc.fastify';
+import { cratisArc as honoArc } from '@cratis/arc.hono';
 import { withMongoDB, type MongoDBOptions } from '@cratis/arc.mongodb';
 import { CommandScenario, QueryScenario } from '@cratis/arc.testing';
 import { analyzeSource } from '@cratis/arc.proxygenerator';
@@ -226,15 +226,10 @@ function attachSockets(host: HttpServer) {
 void attachSockets;
 try {
     express().use(expressArc(adapterApp));
-    mountExpress(express(), adapterApp); // Deprecated alias remains usable.
     const fastifyHost = fastify();
     await fastifyHost.register(fastifyArc, { arc: adapterApp });
     await fastifyHost.close();
-    const legacyFastifyHost = fastify();
-    mountFastify(legacyFastifyHost, adapterApp); // Deprecated alias remains usable.
-    await legacyFastifyHost.close();
     new Hono().use(honoArc(adapterApp));
-    mountHono(new Hono(), adapterApp); // Deprecated alias remains usable.
 } finally { await adapterApp.dispose(); }
 `;
     const looseSource = `

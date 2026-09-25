@@ -20,7 +20,7 @@ describe('when observing changes with a replica set', given(a_replica_set, conte
         if (!process.env.ARC_MONGO_TEST_URI) throw new Error('ARC_MONGO_TEST_URI is required');
         await context.client.connect();
         const builder = ArcApplication.createBuilder();
-        builder.add(TaskQueries).addMongoDB({ client: context.client, databaseNameResolver: tenant => `${context.name}_${tenant}`,
+        builder.add(TaskQueries).withMongoDB({ client: context.client, databaseNameResolver: tenant => `${context.name}_${tenant}`,
             readModels: [TaskRecord] });
         application = await builder.build();
     });

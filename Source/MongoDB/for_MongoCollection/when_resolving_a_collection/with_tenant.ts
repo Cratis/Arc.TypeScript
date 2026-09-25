@@ -12,7 +12,7 @@ describe('when resolving a collection with a tenant', given(a_tenant_collection,
     let databaseName: string;
     beforeEach(async () => {
         const builder = ArcApplication.createBuilder();
-        builder.addMongoDB({ client: context.client, database: 'tasks', readModels: [TaskRecord] });
+        builder.withMongoDB({ client: context.client, database: 'tasks', readModels: [TaskRecord] });
         const application = await builder.build();
         const scope = application.server.services.createScope(executionContext('acme'));
         try {

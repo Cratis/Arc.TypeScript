@@ -10,8 +10,8 @@ import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import WebSocket from 'ws';
 import { ArcServer, CurrentValueSubject, defineObservableQuery, runArc } from '@cratis/arc.core';
-import { mountFastify, mountFastifyWebSockets } from '@cratis/arc.fastify';
-import { mountHono, mountHonoWebSockets } from '@cratis/arc.hono';
+import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
+import { cratisArc as honoArc, createHonoWebSockets } from '@cratis/arc.hono';
 import { observableHost } from './observableHost.mjs';
 import { FetchEventSource } from './FetchEventSource.mjs';
 
@@ -58,8 +58,7 @@ test('Fastify preserves earlier plugin boot failures', async () => {
     const server = new ArcServer({});
     const app = fastify();
     app.register(async () => { throw Error('authentication plugin failed'); });
-    mountFastifyWebSockets(app, server);
-    mountFastify(app, server);
+    app.register(fastifyArc, { arc: server });
     try { await assert.rejects(app.ready(), /authentication plugin failed/); }
     finally { await app.close(); await server.dispose(); }
 });
@@ -109,16 +108,15 @@ for (const kind of ['fastify', 'hono']) {
         if (kind === 'fastify') {
             const app = fastify();
             app.register(websocket);
-            mountFastifyWebSockets(app, server);
-            mountFastify(app, server);
+            app.register(fastifyArc, { arc: server });
             await app.listen({ port: 0, host: '127.0.0.1' });
             origin = app.listeningOrigin;
             close = () => app.close();
         } else {
             const app = new Hono();
             const helper = createNodeWebSocket({ app });
-            const mounted = mountHonoWebSockets(app, server, undefined, helper);
-            mountHono(app, server);
+            const mounted = createHonoWebSockets(app, server, undefined, helper);
+            app.use(honoArc(server));
             const listener = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' });
             await new Promise(resolve => listener.once('listening', resolve));
             helper.injectWebSocket(listener);

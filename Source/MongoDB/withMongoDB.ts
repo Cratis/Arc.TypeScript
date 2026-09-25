@@ -48,17 +48,10 @@ declare module '@cratis/arc.core' {
     interface ArcApplicationBuilder {
         /** Attach MongoDB after importing @cratis/arc.mongodb. */
         withMongoDB(options: MongoDBOptions): this;
-        /** @deprecated Use withMongoDB. */
-        addMongoDB(options: MongoDBOptions): this;
     }
 }
 
 ArcApplicationBuilder.registerExtension('mongodb', withMongoDB);
 ArcApplicationBuilder.prototype.withMongoDB = function (options: MongoDBOptions) {
     return this.extend('mongodb', options);
-};
-/** @deprecated Use withMongoDB. */
-export const addMongoDB = withMongoDB;
-ArcApplicationBuilder.prototype.addMongoDB = function (options: MongoDBOptions) {
-    return this.withMongoDB(options);
 };

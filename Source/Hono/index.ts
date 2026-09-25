@@ -3,8 +3,8 @@
 import { Hono } from 'hono';
 import type { Context, Env, MiddlewareHandler } from 'hono';
 import type { Server as HttpServer } from 'node:http';
-import { mountHonoWebSockets } from './WebSocketMount.js';
-export { mountHonoWebSockets } from './WebSocketMount.js';
+import { createHonoWebSockets } from './WebSocketMount.js';
+export { createHonoWebSockets } from './WebSocketMount.js';
 export { serveCratisArc } from './serveCratisArc.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 import { serverOf } from '@cratis/arc.core/hosting';
@@ -53,17 +53,11 @@ export function cratisArc<E extends Env>(application: ArcServer | ArcApplication
         return new Response(result.body, { status: result.status, statusText: result.statusText, headers });
     };
     const upgrades = new Hono<E>();
-    const bridge = mountHonoWebSockets(upgrades, server, native);
+    const bridge = createHonoWebSockets(upgrades, server, native);
     return Object.assign(middleware, {
         injectWebSocket(host: HttpServer): () => Promise<void> {
             bridge.injectWebSocket(host);
             return () => bridge.dispose();
         }
     });
-}
-
-/** @deprecated Use app.use(cratisArc(application)). */
-export function mountHono<E extends Env>(app: Hono<E>, application: ArcServer | ArcApplication,
-    native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>): void {
-    app.use(cratisArc(application, native));
 }

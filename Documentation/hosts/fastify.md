@@ -44,7 +44,7 @@ Fastify enforces its own `bodyLimit`, 1 MiB by default, before Arc reads the bod
 
 ## Observable queries over WebSockets
 
-`app.register(cratisArc, { arc })` registers HTTP and observable upgrades together (`webSockets` defaults to `true`). Set `webSockets: false` to disable upgrades. A shared `@fastify/websocket` can be registered before or after Arc; both orders are covered by real upgrade checks. The plugin also supports a Fastify registration prefix, including one inherited from a parent plugin. `mountFastify` and `mountFastifyWebSockets` remain deprecated aliases. See [WebSockets](websockets.md#fastify).
+`app.register(cratisArc, { arc })` registers HTTP and observable upgrades together (`webSockets` defaults to `true`). Set `webSockets: false` to disable upgrades. A shared `@fastify/websocket` can be registered before or after Arc; both orders are covered by real upgrade checks. The plugin also supports a Fastify registration prefix, including one inherited from a parent plugin. See [WebSockets](websockets.md#fastify).
 
 ## Related
 

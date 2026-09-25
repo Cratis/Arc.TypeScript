@@ -12,7 +12,7 @@ describe('when resolving a collection without a tenant', given(a_tenant_collecti
     let error: unknown;
     beforeEach(async () => {
         const builder = ArcApplication.createBuilder();
-        builder.addMongoDB({ client: context.client, database: 'tasks', readModels: [TaskRecord] });
+        builder.withMongoDB({ client: context.client, database: 'tasks', readModels: [TaskRecord] });
         const application = await builder.build();
         const scope = application.server.services.createScope(executionContext());
         try { await scope.resolve(mongoCollection(TaskRecord)); }

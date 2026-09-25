@@ -47,17 +47,10 @@ declare module '@cratis/arc.core' {
     interface ArcApplicationBuilder {
         /** Attach Chronicle after importing @cratis/arc.chronicle. */
         withChronicle(options: Partial<ChronicleRegistration>): this;
-        /** @deprecated Use withChronicle. */
-        addChronicle(options: Partial<ChronicleRegistration>): this;
     }
 }
 
 ArcApplicationBuilder.registerExtension('chronicle', withChronicle);
 ArcApplicationBuilder.prototype.withChronicle = function (options: Partial<ChronicleRegistration>) {
     return this.extend('chronicle', options);
-};
-/** @deprecated Use withChronicle. */
-export const addChronicle = withChronicle;
-ArcApplicationBuilder.prototype.addChronicle = function (options: Partial<ChronicleRegistration>) {
-    return this.withChronicle(options);
 };

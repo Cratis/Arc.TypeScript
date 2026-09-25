@@ -29,7 +29,7 @@ describe('when building a command with a read-model binding', () => {
     });
     it('should reject two owners before serving commands', async () => {
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Views', client: { getEventStore: async () => { throw new Error('Unexpected connection'); } } as unknown as IChronicleClient });
+        builder.withChronicle({ eventStore: 'Views', client: { getEventStore: async () => { throw new Error('Unexpected connection'); } } as unknown as IChronicleClient });
         builder.services.addScoped(CompetingResolver);
         builder.addReadModelForCommandResolver(CompetingResolver);
         builder.add(ReadView, View, Added);

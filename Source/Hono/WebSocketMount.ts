@@ -10,7 +10,7 @@ import { ObservableHandshakeTimeoutError, prepareObservableUpgrade, serveUpgrade
 import type { ArcServer, NativeRequestContext } from '@cratis/arc.core';
 
 /** Register Hono WebSocket routes before serve(), then inject into the Node listener. */
-export function mountHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServer,
+export function createHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcServer,
     native?: (context: Context<E>) => NativeRequestContext | Promise<NativeRequestContext>,
     existingWebSockets?: NodeWebSocket): {
         injectWebSocket(host: HttpServer): void;

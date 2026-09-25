@@ -4,7 +4,7 @@ import { should } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ArcServer, defineCommand, defineQuery } from '@cratis/arc.core';
-import { mountFastify } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -23,7 +23,7 @@ describe('when handling Fastify HTTP requests', () => {
             commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }), handle: ({ value }) => value })],
             queries: [defineQuery({ name: 'Read', schema: z.object({ value: z.number() }), perform: ({ value }) => value })]
         });
-        mountFastify(app, arc);
+        app.register(cratisArc, { arc: arc });
         ok = await app.inject({ method: 'POST', url: '/api/echo', payload: { value: 'hi' } });
         bad = await app.inject({ method: 'POST', url: '/api/echo', payload: '{', headers: { 'content-type': 'application/json' } });
         unsupported = await app.inject({ method: 'PUT', url: '/api/echo' });

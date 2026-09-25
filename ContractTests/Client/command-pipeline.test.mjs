@@ -8,23 +8,23 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { z } from 'zod';
 import { ArcServer, CommandOperation, defineCommand, tuple } from '@cratis/arc.core';
-import { mountExpress } from '@cratis/arc.express';
-import { mountFastify } from '@cratis/arc.fastify';
-import { mountHono } from '@cratis/arc.hono';
+import { cratisArc as expressArc } from '@cratis/arc.express';
+import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
+import { cratisArc as honoArc } from '@cratis/arc.hono';
 
 async function host(kind, server) {
     if (kind === 'express') {
-        const app = express(); mountExpress(app, server);
+        const app = express(); app.use(expressArc(server));
         const listener = app.listen(0, '127.0.0.1');
         await new Promise(resolve => listener.once('listening', resolve));
         return { origin: `http://127.0.0.1:${listener.address().port}`, close: () => new Promise((resolve, reject) => listener.close(error => error ? reject(error) : resolve())) };
     }
     if (kind === 'fastify') {
-        const app = fastify(); mountFastify(app, server);
+        const app = fastify(); app.register(fastifyArc, { arc: server });
         await app.listen({ port: 0, host: '127.0.0.1' });
         return { origin: app.listeningOrigin, close: () => app.close() };
     }
-    const app = new Hono(); mountHono(app, server);
+    const app = new Hono(); app.use(honoArc(server));
     const listener = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' });
     await new Promise(resolve => listener.once('listening', resolve));
     return { origin: `http://127.0.0.1:${listener.address().port}`, close: () => new Promise((resolve, reject) => listener.close(error => error ? reject(error) : resolve())) };

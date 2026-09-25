@@ -4,7 +4,7 @@ import { should } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { mountFastify } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -24,7 +24,7 @@ describe('when the Fastify logger rejects a handler failure', () => {
             commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () => { throw Error(secret); } })],
             logger: async () => { attempts++; throw Error('private logger failure'); }
         });
-        mountFastify(app, arc);
+        app.register(cratisArc, { arc: arc });
         response = await app.inject({ method: 'POST', url: '/api/save', payload: '{}', headers: { 'X-Correlation-ID': correlationId } });
     });
 

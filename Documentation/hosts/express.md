@@ -53,7 +53,7 @@ An unexpected error inside the adapter is passed to Express with `next(error)`. 
 
 ## Observable queries over WebSockets
 
-Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `cratisArc(arc).injectWebSocket(listener, native?)`; the middleware cannot see upgrades. See [WebSockets](websockets.md#express). `mountExpress` and `mountExpressWebSockets` remain deprecated aliases.
+Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `cratisArc(arc).injectWebSocket(listener, native?)`; the middleware cannot see upgrades. See [WebSockets](websockets.md#express).
 
 ## Related
 

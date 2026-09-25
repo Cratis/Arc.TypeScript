@@ -4,7 +4,7 @@ import { should } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { mountFastify } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -18,7 +18,7 @@ describe('when parsing Fastify command bodies', () => {
     beforeEach(async () => {
         app = Fastify();
         arc = new ArcServer({ commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }), handle: input => input.value })] });
-        mountFastify(app, arc);
+        app.register(cratisArc, { arc: arc });
         malformed = [];
         for (const headers of [{ 'content-type': 'application/json' }, { 'content-type': 'application/json', 'content-length': '1' }])
             malformed.push(await app.inject({ method: 'POST', url: '/api/echo', headers, payload: Buffer.from([0xff]) }));

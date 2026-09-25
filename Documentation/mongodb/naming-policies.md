@@ -17,7 +17,7 @@ Both presets keep leading acronyms together. With the default policy, the TypeSc
 ```typescript
 import { camelCaseMongoNamingPolicy } from '@cratis/arc.mongodb';
 
-builder.addMongoDB({ client, database: 'tasks', readModels: [TaskRecord], namingPolicy: camelCaseMongoNamingPolicy });
+builder.withMongoDB({ client, database: 'tasks', readModels: [TaskRecord], namingPolicy: camelCaseMongoNamingPolicy });
 ```
 
 ## Custom names

@@ -6,7 +6,7 @@ import { connect } from 'node:net';
 import express from 'express';
 import { z } from 'zod';
 import { ArcServer, defineQuery } from '@cratis/arc.core';
-import { mountExpress } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -26,7 +26,7 @@ describe('when an Express peer disconnects', () => {
             context.signal.addEventListener('abort', () => { canceled = true; disconnected(); resolve('disconnected'); }, { once: true });
             received();
         }) })] });
-        mountExpress(app, arc);
+        app.use(cratisArc(arc));
         http = createServer(app);
         await new Promise<void>(resolve => http.listen(0, '127.0.0.1', resolve));
         const address = http.address();

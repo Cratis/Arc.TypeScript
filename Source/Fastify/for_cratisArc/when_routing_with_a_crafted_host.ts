@@ -4,7 +4,7 @@ import { should } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { mountFastify } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -19,7 +19,7 @@ describe('when routing with a crafted Host header', () => {
         deletes = 0;
         app = Fastify();
         arc = new ArcServer({ commands: [defineCommand({ name: 'Delete', path: '/api/admin/delete', schema: z.object({}), handle: () => ++deletes })] });
-        mountFastify(app, arc);
+        app.register(cratisArc, { arc: arc });
         command = (await app.inject({ method: 'POST', url: '/api/admin/delete', headers: { host: 'x/api/admin/delete?ignored' }, payload: '{}' })).statusCode;
         validation = (await app.inject({ method: 'POST', url: '/api/admin/delete/validate', headers: { host: 'x/api/admin/delete?ignored' }, payload: '{}' })).statusCode;
     });

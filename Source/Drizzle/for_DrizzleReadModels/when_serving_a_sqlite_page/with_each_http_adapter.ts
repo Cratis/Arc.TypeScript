@@ -7,9 +7,9 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { beforeEach, afterEach, describe, it, should } from 'vitest';
 import { ArcApplication } from '@cratis/arc.core';
-import { mountExpress } from '../../../Express/index.js';
-import { mountFastify } from '../../../Fastify/index.js';
-import { mountHono } from '../../../Hono/index.js';
+import { cratisArc as expressArc } from '../../../Express/index.js';
+import { cratisArc as fastifyArc } from '../../../Fastify/index.js';
+import { cratisArc as honoArc } from '../../../Hono/index.js';
 import '../../index.js';
 import { given } from '../../given.js';
 import { TaskQueries } from '../given/TaskQueries.js';
@@ -25,7 +25,7 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
         beforeEach(async () => {
             await context.establish();
             const builder = ArcApplication.createBuilder({ resolveTenant: () => 'default' });
-            builder.add(TaskQueries).addDrizzle({ dialect: 'sqlite', database: context.database,
+            builder.add(TaskQueries).withDrizzle({ dialect: 'sqlite', database: context.database,
                 readModels: [{ type: TaskRecord, table: context.table }] });
             const application = await builder.build();
             let listener: Server | undefined;
@@ -33,18 +33,18 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
             try {
                 if (adapter === 'Express') {
                     const host = express();
-                    mountExpress(host, application);
+                    host.use(expressArc(application));
                     listener = createServer(host);
                     await new Promise<void>(resolve => listener!.listen(0, '127.0.0.1', resolve));
                 } else if (adapter === 'Fastify') {
                     const host = fastify();
-                    mountFastify(host, application);
+                    host.register(fastifyArc, { arc: application });
                     await host.listen({ port: 0, host: '127.0.0.1' });
                     listener = host.server as Server;
                     stop = () => host.close();
                 } else {
                     const host = new Hono();
-                    mountHono(host, application);
+                    host.use(honoArc(application));
                     listener = serve({ fetch: host.fetch, port: 0, hostname: '127.0.0.1' }) as Server;
                     if (!listener.listening) await new Promise<void>(resolve => listener!.once('listening', resolve));
                 }

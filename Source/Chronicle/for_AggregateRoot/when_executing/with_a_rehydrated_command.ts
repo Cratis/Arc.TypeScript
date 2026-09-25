@@ -92,7 +92,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
         setup.getEventStore.resolves({ ...store, eventLog: { ...store.eventLog, getForEventSourceIdAndEventTypes,
             getTailSequenceNumber: async () => new EventSequenceNumber(9n) } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddCount, Created);
         const app = await builder.build();
         try {
@@ -109,7 +109,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getForEventSourceIdAndEventTypes: async () => [],
             getTailSequenceNumber: async () => EventSequenceNumber.beforeFirst } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddCount, Created);
         const app = await builder.build();
         try {
@@ -125,7 +125,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async () => new EventSequenceNumber(12n),
             getForEventSourceIdAndEventTypes: async () => [{ eventType: metadata, content: {}, context: { sequenceNumber: 9n } }] } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddCount, Created, Unhandled);
         const app = await builder.build();
         try {
@@ -142,7 +142,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async (...args: unknown[]) => { tails.push(args); return new EventSequenceNumber(15n); },
             getForEventSourceIdAndEventTypes: async (...args: unknown[]) => { reads.push(args); return []; } } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddRoutedCount, Created);
         const app = await builder.build();
         try {
@@ -163,7 +163,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async () => new EventSequenceNumber(8n),
             getForEventSourceIdAndEventTypes: async () => { read = true; return []; } } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(CheckSource, Created, Unhandled);
         const app = await builder.build();
         try {
@@ -180,7 +180,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async () => new EventSequenceNumber(9n),
             getForEventSourceIdAndEventTypes: async () => [{ eventType: metadata, content: {}, context: { sequenceNumber: 9n } }] } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(CheckReplayContext, Created);
         const app = await builder.build();
         try {
@@ -195,7 +195,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async () => EventSequenceNumber.beforeFirst,
             getForEventSourceIdAndEventTypes: async () => [] } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddWithoutCommit, AddDiscardedCommit, AddStateless, AddTwoAggregates, AddAfterCommit, Created);
         const app = await builder.build();
         try {
@@ -214,7 +214,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async () => EventSequenceNumber.beforeFirst,
             getForEventSourceIdAndEventTypes: async () => [] } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddWithBrokenOperation, Created);
         const app = await builder.build();
         try {
@@ -230,7 +230,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getTailSequenceNumber: async () => EventSequenceNumber.beforeFirst,
             getForEventSourceIdAndEventTypes: async () => [] } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddWithoutCommit, Created);
         const app = await builder.build();
         try {
@@ -246,7 +246,7 @@ describe('when a command uses a rehydrated aggregate', given(a_registered_comman
             getForEventSourceIdAndEventTypes: async () => { throw new Error('read unavailable'); },
             getTailSequenceNumber: async () => new EventSequenceNumber(9n) } });
         const builder = ArcApplication.createBuilder();
-        builder.addChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
+        builder.withChronicle({ eventStore: 'Tasks', client: { getEventStore: setup.getEventStore } as never });
         builder.add(AddCount, Created);
         const app = await builder.build();
         try {

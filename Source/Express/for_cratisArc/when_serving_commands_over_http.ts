@@ -5,7 +5,7 @@ import { createServer, type Server } from 'node:http';
 import express from 'express';
 import { z } from 'zod';
 import { ArcServer, defineCommand } from '@cratis/arc.core';
-import { mountExpress } from '../index.js';
+import { cratisArc } from '../index.js';
 
 should();
 
@@ -20,7 +20,7 @@ describe('when serving commands over Express HTTP', () => {
     beforeEach(async () => {
         const app = express();
         arc = new ArcServer({ commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }), handle: ({ value }) => value })] });
-        mountExpress(app, arc);
+        app.use(cratisArc(arc));
         app.get('/foreign', (_req, res) => { res.send('foreign'); });
         http = createServer(app);
         await new Promise<void>(resolve => http.listen(0, '127.0.0.1', resolve));

@@ -16,7 +16,7 @@ describe('when paging across tenants', given(a_sqlite_database, context => {
         const other = new a_sqlite_database();
         await other.establish();
         other.database.delete(other.table).run();
-        builder.addDrizzle({ dialect: 'sqlite', databaseFactory: tenant => tenant === 'a' ? context.database : other.database,
+        builder.withDrizzle({ dialect: 'sqlite', databaseFactory: tenant => tenant === 'a' ? context.database : other.database,
             readModels: [{ type: TaskRecord, table: context.table }] });
         const app = await builder.build();
         const identity = (tenantId: string) => ({ tenantId, principal: undefined, allowedSeverity: Severity.Warning,

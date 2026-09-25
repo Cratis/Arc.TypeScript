@@ -39,7 +39,7 @@ app.use(cratisArc(arc));
 const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1' });
 ```
 
-Call `await hosted.dispose()` at shutdown, before disposing `arc`. If your application already has a `createNodeWebSocket({ app })` helper, the deprecated `mountHonoWebSockets` alias accepts it as a fourth argument; call **only** `helper.injectWebSocket(listener)` because Arc does not own that shared listener. Ordinary GET requests pass through the WebSocket route to your handlers. Hono middleware runs for upgrades, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is needed only for this Node host; other Hono runtimes need their own verified bridge.
+Call `await hosted.dispose()` at shutdown, before disposing `arc`. If your application already has a `createNodeWebSocket({ app })` helper, call `createHonoWebSockets(app, arc.server, undefined, helper)` on the same Hono app after registering `cratisArc` middleware; call **only** `helper.injectWebSocket(listener)`, then dispose the Arc bridge before closing the listener because Arc does not own that shared listener. Ordinary GET requests pass through the WebSocket route to your handlers. Hono middleware runs for upgrades, and the Node TLS socket supplies `secure` unless trusted native context overrides it. `@hono/node-server` is needed only for this Node host; other Hono runtimes need their own verified bridge.
 
 ## Frame limits
 
