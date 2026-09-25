@@ -11,6 +11,8 @@ A librarian registers an author. You want that registration kept as a fact, and 
 `@cratis/arc.chronicle` is experimental, and, like every package in this repository, it is not published to npm. Its APIs can change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
 :::
 
+To try it, [Add event sourcing](add-event-sourcing.md) starts a Chronicle kernel on your machine and adds a first event-sourced slice to the application from [Create an application](../getting-started/create-an-application.md).
+
 ## How the pieces fit
 
 Arc and Chronicle meet at one loop. A command returns an event, Chronicle appends it and projects it into a read model, and an Arc query serves that read model back to the client.
@@ -76,7 +78,9 @@ The `@key()` field names the event source, so the registration lands in that aut
 
 | Page | Use it when you want to |
 | --- | --- |
-| [Add event sourcing](add-event-sourcing.md) | Register Chronicle with the application builder |
+| [Add event sourcing](add-event-sourcing.md) | Start a local kernel, record a first event from a command, and query its projection |
+| [Registration options](registration-options.md) | Look up the `withChronicle` options, configuration keys, and client ownership |
+| [The Cratis package](cratis-package.md) | Register Arc and Chronicle with one call from `@cratis/cratis` |
 | [Returning events](commands/index.md) | Return one event, a batch, or events next to a response |
 | [Event metadata](commands/event-metadata.md) | See what each appended event carries and where every value comes from |
 | [Resolving the event source ID](resolving-event-source-id.md) | Choose which event source an event is appended to, and route it |
@@ -103,7 +107,7 @@ The `@key()` field names the event source, so the registration lands in that aut
 - The TypeScript SDK has no replay exclusion for reactors, so a reactor that returns commands must tolerate running again.
 - No `ARCCHR` analyzers exist for TypeScript. See [Code analysis](code-analysis.md).
 
-Start with [Add event sourcing](add-event-sourcing.md).
+Start with [Add event sourcing](add-event-sourcing.md), or run the [Library sample](../getting-started/library-sample.md) to see a finished application.
 
 ## Related
 

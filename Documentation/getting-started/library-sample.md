@@ -19,7 +19,7 @@ docker compose -f Samples/Library/docker-compose.yml up -d
 yarn workspace @cratis/arc.sample.library dev
 ```
 
-Visit <http://127.0.0.1:5173>. Register an author, select their name, and add a book. After Chronicle projects the event, the author count and list update without a refresh. The book appears on the selected author's shelf. Stop the dev process with Ctrl+C, then stop this sample's kernel with `docker compose -f Samples/Library/docker-compose.yml down`. Its development data is removed with the container.
+Visit <http://127.0.0.1:5173>. Register an author, select their name, and add a book. After Chronicle projects the event, the author count and list update without a refresh. The book appears on the selected author's shelf. Stop the dev process with Ctrl+C, then stop this sample's kernel with `docker compose -f Samples/Library/docker-compose.yml down --volumes`. That removes the container and the volumes of its bundled MongoDB, and with them the development data.
 
 Vite sends `/api` and `/.cratis` requests to Express on loopback. If the ports are occupied, free ports 3000, 5173, and 35000 before starting.
 
@@ -35,4 +35,4 @@ The source generator produces both server metadata and browser proxies. When you
 
 `appsettings.json` configures `Cratis.Chronicle` with the `Library` event store and a local development connection string. The compose image bundles MongoDB as Chronicle's event store and read-model sink; the application never writes to MongoDB directly. A successful append may precede the projected query update. The sample loads the small catalog before Arc pages it, so do not use that query for an unbounded production list. `bash Samples/Library/run-integration.sh` starts its own Chronicle container and tests the generated proxy HTTP round trip, including uniqueness and an observable update. It does not exercise the browser UI.
 
-You have now traced a typed React hook through Express into Chronicle and back through a projected observable query. [Your first command](your-first-command.md) walks the smaller, infrastructure-free Tasks sample if you want to isolate the Arc decorators.
+You have now traced a typed React hook through Express into Chronicle and back through a projected observable query. To build the same loop in a project of your own, [create an application](create-an-application.md) and then [add event sourcing](../chronicle/add-event-sourcing.md) to it. [Your first command](your-first-command.md) walks the smaller, infrastructure-free Tasks sample if you want to isolate the Arc decorators.
