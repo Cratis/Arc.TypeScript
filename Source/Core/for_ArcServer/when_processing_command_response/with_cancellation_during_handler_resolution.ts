@@ -44,7 +44,7 @@ describe('when canceling while a response handler service is resolving', () => {
     });
     it('should not invoke the resolved handler', () => { calls.should.not.include('handle'); });
     it('should fail while completing the scope and disposing owned services', () => {
-        result.isSuccess.should.be.false;
+        result.isSuccess.should.equal(false);
         calls.should.deep.equal(['begin', 'complete', 'dispose']);
     });
 });

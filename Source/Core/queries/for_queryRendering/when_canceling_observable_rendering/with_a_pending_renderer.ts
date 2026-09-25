@@ -49,7 +49,7 @@ describe('when canceling during an observable emission renderer', () => {
     });
     it('should not invoke the next interceptor', () => { calls.should.not.include('intercept'); });
     it('should fail and release the subscription scope', () => {
-        result.isSuccess.should.be.false;
+        result.isSuccess.should.equal(false);
         calls.should.include('dispose renderer');
     });
 });

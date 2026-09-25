@@ -63,7 +63,7 @@ for (const stage of ['performer', 'renderer resolution', 'renderer', 'first inte
             result = await pending;
             await server.dispose();
         });
-        it('should fail instead of delivering successful data', () => { result.isSuccess.should.be.false; });
+        it('should fail instead of delivering successful data', () => { result.isSuccess.should.equal(false); });
         it('should not start the next rendering stage', () => {
             if (stage === 'performer' || stage === 'renderer resolution') calls.should.not.include('render');
             if (stage === 'renderer') calls.should.not.include('first');

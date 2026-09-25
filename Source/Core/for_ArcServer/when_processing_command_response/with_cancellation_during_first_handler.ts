@@ -58,13 +58,13 @@ describe('when canceling during the first response handler with a prepared opera
         calls.should.not.include('execute operation');
     });
     it('should fail and complete the scope and owned services', () => {
-        result.isSuccess.should.be.false;
+        result.isSuccess.should.equal(false);
         calls.should.include('complete');
         calls.should.include('dispose first');
         calls.should.include('dispose second');
     });
     it('should retain the prepared recovery journal', () => {
         result.recovery!.status.should.equal(CommandRecoveryStatus.NotNeeded);
-        result.operationOutcomes!.should.be.empty;
+        result.operationOutcomes!.should.have.lengthOf(0);
     });
 });

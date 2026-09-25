@@ -34,8 +34,8 @@ describe('when a query warning precedes authorization denial', given(query_filte
     afterEach(async () => { await application.dispose(); });
     it('should continue to the later denial', () => { context.calls.should.deep.equal(['warning', 'deny']); });
     it('should return unauthorized without warning details', () => {
-        result.isAuthorized.should.be.false;
-        result.validationResults.should.be.empty;
+        result.isAuthorized.should.equal(false);
+        result.validationResults.should.have.lengthOf(0);
     });
 }));
 
@@ -57,7 +57,7 @@ describe('when an ordinary query filter returns a warning', given(query_filter_f
     afterEach(async () => { await application.dispose(); });
     it('should continue through validation and the performer', () => {
         context.calls.should.deep.equal(['warning', 'validate', 'perform']);
-        result.isSuccess.should.be.true;
+        result.isSuccess.should.equal(true);
     });
 }));
 

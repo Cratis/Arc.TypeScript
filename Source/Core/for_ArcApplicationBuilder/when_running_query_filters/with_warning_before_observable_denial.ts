@@ -41,7 +41,7 @@ describe('when a warning precedes denial at observable query admission', () => {
     afterEach(async () => { await application.dispose(); });
     it('should run the later denial without opening the producer', () => {
         calls.should.deep.equal(['warning', 'deny']);
-        result.isAuthorized.should.be.false;
+        result.isAuthorized.should.equal(false);
     });
-    it('should not disclose the filtered warning', () => { result.validationResults.should.be.empty; });
+    it('should not disclose the filtered warning', () => { result.validationResults.should.have.lengthOf(0); });
 });
