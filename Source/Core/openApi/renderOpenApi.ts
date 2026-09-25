@@ -58,7 +58,7 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
                 '500': { description: 'Server error', content: { 'application/json': { schema: resultSchema(operation, false) } } } }
         };
     }
-    return { openapi: '3.1.0', info: { title: 'Arc', version: options.openApiVersion ?? '0.1.0' },
+    return { openapi: '3.1.0', info: { title: 'Arc', version: options.generatedApis?.openApiVersion ?? '0.1.0' },
         ...(schemes.length ? { components: { securitySchemes: Object.fromEntries(schemes.map(name => [name,
             { type: 'http', scheme: 'bearer' }])) } } : {}), paths };
 }

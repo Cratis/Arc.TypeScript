@@ -61,7 +61,7 @@ export class ArcServer {
         this.options = detailsSchema && options.identityDetails ? {
             ...options, identityDetails: { ...options.identityDetails, schema: detailsSchema }
         } : options;
-        if (options.correlationHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationHeader))
+        if (options.correlationId?.httpHeader !== undefined && !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(options.correlationId?.httpHeader))
             throw new Error('Invalid correlation header');
         if (options.commandCompensationTimeoutMs !== undefined &&
             (!Number.isSafeInteger(options.commandCompensationTimeoutMs) || options.commandCompensationTimeoutMs < 1 ||
@@ -74,9 +74,9 @@ export class ArcServer {
         if ((options.developmentUsers || options.developmentTenants) && !options.development) throw new Error('Discovery providers require development mode');
         this.#identitySchema = detailsSchema ? z.toJSONSchema(detailsSchema) : undefined;
         this.observableLimits = new ObservableLimits(options);
-        if (options.allowedOrigins !== undefined && !Array.isArray(options.allowedOrigins) &&
-            typeof options.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');
-        if (Array.isArray(options.allowedOrigins) && options.allowedOrigins.some(origin => {
+        if (options.query?.allowedOrigins !== undefined && !Array.isArray(options.query?.allowedOrigins) &&
+            typeof options.query?.allowedOrigins !== 'function') throw new Error('Invalid allowed Origins');
+        if (Array.isArray(options.query?.allowedOrigins) && options.query?.allowedOrigins.some(origin => {
             if (typeof origin !== 'string') return true;
             try {
                 const parsed = new URL(origin);
@@ -89,12 +89,13 @@ export class ArcServer {
             if (this.services.registration(token).lifetime === 'singleton')
                 throw new Error(`Query renderer or read-model interceptor ${this.services.registration(token).token.name} must not be singleton`);
         }
-        if (options.maxBodyBytes !== undefined && (!Number.isSafeInteger(options.maxBodyBytes) || options.maxBodyBytes <= 0))
+        if (options.hosting?.maxBodyBytes !== undefined &&
+            (!Number.isSafeInteger(options.hosting.maxBodyBytes) || options.hosting.maxBodyBytes <= 0))
             throw new Error('Invalid maximum body size');
-        if (options.observableKeepAliveIntervalMs !== undefined &&
-            (!Number.isSafeInteger(options.observableKeepAliveIntervalMs) || options.observableKeepAliveIntervalMs < 0 ||
-                options.observableKeepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
-        if (options.enableObservableHealth !== undefined && typeof options.enableObservableHealth !== 'boolean')
+        if (options.query?.keepAliveIntervalMs !== undefined &&
+            (!Number.isSafeInteger(options.query?.keepAliveIntervalMs) || options.query?.keepAliveIntervalMs < 0 ||
+                options.query?.keepAliveIntervalMs > 120_000)) throw new Error('Invalid observable keep-alive interval');
+        if (options.query?.enableObservableHealth !== undefined && typeof options.query?.enableObservableHealth !== 'boolean')
             throw new Error('Invalid observable health option');
         const table = createRouteTable(options, context => this.#hub.observeHealth(context));
         this.commands = table.commands;

@@ -7,7 +7,7 @@ For a first SQL-backed Arc query, install `drizzle-orm` and a Drizzle-supported 
 
 The executable SQLite spec defines a [`tasks` table and connection](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/a_sqlite_database.ts), a [`TaskRecord`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/TaskRecord.ts) with Fundamentals field metadata and a [model-bound query](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/given/TaskQueries.ts). The host [registers them with `withDrizzle`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Drizzle/for_DrizzleReadModels/when_serving_a_sqlite_page/with_each_http_adapter.ts), and the spec calls the generated `/page` route through Express, Fastify, and Hono. Run `yarn vitest run --project @cratis/arc.drizzle`; each adapter returns one sorted task and `paging.totalItems: 2`, while an unknown sort field returns HTTP 400.
 
-Resolve the tenant in your Arc host before making SQL queries. For a single-tenant example, construct the builder with `ArcApplication.createBuilder({ resolveTenant: () => 'default' })`; without a tenant, SQL access fails with “A tenant is required for Drizzle access.” Registration then follows this shape:
+Resolve the tenant in your Arc host before making SQL queries. For a single-tenant example, construct the builder with `ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } })`; without a tenant, SQL access fails with “A tenant is required for Drizzle access.” Registration then follows this shape:
 
 ```typescript
 builder.add(TaskQueries).withDrizzle({

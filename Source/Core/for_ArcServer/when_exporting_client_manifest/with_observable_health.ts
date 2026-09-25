@@ -13,7 +13,7 @@ describe('when exporting the client manifest with observable health', () => {
     let operations: string[];
 
     beforeEach(async () => {
-        const server = new ArcServer({ enableObservableHealth: true, observableQueries: [defineObservableQuery({
+        const server = new ArcServer({ query: { enableObservableHealth: true }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), clientOutput: { output: {
                 kind: 'array', element: { kind: 'number' }
             } }, observe: () => new CurrentValueSubject([1])

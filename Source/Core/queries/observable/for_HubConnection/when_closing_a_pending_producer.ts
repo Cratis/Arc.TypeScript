@@ -20,7 +20,7 @@ describe('when closing a connection with a pending producer', () => {
         const blocked = new Promise<void>(resolve => { release = resolve; });
         let started!: () => void;
         const opening = new Promise<void>(resolve => { started = resolve; });
-        context = new a_query_connection(new ArcServer({ observableHandshakeTimeoutMs: 10, observableShutdownTimeoutMs: 10,
+        context = new a_query_connection(new ArcServer({ query: { observableHandshakeTimeoutMs: 10, observableShutdownTimeoutMs: 10 },
             observableQueries: [defineObservableQuery({ name: 'Slow', schema: z.object({}),
                 observe: async () => { started(); await blocked; return CurrentValueSubject.of(1); } })] }));
         await context.connection.connect();

@@ -9,8 +9,8 @@ import { tenantId } from './tenantId.js';
 /** Resolve a request tenant consistently for HTTP and observable connections. */
 export async function resolveTenant(options: ArcOptions, request: Request, principal: Principal | undefined,
     native?: NativeRequestContext): Promise<string | undefined> {
-    if (options.resolveTenant) return options.resolveTenant(request, principal);
-    const header = options.tenantHeader ?? 'x-cratis-tenant-id';
+    if (options.tenancy?.resolve) return options.tenancy.resolve(request, principal);
+    const header = options.tenancy?.httpHeader ?? 'x-cratis-tenant-id';
     if (!options.tenancy) return request.headers.get(header) ?? undefined;
     const resolved = resolveConfiguredTenant(request, principal, native, options.tenancy, header);
     return resolved === undefined ? undefined : tenantId(resolved);

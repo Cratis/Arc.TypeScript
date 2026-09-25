@@ -1,120 +1,137 @@
 ---
 title: Configuration
-description: Every ArcOptions setting accepted by the application builder and ArcServer, its default and effect, and what startup rejects.
+description: Configure Arc through its grouped ArcOptions tree, appsettings.json, environment variables, or code.
 ---
 
-On Node.js, `ArcApplication.createBuilder()` reads an optional `appsettings.json` from the **process working directory**, then `appsettings.{Environment}.json` from the same directory, then `Cratis__...` environment variables (case-insensitive), then applies code options. The environment comes from `DOTNET_ENVIRONMENT`, `ASPNETCORE_ENVIRONMENT`, or `NODE_ENV`, in that order. Starting a sample from another directory changes which files it reads; use an explicit file URL if its settings should travel with the application. `ArcOptions` also configures the low-level server directly. The builder binds serializable keys in `Cratis:Arc`, `Cratis:Chronicle`, and `Cratis:MongoDB`. Other sections are ignored; unknown keys inside those three sections produce warnings through the builder's `logger`, if supplied. Invalid values fail setup. No secret values appear in configuration errors.
+Arc reads its settings from one `ArcOptions` object. The TypeScript groups follow the same `Cratis:Arc` paths as [Arc on .NET](https://github.com/Cratis/Arc/blob/main/Documentation/backend/csharp/configuration/index.md): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`. Node-specific transport limits and registration hooks live in those groups or alongside them as noted below.
 
-```typescript
-import { ArcApplication, ArcServer } from '@cratis/arc.core';
+## Three ways to configure
 
-const builder = ArcApplication.createBuilder({ generatedApis: { routePrefix: 'api' }, maxBodyBytes: 64 * 1024 });
-const server = new ArcServer({ commands: [], maxBodyBytes: 64 * 1024 });
-```
-
-`build()` merges builder registrations (discovered artifacts, `addAuthorizationPolicy`, `addQueryRenderer`, and so on) with the matching options. `new ArcServer(options)` stays explicit and does not load files or environment variables.
+`ArcApplication.createBuilder()` loads `appsettings.json` from the process working directory, then `appsettings.{Environment}.json` beside it, then `Cratis__...` environment variables, and finally applies code options. The environment comes from `DOTNET_ENVIRONMENT`, `ASPNETCORE_ENVIRONMENT`, or `NODE_ENV`, in that order. Keys are case-insensitive. Code overrides individual nested values rather than replacing the whole group.
 
 ```json title="appsettings.json"
-{"Cratis":{"Arc":{"GeneratedApis":{"RoutePrefix":"api"}},"Chronicle":{"ConnectionString":"chronicle://localhost:35000","EventStore":"Tasks"},"MongoDB":{"Database":"tasks"}}}
+{
+  "Cratis": {
+    "Arc": {
+      "CorrelationId": { "HttpHeader": "X-Request-ID" },
+      "Tenancy": { "ResolverType": "Fixed", "FixedTenantId": "default" },
+      "GeneratedApis": { "RoutePrefix": "api", "EnableQueryHttpMethod": true },
+      "Query": { "KeepAliveInterval": "00:00:30" },
+      "Hosting": { "ApplicationUrl": "http://127.0.0.1:3000/" },
+      "ExposeExceptionDetails": false
+    }
+  }
+}
 ```
 
-`CRATIS__ARC__GENERATEDAPIS__ROUTEPREFIX=backend` overrides the file. `Cratis__Chronicle__ConnectionString` and `Cratis__MongoDB__Server` work the same way. Keys are case-insensitive; a code option wins over the same file or environment key, including when code supplies a Chronicle client instead of a configured connection string or a MongoDB client/resolver instead of a configured server. Values in files and environment variables can be strings: booleans accept `true`/`false` or `True`/`False`, and numeric fields accept decimal integers. String fields such as `EventStore` and `OpenApiVersion` stay strings, even when they contain only digits. Under `Cratis:Arc`, the builder accepts `development`, `enableQueryMethod`, `openApiVersion`, `maxBodyBytes`, `correlationHeader`, `tenantHeader`, and the four `generatedApis` fields. It also accepts .NET aliases `ExposeExceptionDetails` (for `development`), `CorrelationId:HttpHeader`, `Tenancy:HttpHeader`, and `GeneratedApis:EnableQueryHttpMethod`. Chronicle binds `connectionString` and `eventStore`; MongoDB binds `server` and `database`. Handler functions, clients, models, and credentials represented as objects belong in code. Chronicle still requires both an event store and a connection string (or a client); MongoDB still needs `readModels` in code.
+For example, `Cratis__Arc__CorrelationId__HttpHeader=X-Other-ID` overrides the file, while `correlationId: { httpHeader: 'X-Code-ID' }` overrides that environment variable:
 
-Use `ArcApplication.createBuilder({ configuration: false })` to opt out, or `{ configuration: { file: new URL('./appsettings.json', import.meta.url), env: suppliedEnvironment } }` to choose a file (a string path also works) and environment. An environment-specific `appsettings.{Environment}.json` next to that file is read if present. Invalid JSON is an error, not an absent file. Do not commit real connection strings to source control.
+```typescript
+import { ArcApplication } from '@cratis/arc.core';
 
-## Artifacts and services
+const builder = ArcApplication.createBuilder({ correlationId: { httpHeader: 'X-Code-ID' } });
+const app = await builder.build();
+```
 
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `commands` | `CommandDefinition[]` | `[]` | Low-level commands from `defineCommand` |
-| `queries` | `QueryDefinition[]` | `[]` | Low-level queries from `defineQuery` |
-| `observableQueries` | `ObservableQueryDefinition[]` | `[]` | Low-level live queries from `defineObservableQuery` |
-| `services` | `ServiceRegistration[] \| ServiceRegistry` | Empty registry | Owned registrations, or an externally owned registry; see [Dependency injection](../dependency-injection.md) |
-| `commandResponseValueHandlers` | Service identifiers | `[]` | Scoped handlers for server-side return values; see [Response value handlers](../commands/response-value-handlers.md) |
-| `commandContextValuesProviders` | Service identifiers | `[]` | Scoped providers of named values on each `CommandContext` |
-| `commandKeyResolvers` | Service identifiers | `[]` | Key rules run before the default `@key()`/`getKey()` rule; see [Command context](../commands/command-context.md) |
-| `readModelForCommandResolvers` | Service identifiers | `[]` | Sources for `commandReadModel(...)` parameters |
-| `commandExecutionRunner` | `(context, execute) => Promise<CommandResult>` | None | Wraps each validated command execution, for integrations that need ambient state |
-| `commandCompensationTimeoutMs` | `number` | `30000` | Shared cooperative budget for [operation](../commands/operations/index.md) compensation |
-| `queryRenderers` | Service identifiers | `[]` | Ordered scoped [renderers](../queries/renderers.md) |
-| `readModelInterceptors` | Service identifiers | `[]` | Ordered scoped [interceptors](../queries/read-model-interception.md) |
+Use `{ configuration: false }` to disable file and environment binding, or `{ configuration: { file: new URL('./appsettings.json', import.meta.url), env: suppliedEnvironment } }` to choose both explicitly. A string path also works. Invalid JSON and invalid known values fail setup; unknown keys within `Cratis:Arc`, `Cratis:Chronicle`, and `Cratis:MongoDB` are reported to `logger` when configured, without including their values. Other configuration sections are ignored. Do not put real connection strings in committed files. Chronicle binds `Cratis:Chronicle:{ConnectionString,EventStore}`, and MongoDB binds `Cratis:MongoDB:{Server,Database}`; clients, handlers, tokens, and other non-serializable values belong in code.
 
-## Routes and requests
+`new ArcServer(options)` uses code options only. It never reads a file or environment overrides. On a Fetch-only runtime, its default for exception exposure is false because there is no Node environment.
 
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `generatedApis` | `{ routePrefix?, segmentsToSkipForRoute?, includeCommandNameInRoute?, includeQueryNameInRoute? }` | `{ routePrefix: 'api', segmentsToSkipForRoute: 0, includeCommandNameInRoute: true, includeQueryNameInRoute: true }` | Route convention; see [Endpoint mapping](../core/endpoint-mapping.md) |
-| `prefix`, `segmentsToSkip`, `includeCommandNameInRoute`, `includeQueryNameInRoute` | Deprecated aliases | As in `generatedApis` | Flat forms; nested values take precedence |
-| `enableQueryMethod` | `boolean` | `true` | Accept the HTTP `QUERY` method on query routes; when `false`, `QUERY` answers 405 with `Allow: GET` |
-| `openApiVersion` | `string` | `'0.1.0'` | Version advertised in `GET /openapi.json`; see [OpenAPI](../open-api/index.md) |
-| `maxBodyBytes` | `number` | `1048576` | Largest command or `QUERY` body; must be a positive safe integer |
-| `correlationHeader` | `string` | `'X-Correlation-ID'` | Header read and written for the correlation ID |
+## The ArcOptions tree
 
-A body larger than `maxBodyBytes`, measured by `Content-Length` or while reading, answers 400 `malformedRequest`. Arc also rejects bodies that are not UTF-8 JSON, contain non-finite numbers, nest deeper than 32 levels, or use the keys `__proto__`, `prototype`, or `constructor`. Behind Fastify, Fastify's own `bodyLimit` applies first.
+The paths below are relative to `Cratis:Arc` in configuration and camelCase in TypeScript. `.NET` settings with different value representations are called out explicitly. Unspecified options use the documented defaults.
 
-Every result carries a correlation ID, also sent in the correlation response header. When the request carries a valid, non-zero UUID in that header, Arc reuses it in lowercase; otherwise it generates one.
+| Configuration path / TypeScript path | Default | Effect |
+| --- | --- | --- |
+| `ExposeExceptionDetails` / `exposeExceptionDetails` | `true` only when the effective environment is Development | Include original exception messages and stack traces in serialized HTTP results; otherwise redact them. This does not enable development discovery. |
+| `CorrelationId:HttpHeader` / `correlationId.httpHeader` | `X-Correlation-ID` | Correlation ID request and response header. |
+| `Tenancy:ResolverType` / `tenancy.resolverType` | `header` when `tenancy` is present | Single `header`, `query`, `claim`, `subdomain`, `development`, or `fixed` source. |
+| `Tenancy:HttpHeader` / `tenancy.httpHeader` | `x-cratis-tenant-id` | Header source; also the fallback for `resolverType: 'subdomain'` or an ordered `['subdomain', 'header']` list. |
+| `Tenancy:BaseDomain` / `tenancy.baseDomain` | None | Required for the verified subdomain source; exactly one preceding DNS label matches. |
+| `Tenancy:QueryParameter` / `tenancy.queryParameter` | `tenantId` | Query-string source. |
+| `Tenancy:ClaimType` / `tenancy.claimType` | `tenant_id` | Claim source; only own string claims on authenticated principals count. |
+| `Tenancy:FixedTenantId` / `tenancy.fixedTenantId` | `development` | Fixed or development source. The .NET `DevelopmentTenantId` configuration name also binds this value; do not supply both names. |
+| `GeneratedApis:RoutePrefix` / `generatedApis.routePrefix` | `api` | Prefix for convention routes. |
+| `GeneratedApis:SegmentsToSkipForRoute` / `generatedApis.segmentsToSkipForRoute` | `0` | Leading namespace segments removed from generated routes. |
+| `GeneratedApis:IncludeCommandNameInRoute` / `generatedApis.includeCommandNameInRoute` | `true` | Append command names to convention routes. |
+| `GeneratedApis:IncludeQueryNameInRoute` / `generatedApis.includeQueryNameInRoute` | `true` | Append query names to convention routes. |
+| `GeneratedApis:EnableQueryHttpMethod` / `generatedApis.enableQueryHttpMethod` | `true` | Accept HTTP `QUERY` with JSON arguments as well as GET; false answers 405 with `Allow: GET`. |
+| `GeneratedApis:OpenApiVersion` / `generatedApis.openApiVersion` | `0.1.0` | TypeScript-only OpenAPI `info.version`; .NET does not have this ArcOptions key. |
+| `Query:KeepAliveInterval` / `query.keepAliveIntervalMs` | `00:00:30` / `30000` ms | Idle hub Ping interval. Files and environment use .NET's `hh:mm:ss` format, converted to milliseconds. In code zero disables keep-alive. |
+| `Hosting:ApplicationUrl` / `hosting.applicationUrl` | `http://127.0.0.1:3000/` | Standalone Node HTTP listener URL; an explicit `app.start({ host, port })` or `app.run({ host, port })` overrides its host or port. HTTP adapters and Fetch-only dispatch do not open this listener. |
+| `Hosting:MaxBodyBytes` / `hosting.maxBodyBytes` | `1048576` | Maximum JSON command or `QUERY` body in bytes; TypeScript-only hosting limit. |
 
-## Security
+With no `tenancy` group at all, Arc retains its original behavior: it reads the default tenant header unchanged and does not check membership. When you supply the group, its built-in source validates and normalizes the tenant ID. `tenancy.resolve(request, principal)` is a code-only authoritative resolver; returning `undefined` does not fall back. `tenancy.sources` is a TypeScript-only ordered list of the resolver types above; the first nonempty result wins. Do not combine `sources` and `resolverType`. `tenancy.required` answers 400 when no tenant is selected, and `tenancy.membershipClaim` requires a matching own claim on an authenticated principal or answers 403. See [Tenant resolvers](../tenancy/resolvers.md).
 
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `authentication` | `AuthenticationHandler[]` | `[]` | Ordered handlers; see [Authentication](../core/authentication.md) |
-| `authenticationSchemes` | `Record<string, AuthenticationHandler>` | `{}` | Named handlers selected by `@authorize({ schemes })` |
-| `authorizationPolicies` | `Record<string, AuthorizationPolicy>` | `{}` | Named rules; the builder also has `addAuthorizationPolicy` |
-| `nativePrincipal` | `boolean` | `false` | Trust only a host-verified principal from the adapter callback; see [Native principal](../hosts/native-principal.md) |
-| `tenantHeader` | `string` | `'x-cratis-tenant-id'` | Header read for the tenant without `resolveTenant` or `tenancy` |
-| `resolveTenant` | `(request, principal) => string \| undefined`, or a promise | None | Resolves the tenant; its answer is final |
-| `tenancy` | `TenancyOptions` | None | Ordered built-in tenant sources; see [Tenant resolvers](../tenancy/resolvers.md) |
-| `identityDetails` | `{ schema?, detailsType?, provide(principal, context) }` | None | Registers `/.cratis/me`; see [Identity](../identity/index.md) |
-| `identityDetailsSchema` | `Record<string, unknown>` | `{}` | Legacy schema body when no provider is configured |
-| `developmentUsers`, `developmentTenants` | Provider function or array of functions | None | Anonymous development discovery; see [Development users and tenants](../identity/development-users-and-tenants.md) |
-
-## Errors and logging
-
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `development` | `boolean` | `false` | Return exception messages and stack traces to HTTP callers |
-| `logger` | `(error, correlationId) => void`, or a promise | None | Receives the original error for failed HTTP requests |
-
-When a callback throws, the result is a 500 with `hasExceptions: true`. Outside development, HTTP callers see `["An unexpected error occurred"]` and no stack trace. Leave `development` off anywhere a real user can reach.
-
-The logger runs for every exception in an HTTP result, for a validator that throws, and for unexpected pipeline failures, whatever `development` says. Several failures in one command, such as a handler and a scope, arrive as one `AggregateError`. Without a logger, Arc logs nothing. A logger that throws or rejects is attempted once; Arc then returns a generic, redacted 500 with the correlation ID. Direct calls are neither redacted nor logged.
+`development: true` enables **only** development user and tenant discovery providers. It does not enable exception details. Conversely, `exposeExceptionDetails: true` does not authorize development providers. On Node, the exception-detail default uses `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `NODE_ENV`; only Development (case-insensitive) exposes details by default. Set it explicitly in code or configuration if your deployment's environment differs. Keep it false on public hosts.
 
 ## Observable query limits
 
+All of these TypeScript transport settings belong under `query`; positive numeric values in `Cratis:Arc:Query` accept decimal-integer strings from the environment. The `Query:KeepAliveInterval` key is the shared .NET setting; the remaining limits, guards, Origin policy, and query health are TypeScript extensions.
+
+| TypeScript option | Default | Effect |
+| --- | --- | --- |
+| `query.allowedOrigins` | Same origin | Exact trusted HTTP(S) Origins or a code-only `(origin, request, native)` predicate; see [WebSockets](../hosts/websockets.md#origin-checks). |
+| `query.observableEmissionGuards` | `[]` | Code-only scoped emission policies; see [Emission guards](../queries/observable-query-emission-guards.md). |
+| `query.enableObservableHealth` | `false` | Authenticated caller-scoped health query; see [Query health](../queries/query-health.md). |
+| `query.maxObservableSubscriptions` / `query.maxObservableSubscriptionsPerCaller` | `4096` / `4096` | Global and per-caller live and opening subscriptions. |
+| `query.maxObservableHubConnections` / `query.maxObservableHubConnectionsPerCaller` | `512` / `512` | Global and per-caller hub connections. |
+| `query.maxObservableHubSubscriptionsPerConnection` | `256` | Subscriptions on one hub. |
+| `query.maxObservableInboundFrames` / `query.maxObservableOutboundFrames` | `256` / `256` | Queued transport frames. |
+| `query.maxObservablePendingEmissions` | `256` | Pending snapshots from a structural subscribable. |
+| `query.maxObservableInboundFrameBytes` / `query.maxObservableOutboundFrameBytes` | `65536` / `1048576` | Incoming WebSocket frame or SSE control body / outgoing frame sizes. |
+| `query.maxObservableTombstones` | `1024` | Retained unsubscribe tombstones per hub connection for two minutes. |
+| `query.observableHandshakeTimeoutMs` | `10000` | WebSocket upgrade handshake deadline. |
+| `query.observableShutdownTimeoutMs` | `10000` | Hub and direct WebSocket cleanup deadline. |
+
+Per-caller defaults equal global limits: set smaller per-caller budgets for internet-facing hosts. Exhausted admission answers 503 with `Retry-After: 1`; an exhausted handshake answers HTTP 503 or WebSocket close 1013. The keep-alive interval alone accepts zero. `query.allowedOrigins` accepts a string array in code; the configuration binder does not accept Origin lists or predicates.
+
+## Artifacts and services
+
+These TypeScript-only `ArcOptions` values are code-only; the builder can also register discovered artifacts and matching services directly.
+
 | Option | Default | Effect |
 | --- | --- | --- |
-| `allowedOrigins` | Same origin | Browser `Origin` policy for WebSocket upgrades and SSE hub controls: a list of exact `http`/`https` origins, or a predicate `(origin, request, native)`; see [WebSockets](../hosts/websockets.md#origin-checks) |
-| `observableEmissionGuards` | `[]` | Scoped per-emission policies; see [Emission guards](../queries/observable-query-emission-guards.md) |
-| `enableObservableHealth` | `false` | Caller-scoped hub health query; see [Query health](../queries/query-health.md) |
-| `maxObservableSubscriptions` / `maxObservableSubscriptionsPerCaller` | `4096` / `4096` | Live and opening subscriptions globally / per principal or anonymous connection or address |
-| `maxObservableHubConnections` / `maxObservableHubConnectionsPerCaller` | `512` / `512` | Physical hub connections globally / per caller |
-| `maxObservableHubSubscriptionsPerConnection` | `256` | Subscriptions on one hub connection |
-| `maxObservableInboundFrames` / `maxObservableOutboundFrames` | `256` / `256` | Queued transport frames |
-| `maxObservablePendingEmissions` | `256` | Pending snapshots from one structural subscribable |
-| `maxObservableInboundFrameBytes` / `maxObservableOutboundFrameBytes` | `65536` / `1048576` | Largest incoming WebSocket frame or SSE control body / outgoing frame |
-| `maxObservableTombstones` | `1024` | Unsubscribe tombstones kept per hub connection, for two minutes |
-| `observableHandshakeTimeoutMs` | `10000` | Deadline for a Node WebSocket upgrade handshake |
-| `observableShutdownTimeoutMs` | `10000` | Deadline to join hub subscriptions and direct WebSocket work at shutdown |
-| `observableKeepAliveIntervalMs` | `30000` | Idle time before a hub Ping; `0` disables keep-alive |
+| `commands`, `queries`, `observableQueries` | `[]` | Low-level definitions; see [Low-level definitions](../commands/low-level-definitions.md). |
+| `services` | Owned empty registry | Registrations or an externally owned `ServiceRegistry`; see [Dependency injection](../dependency-injection.md). |
+| `commandResponseValueHandlers`, `commandContextValuesProviders`, `commandKeyResolvers` | `[]` | Ordered scoped response handlers, context providers, and key rules. |
+| `readModelForCommandResolvers` | `[]` | Sources for `commandReadModel(...)` parameters. |
+| `commandExecutionRunner`, `commandExecutionScopes` | None / `[]` | Validated execution wrapper and per-command scopes. |
+| `commandCompensationTimeoutMs` | `30000` | Cooperative budget for [operation](../commands/operations/index.md) compensation. |
+| `queryRenderers`, `readModelInterceptors` | `[]` | Ordered scoped read-side extensions. |
 
-Per-caller defaults equal the global limits, so one caller can exhaust capacity. Set lower per-caller limits on internet-facing hosts. Exhausted admission answers 503 with `Retry-After: 1`; an exhausted handshake budget answers HTTP 503 or WebSocket close 1013.
+## Routes and requests
+
+A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while reading, answers 400 `malformedRequest`. Arc also rejects non-UTF-8 JSON, non-finite numbers, nesting beyond 32 levels, and the keys `__proto__`, `prototype`, and `constructor`. Fastify's own `bodyLimit` applies first. Every result carries a correlation ID. Arc reuses a valid, non-zero UUID from `correlationId.httpHeader` in lowercase; otherwise it generates one.
+
+## Security
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `authentication`, `authenticationSchemes` | `[]` / `{}` | Ordered and named handlers; see [Authentication](../core/authentication.md). |
+| `authorizationPolicies` | `{}` | Named authorization rules, also registered through `addAuthorizationPolicy`. |
+| `nativePrincipal` | `false` | Accept a host-verified principal, never a caller-supplied header; see [Native principal](../hosts/native-principal.md). |
+| `identityDetails` | None | Registers `/.cratis/me`; see [Identity](../identity/index.md). |
+| `developmentUsers`, `developmentTenants` | None | Code-only anonymous discovery providers; require `development: true`. |
+
+## Errors and logging
+
+The code-only `logger(error, correlationId)` receives the original error regardless of `exposeExceptionDetails`. A callback failure produces a 500 with `hasExceptions: true`; when exposure is off, HTTP callers receive `['An unexpected error occurred']` and no stack trace. Direct calls are neither redacted nor logged. If the logger throws or rejects, Arc attempts it once and returns a generic redacted 500. A handler failure and a scope cleanup failure arrive together as one `AggregateError`.
 
 ## What startup rejects
 
-`build()` and the `ArcServer` constructor throw, so the process fails before serving a weakened contract, when:
+`build()` and the `ArcServer` constructor fail before serving when:
 
-- a name or namespace segment does not start with a letter or contains anything but letters, digits, and `_`, even when an explicit path is set;
-- a path or `routePrefix` is unsafe, or `segmentsToSkipForRoute` is not a non-negative integer;
-- `maxBodyBytes` or an observable limit is not a positive safe integer (the keep-alive interval alone also accepts zero);
-- `allowedOrigins` is not a list of exact `http`/`https` origins or a predicate;
-- two operations share a namespace and name, compared case-insensitively, or two routes collide, including `/validate` routes and the reserved `/.cratis` and `/openapi.json` paths;
-- an authorization declaration combines anonymous access with `authenticated`, `roles`, `policy`, or `schemes`, or names an unknown policy or scheme;
-- `nativePrincipal` is combined with `authentication` handlers;
-- a schema has properties whose names differ only in case, or cannot be converted to JSON Schema.
+- names, namespaces, paths, route prefixes, or namespace-skip counts are unsafe;
+- `hosting.maxBodyBytes` or a query limit is not a positive safe integer, except that `query.keepAliveIntervalMs` accepts zero;
+- `query.allowedOrigins` is not an exact HTTP(S) Origin list or predicate;
+- `tenancy` combines `resolverType` and `sources`, uses an invalid source/domain/tenant, or supplies an invalid claim name;
+- two operations have case-insensitively duplicate names or colliding routes, including reserved endpoints and `/validate` routes;
+- authorization combines anonymous with restricted access, names an unknown policy or scheme, or combines `nativePrincipal` with `authentication`;
+- an input schema has case-insensitively duplicate property names or cannot become JSON Schema.
 
-The builder additionally rejects misplaced decorators, duplicate validator targets, missing service registrations, dependency cycles, and captive lifetimes.
+The builder also rejects misplaced decorators, duplicate validator targets, missing service registrations, dependency cycles, and captive lifetimes.
 
 ## Low-level definition fields
 
-`defineCommand` and `defineQuery` share `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, `validatorDependencies`, and `clientOutput`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required). An observable query takes `observe` (required). See [Low-level definitions](../commands/low-level-definitions.md).
+`defineCommand` and `defineQuery` share `name` (required), `namespace`, `path`, `summary`, `schema` (required), `authorization`, `authorize`, `validate`, `filters`, `handlerDependencies`, `validatorDependencies`, and `clientOutput`. A command also takes `handle` (required), `provide`, and `scopes`. A query takes `perform` (required); an observable query takes `observe` (required). See [Low-level definitions](../commands/low-level-definitions.md).

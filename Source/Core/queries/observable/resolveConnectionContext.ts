@@ -13,7 +13,7 @@ import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 export async function resolveConnectionContext(server: ArcServer, request: Request, native?: NativeRequestContext):
     Promise<ResolvedConnectionContext> {
     const initial: ExecutionContext = {
-        correlationId: correlation(request.headers.get(server.options.correlationHeader ?? 'X-Correlation-ID')),
+        correlationId: correlation(request.headers.get(server.options.correlationId?.httpHeader ?? 'X-Correlation-ID')),
         principal: undefined, tenantId: undefined, remoteAddress: native?.remoteAddress,
         signal: request.signal, allowedSeverity: Severity.Warning
     };

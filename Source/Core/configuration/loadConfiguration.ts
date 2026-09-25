@@ -7,15 +7,38 @@ import { z } from 'zod';
 
 const boolean = z.preprocess(value => typeof value === 'string' && /^(true|false)$/i.test(value) ? value.toLowerCase() === 'true' : value, z.boolean());
 const integer = (minimum: number) => z.preprocess(value => typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value, z.number().int().min(minimum));
-const arc = z.object({
-    development: boolean.optional(), enableQueryMethod: boolean.optional(), openApiVersion: z.string().optional(),
-    maxBodyBytes: integer(1).optional(), correlationHeader: z.string().min(1).optional(), tenantHeader: z.string().min(1).optional(),
-    generatedApis: z.object({ routePrefix: z.string().optional(), segmentsToSkipForRoute: integer(0).optional(),
-        includeCommandNameInRoute: boolean.optional(), includeQueryNameInRoute: boolean.optional() }).optional()
-});
+const interval = z.preprocess(value => {
+    if (typeof value !== 'string' || !/^\d{2}:[0-5]\d:[0-5]\d(?:\.\d{1,7})?$/.test(value)) return value;
+    const [hours, minutes, seconds] = value.split(':');
+    return Number(hours) * 3_600_000 + Number(minutes) * 60_000 + Math.round(Number(seconds) * 1000);
+}, integer(0));
+const generatedApis = z.object({ routePrefix: z.string().optional(), segmentsToSkipForRoute: integer(0).optional(),
+    includeCommandNameInRoute: boolean.optional(), includeQueryNameInRoute: boolean.optional(),
+    enableQueryHttpMethod: boolean.optional(), openApiVersion: z.string().optional() });
+const tenancy = z.object({ httpHeader: z.string().min(1).optional(),
+    resolverType: z.enum(['header', 'query', 'claim', 'fixed', 'development', 'subdomain']).optional(),
+    baseDomain: z.string().optional(), queryParameter: z.string().optional(), claimType: z.string().optional(),
+    fixedTenantId: z.string().optional(), required: boolean.optional(), membershipClaim: z.string().optional() });
+const query = z.object({ keepAliveIntervalMs: interval.optional(),
+    maxObservableSubscriptions: integer(1).optional(), maxObservableSubscriptionsPerCaller: integer(1).optional(),
+    maxObservableHubConnections: integer(1).optional(), maxObservableHubConnectionsPerCaller: integer(1).optional(),
+    maxObservableHubSubscriptionsPerConnection: integer(1).optional(), maxObservableInboundFrames: integer(1).optional(),
+    maxObservableOutboundFrames: integer(1).optional(), maxObservablePendingEmissions: integer(1).optional(),
+    maxObservableInboundFrameBytes: integer(1).optional(), maxObservableOutboundFrameBytes: integer(1).optional(),
+    maxObservableTombstones: integer(1).optional(), observableHandshakeTimeoutMs: integer(1).optional(),
+    observableShutdownTimeoutMs: integer(1).optional(), enableObservableHealth: boolean.optional() });
+const hosting = z.object({ applicationUrl: z.string().min(1).optional(), maxBodyBytes: integer(1).optional() });
+const arc = z.object({ development: boolean.optional(), exposeExceptionDetails: boolean.optional(),
+    correlationId: z.object({ httpHeader: z.string().min(1).optional() }).optional(), tenancy: tenancy.optional(),
+    generatedApis: generatedApis.optional(), query: query.optional(), hosting: hosting.optional() });
 const chronicle = z.object({ connectionString: z.string().min(1).optional(), eventStore: z.string().min(1).optional() });
 const mongoDB = z.object({ server: z.string().min(1).optional(), database: z.string().min(1).optional() });
 const schema = z.object({ Cratis: z.object({ Arc: arc.optional(), Chronicle: chronicle.optional(), MongoDB: mongoDB.optional() }).optional() });
+
+/** Select the same environment used for appsettings.{Environment}.json. */
+export function configurationEnvironment(env: NodeJS.ProcessEnv): string | undefined {
+    return env.DOTNET_ENVIRONMENT ?? env.ASPNETCORE_ENVIRONMENT ?? env.NODE_ENV;
+}
 
 /** Configurable, serializable Cratis settings; never includes handlers, credentials supplied as objects, or clients. */
 export type CratisConfiguration = z.infer<typeof schema>;
@@ -23,11 +46,26 @@ export type CratisConfiguration = z.infer<typeof schema>;
 const names: Record<string, string> = {
     cratis: 'Cratis', arc: 'Arc', chronicle: 'Chronicle', mongodb: 'MongoDB', generatedapis: 'generatedApis',
     connectionstring: 'connectionString', eventstore: 'eventStore', server: 'server', database: 'database',
-    development: 'development', enablequerymethod: 'enableQueryMethod', openapiversion: 'openApiVersion', maxbodybytes: 'maxBodyBytes',
-    correlationheader: 'correlationHeader', tenantheader: 'tenantHeader', routeprefix: 'routePrefix',
-    segmentstoskipforroute: 'segmentsToSkipForRoute', includecommandnameinroute: 'includeCommandNameInRoute',
-    includequerynameinroute: 'includeQueryNameInRoute', correlationid: 'correlationId', tenancy: 'tenancy',
-    httpheader: 'httpHeader', enablequeryhttpmethod: 'enableQueryHttpMethod', exposeexceptiondetails: 'exposeExceptionDetails'
+    development: 'development', exposeexceptiondetails: 'exposeExceptionDetails', correlationid: 'correlationId',
+    tenancy: 'tenancy', query: 'query', hosting: 'hosting', httpheader: 'httpHeader',
+    resolvertype: 'resolverType', basedomain: 'baseDomain', queryparameter: 'queryParameter', claimtype: 'claimType',
+    fixedtenantid: 'fixedTenantId', developmenttenantid: 'fixedTenantId', required: 'required',
+    membershipclaim: 'membershipClaim', routeprefix: 'routePrefix', segmentstoskipforroute: 'segmentsToSkipForRoute',
+    includecommandnameinroute: 'includeCommandNameInRoute', includequerynameinroute: 'includeQueryNameInRoute',
+    enablequeryhttpmethod: 'enableQueryHttpMethod', openapiversion: 'openApiVersion',
+    applicationurl: 'applicationUrl', maxbodybytes: 'maxBodyBytes', keepaliveinterval: 'keepAliveIntervalMs',
+    enableobservablehealth: 'enableObservableHealth', maxobservablesubscriptions: 'maxObservableSubscriptions',
+    maxobservablesubscriptionspercaller: 'maxObservableSubscriptionsPerCaller',
+    maxobservablehubconnections: 'maxObservableHubConnections',
+    maxobservablehubconnectionspercaller: 'maxObservableHubConnectionsPerCaller',
+    maxobservablehubsubscriptionsperconnection: 'maxObservableHubSubscriptionsPerConnection',
+    maxobservableinboundframes: 'maxObservableInboundFrames', maxobservableoutboundframes: 'maxObservableOutboundFrames',
+    maxobservablependingemissions: 'maxObservablePendingEmissions',
+    maxobservableinboundframebytes: 'maxObservableInboundFrameBytes',
+    maxobservableoutboundframebytes: 'maxObservableOutboundFrameBytes',
+    maxobservabletombstones: 'maxObservableTombstones',
+    observablehandshaketimeoutms: 'observableHandshakeTimeoutMs',
+    observableshutdowntimeoutms: 'observableShutdownTimeoutMs'
 };
 type Section = Record<string, unknown>;
 function isSection(value: unknown): value is Section { return !!value && typeof value === 'object' && !Array.isArray(value); }
@@ -38,7 +76,7 @@ function normalize(value: unknown): unknown {
     for (const [key, item] of Object.entries(value)) {
         const name = names[key.toLowerCase()] ?? key;
         if (Object.hasOwn(result, name)) throw new Error(`Duplicate configuration key: ${name}`);
-        result[name] = normalize(item);
+        result[name] = name === 'resolverType' && typeof item === 'string' ? item.toLowerCase() : normalize(item);
     }
     return result;
 }
@@ -48,31 +86,11 @@ function merge(target: Section, source: Section): void {
         else target[key] = value;
     }
 }
-function aliases(root: Section): void {
-    const cratis = root.Cratis;
-    if (!isSection(cratis) || !isSection(cratis.Arc)) return;
-    const settings = cratis.Arc;
-    for (const [section, field] of [['correlationId', 'correlationHeader'], ['tenancy', 'tenantHeader']] as const) {
-        const nested = settings[section];
-        if (!isSection(nested)) continue;
-        if (nested.httpHeader !== undefined && settings[field] === undefined) settings[field] = nested.httpHeader;
-        delete nested.httpHeader;
-    }
-    if (settings.exposeExceptionDetails !== undefined) {
-        if (settings.development === undefined) settings.development = settings.exposeExceptionDetails;
-        delete settings.exposeExceptionDetails;
-    }
-    const generated = settings.generatedApis;
-    if (isSection(generated) && generated.enableQueryHttpMethod !== undefined) {
-        if (settings.enableQueryMethod === undefined) settings.enableQueryMethod = generated.enableQueryHttpMethod;
-        delete generated.enableQueryHttpMethod;
-    }
-}
 function warnUnknown(root: Section, logger?: (error: unknown, correlationId: string) => void): void {
     if (!logger || !isSection(root.Cratis)) return;
     const cratis = root.Cratis;
     const known: readonly [string, readonly string[]][] = [
-        ['Arc', [...Object.keys(arc.shape), 'correlationId', 'tenancy']],
+        ['Arc', Object.keys(arc.shape)],
         ['Chronicle', Object.keys(chronicle.shape)], ['MongoDB', Object.keys(mongoDB.shape)]
     ];
     for (const [name, keys] of known) {
@@ -80,10 +98,11 @@ function warnUnknown(root: Section, logger?: (error: unknown, correlationId: str
         if (!isSection(section)) continue;
         for (const key of Object.keys(section)) if (!keys.includes(key)) logger(new Error(`Unknown Cratis configuration key: Cratis:${name}:${key}`), '');
         if (name !== 'Arc') continue;
-        for (const nested of ['generatedApis', 'correlationId', 'tenancy']) {
+        const nestedSections = { correlationId: arc.shape.correlationId.unwrap(), tenancy, generatedApis, query, hosting };
+        for (const [nested, childSchema] of Object.entries(nestedSections)) {
             const child = section[nested];
             if (!isSection(child)) continue;
-            const allowed = nested === 'generatedApis' ? Object.keys(arc.shape.generatedApis.unwrap().shape) : [];
+            const allowed = Object.keys(childSchema.shape);
             for (const key of Object.keys(child)) if (!allowed.includes(key))
                 logger(new Error(`Unknown Cratis configuration key: Cratis:Arc:${nested}:${key}`), '');
         }
@@ -121,11 +140,9 @@ export function loadConfiguration(file: string | URL = 'appsettings.json', env: 
     logger?: (error: unknown, correlationId: string) => void): CratisConfiguration {
     const path = file instanceof URL ? fileURLToPath(file) : file;
     const merged = readSettings(path);
-    aliases(merged);
-    const environment = env.DOTNET_ENVIRONMENT ?? env.ASPNETCORE_ENVIRONMENT ?? env.NODE_ENV;
+    const environment = configurationEnvironment(env);
     if (environment && !/[/\\]/.test(environment)) {
         const environmentSettings = readSettings(join(dirname(path), `appsettings.${environment}.json`));
-        aliases(environmentSettings);
         merge(merged, environmentSettings);
     }
     const overrides: Section = {};
@@ -137,9 +154,9 @@ export function loadConfiguration(file: string | URL = 'appsettings.json', env: 
             if (!current[part]) current[part] = {};
             current = current[part] as Section;
         }
-        current[parts.at(-1)!] = value;
+        const field = parts.at(-1)!;
+        current[field] = field === 'resolverType' ? value.toLowerCase() : value;
     }
-    aliases(overrides);
     merge(merged, overrides);
     warnUnknown(merged, logger);
     // Zod reports paths, never configuration values (which may contain credentials).

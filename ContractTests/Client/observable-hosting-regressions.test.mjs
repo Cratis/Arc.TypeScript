@@ -68,7 +68,7 @@ test('SSE disconnect during a pending subscription produces no unhandled rejecti
     const observing = new Promise(resolve => { started = resolve; });
     let release;
     const pending = new Promise(resolve => { release = resolve; });
-    const server = new ArcServer({ nativePrincipal: true, observableShutdownTimeoutMs: 30,
+    const server = new ArcServer({ nativePrincipal: true, query: { observableShutdownTimeoutMs: 30 },
         observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}),
             observe: async () => { started(); await pending; return CurrentValueSubject.of([1]); }
         })] });
@@ -138,7 +138,7 @@ test('direct WebSocket joins time out and terminate a stalled socket', async () 
     const observing = new Promise(resolve => { started = resolve; });
     let release;
     const pending = new Promise(resolve => { release = resolve; });
-    const server = new ArcServer({ observableShutdownTimeoutMs: 40, observableQueries: [defineObservableQuery({
+    const server = new ArcServer({ query: { observableShutdownTimeoutMs: 40 }, observableQueries: [defineObservableQuery({
         name: 'Numbers', schema: z.object({}), observe: async () => { started(); await pending; return CurrentValueSubject.of([1]); }
     })] });
     const host = await runArc(server, { port: 0 });
@@ -157,7 +157,7 @@ test('runArc stops listening and bounds direct WebSocket shutdown with a pending
     const observing = new Promise(resolve => { started = resolve; });
     let release;
     const pending = new Promise(resolve => { release = resolve; });
-    const server = new ArcServer({ observableShutdownTimeoutMs: 150, observableQueries: [defineObservableQuery({
+    const server = new ArcServer({ query: { observableShutdownTimeoutMs: 150 }, observableQueries: [defineObservableQuery({
         name: 'Numbers', schema: z.object({}), observe: async () => { started(); await pending; return CurrentValueSubject.of([1]); }
     })] });
     const host = await runArc(server, { port: 0 });

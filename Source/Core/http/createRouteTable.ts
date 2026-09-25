@@ -65,7 +65,7 @@ export function createRouteTable(options: ArcOptions, observeHealth: (context: E
                 includeRouteName(item, queryDefinitions, skip, includeQueryName)), false, options)),
             ...(options.observableQueries ?? []).map(item => observableOperation(item, routeFor(item, prefix, skip,
                 includeRouteName(item, queryDefinitions, skip, includeQueryName)), options)),
-            ...(options.enableObservableHealth ? [{ ...observableOperation({
+            ...(options.query?.enableObservableHealth ? [{ ...observableOperation({
                 name: 'ObserveHealth', namespace: 'QueryHealth', path: '/.cratis/queries/health',
                 schema: z.object({}), authorization: { authenticated: true },
                 observe: (_input, context) => observeHealth(context)
@@ -90,7 +90,8 @@ export function createRouteTable(options: ArcOptions, observeHealth: (context: E
                 (operation.kind === 'command' && (routes.has(operation.route + '/validate') || reserved.has(operation.route + '/validate'))))
                 throw new Error(`Duplicate Arc route: ${operation.route}`);
             routes.set(operation.route, operation);
-            endpoints.set(operation.route, operation.kind === 'command' ? 'POST' : options.enableQueryMethod === false ? 'GET' : 'GET, QUERY');
+            endpoints.set(operation.route, operation.kind === 'command' ? 'POST' :
+                options.generatedApis?.enableQueryHttpMethod === false ? 'GET' : 'GET, QUERY');
             if (operation.kind === 'command') {
                 routes.set(operation.route + '/validate', operation);
                 endpoints.set(operation.route + '/validate', 'POST');

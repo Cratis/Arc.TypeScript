@@ -9,11 +9,11 @@ A multi-tenant application must never serve one customer's data to another. Arc 
 
 | Configuration | Behavior |
 | --- | --- |
-| Nothing | Arc reads the `x-cratis-tenant-id` header unchanged; `tenantHeader` renames it. Missing header means `tenantId` is `undefined` |
-| `resolveTenant(request, principal)` | Your resolver alone decides, after authentication, and may be `async`. Returning `undefined` means no tenant; there is no fallback |
+| Nothing | Arc reads the `x-cratis-tenant-id` header unchanged. Missing header means `tenantId` is `undefined` |
+| `tenancy: { resolve(request, principal) }` | Your resolver alone decides, after authentication, and may be `async`. Returning `undefined` means no tenant; there is no fallback |
 | `tenancy: { sources: [...] }` | Ordered built-in sources with optional `required` and membership checks; see [Tenant resolvers](resolvers.md) |
 
-`resolveTenant` overrides `tenancy`.
+`tenancy.resolve` overrides built-in sources; `tenancy.httpHeader` customizes the header when using the built-in header source.
 
 ```typescript
 const builder = ArcApplication.createBuilder({
@@ -25,7 +25,7 @@ const builder = ArcApplication.createBuilder({
 This tries an own `tenant` claim on the verified principal first, then the header. A missing tenant answers 400; a selected tenant that is not listed in the principal's comma-separated `tenants` claim answers 403.
 
 :::danger[A header is a request, not proof]
-Without `tenancy.membershipClaim` or `resolveTenant`, Arc takes the header unchanged and does not check membership. When tenants separate customers' data, derive the tenant from the principal in `resolveTenant`, configure a membership claim, or check it in authorization. Never enforce it in a validator: a trusted direct caller can lower blocking severity.
+Without `tenancy.membershipClaim` or `tenancy.resolve`, Arc takes the header unchanged and does not check membership. When tenants separate customers' data, derive the tenant from the principal in `tenancy.resolve`, configure a membership claim, or check it in authorization. Never enforce it in a validator: a trusted direct caller can lower blocking severity.
 :::
 
 ## Read the tenant

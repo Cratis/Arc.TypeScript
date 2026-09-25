@@ -17,7 +17,7 @@ import type { WebSocketTransport } from './WebSocketTransport.js';
 export async function directWebSocket(server: ArcServer, request: Request, transport: WebSocketTransport,
     native?: NativeRequestContext, resolved?: ResolvedConnectionContext): Promise<void> {
     let context: ExecutionContext = {
-        correlationId: correlation(request.headers.get(server.options.correlationHeader ?? 'X-Correlation-ID')),
+        correlationId: correlation(request.headers.get(server.options.correlationId?.httpHeader ?? 'X-Correlation-ID')),
         principal: undefined, tenantId: undefined, signal: transport.signal, allowedSeverity: Severity.Warning
     };
     try {

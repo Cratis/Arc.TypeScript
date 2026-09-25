@@ -14,7 +14,7 @@ describe('when subscribing to SSE with distinct principals', () => {
     let bobStatus: number | undefined;
 
     beforeEach(async () => {
-        const server = new ArcServer({ maxObservableSubscriptionsPerCaller: 1,
+        const server = new ArcServer({ query: { maxObservableSubscriptionsPerCaller: 1 },
             authentication: [request => ({ status: AuthenticationStatus.Authenticated,
                 principal: { id: request.headers.get('authorization') ?? '', roles: [], isAuthenticated: true } })],
             observableQueries: [defineObservableQuery({ name: 'Value', schema: z.object({}),

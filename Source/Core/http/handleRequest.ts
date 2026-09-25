@@ -21,6 +21,7 @@ import { commandResult, malformed, queryResult, status } from '../results/index.
 import { allowedSeverity } from '../validation/allowedSeverity.js';
 import { authenticate, verifiedPrincipal } from '../authentication/authenticate.js';
 import { correlation } from '../execution/correlation.js';
+import { exposeExceptionDetails } from '../execution/exposeExceptionDetails.js';
 import { hasFailure, originalFailure } from '../results/failureTracking.js';
 import { Severity } from '../validation/Severity.js';
 import { requestContext } from '../execution/RequestContextStore.js';
@@ -54,7 +55,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
         const operation = server.routes.get(path);
         if (!server.endpoints.has(path)) return null;
         const introspection = !operation;
-        const header = server.options.correlationHeader ?? 'X-Correlation-ID';
+        const header = server.options.correlationId?.httpHeader ?? 'X-Correlation-ID';
         const correlationId = correlation(request.headers.get(header));
         const headers = new Headers({ [header]: correlationId });
         const send = (value: unknown, code: number, extra?: HeadersInit): Response => new Response(stringifyWire(value), { status: code, headers: new Headers({ ...Object.fromEntries(headers), 'content-type': 'application/json; charset=utf-8', ...Object.fromEntries(new Headers(extra)) }) });
@@ -87,7 +88,9 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
         if (!operation && !isIdentity && !isDiscovery) return null;
         const isValidation = operation?.kind === 'command' && path === operation.route + '/validate';
         const allowed = server.endpoints.get(path)!;
-        if (operation?.kind === 'command' ? request.method !== 'POST' : request.method !== 'GET' && (request.method !== 'QUERY' || server.options.enableQueryMethod === false))
+        const methodAllowed = operation?.kind === 'command' ? request.method === 'POST' :
+            request.method === 'GET' || (request.method === 'QUERY' && server.options.generatedApis?.enableQueryHttpMethod !== false);
+        if (!methodAllowed)
             return new Response(null, { status: 405, headers: new Headers({ ...Object.fromEntries(headers), allow: allowed }) });
         if (request.method === 'QUERY' || isIdentity) headers.set('cache-control', 'no-store');
         let context: ExecutionContext = { correlationId, principal: undefined, tenantId: undefined, signal: request.signal, allowedSeverity: operation?.kind === 'command' ? clientAllowedSeverity(request.headers.get('X-Allowed-Severity')) : Severity.Warning };
@@ -153,9 +156,10 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                     try {
                         if (request.method === 'GET' && isObservableOperation(operation))
                             snapshotRequest = snapshotOptions(new URL(request.url));
-                        if (operation.kind === 'command') input = await body(request, server.options.maxBodyBytes ?? 1024 * 1024);
+                        if (operation.kind === 'command') input = await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024);
                         else if (request.method === 'GET') ({ input, options } = getQuery(new URL(request.url), operation.schema, isObservableOperation(operation)));
-                        else ({ input, options } = structuredQuery(await body(request, server.options.maxBodyBytes ?? 1024 * 1024), operation.schema));
+                        else ({ input, options } = structuredQuery(
+                            await body(request, server.options.hosting?.maxBodyBytes ?? 1024 * 1024), operation.schema));
                     } catch (error) {
                         if (!(error instanceof BadRequest)) throw error;
                         const failure = operation.kind === 'command' ? commandResult(context, { validationResults: malformed(context) }) : queryResult(context, { validationResults: malformed(context) });
@@ -170,7 +174,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         if (streaming) {
                             if (session.rejection) {
                                 const rejected = session.rejection;
-                                if (rejected.hasExceptions && !server.options.development) {
+                                if (rejected.hasExceptions && !exposeExceptionDetails(server.options)) {
                                     rejected.exceptionMessages = ['An unexpected error occurred'];
                                     rejected.exceptionStackTrace = '';
                                 }
@@ -181,7 +185,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                         try {
                             const outcome = await snapshot(session, context, snapshotRequest.wait, snapshotRequest.timeoutMs,
                                 () => bindings.reserveSession(session, context));
-                            if (!outcome.protocol && outcome.result.hasExceptions && !server.options.development) {
+                            if (!outcome.protocol && outcome.result.hasExceptions && !exposeExceptionDetails(server.options)) {
                                 outcome.result.exceptionMessages = ['An unexpected error occurred'];
                                 outcome.result.exceptionStackTrace = '';
                             }
@@ -191,7 +195,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                     const result = await bindings.runScoped(operation, input, context, options, isValidation);
                     if (hasFailure(result) && !await logFailure(originalFailure(result))) return serverFailure();
                     if (result.exceptionMessages.length) {
-                        if (!server.options.development) {
+                        if (!exposeExceptionDetails(server.options)) {
                             result.exceptionMessages = ['An unexpected error occurred'];
                             result.exceptionStackTrace = '';
                         }

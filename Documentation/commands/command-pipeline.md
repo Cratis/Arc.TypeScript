@@ -30,7 +30,7 @@ flowchart TD
 | Step | You configure it with | When it fails |
 | --- | --- | --- |
 | 1. Authentication | `authentication` handlers, or a native principal | 401 |
-| 2. Tenant | `tenantHeader`, `tenancy`, or `resolveTenant` | Does not reject by default; `tenancy.required` answers 400 and a membership check 403 |
+| 2. Tenant | `tenancy.httpHeader`, `tenancy.sources`, or `tenancy.resolve` | Does not reject by default; `tenancy.required` answers 400 and a membership check 403 |
 | 3. Read the input | Nothing | 400 `malformedRequest` |
 | 4. Declared authorization | `@roles`, `@authorize`, `@allowAnonymous`, or `authorization` | 403 |
 | 5. Bind the input | `@field` declarations, or a Zod `schema` | 400 `malformedRequest` |
@@ -49,7 +49,7 @@ flowchart TD
 
 ## Status codes
 
-The result envelope and status code follow the [Arc HTTP contract](/arc/http-contract/). A result that fails at any step never carries a `response` value. Outside development mode, exception messages and stack traces are replaced before serialization; the correlation ID stays.
+The result envelope and status code follow the [Arc HTTP contract](/arc/http-contract/). A result that fails at any step never carries a `response` value. Unless `exposeExceptionDetails` is enabled, exception messages and stack traces are replaced before serialization; the correlation ID stays.
 
 ## Related
 

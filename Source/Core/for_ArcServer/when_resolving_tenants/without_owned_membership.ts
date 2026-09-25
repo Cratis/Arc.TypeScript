@@ -34,7 +34,7 @@ describe('when resolving tenants without owned membership', () => {
             invalid.push({ status: bad.status, length: (await bad.json()).validationResults.length });
             allowed.push((await request(path, { ...identityPrincipal, claims: { constructor: 'north' } }))!.status);
         }
-        const anonymous = new ArcServer({ tenancy: { sources: ['fixed'], fixed: 'north', membershipClaim: 'memberships' },
+        const anonymous = new ArcServer({ tenancy: { sources: ['fixed'], fixedTenantId: 'north', membershipClaim: 'memberships' },
             queries: [defineQuery({ name: 'Read', schema: z.object({}), perform: () => { invoked++; return 1; } })] });
         unauthenticated = (await identityGet(anonymous, '/api/read'))!.status;
         const claim = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['claim'], claimType: 'toString' },

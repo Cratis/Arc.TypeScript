@@ -10,7 +10,7 @@ A query goes through the same guard stages as a command, then a second set of st
 | Step | You configure it with | When it fails |
 | --- | --- | --- |
 | 1. Authentication | `authentication` handlers, or a native principal | 401 |
-| 2. Tenant | `tenantHeader`, `tenancy`, or `resolveTenant` | 400 or 403 only when `tenancy` requires it |
+| 2. Tenant | `tenancy.httpHeader`, `tenancy.sources`, or `tenancy.resolve` | 400 or 403 only when `tenancy` requires it |
 | 3. Read arguments | The query string for GET, the body for `QUERY` | 400 `malformedRequest` |
 | 4. Declared authorization | `@roles`, `@authorize`, `@allowAnonymous`, or `authorization` | 403 |
 | 5. Bind arguments | `argument(...)` descriptors, or a Zod `schema` | 400 `malformedRequest` |

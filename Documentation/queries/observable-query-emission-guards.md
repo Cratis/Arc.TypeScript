@@ -37,7 +37,7 @@ export class TradingHoursGuard implements ObservableEmissionGuard {
     }
 }
 
-const builder = ArcApplication.createBuilder({ observableEmissionGuards: [tradingHours] });
+const builder = ArcApplication.createBuilder({ query: { observableEmissionGuards: [tradingHours] } });
 builder.services.addScoped(tradingHours, () => new TradingHoursGuard());
 builder.add(Price);
 ```
@@ -58,7 +58,7 @@ The most restrictive decision across all guards wins. A guard that throws denies
 
 `ObservableEmissionContext` carries `queryName`, the bound `input`, the rendered `data`, the execution `context` (principal, tenant, correlation), `isFirstEmission`, and a `signal`. Guards run in the subscription's service scope, after [renderers and interceptors](query-pipeline.md#result-stages), on an isolated copy of the context.
 
-Register guard tokens with the `observableEmissionGuards` option, and register each token as a service.
+Register guard tokens with the `query.observableEmissionGuards` option, and register each token as a service.
 
 ## Related
 

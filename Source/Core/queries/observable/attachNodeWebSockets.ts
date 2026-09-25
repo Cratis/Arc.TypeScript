@@ -32,7 +32,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
         const raw = request.url ?? '';
         const rawPath = raw.split('?')[0];
         const path = rawPath ? stripPathBase(rawPath, pathBase) : undefined;
-        const correlationHeader = (arc.options.correlationHeader ?? 'X-Correlation-ID').toLowerCase();
+        const correlationHeader = (arc.options.correlationId?.httpHeader ?? 'X-Correlation-ID').toLowerCase();
         const inbound = request.headers[correlationHeader];
         const correlationId = correlation(typeof inbound === 'string' ? inbound : null);
         const reject = (code: number): void => {
@@ -40,7 +40,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
             socket.setTimeout(0);
             const retry = code === 503 ? 'Retry-After: 1\r\n' : '';
             socket.end(`HTTP/1.1 ${code} ${reasons[code]}\r\nConnection: close\r\nContent-Length: 0\r\n` +
-                `${arc.options.correlationHeader ?? 'X-Correlation-ID'}: ${correlationId}\r\n${retry}\r\n`, () => socket.destroy());
+                `${arc.options.correlationId?.httpHeader ?? 'X-Correlation-ID'}: ${correlationId}\r\n${retry}\r\n`, () => socket.destroy());
         };
         if (!path || !arc.endpoints.has(path)) {
             let ownedAlias: boolean;

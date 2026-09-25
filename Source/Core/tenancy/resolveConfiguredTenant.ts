@@ -6,6 +6,7 @@ import type { NativeRequestContext } from '../http/NativeRequestContext.js';
 import { tenantId, tenantLabel } from './tenantId.js';
 import { validDomain } from './validDomain.js';
 import { TenantRequestError } from './TenantRequestError.js';
+import { sourcesFor } from './sourcesFor.js';
 
 function ownClaim(principal: Principal | undefined, name: string): unknown {
     const claims = principal?.isAuthenticated ? principal.claims : undefined;
@@ -15,12 +16,12 @@ function ownClaim(principal: Principal | undefined, name: string): unknown {
 export function resolveConfiguredTenant(request: Request, principal: Principal | undefined, native: NativeRequestContext | undefined, options: TenancyOptions, header: string): string | undefined {
     const url = new URL(request.url);
     let selected: string | undefined;
-    for (const source of options.sources) {
+    for (const source of sourcesFor(options)) {
         if (source === 'header') selected = request.headers.get(header) ?? undefined;
         if (source === 'query') selected = url.searchParams.get(options.queryParameter ?? 'tenantId') ?? undefined;
-        if (source === 'fixed' || source === 'development') selected = options.fixed;
+        if (source === 'fixed' || source === 'development') selected = options.fixedTenantId ?? 'development';
         if (source === 'claim') {
-            const value = ownClaim(principal, options.claimType!);
+            const value = ownClaim(principal, options.claimType ?? 'tenant_id');
             if (value !== undefined && typeof value !== 'string') throw new TenantRequestError(400);
             selected = value;
         }

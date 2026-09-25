@@ -10,6 +10,7 @@ import { ObservableSubscriptionLimitError } from './observable/ObservableSubscri
 import { isObservableOperation } from './observable/ObservableOperation.js';
 import { observableCallerKey } from './observable/observableCallerKey.js';
 import type { ObservableLimits } from './observable/ObservableLimits.js';
+import { exposeExceptionDetails } from '../execution/exposeExceptionDetails.js';
 
 export class ObservableSessions {
     readonly #observableSessions = new Set<ObservableQuerySession>();
@@ -85,7 +86,8 @@ export class ObservableSessions {
             const held: { session?: ObservableQuerySession } = {};
             const session = await ObservableQuerySession.open({
                 operation, input, context, options, services: this.services,
-                guards: this.options.observableEmissionGuards ?? [], development: this.options.development === true,
+                guards: this.options.query?.observableEmissionGuards ?? [],
+                exposeExceptionDetails: exposeExceptionDetails(this.options),
                 pendingEmissions: this.observableLimits.pendingEmissions,
                 reportFailure: error => Promise.resolve(this.options.logger?.(error, context.correlationId)),
                 onRelease: () => {

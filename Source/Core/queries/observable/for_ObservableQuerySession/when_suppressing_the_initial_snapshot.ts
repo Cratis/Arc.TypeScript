@@ -38,7 +38,7 @@ describe('when suppressing the initial snapshot', () => {
                 }
                 return ObservableEmissionDecision.Allow;
             }
-        }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+        }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({
             name: 'Value', namespace: 'Samples', schema: z.object({}), observe: () => subject
         })] });
         const session = await server.openObservableQuery('Samples.Value', {}, queryContext());

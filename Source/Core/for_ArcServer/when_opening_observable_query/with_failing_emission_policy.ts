@@ -23,7 +23,7 @@ describe('when opening an observable query with a failing emission policy', () =
         const server = new ArcServer({ logger: error => { logged.push(error); },
             services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
                 check: () => { throw new Error('secret'); }
-            }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+            }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({
                 name: 'Numbers', schema: z.object({}), observe: () => subject
             })] });
         const session = await server.openObservableQuery('Numbers', {}, observableExecution());

@@ -45,7 +45,8 @@ export function createHonoWebSockets<E extends Env>(app: Hono<E>, server: ArcSer
                 }, observableLimits(server).handshakeTimeoutMs);
             } catch (error) {
                 if (error instanceof ObservableHandshakeTimeoutError) return new Response(null, { status: 408 });
-                await server.options.logger?.(error, context.req.header(server.options.correlationHeader ?? 'X-Correlation-ID') ?? '');
+                const header = server.options.correlationId?.httpHeader ?? 'X-Correlation-ID';
+                await server.options.logger?.(error, context.req.header(header) ?? '');
                 return new Response(null, { status: 500 });
             }
             if (handshake.prepared.status !== 101 || !handshake.prepared.resolved)

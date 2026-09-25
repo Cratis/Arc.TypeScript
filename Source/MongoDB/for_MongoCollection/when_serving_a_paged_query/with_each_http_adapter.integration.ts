@@ -27,7 +27,7 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
         beforeEach(async () => {
             if (!process.env.ARC_MONGO_TEST_URI) throw new Error('ARC_MONGO_TEST_URI is required');
             await context.client.connect();
-            const builder = ArcApplication.createBuilder({ resolveTenant: () => 'a' });
+            const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'a' } });
             builder.add(TaskQueries).withMongoDB({ client: context.client, databaseNameResolver: tenant => `${context.name}_${tenant}`,
                 readModels: [TaskRecord] });
             const application = await builder.build();

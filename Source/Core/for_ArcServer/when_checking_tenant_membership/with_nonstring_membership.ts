@@ -14,7 +14,7 @@ describe('when checking tenant membership with nonstring membership', () => {
     const perform = sinon.stub().returns('secret');
     const split = sinon.stub().returns(['north']);
     const server = new ArcServer({ nativePrincipal: true,
-        tenancy: { sources: ['fixed'], fixed: 'north', membershipClaim: 'memberships' },
+        tenancy: { sources: ['fixed'], fixedTenantId: 'north', membershipClaim: 'memberships' },
         queries: [defineQuery({ name: 'Read', schema: z.object({}), perform })] });
     let statuses: number[];
     let authorization: boolean[];

@@ -11,7 +11,7 @@ describe('when handling a command with an oversized body', () => {
     let status: number;
     let body: { validationResults: { reason: string }[] };
     beforeEach(async () => {
-        const server = new ArcServer({ maxBodyBytes: 10, commands: [defineCommand({ name: 'Create', schema: z.object({ value: z.string() }), handle: () => 1 })] });
+        const server = new ArcServer({ hosting: { maxBodyBytes: 10 }, commands: [defineCommand({ name: 'Create', schema: z.object({ value: z.string() }), handle: () => 1 })] });
         const response = (await server.handle(runtimePost('/api/create', { value: 'too long' })))!;
         status = response.status;
         body = await response.json();

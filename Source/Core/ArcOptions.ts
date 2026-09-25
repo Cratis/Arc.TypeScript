@@ -3,33 +3,48 @@
 import type { z } from 'zod';
 import type { GeneratedApiOptions } from './GeneratedApiOptions.js';
 import type { AuthenticationHandler } from './authentication/AuthenticationHandler.js';
-import type { CommandDefinition } from './commands/CommandDefinition.js';
-import type { Principal } from './identity/Principal.js';
-import type { QueryDefinition } from './queries/QueryDefinition.js';
 import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
-import type { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
-import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
-import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
-import type { TenancyOptions } from './tenancy/TenancyOptions.js';
-import type { DevelopmentUser } from './identity/DevelopmentUser.js';
-import type { DevelopmentTenant } from './tenancy/DevelopmentTenant.js';
-import type { ExecutionContext } from './execution/ExecutionContext.js';
-import type { NativeRequestContext } from './http/NativeRequestContext.js';
-import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
-import type { ObservableEmissionGuard } from './queries/observable/ObservableEmissionGuard.js';
-import type { ServiceToken } from './dependencyInjection/ServiceToken.js';
-import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
-import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
+import type { CommandDefinition } from './commands/CommandDefinition.js';
+import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
+import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
+import type { CommandResponseValueHandler } from './commands/CommandResponseValueHandler.js';
+import type { CommandResult } from './commands/CommandResult.js';
+import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
+import type { ServiceIdentifier } from './dependencyInjection/ServiceIdentifier.js';
+import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';
+import type { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
+import type { CorrelationIdOptions } from './execution/CorrelationIdOptions.js';
+import type { ExecutionContext } from './execution/ExecutionContext.js';
+import type { HostingOptions } from './http/HostingOptions.js';
+import type { DevelopmentUser } from './identity/DevelopmentUser.js';
+import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
+import type { ObservableQueryOptions } from './queries/ObservableQueryOptions.js';
+import type { QueryDefinition } from './queries/QueryDefinition.js';
 import type { QueryRenderer } from './queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
-import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
-import type { CommandResult } from './commands/CommandResult.js';
-import type { CommandContext } from './commands/CommandContext.js';
-import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
+import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
+import type { DevelopmentTenant } from './tenancy/DevelopmentTenant.js';
+import type { TenancyOptions } from './tenancy/TenancyOptions.js';
+
 /** Options shared by the low-level Arc server and model-bound application builder. */
 export interface ArcOptions {
+    /** Correlation ID ingress and response header. */
+    correlationId?: CorrelationIdOptions;
+    /** Ordered tenant sources and trusted request resolver. */
+    tenancy?: TenancyOptions;
+    /** Convention-based command and query endpoints. */
+    generatedApis?: GeneratedApiOptions;
+    /** Observable query transport, admission, and emission settings. */
+    query?: ObservableQueryOptions;
+    /** Node hosting settings; standalone listener arguments override the configured URL. */
+    hosting?: HostingOptions;
+    /** Expose exception messages and stacks to HTTP callers; defaults to true only in Development environments. */
+    exposeExceptionDetails?: boolean;
+    /** Enable development-only anonymous user and tenant discovery, independently of exception exposure. */
+    development?: boolean;
+    /** Low-level command definitions. */
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
     /** Ordered, scoped server-only response value handlers. */
     commandResponseValueHandlers?: readonly ServiceIdentifier<CommandResponseValueHandler>[];
@@ -43,70 +58,34 @@ export interface ArcOptions {
     commandExecutionRunner?: (context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>;
     /** Scopes shared by every command, including commands compiled from decorated classes. */
     commandExecutionScopes?: readonly (() => CommandExecutionScope)[];
-    /** Shared, cooperative compensation budget (default 30 seconds). */
+    /** Shared, cooperative compensation budget in milliseconds; defaults to 30 seconds. */
     commandCompensationTimeoutMs?: number;
+    /** Registrations or an externally owned service registry. */
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
+    /** Low-level snapshot query definitions. */
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
     /** Ordered scoped renderers; the first matching renderer owns the result. */
     queryRenderers?: readonly ServiceIdentifier<QueryRenderer>[];
     /** Ordered scoped interceptors applied to exact model types on every delivery. */
     readModelInterceptors?: readonly ServiceIdentifier<ReadModelInterceptor>[];
-    /** Observable queries share query routes and the full query pipeline. */
+    /** Observable query definitions sharing the query pipeline and routes. */
     observableQueries?: readonly ObservableQueryDefinition<z.ZodType, unknown>[];
-    /** Maximum simultaneous subscriptions; defaults to 4096. */
-    maxObservableSubscriptions?: number;
-    /** Per authenticated principal or anonymous connection/address; defaults to the global 4096 limit. */
-    maxObservableSubscriptionsPerCaller?: number;
-    /** Maximum physical hub connections across the server; defaults to 512. */
-    maxObservableHubConnections?: number;
-    /** Maximum hub connections for one principal or anonymous address; defaults to the global 512 limit. */
-    maxObservableHubConnectionsPerCaller?: number;
-    /** Maximum subscriptions on one hub connection; defaults to 256. */
-    maxObservableHubSubscriptionsPerConnection?: number;
-    /** Maximum queued inbound or outbound frames; defaults to 256 each. */
-    maxObservableInboundFrames?: number;
-    maxObservableOutboundFrames?: number;
-    maxObservablePendingEmissions?: number;
-    /** Maximum inbound WS frame and SSE control body (default 64 KiB), and outbound frame (default 1 MiB). */
-    maxObservableInboundFrameBytes?: number;
-    maxObservableOutboundFrameBytes?: number;
-    /** Maximum retained unsubscribe tombstones per hub connection; defaults to 1024. */
-    maxObservableTombstones?: number;
-    /** Maximum duration for an upgrade before its handshake finishes; defaults to 10 seconds. */
-    observableHandshakeTimeoutMs?: number;
-    /** Maximum time to join hub subscriptions on shutdown; defaults to 10 seconds. */
-    observableShutdownTimeoutMs?: number;
-    /** Allowed WS/SSE control Origins. By default only the trusted native authority is allowed. */
-    allowedOrigins?: readonly string[] | ((origin: string, request: Request, native?: NativeRequestContext) => boolean | Promise<boolean>);
-    /** Advertised hub keep-alive cadence in milliseconds (0 disables); defaults to 30 seconds. */
-    observableKeepAliveIntervalMs?: number;
-    /** Opt in to caller-scoped query health; disabled by default because connection metadata is sensitive. */
-    enableObservableHealth?: boolean;
-    /** Resolve emission policies in each subscription's service scope. */
-    observableEmissionGuards?: readonly ServiceToken<ObservableEmissionGuard>[];
-    /** Convention-based API route configuration. */
-    generatedApis?: GeneratedApiOptions;
-    enableQueryMethod?: boolean;
-    /** Version advertised in the OpenAPI info object (defaults to 0.1.0). */
-    openApiVersion?: string;
-    maxBodyBytes?: number;
-    correlationHeader?: string;
-    tenantHeader?: string;
-    resolveTenant?: (request: Request, principal: Principal | undefined) => string | undefined | Promise<string | undefined>;
+    /** Ordered Arc authentication handlers. */
     authentication?: readonly AuthenticationHandler[];
     /** Named authentication handlers, selected explicitly by @authorize({ schemes }). */
     authenticationSchemes?: Readonly<Record<string, AuthenticationHandler>>;
     /** Named policies checked at build time and evaluated in the command/query pipeline. */
     authorizationPolicies?: Readonly<Record<string, AuthorizationPolicyRegistration>>;
-    development?: boolean;
+    /** Server-side error logger; never writes exception detail to a redacted response. */
     logger?: (error: unknown, correlationId: string) => void;
+    /** Identity details provider for the /.cratis/me endpoint. */
     identityDetails?: IdentityDetailsProvider;
-    /** Exclusive with authentication handlers. The adapter must supply a host-verified principal. */
+    /** Exclusive with authentication handlers; the adapter must supply a host-verified principal. */
     nativePrincipal?: boolean;
-    tenancy?: TenancyOptions;
-    /** Development-only anonymous discovery; never enabled by default. */
+    /** Development-only anonymous user discovery; never enabled by default. */
     developmentUsers?: readonly ((context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>)[] |
         ((context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>);
+    /** Development-only anonymous tenant discovery; never enabled by default. */
     developmentTenants?: readonly ((context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>)[] |
         ((context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>);
 }

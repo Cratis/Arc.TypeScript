@@ -43,14 +43,14 @@ Call `await hosted.dispose()` at shutdown, before disposing `arc`. If your appli
 
 ## Frame limits
 
-Arc rejects oversized inbound WebSocket frames with close code 1009 on every adapter, even with shared WebSocket infrastructure. Configure a shared plugin or helper's `maxPayload` at or below `maxObservableInboundFrameBytes` (64 KiB by default) so it rejects them before delivery. The other observable limits are in [Configuration](../configuration/index.md#observable-query-limits).
+Arc rejects oversized inbound WebSocket frames with close code 1009 on every adapter, even with shared WebSocket infrastructure. Configure a shared plugin or helper's `maxPayload` at or below `query.maxObservableInboundFrameBytes` (64 KiB by default) so it rejects them before delivery. The other observable limits are in [Configuration](../configuration/index.md#observable-query-limits).
 
 ## Origin checks
 
-Each bridge checks exact raw paths and the configured `allowedOrigins` before accepting an upgrade.
+Each bridge checks exact raw paths and the configured `query.allowedOrigins` before accepting an upgrade.
 
 - By default, a browser `Origin` that is present must match the trusted transport's scheme and authority.
-- `allowedOrigins: ['http://localhost:5173']` replaces that default with an explicit list. Include your application's own origin when it must stay allowed.
+- `query: { allowedOrigins: ['http://localhost:5173'] }` replaces that default with an explicit list. Include your application's own origin when it must stay allowed.
 - An async predicate `(origin, request, native) => boolean` can implement a host policy.
 - An absent `Origin` is permitted for native clients. It is **not** proof of authentication.
 

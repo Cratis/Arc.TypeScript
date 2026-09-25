@@ -77,7 +77,7 @@ process.once('SIGINT', () => {
 
 ## Shut down without dropping work
 
-`close({ timeoutMs })` stops accepting HTTP connections first, closes Arc WebSockets, ends live server-sent-event streams (including ones that finish opening during shutdown), and waits up to 30 seconds by default for ordinary requests and WebSockets to drain. At the deadline it closes the remaining connections and rejects if shutdown is incomplete. WebSocket cleanup has its own `observableShutdownTimeoutMs` bound in [configuration](../configuration/index.md); an earlier host deadline can reject before that cleanup finishes.
+`close({ timeoutMs })` stops accepting HTTP connections first, closes Arc WebSockets, ends live server-sent-event streams (including ones that finish opening during shutdown), and waits up to 30 seconds by default for ordinary requests and WebSockets to drain. At the deadline it closes the remaining connections and rejects if shutdown is incomplete. WebSocket cleanup has its own `query.observableShutdownTimeoutMs` bound in [configuration](../configuration/index.md); an earlier host deadline can reject before that cleanup finishes.
 
 ## Bring your own Node server
 
@@ -104,7 +104,7 @@ Here `app` is a built `ArcApplication` from your own module. With a path base, p
 
 ## Security defaults
 
-- Arc enforces `maxBodyBytes` (1 MiB by default) on raw command and `QUERY` bodies, including chunked input, and aborts `context.signal` when the client disconnects.
+- Arc enforces `hosting.maxBodyBytes` (1 MiB by default) on raw command and `QUERY` bodies, including chunked input, and aborts `context.signal` when the client disconnects.
 - For a host-authenticated caller, set `nativePrincipal: true` and pass a `native(request)` callback that returns `{ principal }` after your host has verified the request. The callback applies to HTTP and WebSocket requests. Never derive the principal or `authority` from request or forwarded headers. See [Native principal](../hosts/native-principal.md).
 - Cookie security is taken from the actual TLS socket, not from headers.
 

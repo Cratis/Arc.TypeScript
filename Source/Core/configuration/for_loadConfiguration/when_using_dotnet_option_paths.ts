@@ -13,19 +13,19 @@ describe('when using .NET ArcOptions paths', () => {
             Cratis__Arc__GeneratedApis__EnableQueryHttpMethod: 'False',
             Cratis__Arc__ExposeExceptionDetails: 'True',
             Cratis__Chronicle__EventStore: '2024',
-            Cratis__Arc__OpenApiVersion: '3'
+            Cratis__Arc__GeneratedApis__OpenApiVersion: '3'
         });
     });
     it('should bind headers', () => {
-        settings.Cratis?.Arc?.correlationHeader?.should.equal('x-correlation');
-        settings.Cratis?.Arc?.tenantHeader?.should.equal('x-tenant');
+        settings.Cratis?.Arc?.correlationId?.httpHeader?.should.equal('x-correlation');
+        settings.Cratis?.Arc?.tenancy?.httpHeader?.should.equal('x-tenant');
     });
     it('should bind HTTP and exception options', () => {
-        settings.Cratis?.Arc?.enableQueryMethod?.should.equal(false);
-        settings.Cratis?.Arc?.development?.should.equal(true);
+        settings.Cratis?.Arc?.generatedApis?.enableQueryHttpMethod?.should.equal(false);
+        settings.Cratis?.Arc?.exposeExceptionDetails?.should.equal(true);
     });
     it('should keep numeric-looking names as strings', () => {
         settings.Cratis?.Chronicle?.eventStore?.should.equal('2024');
-        settings.Cratis?.Arc?.openApiVersion?.should.equal('3');
+        settings.Cratis?.Arc?.generatedApis?.openApiVersion?.should.equal('3');
     });
 });

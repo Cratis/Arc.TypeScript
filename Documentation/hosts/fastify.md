@@ -35,7 +35,7 @@ Command and query routes are registered for GET, POST, PUT, PATCH, DELETE, OPTIO
 The handler dispatches only when the raw request path equals the route Fastify matched, on a fixed internal origin, so a crafted `Host` header cannot select a different operation. `context.signal` aborts when the client disconnects before the response finishes.
 
 :::caution[Fastify's body limit applies first]
-Fastify enforces its own `bodyLimit`, 1 MiB by default, before Arc reads the body. A larger body gets Fastify's 413 response, not an Arc result. To accept larger bodies, raise both `bodyLimit` and Arc's `maxBodyBytes`.
+Fastify enforces its own `bodyLimit`, 1 MiB by default, before Arc reads the body. A larger body gets Fastify's 413 response, not an Arc result. To accept larger bodies, raise both `bodyLimit` and Arc's `hosting.maxBodyBytes`.
 :::
 
 ## Pass a verified principal

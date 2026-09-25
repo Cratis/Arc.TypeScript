@@ -11,7 +11,7 @@ export async function originAllowed(origin: string | null, request: Request,
         const parsed = new URL(origin);
         if (parsed.origin !== origin || !['http:', 'https:'].includes(parsed.protocol)) return false;
     } catch { return false; }
-    const policy = options.allowedOrigins;
+    const policy = options.query?.allowedOrigins;
     if (Array.isArray(policy)) return policy.includes(origin);
     if (typeof policy === 'function') return policy(origin, request, native);
     const authority = native?.authority ?? request.headers.get('host');

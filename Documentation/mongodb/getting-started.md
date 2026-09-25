@@ -55,7 +55,7 @@ import { TaskRecord } from './TaskRecord.js';
 import { TaskQueries } from './TaskQueries.js';
 
 const client = new MongoClient(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017');
-const builder = ArcApplication.createBuilder({ tenancy: { sources: ['fixed'], fixed: 'default' } });
+const builder = ArcApplication.createBuilder({ tenancy: { resolverType: 'fixed', fixedTenantId: 'default' } });
 builder.add(TaskQueries).withMongoDB({
     client, databaseNameResolver: tenant => `tasks_${tenant}`, readModels: [TaskRecord]
 });

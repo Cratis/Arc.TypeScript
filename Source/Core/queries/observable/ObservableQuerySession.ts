@@ -138,7 +138,7 @@ export class ObservableQuerySession {
                 throw error;
             }
             await this.config.reportFailure(error);
-            yield queryResult(this.#context, { exceptionMessages: [this.config.development
+            yield queryResult(this.#context, { exceptionMessages: [this.config.exposeExceptionDetails
                 ? String(error) : 'An unexpected error occurred'] });
         } finally { await this.closeScope(); }
     }
@@ -164,7 +164,7 @@ export class ObservableQuerySession {
     }
 
     private redact(result: QueryResult): QueryResult {
-        return this.config.development || !result.hasExceptions ? result : {
+        return this.config.exposeExceptionDetails || !result.hasExceptions ? result : {
             ...result, exceptionMessages: ['An unexpected error occurred'], exceptionStackTrace: ''
         };
     }

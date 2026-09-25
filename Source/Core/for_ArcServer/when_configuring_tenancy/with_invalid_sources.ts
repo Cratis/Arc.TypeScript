@@ -11,7 +11,7 @@ describe('when configuring tenancy with invalid sources', () => {
         failures = [
             () => new ArcServer({ tenancy: { sources: ['subdomain'], baseDomain: '127.0.0.1' } }),
             () => new ArcServer({ tenancy: { sources: ['subdomain'], baseDomain: 'example.com:443' } }),
-            () => new ArcServer({ tenancy: { sources: ['fixed'], fixed: '../north' } }),
+            () => new ArcServer({ tenancy: { sources: ['fixed'], fixedTenantId: '../north' } }),
             () => new ArcServer({ tenancy: { sources: ['header', 'header'] } })
         ].map(capture);
     });

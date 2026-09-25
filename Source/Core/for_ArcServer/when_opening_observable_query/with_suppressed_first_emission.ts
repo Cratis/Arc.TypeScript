@@ -33,7 +33,7 @@ describe('when opening an observable query with a suppressed first emission', ()
                 if (emission.data === 1) { suppressed(); return ObservableEmissionDecision.Suppress; }
                 return ObservableEmissionDecision.Allow;
             }
-        }) }], observableEmissionGuards: [token], observableQueries: [defineObservableQuery({
+        }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
         })] });
         const session = await server.openObservableQuery('Numbers', {}, observableExecution());

@@ -9,7 +9,7 @@ describe('when configuring the hub shutdown timeout independently', () => {
     let limits: ObservableLimits;
 
     beforeEach(() => {
-        limits = new ObservableLimits({ observableHandshakeTimeoutMs: 125, observableShutdownTimeoutMs: 300 });
+        limits = new ObservableLimits({ query: { observableHandshakeTimeoutMs: 125, observableShutdownTimeoutMs: 300 },  });
     });
 
     it('should keep the handshake timeout unchanged', () => {

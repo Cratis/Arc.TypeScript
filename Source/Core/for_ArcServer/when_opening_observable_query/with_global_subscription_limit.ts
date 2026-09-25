@@ -14,7 +14,7 @@ describe('when opening an observable query with a global subscription limit', ()
     let reopened: boolean;
 
     beforeEach(async () => {
-        const server = new ArcServer({ maxObservableSubscriptions: 1, observableQueries: [defineObservableQuery({
+        const server = new ArcServer({ query: { maxObservableSubscriptions: 1 }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => new CurrentValueSubject<number>()
         })] });
         const first = await server.openObservableQuery('Numbers', {}, observableExecution());

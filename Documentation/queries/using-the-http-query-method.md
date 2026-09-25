@@ -33,7 +33,7 @@ Paging and sorting follow the same rules as GET; see [Paging and sorting](model-
 
 ## Turn it off
 
-Set `enableQueryMethod: false` in the [options](../configuration/index.md#routes-and-requests) to accept GET only. A `QUERY` request then answers 405 with `Allow: GET`.
+Set `generatedApis: { enableQueryHttpMethod: false }` in the [options](../configuration/index.md#the-arcoptions-tree) to accept GET only. A `QUERY` request then answers 405 with `Allow: GET`.
 
 ## Where QUERY does not appear
 

@@ -58,7 +58,7 @@ export class ObservableQueryHub {
         resolved?: ResolvedConnectionContext): Promise<void> {
         let connection: HubConnection | undefined;
         let correlationId = resolved?.context.correlationId ??
-            correlation(request.headers.get(this.server.options.correlationHeader ?? 'X-Correlation-ID'));
+            correlation(request.headers.get(this.server.options.correlationId?.httpHeader ?? 'X-Correlation-ID'));
         try {
             const identity = resolved ?? await resolveConnectionContext(this.server, request, native);
             correlationId = identity.context.correlationId;
@@ -68,7 +68,7 @@ export class ObservableQueryHub {
                 return;
             }
             connection = new HubConnection(this.server, 'WebSocket', output, identity.context,
-                this.server.options.observableKeepAliveIntervalMs ?? 30_000,
+                this.server.options.query?.keepAliveIntervalMs ?? 30_000,
                 () => { this.#connections.delete(connection!.id); this.changed(); }, () => this.changed());
             this.#connections.set(connection.id, connection);
             this.changed();
@@ -104,7 +104,7 @@ export class ObservableQueryHub {
     }
 
     private async openSse(request: Request, native?: NativeRequestContext): Promise<Response> {
-        const correlationId = correlation(request.headers.get(this.server.options.correlationHeader ?? 'X-Correlation-ID'));
+        const correlationId = correlation(request.headers.get(this.server.options.correlationId?.httpHeader ?? 'X-Correlation-ID'));
         try {
             if (!await originAllowed(request.headers.get('origin'), request, native, this.server.options))
                 return new Response(null, { status: 403 });
@@ -115,14 +115,14 @@ export class ObservableQueryHub {
                 return new Response(null, { status: 503, headers: { 'retry-after': '1' } });
             const output = new SseHubTransport(this.server.observableLimits);
             const connection = new HubConnection(this.server, 'SSE', output, identity.context,
-                this.server.options.observableKeepAliveIntervalMs ?? 30_000,
+                this.server.options.query?.keepAliveIntervalMs ?? 30_000,
                 () => { this.#connections.delete(connection.id); this.changed(); }, () => this.changed());
             this.#connections.set(connection.id, connection);
             this.changed();
             const headers = new Headers({
                 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache',
                 connection: 'keep-alive', 'x-accel-buffering': 'no',
-                [this.server.options.correlationHeader ?? 'X-Correlation-ID']: identity.context.correlationId
+                [this.server.options.correlationId?.httpHeader ?? 'X-Correlation-ID']: identity.context.correlationId
             });
             void connection.connect().catch(async error => {
                 try { await this.server.options.logger?.(error, identity.context.correlationId); }
@@ -136,12 +136,12 @@ export class ObservableQueryHub {
     }
 
     private async control(request: Request, path: string, native?: NativeRequestContext): Promise<Response> {
-        const correlationId = correlation(request.headers.get(this.server.options.correlationHeader ?? 'X-Correlation-ID'));
+        const correlationId = correlation(request.headers.get(this.server.options.correlationId?.httpHeader ?? 'X-Correlation-ID'));
         try {
             const contentType = request.headers.get('content-type');
             if (!contentType || !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(contentType))
                 return new Response(null, { status: 415 });
-            const maximum = Math.min(this.server.options.maxBodyBytes ?? 1024 * 1024,
+            const maximum = Math.min(this.server.options.hosting?.maxBodyBytes ?? 1024 * 1024,
                 this.server.observableLimits.inboundFrameBytes);
             const payload = await body(request, maximum);
             if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new BadRequest();

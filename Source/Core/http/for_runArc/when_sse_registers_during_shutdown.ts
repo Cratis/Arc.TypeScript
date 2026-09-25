@@ -23,7 +23,7 @@ describe('when SSE registers during host shutdown', () => {
         const ready = new Promise<void>(resolve => { entered = resolve; });
         const gate = new Promise<void>(resolve => { release = resolve; });
         const values = CurrentValueSubject.of<number[]>([1]);
-        const arc = new ArcServer({ resolveTenant: async () => { entered(); await gate; return undefined; },
+        const arc = new ArcServer({ tenancy: { resolve: async () => { entered(); await gate; return undefined; } },
             observableQueries: [defineObservableQuery({ name: 'Numbers', schema: z.object({}), observe: () => values })] });
         const host = await runArc(arc, { port: 0 });
         const socket = connect(portOf(host.server), '127.0.0.1');

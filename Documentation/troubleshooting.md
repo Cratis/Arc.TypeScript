@@ -57,11 +57,11 @@ A body parser such as `express.json()` ran before Arc and consumed the body. Cal
 
 ### Fastify answers 413 for a large body
 
-Fastify's `bodyLimit`, 1 MiB by default, applies before Arc's `maxBodyBytes`. Raise both. See [Fastify](hosts/fastify.md).
+Fastify's `bodyLimit`, 1 MiB by default, applies before Arc's `hosting.maxBodyBytes`. Raise both. See [Fastify](hosts/fastify.md).
 
 ### A browser WebSocket never opens from a dev server
 
-The page's origin differs from the server's, so the `Origin` check refuses the upgrade. Add the dev server origin, and your application origin, to `allowedOrigins`. See [WebSockets](hosts/websockets.md#origin-checks).
+The page's origin differs from the server's, so the `Origin` check refuses the upgrade. Add the dev server origin, and your application origin, to `query.allowedOrigins`. See [WebSockets](hosts/websockets.md#origin-checks).
 
 ### An observable query answers 202
 

@@ -48,7 +48,7 @@ const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connect
 const interceptor = serviceToken('live read model interceptor');
 const builder = ArcApplication.createBuilder({ development: true,
     readModelInterceptors: [interceptor],
-    resolveTenant: request => request.headers.get('x-test-tenant') ?? undefined });
+    tenancy: { resolve: request => request.headers.get('x-test-tenant') ?? undefined } });
 builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view => {
     const publicView = new LiveView();
     Object.assign(publicView, view);

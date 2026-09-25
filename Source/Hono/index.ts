@@ -49,7 +49,7 @@ export function cratisArc<E extends Env>(application: ArcServer | ArcApplication
         for (const cookie of existing) headers.append('set-cookie', cookie);
         context.res.headers.delete('set-cookie');
         context.res.headers.delete('cache-control');
-        context.res.headers.delete(server.options.correlationHeader ?? 'X-Correlation-ID');
+        context.res.headers.delete(server.options.correlationId?.httpHeader ?? 'X-Correlation-ID');
         return new Response(result.body, { status: result.status, statusText: result.statusText, headers });
     };
     const upgrades = new Hono<E>();

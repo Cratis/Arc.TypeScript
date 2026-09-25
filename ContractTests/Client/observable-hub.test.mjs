@@ -221,7 +221,7 @@ test('hub delta baseline ignores suppressed emissions', async () => {
             return emission.data[0]?.name === 'suppressed'
                 ? ObservableEmissionDecision.Suppress : ObservableEmissionDecision.Allow;
         }
-    }) }], observableEmissionGuards: [guard], observableQueries: [defineObservableQuery({
+    }) }], query: { observableEmissionGuards: [guard] }, observableQueries: [defineObservableQuery({
         name: 'Numbers', schema: z.object({}), observe: () => subject
     })] });
     const listening = await observableHost('express', server);

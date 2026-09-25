@@ -16,7 +16,7 @@ Validation answers whether input follows the rules. Some decisions can only be m
 
 `provide()` and `handle()` use the same helpers. From `provide()`, a value other than `rejected` or `denied` is passed to `handle()`; see [Model-bound commands](model-bound/index.md#prepare-data-in-provide) for a complete example. In a low-level definition, `provide(input, context)` receives the typed input, and `handle(input, context, provided)` receives the provided value typed as `unknown`, so narrow or cast it.
 
-If `provide()` or `handle()` throws, the result is a 500. Outside development mode the HTTP result carries `An unexpected error occurred` and no stack trace; [Configuration](../configuration/index.md#errors-and-logging) shows how to log the original.
+If `provide()` or `handle()` throws, the result is a 500. Unless `exposeExceptionDetails` is enabled, the HTTP result carries `An unexpected error occurred` and no stack trace; [Configuration](../configuration/index.md#errors-and-logging) shows how to log the original.
 
 ## Outcomes are recognized by origin, not by shape
 

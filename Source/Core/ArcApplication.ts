@@ -4,7 +4,7 @@ import type { Server as HttpServer } from 'node:http';
 import type { Server as HttpsServer } from 'node:https';
 import { FetchArcApplication } from './FetchArcApplication.js';
 import type { ArcBuilderOptions } from './configuration/ArcBuilderOptions.js';
-import { loadConfiguration } from './configuration/loadConfiguration.js';
+import { configurationEnvironment, loadConfiguration } from './configuration/loadConfiguration.js';
 import { NodeArcApplicationBuilder } from './NodeArcApplicationBuilder.js';
 import { runArc } from './http/runArc.js';
 import type { ArcNodeRunOptions } from './http/ArcNodeRunOptions.js';
@@ -15,8 +15,16 @@ export class ArcApplication extends FetchArcApplication {
     static createBuilder(options: ArcBuilderOptions = {}): NodeArcApplicationBuilder {
         const { configuration, ...code } = options;
         const settings = configuration === false ? {} : loadConfiguration(configuration?.file, configuration?.env, code.logger);
+        const environment = configurationEnvironment(configuration === false ? process.env : configuration?.env ?? process.env);
         return new NodeArcApplicationBuilder({ ...settings.Cratis?.Arc, ...code,
-            generatedApis: { ...settings.Cratis?.Arc?.generatedApis, ...code.generatedApis } }, settings);
+            exposeExceptionDetails: code.exposeExceptionDetails ?? settings.Cratis?.Arc?.exposeExceptionDetails ??
+                environment?.toLowerCase() === 'development',
+            correlationId: { ...settings.Cratis?.Arc?.correlationId, ...code.correlationId },
+            tenancy: settings.Cratis?.Arc?.tenancy || code.tenancy
+                ? { ...settings.Cratis?.Arc?.tenancy, ...code.tenancy } : undefined,
+            generatedApis: { ...settings.Cratis?.Arc?.generatedApis, ...code.generatedApis },
+            query: { ...settings.Cratis?.Arc?.query, ...code.query },
+            hosting: { ...settings.Cratis?.Arc?.hosting, ...code.hosting } }, settings);
     }
     #listener?: { server: HttpServer | HttpsServer; close(): Promise<void> };
     #disposed = false;
@@ -25,7 +33,18 @@ export class ArcApplication extends FetchArcApplication {
     async start(options?: ArcNodeRunOptions): Promise<void> {
         if (this.#disposed) throw new Error('Arc application is disposed');
         if (this.#listener) throw new Error('Arc application is already running');
-        const listener = await runArc(this.server, options);
+        const configuredUrl = this.server.options.hosting?.applicationUrl;
+        let listenerOptions = options;
+        if (configuredUrl !== undefined) {
+            let address: URL;
+            try { address = new URL(configuredUrl); }
+            catch { throw new Error('Invalid Arc application URL'); }
+            if (address.protocol !== 'http:' || address.pathname !== '/' || address.search || address.hash || address.username ||
+                address.password) throw new Error('Invalid Arc application URL');
+            listenerOptions = { ...options, host: options?.host ?? (address.hostname === '+' ? '0.0.0.0' : address.hostname),
+                port: options?.port ?? Number(address.port || 80) };
+        }
+        const listener = await runArc(this.server, listenerOptions);
         if (this.#disposed) {
             await listener.close();
             throw new Error('Arc application is disposed');
