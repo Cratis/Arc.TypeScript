@@ -55,6 +55,26 @@ describe('when a validation severity changes on read', () => {
     });
 });
 
+describe('when nested validation and exception fields change on read', () => {
+    it('should use one validated snapshot of each field and make dense copies', () => {
+        let messageReads = 0;
+        let membersReads = 0;
+        let exceptionReads = 0;
+        const fragment = {
+            validationResults: [{ severity: Severity.Error, get message() { return ++messageReads === 1 ? 'first' : 5; },
+                get members() { return ++membersReads === 1 ? ['member'] : [false]; }, reason: 'rule' }],
+            get exceptionMessages() { return ++exceptionReads === 1 ? ['exception'] : [false]; }
+        };
+        const result = mergeFilterFragment(current(), fragment as Partial<ReturnType<typeof current>>);
+        messageReads.should.equal(1);
+        membersReads.should.equal(1);
+        exceptionReads.should.equal(1);
+        result.validationResults[0]!.message.should.equal('first');
+        result.validationResults[0]!.members.should.deep.equal(['member']);
+        result.exceptionMessages.should.deep.equal(['exception']);
+    });
+});
+
 describe('when a fragment has only optional fields', () => {
     it('should preserve a partial validation and exception fragment without changing its source', () => {
         const fragment = { validationResults: [validation('warning', ['value'], 'rule', Severity.Warning)],

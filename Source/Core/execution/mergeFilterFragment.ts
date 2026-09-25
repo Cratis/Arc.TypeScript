@@ -17,7 +17,8 @@ function own(value: object, field: string): { present: boolean; value: unknown }
 function dense<T>(value: unknown, convert: (item: unknown) => T): T[] {
     if (!Array.isArray(value)) return invalid();
     const result: T[] = [];
-    for (let index = 0; index < value.length; index++) {
+    const length = value.length;
+    for (let index = 0; index < length; index++) {
         if (!Object.hasOwn(value, index)) invalid();
         result.push(convert(value[index]));
     }
