@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcServer } from '@cratis/arc.core';
+import { ArcServer, serviceToken, ServiceLifetime } from '@cratis/arc.core';
+import type { CommandResponseValueHandler } from '@cratis/arc.core';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import { z } from 'zod';
 import sinon from 'sinon';
@@ -20,13 +21,18 @@ describe('when a defined Chronicle command is canceled just after append acknowl
         const definition = defineChronicleCommand({ name: 'PlaceWithWait', schema: z.object({}), client,
             eventStore: 'Work', namespaceForContext: () => 'Default', completionTimeoutMs: 3000,
             produce: () => ({ events: [{ eventSourceId: 'source-1', event: new Placed('Ada') }], response: 'done' }) });
-        const server = new ArcServer({ commands: [definition] });
+        let handlerResolutions = 0;
+        const token = serviceToken<CommandResponseValueHandler>('response handler');
+        const server = new ArcServer({ commands: [definition], services: [{ token, lifetime: ServiceLifetime.Scoped,
+            factory: () => { handlerResolutions++; return { canHandle: () => true, handle: () => {} }; } }],
+        commandResponseValueHandlers: [token] });
         try {
             const result = await server.executeCommand('PlaceWithWait', {}, { ...executionContext('Default'), signal: abort.signal });
             result.isSuccess.should.equal(true);
             result.response!.should.equal('done');
             append.calledOnce.should.equal(true);
             completion.notCalled.should.equal(true);
+            handlerResolutions.should.equal(0);
         } finally { await server.dispose(); }
     });
 });
