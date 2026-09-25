@@ -1,6 +1,6 @@
 {
   "name": "@cratis/cratis",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "type": "module",
   "license": "MIT",
   "description": "Arc and experimental Chronicle composition for Node.js",

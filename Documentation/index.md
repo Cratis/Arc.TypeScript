@@ -8,7 +8,7 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, then keeping all of it in step with the frontend. With it, commands and queries run through one pipeline that owns those concerns, the wire behavior follows Arc on .NET, and the proxy generator writes the typed frontend client from your source.
 
 :::caution[Source preview, no full parity]
-No package is published to npm; the manifests are at version 0.28.0 for a source preview. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
+No package is published to npm; the manifests are at version 0.29.0 for a source preview. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
 :::
 
 ## What it looks like
