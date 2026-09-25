@@ -11,6 +11,30 @@ By the end you have a server on `127.0.0.1:3000` that answers a command, rejects
 No Arc for TypeScript package is published to npm. Work inside a clone of this repository; the API may still change. Check the [capability reference](../reference/capabilities.md) before you use a feature in a larger application.
 :::
 
+## Arc-only setup beside .NET
+
+TypeScript (the [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts)):
+
+```typescript
+import { ArcApplication } from '@cratis/arc.core';
+const builder = ArcApplication.createBuilder();
+await builder.discover(new URL('./Features/', import.meta.url));
+const app = await builder.build();
+await app.run({ port: 3000 });
+```
+
+C# ([Arc standalone builder](https://github.com/Cratis/Arc/blob/main/Documentation/backend/csharp/core/getting-started.md)):
+
+```csharp
+var builder = ArcApplication.CreateBuilder(args);
+builder.AddCratisArc();
+var app = builder.Build();
+app.UseCratisArc();
+await app.RunAsync();
+```
+
+The Tasks sample sets `Cratis:Arc:Development` in [appsettings.json](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/appsettings.json); do not use this development setting on an exposed host. The standalone Node host starts and maps Arc in `app.run()`. In Express, Fastify, or Hono, the host-native adapter maps routes instead. Node setup reads optional `appsettings.json` (`Cratis:Arc`) and `Cratis__...` environment variables; see [Configuration](../configuration/index.md).
+
 ## Build and run
 
 Use Node.js 22.19 or later, Git, Corepack, and `curl`. The sample keeps tasks in memory and listens on loopback, port 3000. A restart clears its data.

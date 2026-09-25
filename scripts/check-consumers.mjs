@@ -17,7 +17,7 @@ const packages = workspace.workspaces.filter(pattern => pattern.endsWith('/*')).
         .map(entry => join(base, entry.name)).filter(folder => existsSync(join(folder, 'package.json')));
 }).map(folder => ({ folder, manifest: JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8')) }))
     .filter(({ manifest }) => manifest.private !== true);
-if (packages.length !== 10) throw new Error(`Expected 10 publishable packages, found ${packages.length}`);
+if (packages.length !== 11) throw new Error(`Expected 11 publishable packages, found ${packages.length}`);
 
 function run(command, args, cwd) {
     const result = spawnSync(command, args, { cwd, stdio: 'inherit' });
@@ -196,44 +196,65 @@ try {
     const queryResponse = await fetch(url + '/api/all');
     const queryResult = await queryResponse.json() as { data: { message: string } };
     if (!queryResponse.ok || queryResult.data?.message !== 'hello') throw new Error('Packed query HTTP failed: ' + JSON.stringify(queryResult));
-    console.log('Native ESM command and query HTTP passed');
+    const fetchResponse = await app.fetch(new Request(url + '/api/all'));
+    const fetchResult = await fetchResponse.json() as { data: { message: string } };
+    if (!fetchResponse.ok || fetchResult.data?.message !== 'hello') throw new Error('Packed Fetch query failed: ' + JSON.stringify(fetchResult));
+    console.log('Native ESM command, query and Fetch HTTP passed');
 } finally { await listener.close(); await app.dispose(); }
 `;
     const strictImports = `
+import type { Server as HttpServer } from 'node:http';
 import type { ArcApplicationBuilder } from '@cratis/arc.core';
 import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
 import express from 'express';
 import fastify from 'fastify';
 import { Hono } from 'hono';
-import { mountExpress } from '@cratis/arc.express';
-import { mountFastify } from '@cratis/arc.fastify';
-import { mountHono } from '@cratis/arc.hono';
-import { addMongoDB, type MongoDBOptions } from '@cratis/arc.mongodb';
+import { cratisArc as expressArc, mountExpress } from '@cratis/arc.express';
+import fastifyArc, { mountFastify } from '@cratis/arc.fastify';
+import { cratisArc as honoArc, mountHono } from '@cratis/arc.hono';
+import { withMongoDB, type MongoDBOptions } from '@cratis/arc.mongodb';
 import { CommandScenario, QueryScenario } from '@cratis/arc.testing';
 import { analyzeSource } from '@cratis/arc.proxygenerator';
 import plugin from '@cratis/eslint-plugin-arc-core';
 void [attachNodeWebSockets, CommandScenario, QueryScenario, analyzeSource, plugin];
-function configureMongo(builder: ArcApplicationBuilder, options: MongoDBOptions) { addMongoDB(builder, options); }
+function configureMongo(builder: ArcApplicationBuilder, options: MongoDBOptions) { withMongoDB(builder, options); }
 void configureMongo;
 const adapterApp = await ArcApplication.createBuilder().build();
+function attachSockets(host: HttpServer) {
+    return [expressArc(adapterApp).injectWebSocket(host), honoArc(adapterApp).injectWebSocket(host)];
+}
+void attachSockets;
 try {
-    mountExpress(express(), adapterApp);
+    express().use(expressArc(adapterApp));
+    mountExpress(express(), adapterApp); // Deprecated alias remains usable.
     const fastifyHost = fastify();
-    mountFastify(fastifyHost, adapterApp);
+    await fastifyHost.register(fastifyArc, { arc: adapterApp });
     await fastifyHost.close();
-    mountHono(new Hono(), adapterApp);
+    const legacyFastifyHost = fastify();
+    mountFastify(legacyFastifyHost, adapterApp); // Deprecated alias remains usable.
+    await legacyFastifyHost.close();
+    new Hono().use(honoArc(adapterApp));
+    mountHono(new Hono(), adapterApp); // Deprecated alias remains usable.
 } finally { await adapterApp.dispose(); }
 `;
     const looseSource = `
-import type { ArcApplicationBuilder } from '@cratis/arc.core';
-import { addDrizzle, type DrizzleOptions } from '@cratis/arc.drizzle';
-import { addChronicle, type ChronicleRegistration } from '@cratis/arc.chronicle';
+import { ArcApplication, type ArcApplicationBuilder } from '@cratis/arc.core';
+import { withDrizzle, type DrizzleOptions } from '@cratis/arc.drizzle';
+import { withChronicle, type ChronicleRegistration } from '@cratis/arc.chronicle';
 import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
+import { CratisApplication } from '@cratis/cratis';
+import { CommandScenario as CratisCommandScenario, ChronicleCommandScenario as CratisChronicleCommandScenario } from '@cratis/cratis/testing';
 function configureIntegrations(builder: ArcApplicationBuilder, sql: DrizzleOptions, events: ChronicleRegistration) {
-    addDrizzle(builder, sql);
-    addChronicle(builder, events);
+    withDrizzle(builder, sql);
+    withChronicle(builder, events);
 }
-void [configureIntegrations, ChronicleCommandScenario];
+function configureCratis(events: ChronicleRegistration) {
+    const composed = CratisApplication.createBuilder({ configuration: false }, events);
+    const builder = ArcApplication.createBuilder({ configuration: false });
+    builder.addCratis(events);
+    return [composed, builder];
+}
+void [configureIntegrations, configureCratis, ChronicleCommandScenario, CratisCommandScenario, CratisChronicleCommandScenario];
 `;
     const compiler = JSON.parse(readFileSync(join(consumer, 'node_modules', 'typescript', 'package.json'), 'utf8'));
     const compilerBin = Object.values(compiler.bin)[0];

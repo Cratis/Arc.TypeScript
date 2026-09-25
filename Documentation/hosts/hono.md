@@ -9,18 +9,18 @@ description: Mount an Arc application in Hono 4 with your own Env type, run it o
 
 ```typescript title="server.ts"
 import { Hono } from 'hono';
-import { serve } from '@hono/node-server';
-import { mountHono } from '@cratis/arc.hono';
+import { cratisArc, serveCratisArc } from '@cratis/arc.hono';
 import { arc } from './arc.js';
 
 const app = new Hono<{ Variables: { startedAt: number } }>();
 app.use('*', async (context, next) => { context.set('startedAt', Date.now()); await next(); });
-mountHono(app, arc);
+app.use(cratisArc(arc));
 app.get('/health', context => context.text(`ok since ${context.get('startedAt')}`));
-serve({ fetch: app.fetch, port: 3000, hostname: '127.0.0.1' });
+const hosted = await serveCratisArc(app, arc, { port: 3000, hostname: '127.0.0.1' });
+process.once('SIGTERM', () => { void hosted.dispose().then(() => arc.dispose()); });
 ```
 
-`arc` is the built application from [Host adapters](index.md#before-you-start). `mountHono` adds middleware for every path and accepts an app with your own `Env` type, including `Bindings` and `Variables`. Requests for other paths continue to your routes. Mount Arc before you add routes.
+`arc` is the built application from [Host adapters](index.md#before-you-start). `cratisArc(arc)` returns HTTP/SSE middleware that continues to your routes for foreign paths; mount it before adding your routes. Use `app.use('/v1/*', cratisArc(arc))` to expose Arc under a prefix. `serveCratisArc` starts a Node listener with WebSocket upgrades and returns its listener and async disposer; it does not dispose `arc`. If you own the Node listener, call `const disposeSockets = cratisArc(arc).injectWebSocket(listener)` instead, then dispose the sockets before closing the listener. `mountHono` and `mountHonoWebSockets` remain deprecated aliases.
 
 ## Run on Node
 
@@ -32,11 +32,11 @@ Runtimes other than `@hono/node-server` do not expose the raw request-target spe
 
 ## Pass a verified principal
 
-`mountHono(app, arc, native)` accepts a callback returning trusted native context. On Node, `secure` comes from the TLS socket; a proxy's `secure` and `authority`, and a host-verified `principal`, still require a trusted callback. See [Native principal](native-principal.md).
+`cratisArc(arc, native)` accepts a callback returning trusted native context. On Node, `secure` comes from the TLS socket; a proxy's `secure` and `authority`, and a host-verified `principal`, still require a trusted callback. See [Native principal](native-principal.md).
 
 ## Observable queries over WebSockets
 
-Call `mountHonoWebSockets(app, arc.server, native?)` after `mountHono` and inject it into the Node listener. See [WebSockets](websockets.md#hono).
+`serveCratisArc(app, arc, { port, native? })` installs observable WebSockets on the Node listener. Arc core imports Node modules: Hono runtimes other than Node have not been verified, even for HTTP/SSE, and need their own validated host and WebSocket bridge. The pinned `@hono/node-server` 1.x does not export the Hono WebSocket upgrade helper, so this Node adapter still uses `@hono/node-ws` internally. See [WebSockets](websockets.md#hono).
 
 ## Related
 

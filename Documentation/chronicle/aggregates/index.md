@@ -16,8 +16,13 @@ import { AggregateRoot } from '@cratis/arc.chronicle';
 
 @eventType('ItemAdded')
 export class ItemAdded {
-    @field(String) productId = '';
-    @field(Number) quantity = 0;
+    @field(String) productId: string;
+    @field(Number) quantity: number;
+
+    constructor(productId: string, quantity: number) {
+        this.productId = productId;
+        this.quantity = quantity;
+    }
 }
 
 export class Order extends AggregateRoot {
@@ -32,7 +37,7 @@ export class Order extends AggregateRoot {
         if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 100 - this.quantity) {
             throw new Error('Quantity must be positive and the order total must not exceed 100');
         }
-        this.apply(Object.assign(new ItemAdded(), { productId, quantity }));
+        this.apply(new ItemAdded(productId, quantity));
     }
 }
 ```
@@ -41,7 +46,7 @@ export class Order extends AggregateRoot {
 
 ## Bind the command
 
-Call `addChronicle` before registering the artifacts, as shown in [Add event sourcing](../add-event-sourcing.md). Bind the aggregate to the command's `@key()` field and register both the command and event type:
+Call `withChronicle` before registering the artifacts, as shown in [Add event sourcing](../add-event-sourcing.md). Bind the aggregate to the command's `@key()` field and register both the command and event type:
 
 ```typescript title="AddItemToOrder.ts"
 import { field } from '@cratis/fundamentals';
@@ -70,7 +75,7 @@ import { AddItemToOrder } from './AddItemToOrder.js';
 import { ItemAdded } from './Order.js';
 
 const builder = ArcApplication.createBuilder();
-builder.addChronicle({ eventStore: 'Orders', connectionString: 'chronicle://localhost:35000' });
+builder.withChronicle({ eventStore: 'Orders', connectionString: 'chronicle://localhost:35000' });
 builder.add(AddItemToOrder, ItemAdded);
 const application = await builder.build();
 await application.run();

@@ -21,13 +21,46 @@ import { ArcApplication } from '@cratis/arc.core';
 import '@cratis/arc.chronicle';
 
 const builder = ArcApplication.createBuilder();
-builder.addChronicle({ connectionString: 'chronicle://localhost:35000', eventStore: 'Tasks' });
+builder.withChronicle({ connectionString: 'chronicle://localhost:35000', eventStore: 'Tasks' });
 await builder.discover(new URL('./Features/', import.meta.url));
 const app = await builder.build();
 await app.run();
 ```
 
-Importing `@cratis/arc.chronicle` adds `addChronicle` to the builder. Call it **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors.
+The equivalent C# setup, alongside the TypeScript `builder.withChronicle(...)` above, is:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.AddCratisArc(configureBuilder: arc => arc.WithChronicle());
+var app = builder.Build();
+app.UseCratisArc();
+app.Run();
+```
+
+Importing `@cratis/arc.chronicle` registers a typed builder extension without modifying the builder prototype. Call `withChronicle` **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors. `addChronicle` remains a deprecated alias. To avoid keeping a connection string in source, put `Cratis:Chronicle:{ConnectionString,EventStore}` in `appsettings.json` or override it with `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`, then call `builder.withChronicle({})`. Code options win over file and environment settings. The Chronicle engine must run separately.
+
+The experimental private `@cratis/cratis` composition has a shorter TypeScript path (under 20 lines):
+
+```typescript
+import 'reflect-metadata';
+import { CratisApplication } from '@cratis/cratis';
+const builder = CratisApplication.createBuilder();
+await builder.discover(new URL('./Features/', import.meta.url));
+const app = await builder.build();
+await app.run();
+```
+
+Its `createBuilder()` mirrors C#'s `builder.AddCratis()` followed by `app.UseCratis()`. You can also call `builder.addCratis({ eventStore, connectionString })` after importing `@cratis/cratis` instead of using `CratisApplication.createBuilder()`. Neither path installs authentication automatically. If your routes need authentication, supply an Arc handler in `ArcApplication.createBuilder({ authentication: [...] })` or `CratisApplication.createBuilder({ authentication: [...] })` before hosting. Public routes need no handler. C#'s setup is:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.AddCratis();
+var app = builder.Build();
+app.UseCratis();
+app.Run();
+```
+
+Both paths require a separately running Chronicle server. The TS package is a local preview, not published. The integration has an opt-in live kernel suite; this setup example is not a live-kernel verification.
 
 :::caution[Development credentials]
 The connection string above uses the SDK's development credentials and accepts the kernel's self-signed certificate. In production, provide real credentials and `skipTlsValidation=false`.
@@ -65,7 +98,7 @@ export class LiveCommandReactor {
 
 `LiveCreated` is an SDK `@eventType()` class; `FollowUpLive` is an Arc `@command()` with `@field(String) @key() id` and a `@field(String) name`. The exact integration example is exercised in the [live suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts).
 
-With an Arc-owned client (`{ connectionString, eventStore }`), `addChronicle` installs the result handler before observations begin. For a caller-owned client, pass the handler to the SDK when creating the client **before connecting it**:
+With an Arc-owned client (`{ connectionString, eventStore }`), `withChronicle` installs the result handler before observations begin. For a caller-owned client, pass the handler to the SDK when creating the client **before connecting it**:
 
 ```typescript
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
@@ -77,7 +110,7 @@ const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connect
     clientArtifactsProvider: artifacts,
     reactorResultHandler: reactorCommandResultHandler(() => application.server, 'Tasks')
 }));
-builder.addChronicle({ eventStore: 'Tasks', client });
+builder.withChronicle({ eventStore: 'Tasks', client });
 application = await builder.build();
 ```
 

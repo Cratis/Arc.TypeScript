@@ -3,20 +3,23 @@ title: Packages
 description: The packages this repository builds, what each exports, their peer dependencies and Node.js requirements, and how they relate to the published @cratis/arc client.
 ---
 
-Every package in this repository is at version 0.18.1, the version of the source preview. **None is published to npm**; reference them from a clone with the `workspace:^` protocol. They ship ES modules only.
+Every package in this repository is at version 0.19.0, the version of the source preview. **None is published to npm**; reference them from a clone with the `workspace:^` protocol. They ship ES modules only.
 
 ## Server packages
 
 | Package | Folder | Exports | Peer dependencies |
 | --- | --- | --- | --- |
-| `@cratis/arc.core` | `Source/Core` | `ArcApplication`, the artifact, field, authorization, and service decorators, validators, `ArcServer`, `define*`, results, authentication, identity, tenancy, introspection, `exportClientManifest`, `runArc`, `createArcNodeHandler`; `@cratis/arc.core/hosting` for WebSocket hosting primitives | `@cratis/fundamentals` `^7.19.6`, `@opentelemetry/api` `^1.9.0`; depends on `zod` 4 |
-| `@cratis/arc.express` | `Source/Express` | `mountExpress`, `mountExpressWebSockets` | `express` `^5.0.0` |
-| `@cratis/arc.fastify` | `Source/Fastify` | `mountFastify`, `mountFastifyWebSockets` | `fastify` `^5.0.0` |
-| `@cratis/arc.hono` | `Source/Hono` | `mountHono`, `mountHonoWebSockets` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` |
+| `@cratis/arc.core` | `Source/Core` | `ArcApplication`, the artifact, field, authorization, and service decorators, validators, `ArcServer`, `define*`, results, authentication, identity, tenancy, introspection, `exportClientManifest`, `runArc`, `createArcNodeHandler`; `@cratis/arc.core/hosting` for WebSocket hosting primitives; Node builder loads `appsettings.json` and `Cratis__...` environment keys | `@cratis/fundamentals` `^7.19.6`, `@opentelemetry/api` `^1.9.0`; depends on `zod` 4 |
+| `@cratis/arc.express` | `Source/Express` | `cratisArc` middleware with `.attach`, deprecated `mountExpress*` | `express` `^5.0.0` |
+| `@cratis/arc.fastify` | `Source/Fastify` | `cratisArc` plugin, deprecated `mountFastify*` | `fastify` `^5.0.0` |
+| `@cratis/arc.hono` | `Source/Hono` | `cratisArc` sub-app, `serveCratisArc` Node helper, deprecated `mountHono*` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` |
 | `@cratis/arc.testing` | `Source/Testing` | `CommandScenario`, `QueryScenario`, `ObservableQueryScenario`, `ArcScenario`, `given`, `shouldHaveRuleFailure` | |
-| `@cratis/arc.mongodb` | `Source/MongoDB` | `addMongoDB`, `mongoCollection`, `MongoCollection`, naming policies, `MongoReadModels` | `@cratis/arc.core`, `@cratis/fundamentals`, `mongodb` `^6.21.0` |
-| `@cratis/arc.drizzle` | `Source/Drizzle` | `addDrizzle`, `drizzleReadModel`, `drizzleDatabase`, `DrizzleReadModels`, column codecs | `@cratis/arc.core`, `@cratis/fundamentals`, `drizzle-orm` `^0.45.0` |
-| `@cratis/arc.chronicle` | `Source/Chronicle` | Experimental, not private since v0.12.0: `addChronicle`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.5.1`, `@cratis/fundamentals`, `zod` |
+| `@cratis/arc.mongodb` | `Source/MongoDB` | `withMongoDB`, deprecated `addMongoDB`, `mongoCollection`, `MongoCollection`, naming policies, `MongoReadModels` | `@cratis/arc.core`, `@cratis/fundamentals`, `mongodb` `^6.21.0` |
+| `@cratis/arc.drizzle` | `Source/Drizzle` | `withDrizzle`, deprecated `addDrizzle`, `drizzleReadModel`, `drizzleDatabase`, `DrizzleReadModels`, column codecs | `@cratis/arc.core`, `@cratis/fundamentals`, `drizzle-orm` `^0.45.0` |
+| `@cratis/arc.chronicle` | `Source/Chronicle` | Experimental: `withChronicle`, deprecated `addChronicle`, `commandAggregate`, `reactorCommandResultHandler`, `executeCommandsAsSystem`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.6.0`, `@cratis/fundamentals`, `zod` |
+| `@cratis/cratis` | `Source/Cratis` | Experimental composition, the counterpart of the C# `Cratis` package: `CratisApplication.createBuilder`, `addCratis`; re-exports Arc, Chronicle and testing (`./testing`); no implicit authentication handler | Arc core, Arc Chronicle, Arc testing, Chronicle SDK, Fundamentals, `zod` |
+
+`@cratis/cratis` is experimental, like the Chronicle integration it composes, and is not published to npm yet. Unlike C# `AddCratis`, the TS composition does not install Microsoft identity automatically: for protected routes, explicitly choose an authentication handler (such as `microsoftIdentityPlatform()`) or your own trusted host principal; public routes need neither. It composes the client, not the event-store engine.
 
 ## Tooling packages
 

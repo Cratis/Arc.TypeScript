@@ -51,7 +51,7 @@ const builder = ArcApplication.createBuilder({ development: true,
     resolveTenant: request => request.headers.get('x-test-tenant') ?? undefined });
 builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: view =>
     Object.assign(new LiveView(), view, { name: `public-${view.name}` }) }));
-builder.addChronicle({ client, eventStore: storeName });
+builder.withChronicle({ client, eventStore: storeName });
 builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
     AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView);
 application = await builder.build();

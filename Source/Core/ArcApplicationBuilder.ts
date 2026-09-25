@@ -5,6 +5,8 @@ import { dirname, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { z } from 'zod';
 import type { ArcServerOptions } from './ArcServerOptions.js';
+import type { CratisConfiguration } from './configuration/loadConfiguration.js';
+import type { IntegrationOptions } from './ArcBuilderIntegrationOptions.js';
 import { ArcApplicationServices } from './ArcApplicationServices.js';
 import { ArcApplication } from './ArcApplication.js';
 import { ArcServer } from './ArcServer.js';
@@ -59,7 +61,42 @@ export class ArcApplicationBuilder {
     #built = false;
     readonly #namespaces = new Map<ClassType, string>();
     #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
-    constructor(private readonly options: ArcServerOptions = {}) {}
+    constructor(private readonly options: ArcServerOptions = {}, readonly configuration: CratisConfiguration = {}) {}
+    /** Install an optional integration registered by its explicit package import. */
+    extend<T>(name: string, options: T): this {
+        const extension = ArcApplicationBuilder.extensions().get(name);
+        if (!extension) throw new Error(`Import @cratis/arc.${name} before calling with${name[0]!.toUpperCase()}${name.slice(1)}()`);
+        extension(this, options);
+        return this;
+    }
+    /** Register an integration across independently loaded copies of the core package. */
+    static registerExtension<T>(name: string, install: (builder: ArcApplicationBuilder, options: T) => void): void {
+        const registry = this.extensions();
+        const existing = registry.get(name);
+        if (existing === install) return;
+        if (existing) throw new Error(`Conflicting Arc integration registration: ${name}`);
+        registry.set(name, install as (builder: ArcApplicationBuilder, options: unknown) => void);
+    }
+    private static extensions(): Map<string, (builder: ArcApplicationBuilder, options: unknown) => void> {
+        const key = Symbol.for('cratis.arc.builder.extensions');
+        const global = globalThis as typeof globalThis & { [key: symbol]: unknown };
+        if (!global[key]) global[key] = new Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>();
+        return global[key] as Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>;
+    }
+    /** Attach Arc and Chronicle after importing @cratis/cratis. */
+    addCratis(options?: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options ?? {}); }
+    /** Attach Chronicle after importing @cratis/arc.chronicle. */
+    withChronicle(options: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options); }
+    /** @deprecated Use withChronicle. */
+    addChronicle(options: IntegrationOptions<'chronicle'>): this { return this.withChronicle(options); }
+    /** Attach MongoDB after importing @cratis/arc.mongodb. */
+    withMongoDB(options: IntegrationOptions<'mongodb'>): this { return this.extend('mongodb', options); }
+    /** @deprecated Use withMongoDB. */
+    addMongoDB(options: IntegrationOptions<'mongodb'>): this { return this.withMongoDB(options); }
+    /** Attach Drizzle after importing @cratis/arc.drizzle. */
+    withDrizzle(options: IntegrationOptions<'drizzle'>): this { return this.extend('drizzle', options); }
+    /** @deprecated Use withDrizzle. */
+    addDrizzle(options: IntegrationOptions<'drizzle'>): this { return this.withDrizzle(options); }
     /** Install source-generated bindings before adding or discovering artifacts. */
     useGeneratedMetadata(metadata: GeneratedMetadata): this {
         if (this.#built || this.#artifacts.length) throw new Error('Register generated metadata before artifacts');

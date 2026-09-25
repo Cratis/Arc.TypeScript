@@ -26,12 +26,12 @@ export const arc = await builder.build();
 
 | Package | Exports | Framework peer range |
 | --- | --- | --- |
-| `@cratis/arc.express` | `mountExpress`, `mountExpressWebSockets` | `express` `^5.0.0` |
-| `@cratis/arc.fastify` | `mountFastify`, `mountFastifyWebSockets` | `fastify` `^5.0.0` |
-| `@cratis/arc.hono` | `mountHono`, `mountHonoWebSockets` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` for Node hosting |
+| `@cratis/arc.express` | `cratisArc(arc)` middleware and `.injectWebSocket(listener)` | `express` `^5.0.0` |
+| `@cratis/arc.fastify` | `app.register(cratisArc, { arc })` (WebSockets on by default) | `fastify` `^5.0.0` |
+| `@cratis/arc.hono` | `app.use(cratisArc(arc))`; Node: `serveCratisArc` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` for Node hosting |
 | `@cratis/arc.core/hosting` | `attachNodeWebSockets` and adapter hosting primitives | None |
 
-Each `mount*` function accepts either a built `ArcApplication` or a low-level `ArcServer`.
+Each adapter accepts a built `ArcApplication` or low-level `ArcServer`. The older `mount*` functions remain deprecated aliases.
 
 ## Pick your framework
 
@@ -39,7 +39,7 @@ Each `mount*` function accepts either a built `ArcApplication` or a low-level `A
 - [Fastify](fastify.md): an encapsulated plugin with its own raw-body parser.
 - [Hono](hono.md): middleware on a Fetch API framework, with raw-path checks on Node.
 
-Observable queries also need a WebSocket mount step, described in [WebSockets](websockets.md). To use a principal your framework already verified, see [Native principal](native-principal.md).
+Express needs a listener attach step for WebSockets; Fastify's plugin and Hono's Node helper attach them in the setup call, described in [WebSockets](websockets.md). To use a principal your framework already verified, see [Native principal](native-principal.md).
 
 ## What every adapter shares
 
@@ -54,7 +54,7 @@ The adapters add no Arc behavior of their own. Each one:
 
 | Area | Express | Fastify | Hono |
 | --- | --- | --- | --- |
-| Registration | One middleware, before body parsers | Encapsulated plugin; routes exist once the app is ready | Middleware for every path |
+| Registration | One middleware, before body parsers | Encapsulated plugin; routes exist once the app is ready | One middleware |
 | Request bodies | Raw request stream | Raw buffer from a scoped catch-all parser | The Fetch API request body |
 | Body size | Arc's `maxBodyBytes` | Fastify's `bodyLimit` first, then `maxBodyBytes` | Arc's `maxBodyBytes` |
 | Unknown path | Falls through to your routes; Express's own 404 carries no Arc correlation header | Fastify's 404 | Falls through to your routes |
