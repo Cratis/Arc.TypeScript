@@ -9,15 +9,7 @@ Arc for TypeScript does not integrate with another dependency injection containe
 
 ## Register services
 
-The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) gives its command and queries one shared, in-memory repository:
-
-```typescript
-const builder = ArcApplication.createBuilder();
-builder.useGeneratedMetadata(metadata);
-builder.services.addSingleton(Tasks);
-await builder.discover(new URL('./Features/', import.meta.url));
-export const app = await builder.build();
-```
+The [Tasks bootstrap](getting-started/index.md#see-what-started-the-server) registers `Tasks` as a singleton shared by its command and queries. It installs generated metadata before discovering the artifacts, then builds the application.
 
 | Registration | Lifetime |
 | --- | --- |
@@ -25,7 +17,7 @@ export const app = await builder.build();
 | `addScoped(Tasks)` | One instance per execution scope: an HTTP request, a direct call, or an observable subscription |
 | `addTransient(Tasks)` | A fresh instance per resolution |
 
-This excerpt assumes `metadata` from the [Tasks generated module](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/generatedMetadata.ts). Each method self-binds a class, or takes a second argument: a concrete class for an abstract class token, or a factory `(scope) => instance`. An abstract class is a good token because it exists at runtime; an interface does not. For a value with no class, create a token with `serviceToken<T>('name')`.
+Each method self-binds a class, or takes a second argument: a concrete class for an abstract class token, or a factory `(scope) => instance`. An abstract class is a good token because it exists at runtime; an interface does not. For a value with no class, create a token with `serviceToken<T>('name')`.
 
 Instead of registering explicitly, decorate a discovered class with `@singleton()`, `@scoped()`, or `@transient()`. Without one of those, add it to `builder.services`.
 

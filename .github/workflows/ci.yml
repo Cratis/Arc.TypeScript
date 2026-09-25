@@ -70,7 +70,7 @@ jobs:
       - name: Install locked dependencies
         run: yarn install --immutable
       - name: Check documentation
-        run: yarn build && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets
+        run: yarn build && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && yarn docs:examples:self-test && yarn docs:examples
 
   verify:
     needs: changes

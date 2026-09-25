@@ -122,20 +122,7 @@ Generated metadata binds `id` from the query string and `Tasks` from the service
 
 ## Wire it together
 
-The entry point registers the service, discovers the decorated classes, and starts the host:
-
-```typescript title="main.ts"
-import { ArcApplication } from '@cratis/arc.core';
-import { Tasks } from './Features/Tasks/Tasks.js';
-import { metadata } from './Features/generatedMetadata.js';
-
-const builder = ArcApplication.createBuilder();
-builder.useGeneratedMetadata(metadata);
-builder.services.addSingleton(Tasks);
-await builder.discover(new URL('./Features/', import.meta.url));
-export const app = await builder.build();
-await app.run({ port: Number(process.env.PORT ?? 3000) });
-```
+The [Tasks entry point](index.md#see-what-started-the-server) registers the service, installs generated metadata, discovers the decorated classes, and starts the host. Keep that single bootstrap alongside the sample instead of copying it into another application.
 
 `discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` to enable development discovery. Exception details instead follow `Cratis:Arc:ExposeExceptionDetails`, which defaults on only in a Development environment; keep it off on public hosts.
 
