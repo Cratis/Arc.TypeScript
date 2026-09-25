@@ -141,7 +141,7 @@ Direct WebSocket frames are `{"type":"Data","data":<query result>}`; a `Ping` re
 
 ## Use the installed client
 
-The published `@cratis/arc` client subscribes through generated `ObservableQueryFor` proxies over the [multiplexed hub](observable-query-demultiplexer.md). The plain client defaults to the WebSocket hub. The `<Arc>` provider from `@cratis/arc.react` defaults to the SSE hub instead, and on this server the SSE hub requires an authenticated caller. For an application without sign-in, set `<Arc queryTransportMethod={QueryTransportMethod.WebSocket}>`, as [Continue in the browser](../getting-started/continue-in-the-browser.md) does.
+The published `@cratis/arc` client subscribes through generated `ObservableQueryFor` proxies over the [multiplexed hub](observable-query-demultiplexer.md). The plain client defaults to the WebSocket hub. The `<Arc>` provider from `@cratis/arc.react` defaults to the SSE hub instead; both accept anonymous connections. Each subscription still passes through query authorization, so an anonymous caller can only observe queries that permit anonymous access. The default `<Arc>` configuration works for the [Tasks browser example](../getting-started/continue-in-the-browser.md) without switching transports.
 
 For the direct transports above, set these before subscribing:
 

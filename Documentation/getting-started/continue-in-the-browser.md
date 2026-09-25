@@ -210,11 +210,10 @@ Create `src/main.tsx`:
 import 'reflect-metadata';
 import { createRoot } from 'react-dom/client';
 import { Arc } from '@cratis/arc.react';
-import { QueryTransportMethod } from '@cratis/arc/queries';
 import { TaskBoard } from './TaskBoard';
 
 createRoot(document.getElementById('root')!).render(
-    <Arc queryTransportMethod={QueryTransportMethod.WebSocket}>
+    <Arc>
         <TaskBoard />
     </Arc>
 );
@@ -222,9 +221,7 @@ createRoot(document.getElementById('root')!).render(
 
 `<Arc>` gives every hook below it the same configuration: the API origin (here the page's own origin, which Vite forwards) and how live queries travel.
 
-:::caution[Choose the WebSocket hub for an anonymous server]
-`<Arc>` connects live queries through the server-sent events hub by default. On this server the SSE hub requires an authenticated caller, and the Tasks sample has no authentication, so the list would stay empty while the browser console reports `SSE hub connection error`. `queryTransportMethod={QueryTransportMethod.WebSocket}` uses the WebSocket hub at `/.cratis/queries/ws`, which accepts anonymous callers. An application with real sign-in can keep the default; see [Multiplexed observable queries](../queries/observable-query-demultiplexer.md).
-:::
+`<Arc>` uses the server-sent events hub by default. It accepts anonymous connections, and the Tasks sample's observable query permits anonymous subscriptions. See [Multiplexed observable queries](../queries/observable-query-demultiplexer.md) for its control-request security model.
 
 ## Run it
 
@@ -243,7 +240,7 @@ Open <http://127.0.0.1:5173>. The list shows any tasks you registered with `curl
 | `!Loud` | `A title cannot begin with an exclamation mark` | The browser had no copy of this rule, so the server checked it and answered 400 |
 | `Try the browser` | `Task registered.` | The command succeeded, and the list grows by one without a reload |
 
-The last row is the observable query at work. The WebSocket hub subscribed to `observeAllTasks` when the page loaded. When `handle()` called `tasks.register(...)`, the sample's `BehaviorSubject` emitted the new list, Arc pushed it over the open connection, and the hook re-rendered the page. Register a task with `curl` from another terminal and it appears in the browser too.
+The last row is the observable query at work. The SSE hub subscribed to `observeAllTasks` when the page loaded. When `handle()` called `tasks.register(...)`, the sample's `BehaviorSubject` emitted the new list, Arc pushed it over the open connection, and the hook re-rendered the page. Register a task with `curl` from another terminal and it appears in the browser too.
 
 ## Recap
 
