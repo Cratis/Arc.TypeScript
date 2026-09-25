@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
 import type { ArcServerOptions } from '../ArcServerOptions.js';
-import type { QueryDefinition, QueryResult, ValidationResult } from '../index.js';
+import type { QueryDefinition } from './QueryDefinition.js';
+import type { QueryResult } from './QueryResult.js';
+import type { ValidationResult } from '../validation/ValidationResult.js';
 import { authorized } from '../authorization/authorized.js';
 import { queryResult } from '../results/queryResult.js';
 import { malformed } from '../results/malformed.js';

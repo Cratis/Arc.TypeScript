@@ -2,7 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
 import type { GeneratedApiOptions } from './GeneratedApiOptions.js';
-import type { AuthenticationHandler, CommandDefinition, Principal, QueryDefinition } from './index.js';
+import type { AuthenticationHandler } from './authentication/AuthenticationHandler.js';
+import type { CommandDefinition } from './commands/CommandDefinition.js';
+import type { Principal } from './identity/Principal.js';
+import type { QueryDefinition } from './queries/QueryDefinition.js';
 import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import type { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import type { ServiceRegistration } from './dependencyInjection/ServiceRegistration.js';

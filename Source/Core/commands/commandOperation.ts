@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
 import type { ArcServerOptions } from '../ArcServerOptions.js';
-import type { CommandDefinition, CommandResult, ValidationResult } from '../index.js';
+import type { CommandDefinition } from './CommandDefinition.js';
+import type { CommandResult } from './CommandResult.js';
+import type { ValidationResult } from '../validation/ValidationResult.js';
 import { isOutcome } from '../results/Outcome.js';
 import { authorized } from '../authorization/authorized.js';
 import { commandResult } from '../results/commandResult.js';

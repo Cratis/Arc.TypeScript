@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { Authorization, ExecutionContext } from '../index.js';
+import type { Authorization } from './Authorization.js';
+import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { DescriptorBase } from '../DescriptorBase.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyFunction, AuthorizationPolicyRegistration } from './AuthorizationPolicy.js';

@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { AuthenticationHandler, Principal } from '../index.js';
+import type { AuthenticationHandler } from './AuthenticationHandler.js';
+import type { Principal } from '../identity/Principal.js';
 import { AuthenticationStatus } from './AuthenticationStatus.js';
 
 export function verifiedPrincipal(principal: Principal): Principal {
