@@ -8,7 +8,6 @@ import { fromEvent } from '@cratis/chronicle/projections';
 import { AuthorRegistered } from '../Registration/Registration.js';
 import { AuthorId } from '../AuthorId.js';
 import { AuthorName } from '../AuthorName.js';
-import { observeProjected } from '../../observeProjected.js';
 
 @readModel()
 @fromEvent(AuthorRegistered)
@@ -18,11 +17,11 @@ export class Author {
 
     @query({ observable: true }, service(ChronicleReadModels))
     static allAuthors(models: ChronicleReadModels): Observable<Author[]> {
-        return observeProjected(models, Author, author => author.id.toString());
+        return models.observeAll(Author, author => author.id.toString());
     }
 
     @query(service(ChronicleReadModels))
     static async authorsPage(models: ChronicleReadModels): Promise<Author[]> {
-        return (await models.getStore()).readModels.getInstances(Author);
+        return models.getAll(Author);
     }
 }

@@ -22,14 +22,14 @@ export class LiveView {
 
     @query(argument('id', String), service(ChronicleReadModels))
     static async byId(id: string, models: ChronicleReadModels): Promise<LiveView | null> {
-        return models.findInstanceById(LiveView, id);
+        return models.getById(LiveView, id);
     }
 }
 ```
 
 This excerpt is from the [kernel suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts), where `LiveCreated` is the event type. Arc's `@readModel()` exposes queries. Chronicle 6.7 infers the same model from `@fromEvent` (or a projection/reducer); do not add Chronicle's deprecated `@readModel()` decorator. Set `static readonly readModelId` only when you need to preserve a custom stored identifier.
 
-`ChronicleReadModels` is a tenant-scoped service. Inject it with `service(ChronicleReadModels)` in a query or `@inject(ChronicleReadModels)` in a command, and call `findInstanceById` or `watch`. `watch(type)` returns an RxJS `Observable<ReadModelChangeset<T>>`; unsubscribe when done. `watchIterable(type)` retains the async-iterable path. Chronicle remains an experimental integration.
+`ChronicleReadModels` is a tenant-scoped service. Inject it with `service(ChronicleReadModels)` in a query or `@inject(ChronicleReadModels)` in a command. `getAll(type)` returns all projected instances and `getById(type, id)` returns one or `null`. For live results, `observeAll(type)` returns an RxJS `Observable<T[]>` (models must expose an `id` convertible to a string); provide a key selector when they do not. `observeById(type, id)` returns an `Observable<T | null>` that emits `null` when the model is removed. Both emit a snapshot before subscribing to changes; a change between the snapshot and subscription may be missed, so use `watch(type)` and reconcile from the store if gap-free observation matters. `watch(type)` returns an `Observable<ReadModelChangeset<T>>`, and `watchIterable(type)` retains the async-iterable path. Unsubscribe to stop watching. Chronicle remains an experimental integration.
 
 ## Load a read model into a command
 
