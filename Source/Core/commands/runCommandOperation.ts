@@ -26,6 +26,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
     options: ArcOptions = {}): Operation {
     const operationName = fullyQualifiedName(definition);
     const invoke = async (input: unknown, execution: ExecutionContext, mode: CommandOperationMode): Promise<CommandResult> => {
+        throwIfCanceled(execution, 'Command canceled');
         const allowed = await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input);
         throwIfCanceled(execution, 'Command canceled');
         if (!allowed) return commandResult(execution, { isAuthorized: false });

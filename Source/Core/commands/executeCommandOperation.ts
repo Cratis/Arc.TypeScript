@@ -7,9 +7,6 @@ import { recordFailure } from '../execution/failureTracking.js';
 import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { isOutcome } from './Outcome.js';
-import { isCommandOperation } from './CommandOperation.js';
-import { isCommandOperations } from './CommandOperations.js';
-import { hasAcknowledgedCommandCommit } from './acknowledgeCommandCommit.js';
 import type { CommandDefinition } from './CommandDefinition.js';
 import type { CommandContext } from './CommandContext.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
@@ -21,7 +18,7 @@ import type { CommandResult } from './CommandResult.js';
 import { commandResult } from './createCommandResult.js';
 import { prepareDependencies, dependencyFailure, validate, validatorFailure } from './OperationValidation.js';
 import { prepareCommandResponse } from './prepareCommandResponse.js';
-import { flattenCommandResponse, processCommandResponse } from './processCommandResponse.js';
+import { completedCommandResponse, flattenCommandResponse } from './processCommandResponse.js';
 import { setCommandRecovery } from './commandRecovery.js';
 import { observe } from '../execution/observability.js';
 import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
@@ -108,13 +105,10 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
     if (!result.isSuccess) return { result, prepared: false };
     throwIfCanceled(context, 'Command canceled');
     const handled = await definition.handle(value, context, provided);
-    if (context.signal.aborted && (hasAcknowledgedCommandCommit(context) || !options.commandResponseValueHandlers?.length)) {
-        const leaves = flattenCommandResponse(handled);
-        if (!leaves.some(item => isCommandOperation(item) || isCommandOperations(item))) {
-            // Classify the completed handler's result without starting response handlers after cancellation.
-            const response = await processCommandResponse(context, leaves, [], false);
-            return { result: response, prepared: true };
-        }
+    if (context.signal.aborted) {
+        const response = completedCommandResponse(context, flattenCommandResponse(handled),
+            !!options.commandResponseValueHandlers?.length);
+        if (response) return { result: response, prepared: true };
     }
     throwIfCanceled(context, 'Command canceled');
     const { result: response, journal, failure } = await prepareCommandResponse(handled, context, scopes, options);

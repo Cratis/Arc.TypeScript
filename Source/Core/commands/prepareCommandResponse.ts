@@ -43,7 +43,6 @@ export async function prepareCommandResponse(value: unknown, context: CommandCon
             if (matches) throw new Error('Chronicle returned events cannot be combined with command operations');
         }
         const result = await processCommandResponse(context, leaves, handlers, journal !== undefined);
-        throwIfCanceled(context, 'Command canceled');
         return { result, journal };
     } catch (error) {
         // Retain the preflighted journal for scope completion and recovery on failure.

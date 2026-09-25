@@ -21,18 +21,30 @@ export function flattenCommandResponse(value: unknown): unknown[] {
 function control(value: unknown): value is Outcome<unknown> {
     return isOutcome(value) && value.kind !== 'response';
 }
+/** Preserve a completed handler's effect-free outcome without admitting response-handler stages. */
+export function completedCommandResponse(context: CommandContext, leaves: readonly unknown[], handlersRegistered: boolean): CommandResult | undefined {
+    if (leaves.some(value => Array.isArray(value) && value.some(isCommandOperation)))
+        throw new Error('Use CommandOperations instead of returning an ordinary collection of operation declarations');
+    if (leaves.some(value => isCommandOperation(value) || isCommandOperations(value))) return undefined;
+    const ordinary = leaves.filter(value => !control(value));
+    if (handlersRegistered && ordinary.length) return undefined; // Only real handlers can classify ordinary values.
+    if (ordinary.length > 1) throw new Error('Multiple unhandled command response values');
+    const validation = leaves.filter(control).flatMap(value => value.kind === 'validation' ?
+        value.results.filter(item => item.severity > context.allowedSeverity) : []);
+    const denial = leaves.filter(control).find(value => value.kind === 'denied');
+    return commandResult(context, { response: ordinary[0], isAuthorized: !denial,
+        authorizationFailureReason: denial?.kind === 'denied' ? denial.reason : undefined, validationResults: validation });
+}
 /** Classify all leaves before invoking any handlers or operation effects. */
 export async function processCommandResponse(context: CommandContext, leaves: readonly unknown[],
     handlers: readonly CommandResponseValueHandler[], operationsPresent: boolean): Promise<CommandResult> {
     const ordinary = leaves.filter(value => !isCommandOperation(value) && !isCommandOperations(value));
-    const classificationOnly = handlers.length === 0 && !operationsPresent;
     if (leaves.some(value => Array.isArray(value) && value.some(isCommandOperation)))
         throw new Error('Use CommandOperations instead of returning an ordinary collection of operation declarations');
     const matching = new Map<unknown, CommandResponseValueHandler[]>();
     for (const value of ordinary) if (!control(value)) {
         const matches: CommandResponseValueHandler[] = [];
         for (const handler of handlers) {
-            if (context.signal.aborted && hasAcknowledgedCommandCommit(context)) break;
             throwIfCanceled(context, 'Command canceled');
             const canHandle = await handler.canHandle(context, value);
             throwIfCanceled(context, 'Command canceled');
@@ -43,7 +55,7 @@ export async function processCommandResponse(context: CommandContext, leaves: re
     // Control signals precede effectful handlers when operations participate.
     const values = operationsPresent ? [...ordinary.filter(control), ...ordinary.filter(value => !control(value))] : ordinary;
     for (const value of values) {
-        if (!classificationOnly) throwIfCanceled(context, 'Command canceled');
+        throwIfCanceled(context, 'Command canceled');
         if (control(value)) continue;
         if (!matching.get(value)?.length) {
             if (context.response !== undefined) throw new Error('Multiple unhandled command response values');
@@ -55,18 +67,25 @@ export async function processCommandResponse(context: CommandContext, leaves: re
     let reason = '';
     const validation = [];
     for (const value of values) {
-        if (!classificationOnly) throwIfCanceled(context, 'Command canceled');
+        throwIfCanceled(context, 'Command canceled');
         if (!control(value)) continue;
         if (value.kind === 'denied') { authorized = false; reason = value.reason ?? ''; }
         else if (value.kind === 'validation') validation.push(...value.results.filter(item => item.severity > context.allowedSeverity));
     }
-    if (!operationsPresent || authorized && !validation.length) outer: for (const value of ordinary) {
+    if (!operationsPresent || authorized && !validation.length) outer: for (let index = 0; index < ordinary.length; index++) {
+        const value = ordinary[index];
         if (control(value) || value === context.response) continue;
-        for (const handler of matching.get(value) ?? []) {
-            if (context.signal.aborted && hasAcknowledgedCommandCommit(context)) break outer;
+        const matched = matching.get(value) ?? [];
+        for (let handlerIndex = 0; handlerIndex < matched.length; handlerIndex++) {
             throwIfCanceled(context, 'Command canceled');
-            const handled = await handler.handle(context, value);
-            if (!isOutcome(handled) && context.signal.aborted && hasAcknowledgedCommandCommit(context)) break outer;
+            const handled = await matched[handlerIndex]!.handle(context, value);
+            // An acknowledged handler has completed its effect. Keep that result only when no
+            // remaining matching invocation would be skipped by cancellation.
+            if (context.signal.aborted && hasAcknowledgedCommandCommit(context) && !isOutcome(handled)) {
+                const remaining = ordinary.slice(index + 1).some(next =>
+                    !control(next) && next !== context.response && (matching.get(next)?.length ?? 0) > 0);
+                if (handlerIndex === matched.length - 1 && !remaining) break outer;
+            }
             throwIfCanceled(context, 'Command canceled');
             if (!isOutcome(handled)) continue;
             if (handled.kind === 'denied') { authorized = false; reason = handled.reason ?? ''; break outer; }
@@ -79,7 +98,7 @@ export async function processCommandResponse(context: CommandContext, leaves: re
             }
         }
     }
-    if (!classificationOnly) throwIfCanceled(context, 'Command canceled');
+    if (context.signal.aborted && !hasAcknowledgedCommandCommit(context)) throwIfCanceled(context, 'Command canceled');
     return commandResult(context, { response: context.response, isAuthorized: authorized,
         authorizationFailureReason: reason, validationResults: validation, exceptionMessages: failures });
 }

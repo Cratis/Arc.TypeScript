@@ -38,8 +38,9 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
         dynamicAuthorization: typeof definition.authorize === 'function',
         inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
-            const allowed = await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input);
             try {
+                throwIfCanceled(context, 'Query canceled');
+                const allowed = await authorized(definition.authorization, context, serverOptions.authorizationPolicies ?? {}, definition, input);
                 throwIfCanceled(context, 'Query canceled');
                 if (!allowed) return queryResult(context, { isAuthorized: false });
                 const parsed = definition.schema.safeParse(input);

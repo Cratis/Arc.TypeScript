@@ -49,9 +49,10 @@ describe('when canceling after a response handler acknowledges an inline append'
             result = await pending;
         } finally { await server.dispose(); }
     });
-    it('should preserve the successful response without starting the later handler', () => {
+    it('should fail because the later handler did not run without claiming the append was undone', () => {
         calls.should.deep.equal(['append']);
-        result.isSuccess.should.equal(true);
-        result.response!.should.equal('done');
+        result.isSuccess.should.equal(false);
+        (result.response === undefined).should.equal(true);
+        result.exceptionMessages.should.deep.equal(['Error: canceled']);
     });
 });
