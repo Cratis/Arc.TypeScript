@@ -1,14 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { Readable } from 'node:stream';
-import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
-import { TLSSocket } from 'node:tls';
+import { createDispatcher } from './dispatch.js';
 import { fastifyWebSocketMount, registerFastifyWebSockets } from './WebSocketMount.js';
 import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
 import { serverOf } from '@cratis/arc.core/hosting';
 
-const origin = 'http://arc.invalid';
 export interface CratisArcOptions {
     arc: ArcServer | ArcApplication;
     prefix?: string;
@@ -37,55 +34,7 @@ function registerFastifyRoutes(app: FastifyInstance, application: ArcServer | Ar
     app.register(async scoped => {
         scoped.removeAllContentTypeParsers();
         scoped.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, payload, done) => done(null, payload));
-        async function dispatch(request: FastifyRequest, reply: FastifyReply, path: string) {
-            const rawPath = request.raw.url?.split('?')[0];
-            const expected = `${prefix.replace(/\/$/, '')}${path}`;
-            if (rawPath !== expected) return reply.code(404).send();
-            const controller = new AbortController();
-            let streaming = false;
-            const abort = () => controller.abort();
-            const onClose = () => { if (!reply.raw.writableEnded) abort(); };
-            request.raw.on('aborted', abort);
-            reply.raw.on('close', onClose);
-            try {
-                const payload = request.body;
-                const body = Buffer.isBuffer(payload) ? new Uint8Array(payload) : undefined;
-                const raw = request.raw.url ?? expected;
-                const url = new URL(raw, origin);
-                if (url.origin !== origin || url.pathname !== expected) return reply.code(400).send();
-                const incoming = new Request(new URL(`${path}${url.search}`, origin), {
-                    method: request.method, headers: new Headers(request.headers as Record<string, string>),
-                    body: request.method === 'GET' || request.method === 'HEAD' ? undefined : body,
-                    signal: controller.signal
-                });
-                const result = await server.handle(incoming, async () => {
-                    const verified = await native?.(request);
-                    return { ...verified, remoteAddress: verified?.remoteAddress ?? request.raw.socket.remoteAddress,
-                        secure: verified?.secure ?? (request.raw.socket instanceof TLSSocket && request.raw.socket.encrypted === true) };
-                });
-                if (!result) return reply.code(404).send();
-                // Fastify appends Set-Cookie to existing hook cookies itself.
-                result.headers.forEach((value, key) => reply.header(key, value));
-                if (result.headers.get('content-type')?.startsWith('text/event-stream')) {
-                    if (!result.body) throw new Error('Observable query stream has no response body');
-                    streaming = true;
-                    const stream = { abort: () => { controller.abort(); reply.raw.destroy(); } };
-                    streams.add(stream);
-                    reply.raw.once('close', () => {
-                        streams.delete(stream);
-                        request.raw.off('aborted', abort);
-                        reply.raw.off('close', onClose);
-                    });
-                    return reply.code(result.status).send(Readable.fromWeb(result.body as unknown as NodeReadableStream));
-                }
-                return reply.code(result.status).send(await result.text());
-            } finally {
-                if (!streaming) {
-                    request.raw.off('aborted', abort);
-                    reply.raw.off('close', onClose);
-                }
-            }
-        }
+        const dispatch = createDispatcher(server, prefix, native, streams);
         for (const path of server.endpoints.keys()) {
             const operation = server.routes.get(path);
             const upgrades = path === '/.cratis/queries/ws' || operation && 'observable' in operation && operation.observable === true;
