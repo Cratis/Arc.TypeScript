@@ -29,7 +29,7 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     const registeredInterceptors = new Set<Constructor>();
     builder.addArtifactObserver(type => {
         const matched = artifacts.register(type as Constructor);
-        for (const model of artifacts.readModels) {
+        for (const model of artifacts.projectionReadModels) {
             if (registeredInterceptors.has(model) || !hasProjectedCompliance(model, artifacts)) continue;
             registeredInterceptors.add(model);
             const token = serviceToken<ReadModelInterceptor>(`Chronicle read model release: ${model.name}`);

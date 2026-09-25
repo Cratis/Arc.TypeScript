@@ -14,7 +14,8 @@ function containsCompliance(schema: JsonSchema): boolean {
 
 /** Restrict Arc release to Chronicle projections: the SDK already releases reducer reads. */
 export function hasProjectedCompliance(type: Constructor, artifacts: ChronicleArtifacts): boolean {
-    if (!artifacts.readModels.includes(type) || artifacts.reducers.some(reducer => getReducerMetadata(reducer)?.readModel === type)) return false;
+    if (!artifacts.projectionReadModels.includes(type) ||
+        artifacts.reducers.some(reducer => getReducerMetadata(reducer)?.readModel === type)) return false;
     const schema = getReadModelMetadata(type)?.schema ?? JsonSchemaGenerator.generate(type);
     return containsCompliance(schema);
 }

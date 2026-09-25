@@ -44,6 +44,14 @@ export class a_projection {
     constructor() {
         for (const type of [Created, PrivateView, PublicView, ReducedViewReducer]) this.artifacts.register(type);
     }
+    async registeredInterceptors(): Promise<number> {
+        const builder = ArcApplication.createBuilder();
+        builder.withChronicle({ eventStore: 'Test', client: { getEventStore: this.getStore } as unknown as IChronicleClient });
+        builder.add(ReducedViewReducer, PublicView, PrivateView, Created);
+        const application = await builder.build();
+        try { return application.server.options.readModelInterceptors?.length ?? 0; }
+        finally { await application.dispose(); }
+    }
     async query(data: unknown): Promise<QueryResult> {
         const builder = ArcApplication.createBuilder({
             queries: [defineQuery({ name: 'Private', schema: z.object({}), perform: () => data })]
