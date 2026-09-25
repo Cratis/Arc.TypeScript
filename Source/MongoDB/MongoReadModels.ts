@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { queryPage as createQueryPage } from '@cratis/arc.core';
+import { QueryPagingRequired, queryPage as createQueryPage } from '@cratis/arc.core';
 import type { ExecutionContext, PageRequest, QueryOptions, QueryPage } from '@cratis/arc.core';
 import { ObjectId } from 'mongodb';
 import type { CountDocumentsOptions, Document, Filter, FindOptions, WithId } from 'mongodb';
@@ -10,7 +10,9 @@ import type { MongoPageFindOptions } from './MongoPageFindOptions.js';
 
 /** Read-only access to an application-owned collection in an explicitly resolved tenant database. */
 export class MongoReadModels<T extends Document, I> {
+    private readonly maxPageSize: number;
     constructor(private readonly options: MongoReadModelsOptions<T, I>, private readonly collectionName: string) {
+        this.maxPageSize = options.maxPageSize ?? 100;
         if (!collectionName) throw new Error('A collection name is required');
         if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) || options.maxPageSize <= 0))
             throw new RangeError('maxPageSize must be a positive safe integer');
@@ -49,8 +51,9 @@ export class MongoReadModels<T extends Document, I> {
         const sort = sorting ? { [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {})
                 .filter(([field]) => field !== sorting.field)) } : findOptions?.sort;
-        const page = await this.page(context, input, options.paging ?? { page: 0, pageSize: this.options.maxPageSize ?? 100 },
+        const page = await this.page(context, input, options.paging ?? { page: 0, pageSize: this.maxPageSize },
             { ...findOptions, sort });
+        if (!options.paging && page.paging.totalItems > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
         return createQueryPage(page.items, page.paging.totalItems, sorting);
     }
 
@@ -59,7 +62,7 @@ export class MongoReadModels<T extends Document, I> {
             !Number.isSafeInteger(request.pageSize) || request.pageSize <= 0 ||
             !Number.isSafeInteger(request.page * request.pageSize))
             throw new RangeError('Paging requires a nonnegative page and positive pageSize within safe integer bounds');
-        if (request.pageSize > (this.options.maxPageSize ?? 100)) throw new RangeError('Paging exceeds maxPageSize');
+        if (request.pageSize > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize);
         const sort = options?.sort;
         if (sort !== undefined && (typeof sort !== 'object' || sort === null || Array.isArray(sort) ||
             Object.getPrototypeOf(sort) !== Object.prototype && Object.getPrototypeOf(sort) !== null ||

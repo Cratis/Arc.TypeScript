@@ -17,7 +17,7 @@ Against the running Tasks sample, this answers 200 with the task in `data` and `
 
 ## The body
 
-The body is a JSON object with three recognized properties. Unknown members of the envelope, paging, and sorting objects are ignored:
+The body is a JSON object with three recognized properties. A JSON `null` body, or `null` for any of these properties, is treated as absent. Unknown members of the envelope, paging, and sorting objects are ignored:
 
 ```json
 { "arguments": { "tags": ["urgent"] }, "paging": { "page": 0, "pageSize": 10 }, "sorting": { "field": "title", "direction": "desc" } }
@@ -29,7 +29,7 @@ The body is a JSON object with three recognized properties. Unknown members of t
 | `paging` | `page` and `pageSize`. Nonpositive or missing `pageSize` means unpaged. |
 | `sorting` | `field` and `direction`; a direction without a field is ignored. |
 
-GET and QUERY have different paging rules; see the [request table](model-bound/paging.md#request-parameters). Undeclared argument names are rejected by TypeScript (unlike .NET).
+GET and QUERY have different paging rules; see the [request table](model-bound/paging.md#request-parameters). Undeclared argument names are rejected by TypeScript (unlike .NET). Non-object envelope members and non-string sort fields or directions produce a 400 unreadable-body exception envelope.
 
 ## Turn it off
 

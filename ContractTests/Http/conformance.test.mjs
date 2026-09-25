@@ -232,6 +232,8 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }) },
             { status: 200, body: query(200, { data: [items[2], items[1]], paging: paging(0, 2, 3, 2) }) });
         await queryCount('item query count before rejected requests', 6);
+        await parity('GET ignores negative page when pageSize is nonnumeric', 'GET',
+            '/api/items?page=-1&pageSize=abc', undefined, { status: 200, body: query(200, { data: items }) });
         await queryParity('QUERY rejects invalid sort direction with owning member',
             { sorting: { field: 'name', direction: 'sideways' } }, { status: 400, body: badDirection('sorting.direction') });
         await parity('GET rejects negative page with a paging rule', 'GET', '/api/items?page=-1&pageSize=2', undefined,
@@ -276,16 +278,24 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 200, body: query(200, { data: [...items].reverse() }) });
         await queryParity('QUERY direction without field is unpaged and unsorted', { sorting: { direction: 'desc' } },
             { status: 200, body: query(200, { data: items }) });
-        await queryCount('item query count before malformed QUERY bodies', 20);
+        await parity('GET nonbreaking whitespace is not int32 whitespace', 'GET', '/api/items?page=-1&pageSize=%C2%A02',
+            undefined, { status: 200, body: query(200, { data: items }) });
+        for (const [name, body] of [
+            ['null body', null], ['null paging', { paging: null }],
+            ['null sorting', { sorting: null }], ['null arguments', { arguments: null }]
+        ]) await queryParity(`QUERY ${name} is absent`, body, { status: 200, body: query(200, { data: items }) });
+        await queryCount('item query count before malformed QUERY bodies', 26);
         for (const [name, body] of [
             ['invalid JSON', '{'], ['array body', []], ['wrong-typed paging', { paging: 'wrong' }],
             ['wrong-typed sorting', { sorting: 'wrong' }], ['wrong-typed arguments', { arguments: [] }],
+            ['nonstring sort field', { sorting: { field: 3 } }],
+            ['nonstring sort direction', { sorting: { field: 'name', direction: 3 } }],
             ['nonnumeric page', { paging: { page: 'no', pageSize: 2 } }],
             ['nonnumeric page without size', { paging: { page: 'no' } }],
             ['page beyond int32', { paging: { page: 2147483648, pageSize: 2 } }],
             ['pageSize beyond int32', { paging: { page: 0, pageSize: 2147483648 } }]
         ]) await readerDifference(`QUERY ${name}: .NET and TypeScript redacted exception texts differ`, body);
-        await queryCount('malformed QUERY bodies did not execute item query handler', 20);
+        await queryCount('malformed QUERY bodies did not execute item query handler', 26);
         await divergence('QUERY rejects invalid sorting field only in TypeScript', 'QUERY', '/api/items',
             { sorting: { field: 'name!', direction: 'asc' } },
             { status: 500, body: query(500, { exceptionMessages: netReaderFailure.exceptionMessages }),

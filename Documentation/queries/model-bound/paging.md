@@ -43,7 +43,7 @@ With `Catalog` registered as a singleton, `GET /api/all?pageSize=2&sortBy=name&s
 | --- | --- |
 | GET `pageSize` of 1 or more | Page `page` (zero-based, default 0) of that size |
 | GET `pageSize` of 0 or negative, or `page` negative with any integer size | 400 with a paging rule (`Size` or `Page`); both invalid values report `Page` then `Size` |
-| GET nonnumeric or out-of-int32 `page`/`pageSize` | Defaults to page 0 or unpaged, respectively; leading zeros, `+`, and surrounding whitespace are accepted |
+| GET nonnumeric or out-of-int32 `page`/`pageSize` | Defaults to page 0 or unpaged, respectively; a negative `page` is ignored if `pageSize` cannot be parsed. Leading zeros, `+`, and ASCII integer whitespace are accepted; nonbreaking spaces are not |
 | `QUERY` `paging.pageSize` of 1 or more | Page `paging.page` of that size |
 | `QUERY` with nonpositive `pageSize`, or without `pageSize` | Unpaged; a page without a size is ignored |
 | `QUERY` with nonnumeric or out-of-int32 paging values | 400 exception envelope (redacted unless `exposeExceptionDetails`); even a page without a size must be an integer; the handler does not run |
@@ -64,7 +64,7 @@ Loading every row to page it in memory does not scale. Add `queryOptions()` to r
 - A request that asks for sorting answers 400 unless you pass the applied sort as the third argument, `queryPage(items, totalItems, sorting)`, confirming your data source sorted it. Arc never re-sorts a page it did not cut.
 - `queryPage` throws when `totalItems` is negative, not a safe integer, or smaller than the number of items; the query then fails with a 500.
 
-The [MongoDB](../../mongodb/paging.md) and [Drizzle](../../sql/paging.md) integrations return such pages for you, with sorting pushed into the database. Without paging, their `queryPage` reads at most the configured maximum page size. If more rows exist, the renderer rejects the incomplete unpaged result with 400 rather than returning a misleading partial list.
+The [MongoDB](../../mongodb/paging.md) and [Drizzle](../../sql/paging.md) integrations return such pages for you, with sorting pushed into the database. Without paging, their `queryPage` reads at most the configured maximum page size. If more rows exist, the provider answers 400 with a `rule` result on `Size` asking the caller to request paging, rather than returning a misleading partial list. A requested page size above the provider maximum also answers 400 with a `rule` result on `Size`.
 
 ## Related
 

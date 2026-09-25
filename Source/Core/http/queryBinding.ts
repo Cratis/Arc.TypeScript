@@ -13,10 +13,10 @@ export class QueryValidationError extends BadRequest {
 }
 
 const maxInt32 = 2_147_483_647;
-function getInteger(value: unknown, fallback: number): number {
-    if (typeof value !== 'string' || !/^[+-]?\d+$/.test(value.trim())) return fallback;
+function getInteger(value: unknown): number | undefined {
+    if (typeof value !== 'string' || !/^[\t\n\v\f\r ]*[+-]?\d+[\t\n\v\f\r ]*$/.test(value)) return undefined;
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed >= -maxInt32 - 1 && parsed <= maxInt32 ? parsed : fallback;
+    return Number.isInteger(parsed) && parsed >= -maxInt32 - 1 && parsed <= maxInt32 ? parsed : undefined;
 }
 function bodyInteger(value: unknown, fallback: number): number {
     if (value === undefined || value === null) return fallback;
@@ -28,8 +28,10 @@ function pagingRule(message: string, member: string): never {
     throw new QueryValidationError([{ severity: 3, message, members: [member], reason: 'rule' }]);
 }
 function sort(field: unknown, direction: unknown, member: string): SortRequest | undefined {
+    if (field != null && typeof field !== 'string' || direction != null && typeof direction !== 'string')
+        throw new UnreadableQueryBody();
     if (field == null || field === '') return undefined;
-    if (typeof field !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(field)) throw new BadRequest();
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(field)) throw new BadRequest();
     const normalized = typeof direction === 'string' ? direction.toLowerCase() : direction == null ? 'asc' : '';
     if (!['asc', 'ascending', 'desc', 'descending'].includes(normalized)) {
         throw new QueryValidationError([{ severity: 3, message: 'The sort direction is not a recognized value.',
@@ -100,13 +102,14 @@ export function getQuery(url: URL, schema: z.ZodType, observable = false): { inp
     const page = reserved('page'); const pageSize = reserved('pageSize');
     const field = reserved('sortBy'); const direction = reserved('sortDirection');
     if (observable) { reserved('waitForFirstResult'); reserved('waitForFirstResultTimeout'); }
-    const paging: PageRequest | undefined = pageSize === undefined ? undefined : {
-        page: getInteger(page, 0), pageSize: getInteger(pageSize, 0)
+    const parsedSize = getInteger(pageSize);
+    const paging: PageRequest | undefined = parsedSize === undefined ? undefined : {
+        page: getInteger(page) ?? 0, pageSize: parsedSize
     };
     const errors: ValidationResult[] = [];
     if (paging && paging.page < 0) errors.push({ severity: 3, message: 'Page number must be greater than or equal to 0',
         members: ['Page'], reason: 'rule' });
-    if (pageSize !== undefined && getInteger(pageSize, 1) <= 0) errors.push({ severity: 3,
+    if (paging && paging.pageSize <= 0) errors.push({ severity: 3,
         message: 'Page size must be greater than 0', members: ['Size'], reason: 'rule' });
     if (errors.length) throw new QueryValidationError(errors);
     if (direction !== undefined && field === undefined) throw new BadRequest();
@@ -115,14 +118,14 @@ export function getQuery(url: URL, schema: z.ZodType, observable = false): { inp
     } };
 }
 export function structuredQuery(value: unknown, schema: z.ZodType): { input: unknown; options: QueryOptions } {
-    const envelope = asObject(value);
-    const pagingObject = envelope.paging === undefined ? undefined : asObject(envelope.paging);
-    const sortingObject = envelope.sorting === undefined ? undefined : asObject(envelope.sorting);
+    const envelope = value == null ? {} : asObject(value);
+    const pagingObject = envelope.paging == null ? undefined : asObject(envelope.paging);
+    const sortingObject = envelope.sorting == null ? undefined : asObject(envelope.sorting);
     const size = bodyInteger(pagingObject?.pageSize, 0);
     const page = bodyInteger(pagingObject?.page, 0);
     const paging = size > 0 ? { page, pageSize: size } : undefined;
     if (paging && paging.page < 0) pagingRule('Page number must be greater than or equal to 0', 'Page');
-    return { input: bind(schema, envelope.arguments === undefined ? {} : asObject(envelope.arguments), false), options: {
+    return { input: bind(schema, envelope.arguments == null ? {} : asObject(envelope.arguments), false), options: {
         paging, sorting: sort(sortingObject?.field, sortingObject?.direction, 'sorting.direction')
     } };
 }
