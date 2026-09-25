@@ -67,7 +67,7 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
                 (context as CommandContext).command as { handle(...parameters: unknown[]): unknown };
             const services = await resolveCommandArguments(tokens, context as CommandContext, preparation?.value);
             const result = await instance.handle(...(hasProvider && !typedPreparation ? [preparation!.value] : []), ...services);
-            if (!isOutcome(result)) validateGeneratedReturn(`${type.name}.handle`, metadata.handleResult, result);
+            if (!isOutcome(result)) validateGeneratedReturn(`${type.name}.handle`, metadata.handleValueResult ?? metadata.handleResult, result);
             return result;
         }
     };

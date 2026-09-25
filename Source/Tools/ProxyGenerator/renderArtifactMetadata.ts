@@ -8,6 +8,7 @@ import { MetadataImports } from './MetadataImports.js';
 import { metadataParameter } from './metadataParameter.js';
 import { metadataResult } from './metadataResult.js';
 import { queryResult } from './queryResult.js';
+import { commandResponseType } from './commandResponseType.js';
 
 const callArguments = (expression: ts.Expression | undefined): readonly ts.Expression[] =>
     expression && ts.isCallExpression(expression) ? expression.arguments : [];
@@ -98,12 +99,17 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
     const handleSignature = handle && checker.getSignatureFromDeclaration(handle);
     const handleReturn = handleSignature && (checker.getAwaitedType(checker.getReturnTypeOfSignature(handleSignature)) ??
         checker.getReturnTypeOfSignature(handleSignature));
+    const responseType = handleReturn && commandResponseType(handleReturn, checker, handle!);
+    const responseShape = responseType ? metadataResult(responseType, checker, imports, handle!) :
+        "{ cardinality: 'void', nullable: false }";
+    const valueShape = handleReturn && (responseType === handleReturn ? responseShape :
+        metadataResult(handleReturn, checker, imports, handle!, false, undefined, false));
     return `{ type: ${type}, signature: ${JSON.stringify(signature)}, metadata: {` +
         `${isCommand ? ' command: true,' : ''}${isModel ? ' readModel: true,' : ''}` +
         `${summary(declaration) ? ` summary: ${JSON.stringify(summary(declaration))},` : ''}` +
         `${queries.some(query => summary(query)) ? ` methodSummaries: new Map([${queries.filter(query => summary(query))
             .map(query => `[${JSON.stringify(query.name.getText())}, ${JSON.stringify(summary(query))}]`).join(', ')}]),` : ''}` +
-        `${handleReturn ? ` handleResult: ${metadataResult(handleReturn, checker, imports, handle!)},` : ''}` +
+        `${handleReturn ? ` handleResult: ${responseShape},${valueShape !== responseShape ? ` handleValueResult: ${valueShape},` : ''}` : ''}` +
         `${handle && injected.some(entry => entry.startsWith("['handle'")) ? ` handleParameters: ${handle.parameters.length - Number(!!provide)},` : ''}` +
         `${provide && injected.some(entry => entry.startsWith("['provide'")) ? ` provideParameters: ${provide.parameters.length},` : ''}` +
         `${injected.length ? ` generatedBindings: true, injected: new Map([${injected.join(', ')}]),` : ''}` +

@@ -30,6 +30,10 @@ The generator shares Arc's discovery walk: only exported classes under `--artifa
 | `QueryPage<T>` | A paged query of `T` |
 | RxJS `Observable<T>`, `Subject<T>`, `BehaviorSubject<T>`, `ReplaySubject<T>`, `ObservableSource<T>`, or `AsyncIterable<T>` | An observable query of `T`; RxJS types must resolve to symbols declared by the `rxjs` package |
 | An array | An enumerable result; the generator emits the array generic that matches the runtime constructor |
+| A command returning a Chronicle `@eventType()` value or array, `eventForEventSourceId(...)`, `EventsWithConcurrencyScopes`, `AggregateRootCommitResult`, or Arc `CommandOperation(s)` | No client response (`Command<ICommand>`); these values are consumed on the server |
+| A command returning `eventSourceIdResponse(id)` | The id value type (currently `string`); the Chronicle handler replaces the wrapper with the id when appending events |
+| A command returning `tuple(...)` / `ArcTuple` | The single non-handled element, or no response if all elements are handled; multiple non-handled elements fail generation |
+| A command returning `Promise<T>` or a union of handled and one visible type | Unwrap the promise and select the visible type |
 
 ## Field behavior
 
@@ -39,7 +43,7 @@ Query arguments need explicit `@query(argument(...))` descriptors. Standard-mode
 
 ## Diagnostics
 
-An unsupported result type or an unbound query parameter fails with a file and line location instead of falling back to `any`. Model identities include namespace and class name; the generator emits same-named models from different folders to their respective namespace folders. Two models that resolve to the same namespace and name still fail with `Ambiguous model name`. Import aliases for two different models with the same class name in one generated file are not supported.
+An unsupported result type, multiple unhandled tuple values, ambiguous visible union alternatives, a bare array of command operations, or an unbound query parameter fails with a file and line location instead of falling back to `any`. Event detection resolves Chronicle's decorator symbol, so a locally defined decorator named `eventType` does not make a class server-handled. Ordinary arrays are not tuples; only arrays entirely of decorated events are omitted. Model identities include namespace and class name; the generator emits same-named models from different folders to their respective namespace folders. Two models that resolve to the same namespace and name still fail with `Ambiguous model name`. Import aliases for two different models with the same class name in one generated file are not supported.
 
 ## Related
 

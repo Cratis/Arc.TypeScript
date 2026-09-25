@@ -10,6 +10,8 @@ import type { GeneratedReturn } from './GeneratedReturn.js';
 export interface ArtifactMetadata {
     command?: boolean;
     handleResult?: GeneratedReturn;
+    /** Declared handle value before response handlers consume it; used for return validation. */
+    handleValueResult?: GeneratedReturn;
     responseValueHandler?: boolean;
     queryRenderer?: boolean;
     readModelInterceptor?: boolean;
