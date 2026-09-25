@@ -22,5 +22,13 @@ cleanup() {
 trap cleanup EXIT
 
 git clone --quiet --no-local --single-branch --branch "$branch" "$PWD" "$clone"
-docker run --rm --name "$container" --mount "type=bind,src=$clone,dst=/workspace" --workdir /workspace node:22.19.0 \
-    sh -lc 'apt-get update -qq && apt-get install -y -qq --no-install-recommends lsof && corepack enable && yarn install --immutable && yarn ci'
+network=()
+if [[ "$(uname -s)" == Darwin ]]; then
+    network=(-e CHRONICLE_HOST=host.docker.internal)
+else
+    network=(--network host)
+fi
+docker run --rm --name "$container" --mount "type=bind,src=$clone,dst=/workspace" \
+    --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+    "${network[@]}" --workdir /workspace node:22.19.0 \
+    sh -lc 'apt-get update -qq && apt-get install -y -qq --no-install-recommends docker.io lsof curl && corepack enable && yarn install --immutable && yarn ci'

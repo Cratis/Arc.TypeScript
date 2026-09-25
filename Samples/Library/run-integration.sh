@@ -22,9 +22,10 @@ trap 'exit 143' TERM
 yarn workspace @cratis/arc.sample.library build
 container_id=$(docker run -d --name "arc-library-chronicle-$$" -p 127.0.0.1::35000 cratis/chronicle:latest-development)
 port=$(docker port "$container_id" 35000/tcp)
+chronicle_host=${CHRONICLE_HOST:-localhost}
 ready=0
 for attempt in $(seq 1 90); do
-    if curl -kfsS --max-time 2 "https://localhost:${port##*:}/" >/dev/null 2>&1; then ready=1; break; fi
+    if curl -kfsS --max-time 2 "https://${chronicle_host}:${port##*:}/" >/dev/null 2>&1; then ready=1; break; fi
     sleep 1
 done
 if [ "$ready" -ne 1 ]; then
@@ -32,5 +33,5 @@ if [ "$ready" -ne 1 ]; then
     docker logs "$container_id" >&2
     exit 2
 fi
-CHRONICLE_URL="chronicle://localhost:${port##*:}" \
+CHRONICLE_URL="chronicle://${chronicle_host}:${port##*:}" \
     node --import tsx --test --test-force-exit Samples/Library/e2e.test.mjs
