@@ -16,12 +16,14 @@ import { CommandContextValues } from './CommandContextValues.js';
 import { commandFailure, executeCommandOperation } from './executeCommandOperation.js';
 import { runCommandFilters } from './runCommandFilters.js';
 import type { CommandContext } from './CommandContext.js';
+import { withOperationName } from '../execution/withOperationName.js';
 
 enum CommandOperationMode { Execute, Validate }
 
 /** Compile a command into the shared direct and HTTP execution pipeline. */
 export function commandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, route: string,
     options: ArcOptions = {}): Operation {
+    const operationName = fullyQualifiedName(definition);
     const invoke = async (input: unknown, execution: ExecutionContext, mode: CommandOperationMode): Promise<CommandResult> => {
         if (!await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input))
             return commandResult(execution, { isAuthorized: false });
@@ -31,14 +33,16 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
                 if (definition.authorize && !await definition.authorize(parsed.data, execution))
                     return commandResult(execution, { isAuthorized: false });
             } catch (error) {
-                return commandFailure({ ...execution, command: parsed.data, key: undefined, values: new CommandContextValues() }, error);
+                return commandFailure(withOperationName({ ...execution, command: parsed.data, key: undefined,
+                    values: new CommandContextValues() }, operationName), error);
             }
         }
-        const minimalContext: CommandContext = { ...execution, command: input, key: undefined,
-            values: new CommandContextValues(), readModelResolvers: options.readModelForCommandResolvers };
+        const minimalContext: CommandContext = withOperationName({ ...execution, command: input, key: undefined,
+            values: new CommandContextValues(), readModelResolvers: options.readModelForCommandResolvers }, operationName);
         let context: CommandContext = minimalContext;
         if (parsed.success) {
-            try { context = await createCommandContext(definition.commandFactory?.(parsed.data) ?? parsed.data, execution, options); }
+            try { context = withOperationName(
+                await createCommandContext(definition.commandFactory?.(parsed.data) ?? parsed.data, execution, options), operationName); }
             catch (error) { return commandFailure(minimalContext, error); }
         }
         const authorization = await runCommandFilters(context, options, true);
@@ -53,7 +57,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
     };
     return {
-        ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: fullyQualifiedName(definition),
+        ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: operationName,
         dynamicAuthorization: typeof definition.authorize === 'function',
         inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
         run: (input, execution) => invoke(input, execution, CommandOperationMode.Execute),

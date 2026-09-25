@@ -5,6 +5,8 @@ import type { QueryOptions } from './QueryOptions.js';
 
 /** The bound query and caller shared by admission and ordinary query filters. */
 export interface QueryContext extends ExecutionContext {
+    /** The declared, namespace-qualified operation name on framework-created contexts; absent on manual contexts. */
+    readonly operationName?: string;
     readonly query: unknown;
     readonly options: QueryOptions;
 }

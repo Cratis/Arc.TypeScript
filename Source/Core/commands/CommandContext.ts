@@ -6,6 +6,8 @@ import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier
 import type { ReadModelForCommandResolver } from './ReadModelForCommandResolver.js';
 /** A command's identity and values, shared by filters, handlers, scopes, and response handlers. */
 export interface CommandContext extends ExecutionContext {
+    /** The declared, namespace-qualified operation name on framework-created contexts; absent on manual contexts. */
+    readonly operationName?: string;
     readonly command: unknown;
     readonly key: string | undefined;
     readonly values: CommandContextValues;

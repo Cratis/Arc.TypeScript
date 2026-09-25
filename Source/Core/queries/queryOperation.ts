@@ -21,6 +21,7 @@ import { QueryPagingRequired } from './QueryPagingRequired.js';
 import { validation } from '../validation/ValidationResult.js';
 import { runQueryFilters } from './runQueryFilters.js';
 import type { QueryContext } from './QueryContext.js';
+import { withOperationName } from '../execution/withOperationName.js';
 
 function querySchema(schema: z.ZodType): Record<string, unknown> {
     const json = z.toJSONSchema(schema);
@@ -30,8 +31,9 @@ function querySchema(schema: z.ZodType): Record<string, unknown> {
 }
 export function queryOperation<S extends z.ZodType, T>(definition: QueryDefinition<S, T>, route: string,
     observable = false, serverOptions: ArcOptions = {}): Operation {
+    const operationName = fullyQualifiedName(definition);
     return {
-        ...definition, kind: ClientOperationKind.Query, route, fullyQualifiedName: fullyQualifiedName(definition),
+        ...definition, kind: ClientOperationKind.Query, route, fullyQualifiedName: operationName,
         dynamicAuthorization: typeof definition.authorize === 'function',
         inputSchema: definition.wireInputSchema ?? querySchema(definition.schema),
         async run(input, context, options = {}): Promise<QueryResult> {
@@ -40,7 +42,8 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
             try {
                 if (parsed.success && definition.authorize && !await definition.authorize(parsed.data, context))
                     return queryResult(context, { isAuthorized: false });
-                const filterContext: QueryContext = { ...context, query: parsed.success ? parsed.data : input, options };
+                const filterContext: QueryContext = withOperationName(
+                    { ...context, query: parsed.success ? parsed.data : input, options }, operationName);
                 const admission = await runQueryFilters(filterContext, serverOptions, true);
                 if (!admission.isSuccess) return admission;
                 if (!parsed.success) return queryResult(context, { validationResults: malformed(context) });
@@ -52,7 +55,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
                     issues = await observe('cratis.arc.query.filter', context.correlationId,
-                        { query_name: fullyQualifiedName(definition) }, () =>
+                        { query_name: operationName }, () =>
                             validate([definition.validate, ...(definition.filters ?? [])], value, context));
                 } catch (error) {
                     if (context.signal.aborted) throw error;
