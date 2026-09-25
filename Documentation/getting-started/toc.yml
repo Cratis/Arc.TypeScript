@@ -2,5 +2,7 @@
   href: index.md
 - name: Your first command
   href: your-first-command.md
+- name: Continue in the browser
+  href: continue-in-the-browser.md
 - name: Explore the Library sample
   href: library-sample.md
