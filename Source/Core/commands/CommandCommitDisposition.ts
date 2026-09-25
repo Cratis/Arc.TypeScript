@@ -1,16 +1,15 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-/** Explicit business-commit facts from the sole deferred commit participant. */
-/** Observed disposition of the command's coordinated commit. */
+/** Integration-reported facts about the coordinated business commit, independent of command success. */
 export enum CommandCommitDisposition {
-    /** No commit was requested. */
+    /** No coordinated commit participant exists. */
     NoCommit = 'NoCommit',
-    /** The command was not committed. */
+    /** All coordinated changes are known not committed. */
     NotCommitted = 'NotCommitted',
-    /** The command was committed. */
+    /** The coordinated business boundary committed. */
     Committed = 'Committed',
-    /** The commit outcome is unknown. */
+    /** Commitment cannot be established safely. */
     Unknown = 'Unknown',
-    /** Participants reported mixed commit outcomes. */
+    /** Some changes committed and others did not. */
     Mixed = 'Mixed'
 }

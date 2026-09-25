@@ -1,17 +1,17 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-/** Outcome of a command operation's compensation attempt. */
+/** Observed compensation outcome for one started invocation. */
 export enum CommandOperationCompensation {
-    /** No compensation was necessary. */
+    /** Compensation was not required. */
     NotNeeded = 'NotNeeded',
-    /** Compensation finished successfully. */
+    /** The compensator returned. */
     Completed = 'Completed',
-    /** Compensation failed. */
+    /** The compensator threw. */
     Failed = 'Failed',
-    /** The operation does not support compensation. */
+    /** No compensator was declared. */
     NotAvailable = 'NotAvailable',
-    /** The compensation time budget expired. */
+    /** The cooperative recovery budget expired before entry. */
     BudgetExpired = 'BudgetExpired',
-    /** Compensation was suppressed because commitment cannot be ruled out. */
+    /** Commitment facts prohibit automatic reversal. */
     Suppressed = 'Suppressed'
 }

@@ -39,8 +39,8 @@ Extends `CommandExecutionScope` (`begin`, `complete`) with:
 
 | Field | Meaning |
 | --- | --- |
-| `commitDisposition` | The disposition Arc used |
-| `status` | `NotNeeded`, `Completed`, `Incomplete`, `Suppressed`, or `Indeterminate` |
+| `commitDisposition` | The `CommandCommitDisposition` Arc used |
+| `status` | `CommandRecoveryStatus`: `NotNeeded`, `Completed`, `Incomplete`, `Suppressed`, or `Indeterminate` |
 | `startedCount` | Operations entered |
 | `completedCount` | Operations whose `execute` finished |
 | `compensatedCount` | Compensations that finished |
@@ -54,10 +54,13 @@ Extends `CommandExecutionScope` (`begin`, `complete`) with:
 | `invocationIndex` | Position in the executed order |
 | `operationType` | The operation class name |
 | `executionCompleted` | Whether `execute` finished |
-| `compensation` | `NotNeeded`, `Completed`, `Failed`, `NotAvailable`, `BudgetExpired`, or `Suppressed` |
+| `compensation` | `CommandOperationCompensation`: `NotNeeded`, `Completed`, `Failed`, `NotAvailable`, `BudgetExpired`, or `Suppressed` |
 | `compensationFailure` | A description when compensation failed |
 
 `recovery` and `operationOutcomes` are available on direct-call results only; they are never serialized to HTTP JSON.
+
+`CommandOperationFailure.source` is a `CommandOperationFailureSource` (`ResponseHandling`, `Execution`, `Cancellation`,
+or `ScopeCompletion`). It describes where the original failure occurred; the failure snapshot is passed to compensators only.
 
 ## Options
 

@@ -17,6 +17,7 @@ export { CommandOperation } from './CommandOperation.js';
 export { CommandOperations, operations } from './CommandOperations.js';
 export { CommandCommitDisposition } from './CommandCommitDisposition.js';
 export { CommandOperationCompensation } from './CommandOperationCompensation.js';
+export { CommandOperationFailureSource } from './CommandOperationFailureSource.js';
 export { CommandRecoveryStatus } from './CommandRecoveryStatus.js';
 export type { CommandOperationExecutionScope } from './CommandExecutionScope.js';
 export type { CommandOperationFailure } from './CommandOperationFailure.js';
