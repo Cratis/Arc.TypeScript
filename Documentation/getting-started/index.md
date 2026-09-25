@@ -96,5 +96,6 @@ You started a server with no routing code, called a command and two queries over
 ## Next steps
 
 - [Your first command](your-first-command.md) reads the sample file by file and explains what each decorator does.
+- [Vertical slices](../vertical-slices.md) shows how to keep a command, its validator, and any events in one file.
 - [Hosting overview](../overview.md) helps you choose between the standalone host and Express, Fastify, or Hono.
 - [Generate proxies](../proxy-generation/index.md) gives your frontend typed clients for these operations.

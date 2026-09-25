@@ -40,14 +40,14 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.6.0"
+    "@cratis/chronicle": "npm:6.7.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.20.0
-    "@cratis/arc.testing": ^0.20.0
-    "@cratis/chronicle": ^6.6.0
+    "@cratis/arc.core": ^0.21.0
+    "@cratis/arc.testing": ^0.21.0
+    "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
     zod: ^4.1.0
@@ -137,7 +137,7 @@ __metadata:
     postgres: "npm:^3.4.9"
     sql.js: "npm:^1.14.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.20.0
+    "@cratis/arc.core": ^0.21.0
     "@cratis/fundamentals": ^7.19.6
     drizzle-orm: ^0.45.0
   languageName: unknown
@@ -197,7 +197,7 @@ __metadata:
     mongodb: "npm:^6.21.0"
     rxjs: "npm:^7.8.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.20.0
+    "@cratis/arc.core": ^0.21.0
     "@cratis/fundamentals": ^7.19.6
     mongodb: ^6.21.0
     rxjs: ^7.8.2
@@ -228,6 +228,41 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cratis/arc.sample.library.web@workspace:Samples/Library/Web":
+  version: 0.0.0-use.local
+  resolution: "@cratis/arc.sample.library.web@workspace:Samples/Library/Web"
+  dependencies:
+    "@cratis/arc": "npm:22.19.1"
+    "@cratis/arc.react": "npm:22.19.1"
+    "@cratis/fundamentals": "npm:7.19.6"
+    "@types/react": "npm:^19.2.0"
+    "@types/react-dom": "npm:^19.2.0"
+    react: "npm:^19.2.0"
+    react-dom: "npm:^19.2.0"
+    reflect-metadata: "npm:0.2.2"
+    tsyringe: "npm:^4.10.0"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+    vite: "npm:^8.2.2"
+  languageName: unknown
+  linkType: soft
+
+"@cratis/arc.sample.library@workspace:Samples/Library":
+  version: 0.0.0-use.local
+  resolution: "@cratis/arc.sample.library@workspace:Samples/Library"
+  dependencies:
+    "@cratis/arc.chronicle": "workspace:^"
+    "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.express": "workspace:^"
+    "@cratis/arc.testing": "workspace:^"
+    "@cratis/chronicle": "npm:6.7.0"
+    "@cratis/fundamentals": "npm:7.19.6"
+    express: "npm:^5.1.0"
+    rxjs: "npm:^7.8.2"
+    tsx: "npm:^4.20.0"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+  languageName: unknown
+  linkType: soft
+
 "@cratis/arc.testing@workspace:Source/Testing, @cratis/arc.testing@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.testing@workspace:Source/Testing"
@@ -257,9 +292,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.6.0":
-  version: 6.6.0
-  resolution: "@cratis/chronicle@npm:6.6.0"
+"@cratis/chronicle@npm:6.7.0":
+  version: 6.7.0
+  resolution: "@cratis/chronicle@npm:6.7.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
     "@cratis/chronicle.contracts": "npm:19.4.0"
@@ -271,7 +306,7 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/550964cdb550f06c70ec05d0e5671c296042df65cd079de76fa2970a3a16a3991d2ffb070490600f627c716dc65523a12b66e143ee17f8534037664b722d891c
+  checksum: 10c0/1e875d2427938bd3797b762b97d990ee182a51eb3c18b7b2d3caa0a6141903860a43c9206c0c0933223a9bb0729c42693c93c21384f4296cc2a52ab1c04ef780
   languageName: node
   linkType: hard
 
@@ -282,12 +317,14 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.6.0"
+    "@cratis/chronicle": "npm:6.7.0"
     "@cratis/fundamentals": "npm:7.19.6"
+    rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/chronicle": ^6.6.0
+    "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
+    rxjs: ^7.8.2
     zod: ^4.1.0
   languageName: unknown
   linkType: soft
@@ -1728,6 +1765,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react-dom@npm:^19.2.0":
+  version: 19.3.0
+  resolution: "@types/react-dom@npm:19.3.0"
+  peerDependencies:
+    "@types/react": ^19.3.0
+  checksum: 10c0/ce0066d28b62bc6afdd17ca84756b8fbe0f6ffc0c8b1e60739abc30e81510da2edbc1007e6ab3d974d30f5a8c25bb0f7de8d7ce09736c909fe84c0f9aed0b946
+  languageName: node
+  linkType: hard
+
 "@types/react@npm:18.3.28":
   version: 18.3.28
   resolution: "@types/react@npm:18.3.28"
@@ -1735,6 +1781,25 @@ __metadata:
     "@types/prop-types": "npm:*"
     csstype: "npm:^3.2.2"
   checksum: 10c0/683e19cd12b5c691215529af2e32b5ffbaccae3bf0ba93bfafa0e460e8dfee18423afed568be2b8eadf4b837c3749dd296a4f64e2d79f68fa66962c05f5af661
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:^18.3.0":
+  version: 18.3.31
+  resolution: "@types/react@npm:18.3.31"
+  dependencies:
+    "@types/prop-types": "npm:*"
+    csstype: "npm:^3.2.2"
+  checksum: 10c0/44180549dd045f536ececd39e39aacdf828e76adc1c4a90b132f453e23cc370c4648d9102ae401172ebd8fd8b1977a901a39e214e53ec77171b27514b588c179
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:^19.2.0":
+  version: 19.3.0
+  resolution: "@types/react@npm:19.3.0"
+  dependencies:
+    csstype: "npm:^3.2.2"
+  checksum: 10c0/fbcabf303f935ca9f36ed2dcf81751cf84744098c5a683c8a62a0fa7edd31714b48d5c46b12fd0014f7f2dfe4d9ec6de428a850748eec719a70294e51029551b
   languageName: node
   linkType: hard
 
@@ -2377,6 +2442,7 @@ __metadata:
     "@types/express": "npm:^5.0.0"
     "@types/mocha": "npm:^10.0.10"
     "@types/node": "npm:^22.0.0"
+    "@types/react": "npm:^18.3.0"
     "@types/sinon": "npm:^17.0.4"
     "@types/sinon-chai": "npm:^4.0.0"
     "@types/ws": "npm:^8.18.1"
@@ -3043,7 +3109,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"esbuild@npm:^0.28.2":
+"esbuild@npm:^0.28.2, esbuild@npm:~0.28.0":
   version: 0.28.2
   resolution: "esbuild@npm:0.28.2"
   dependencies:
@@ -5383,12 +5449,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-dom@npm:^19.2.0":
+  version: 19.3.0
+  resolution: "react-dom@npm:19.3.0"
+  dependencies:
+    scheduler: "npm:^0.28.0"
+  peerDependencies:
+    react: ^19.3.0
+  checksum: 10c0/c513044b724dd6bfe9500a9682d60973e7f8a48cffba00b6b16d3e910e27dcc459bf71bf0a5c33d7d62a3843ca30de1bd1e2098058aa4ed71f618a24b6061da5
+  languageName: node
+  linkType: hard
+
 "react@npm:18.3.1":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:
     loose-envify: "npm:^1.1.0"
   checksum: 10c0/283e8c5efcf37802c9d1ce767f302dd569dd97a70d9bb8c7be79a789b9902451e0d16334b05d73299b20f048cbc3c7d288bbbde10b701fa194e2089c237dbea3
+  languageName: node
+  linkType: hard
+
+"react@npm:^19.2.0":
+  version: 19.3.0
+  resolution: "react@npm:19.3.0"
+  checksum: 10c0/dd3099c3c43a7122bc01223bb26b0f8d5ba13cca569af6fb94a005fb54fa73223c9cb203bb226d40cfd49a82cbeef2e36ce84062a3a6d5b9fe8f4437694c7b52
   languageName: node
   linkType: hard
 
@@ -5424,7 +5508,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"reflect-metadata@npm:^0.2.2":
+"reflect-metadata@npm:0.2.2, reflect-metadata@npm:^0.2.2":
   version: 0.2.2
   resolution: "reflect-metadata@npm:0.2.2"
   checksum: 10c0/1cd93a15ea291e420204955544637c264c216e7aac527470e393d54b4bb075f10a17e60d8168ec96600c7e0b9fcc0cb0bb6e91c3fbf5b0d8c9056f04e6ac1ec2
@@ -5594,6 +5678,13 @@ __metadata:
   version: 2.1.2
   resolution: "safer-buffer@npm:2.1.2"
   checksum: 10c0/7e3c8b2e88a1841c9671094bbaeebd94448111dd90a81a1f606f3f67708a6ec57763b3b47f06da09fc6054193e0e6709e77325415dc8422b04497a8070fa02d4
+  languageName: node
+  linkType: hard
+
+"scheduler@npm:^0.28.0":
+  version: 0.28.0
+  resolution: "scheduler@npm:0.28.0"
+  checksum: 10c0/783c8e5ce89d41273a02ed6dc0e3d24bd60e05c9e8f7e3adfc6c82e7c69935500d90e343f1ee26d592fc7504e8a2532573c6368def3e93bfe812391fa53efaf4
   languageName: node
   linkType: hard
 
@@ -6030,6 +6121,21 @@ __metadata:
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
+  languageName: node
+  linkType: hard
+
+"tsx@npm:^4.20.0":
+  version: 4.23.15
+  resolution: "tsx@npm:4.23.15"
+  dependencies:
+    esbuild: "npm:~0.28.0"
+    fsevents: "npm:~2.3.3"
+  dependenciesMeta:
+    fsevents:
+      optional: true
+  bin:
+    tsx: dist/cli.mjs
+  checksum: 10c0/3c5fc53e578da87d3a63565286b1ecbb0e01b9bb646daec1957294ef890d14f22cc67bb4b09b5daffab0e7ce0217b1e7645393feb0f524b1ddf26ae9595d7e75
   languageName: node
   linkType: hard
 

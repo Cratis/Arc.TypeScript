@@ -25,6 +25,7 @@
     { "path": "Source/Cratis" },
     { "path": "Source/Testing" },
     { "path": "Source/Tools/ProxyGenerator" },
-    { "path": "Samples/Tasks" }
+    { "path": "Samples/Tasks" },
+    { "path": "Samples/Library" }
   ]
 }

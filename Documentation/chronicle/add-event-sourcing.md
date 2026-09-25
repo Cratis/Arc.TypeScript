@@ -91,7 +91,7 @@ import { LiveCreated, FollowUpLive } from './LiveArtifacts.js';
 @reactor()
 export class LiveCommandReactor {
     liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
-        return Object.assign(new FollowUpLive(), { id: context.eventSourceId, name: event.name });
+        return new FollowUpLive(context.eventSourceId, event.name);
     }
 }
 ```

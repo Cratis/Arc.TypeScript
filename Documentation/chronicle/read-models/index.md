@@ -9,15 +9,14 @@ Chronicle projects events into read models. The integration lets the same class 
 
 ```typescript
 import { field } from '@cratis/fundamentals';
-import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { argument, query, readModel, service } from '@cratis/arc.core';
 import { ChronicleReadModels } from '@cratis/arc.chronicle';
 
 @readModel()
-@chronicleReadModel('ArcTypeScriptLiveView')
 @fromEvent(LiveCreated)
 export class LiveView {
+    static readonly readModelId = 'ArcTypeScriptLiveView';
     @field(String) id = '';
     @field(String) name = '';
 
@@ -28,7 +27,7 @@ export class LiveView {
 }
 ```
 
-This excerpt is from the [kernel suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts), where `LiveCreated` is the event type. A class used by both Arc queries and Chronicle projections needs **both** `@readModel()` decorators; alias one import, as here.
+This excerpt is from the [kernel suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts), where `LiveCreated` is the event type. Arc's `@readModel()` exposes queries. Chronicle 6.7 infers the same model from `@fromEvent` (or a projection/reducer); do not add Chronicle's deprecated `@readModel()` decorator. Set `static readonly readModelId` only when you need to preserve a custom stored identifier.
 
 `ChronicleReadModels` is a tenant-scoped service. Inject it with `service(ChronicleReadModels)` in a query or `@inject(ChronicleReadModels)` in a command, and call `findInstanceById` or `watch`. `watch(type)` returns an RxJS `Observable<ReadModelChangeset<T>>`; unsubscribe when done. `watchIterable(type)` retains the async-iterable path. Chronicle remains an experimental integration.
 
@@ -45,8 +44,8 @@ export class ReadLiveInCommand {
 
 `commandReadModel(LiveView)` loads the model whose ID is the command's `@key()` value, from the tenant's event store. A missing required model becomes a validation failure; `commandReadModel(LiveView, { optional: true })` passes `null` when the SDK reports absence. Without a usable command key, both forms reject the command. The kernel suite verifies both the existing and the missing case.
 
-- Only Chronicle-decorated models in the application's artifact catalog qualify.
-- If MongoDB owns a model instead, `addMongoDB` provides the same hook for its configured `readModels`. Do not register both integrations as owners of one type.
+- Only models identified by Chronicle in the application's artifact catalog qualify.
+- If MongoDB owns a model instead, `withMongoDB` provides the same hook for its configured `readModels`. Do not register both integrations as owners of one type.
 - Read models are not injected into validators. Make an explicit tenant-scoped lookup in a rule when validation needs state.
 
 ## Related

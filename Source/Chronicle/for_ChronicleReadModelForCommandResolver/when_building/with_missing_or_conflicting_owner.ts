@@ -2,14 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
-import { readModel as chronicleModel } from '@cratis/chronicle/readModels';
+import { fromEvent } from '@cratis/chronicle/projections';
 import { ArcApplication, command, commandReadModel, inject, key, readModel } from '@cratis/arc.core';
 import type { ClassType, ReadModelForCommandResolver } from '@cratis/arc.core';
 import type { IChronicleClient } from '@cratis/chronicle';
 import '../../index.js';
 
 @eventType() class Added { @field(String) name = ''; }
-@readModel() @chronicleModel() class View { @field(String) id = ''; }
+@readModel() @fromEvent(Added) class View { @field(String) id = ''; }
 @command() class ReadView {
     @field(String) @key() id = '';
     @inject(commandReadModel(View)) handle(view: View) { return view.id; }

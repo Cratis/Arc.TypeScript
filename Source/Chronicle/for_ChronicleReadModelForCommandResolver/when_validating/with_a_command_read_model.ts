@@ -1,14 +1,16 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
-import { readModel as chronicleModel } from '@cratis/chronicle/readModels';
+import { fromEvent } from '@cratis/chronicle/projections';
+import { eventType } from '@cratis/chronicle/events';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import { ArcApplication, command, CommandValidator, key, readModelForValidation, validator } from '@cratis/arc.core';
 import sinon from 'sinon';
 import { context } from '../../for_ChronicleResponseHandler/given/a_registered_command.js';
 import '../../index.js';
 
-@chronicleModel() class ExistingName { @field(String) id = ''; @field(String) name = ''; }
+@eventType() class NameSet { @field(String) name = ''; }
+@fromEvent(NameSet) class ExistingName { @field(String) id = ''; @field(String) name = ''; }
 @command() class SetName {
     @field(String) @key() id = '';
     @field(String) name = '';
@@ -30,7 +32,9 @@ describe('when validating with a command read model', () => {
     let application: ArcApplication;
     beforeEach(async () => {
         find.reset(); getStore.reset();
-        find.resolves(Object.assign(new ExistingName(), { name: 'Ada' }));
+        const existing = new ExistingName();
+        existing.name = 'Ada';
+        find.resolves(existing);
         getStore.callsFake(async (): Promise<IEventStore> => ({ readModels: { findInstanceById: find } }) as unknown as IEventStore);
         const builder = ArcApplication.createBuilder();
         builder.addChronicle({ eventStore: 'Names', client: { getEventStore: getStore } as unknown as IChronicleClient });

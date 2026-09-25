@@ -7,7 +7,7 @@ A command expresses a change. You declare it as a class: decorated fields are th
 
 ## Declare fields and a handler
 
-The [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTask.ts) is a complete, compiled example:
+The [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/Registration.ts) is a complete, compiled example:
 
 ```typescript
 import { field } from '@cratis/fundamentals';

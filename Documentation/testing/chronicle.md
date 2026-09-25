@@ -20,12 +20,15 @@ import { command, key } from '@cratis/arc.core';
 import { eventSourceType } from '@cratis/arc.chronicle';
 import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
 
-@eventType() class Registered { @field(String) name = ''; }
+@eventType() class Registered {
+    @field(String) name: string;
+    constructor(name: string) { this.name = name; }
+}
 
 @command() @eventSourceType('Task', { concurrency: true }) class Register {
     @field(String) @key() id = '';
     @field(String) name = '';
-    handle(): Registered { return Object.assign(new Registered(), { name: this.name }); }
+    handle(): Registered { return new Registered(this.name); }
 }
 
 const scenario = ChronicleCommandScenario.for(Register, Registered);

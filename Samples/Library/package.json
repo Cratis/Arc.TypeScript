@@ -1,0 +1,26 @@
+{
+  "name": "@cratis/arc.sample.library",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node dist/main.js",
+    "dev": "node dev.mjs",
+    "generate-proxies": "node generate-proxies.mjs",
+    "build": "yarn generate-proxies && ../../node_modules/.bin/tsc -b && yarn workspace @cratis/arc.sample.library.web build",
+    "test:e2e": "bash run-integration.sh"
+  },
+  "dependencies": {
+    "@cratis/arc.chronicle": "workspace:^",
+    "@cratis/arc.core": "workspace:^",
+    "@cratis/arc.express": "workspace:^",
+    "@cratis/arc.testing": "workspace:^",
+    "@cratis/chronicle": "6.7.0",
+    "@cratis/fundamentals": "7.19.6",
+    "express": "^5.1.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}

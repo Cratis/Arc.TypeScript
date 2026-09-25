@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ArcApplication } from '../../index.js';
-import { RegisterTask } from '../../../../Samples/Tasks/Features/Tasks/Registration/RegisterTask.js';
+import { RegisterTask } from '../../../../Samples/Tasks/Features/Tasks/Registration/Registration.js';
 import { Tasks } from '../../../../Samples/Tasks/Features/Tasks/Tasks.js';
 import { metadata } from '../../../../Samples/Tasks/Features/generatedMetadata.js';
 

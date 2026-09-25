@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ObservableQueryScenario, QueryScenario } from '@cratis/arc.testing';
 import { Tasks } from '../../../Tasks.js';
-import { TaskItem } from '../../TaskItem.js';
+import { TaskItem } from '../../Listing.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
 export class a_task_listing {

@@ -10,6 +10,7 @@
     "Source/*",
     "Source/Tools/*",
     "Samples/*",
+    "Samples/Library/Web",
     "ContractTests/Http",
     "ContractTests/Client"
   ],
@@ -26,14 +27,14 @@
     "test:conformance": "dotnet restore ContractTests/DotNET/HttpFixture.csproj --locked-mode && dotnet build ContractTests/DotNET/HttpFixture.csproj -c Debug --no-restore && yarn build && yarn tsc -p ContractTests/Http/modelBound/tsconfig.json && node --test ContractTests/Http/conformance.test.mjs",
     "typecheck": "tsc -b && tsc -p tsconfig.specs.json",
     "build": "tsc -b && yarn check:metadata",
-    "check:metadata": "node Samples/Tasks/check-metadata.mjs",
+    "check:metadata": "node Samples/Tasks/check-metadata.mjs && node Source/Tools/ProxyGenerator/dist/cli.js --project Samples/Library/tsconfig.json --artifacts Samples/Library/Features --output Samples/Library/Web/src/generated --metadata Samples/Library/Features/generatedMetadata.ts --check-metadata",
     "check:consumers": "node scripts/check-consumers.mjs",
     "check:fetch": "node scripts/check-fetch-runtime.mjs",
     "check:fetch:deno": "node scripts/check-fetch-deno.mjs",
     "set-version": "node scripts/set-version.mjs",
     "test": "vitest run",
     "specs": "yarn test",
-    "ci": "yarn tsc -b Source/Core Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
+    "ci": "yarn tsc -b Source/Core Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
   },
   "devDependencies": {
     "@cratis/fundamentals": "7.19.6",
@@ -48,6 +49,7 @@
     "@types/express": "^5.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
     "@types/sinon": "^17.0.4",
     "@types/sinon-chai": "^4.0.0",
     "@types/ws": "^8.18.1",
