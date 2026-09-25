@@ -40,13 +40,13 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.7.0"
+    "@cratis/chronicle": "npm:6.10.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.30.3
-    "@cratis/arc.testing": ^0.30.3
+    "@cratis/arc.core": ^0.30.4
+    "@cratis/arc.testing": ^0.30.4
     "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
@@ -144,7 +144,7 @@ __metadata:
     postgres: "npm:^3.4.9"
     sql.js: "npm:^1.14.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.30.3
+    "@cratis/arc.core": ^0.30.4
     "@cratis/fundamentals": ^7.19.6
     drizzle-orm: ^0.45.0
   languageName: unknown
@@ -209,7 +209,7 @@ __metadata:
     mongodb: "npm:^6.21.0"
     rxjs: "npm:^7.8.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.30.3
+    "@cratis/arc.core": ^0.30.4
     "@cratis/fundamentals": ^7.19.6
     "@opentelemetry/api": ^1.9.0
     mongodb: ^6.21.0
@@ -268,7 +268,7 @@ __metadata:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.7.0"
+    "@cratis/chronicle": "npm:6.10.0"
     "@cratis/fundamentals": "npm:7.19.6"
     express: "npm:^5.1.0"
     rxjs: "npm:^7.8.2"
@@ -306,21 +306,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.7.0":
-  version: 6.7.0
-  resolution: "@cratis/chronicle@npm:6.7.0"
+"@cratis/chronicle@npm:6.10.0":
+  version: 6.10.0
+  resolution: "@cratis/chronicle@npm:6.10.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
     "@cratis/chronicle.contracts": "npm:19.4.0"
     "@grpc/grpc-js": "npm:^1.14.4"
     "@opentelemetry/api": "npm:^1.9.1"
+    glob: "npm:^13.0.6"
     nice-grpc: "npm:^2.1.17"
     nice-grpc-common: "npm:^2.0.4"
     reflect-metadata: "npm:^0.2.2"
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/1e875d2427938bd3797b762b97d990ee182a51eb3c18b7b2d3caa0a6141903860a43c9206c0c0933223a9bb0729c42693c93c21384f4296cc2a52ab1c04ef780
+  checksum: 10c0/f5f904feba3274ba469d9299184f8f1c4bf32fb86a33aad8c33caaa074040a922c1f5506240f213d4cc6c68dfd87589c3d8c135a2cb56dc58de710b69e31d1b8
   languageName: node
   linkType: hard
 
@@ -331,7 +332,7 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.7.0"
+    "@cratis/chronicle": "npm:6.10.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
@@ -3760,6 +3761,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"glob@npm:^13.0.6":
+  version: 13.0.6
+  resolution: "glob@npm:13.0.6"
+  dependencies:
+    minimatch: "npm:^10.2.2"
+    minipass: "npm:^7.1.3"
+    path-scurry: "npm:^2.0.2"
+  checksum: 10c0/269c236f11a9b50357fe7a8c6aadac667e01deb5242b19c84975628f05f4438d8ee1354bb62c5d6c10f37fd59911b54d7799730633a2786660d8c69f1d18120a
+  languageName: node
+  linkType: hard
+
 "globby@npm:15.0.0":
   version: 15.0.0
   resolution: "globby@npm:15.0.0"
@@ -4350,6 +4362,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lru-cache@npm:^11.0.0":
+  version: 11.5.3
+  resolution: "lru-cache@npm:11.5.3"
+  checksum: 10c0/2ad9bce6343a3544a1fd15364d8b35609aa52b2593d21fdc4877cabfe003b0f3deca4f9d6e9d13262f06e9e3d159de45c0a2f3edfc3adb46192333b5f146d8ed
+  languageName: node
+  linkType: hard
+
 "magic-string@npm:^1.2.3":
   version: 1.4.1
   resolution: "magic-string@npm:1.4.1"
@@ -4799,7 +4818,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minipass@npm:^5.0.0 || ^6.0.2 || ^7.0.0, minipass@npm:^7.0.4, minipass@npm:^7.1.2":
+"minipass@npm:^5.0.0 || ^6.0.2 || ^7.0.0, minipass@npm:^7.0.4, minipass@npm:^7.1.2, minipass@npm:^7.1.3":
   version: 7.1.3
   resolution: "minipass@npm:7.1.3"
   checksum: 10c0/539da88daca16533211ea5a9ee98dc62ff5742f531f54640dd34429e621955e91cc280a91a776026264b7f9f6735947629f920944e9c1558369e8bf22eb33fbb
@@ -5102,6 +5121,16 @@ __metadata:
     lru-cache: "npm:^10.2.0"
     minipass: "npm:^5.0.0 || ^6.0.2 || ^7.0.0"
   checksum: 10c0/32a13711a2a505616ae1cc1b5076801e453e7aae6ac40ab55b388bb91b9d0547a52f5aaceff710ea400205f18691120d4431e520afbe4266b836fadede15872d
+  languageName: node
+  linkType: hard
+
+"path-scurry@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "path-scurry@npm:2.0.2"
+  dependencies:
+    lru-cache: "npm:^11.0.0"
+    minipass: "npm:^7.1.2"
+  checksum: 10c0/b35ad37cf6557a87fd057121ce2be7695380c9138d93e87ae928609da259ea0a170fac6f3ef1eb3ece8a068e8b7f2f3adf5bb2374cf4d4a57fe484954fcc9482
   languageName: node
   linkType: hard
 

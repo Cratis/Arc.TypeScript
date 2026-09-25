@@ -10,11 +10,12 @@ Reactors are part of the Chronicle SDK, `@cratis/chronicle`. The Arc integration
 ## Write a reactor
 
 ```typescript title="ShelfBuilder.ts"
-import { reactor } from '@cratis/chronicle/reactors';
+import { onceOnly, reactor } from '@cratis/chronicle/reactors';
 import type { EventContext } from '@cratis/chronicle/events';
 import { AuthorRegistered } from '../Registration/Registration.js';
 import { CreateShelf } from './CreateShelf.js';
 
+@onceOnly()
 @reactor()
 export class ShelfBuilder {
     authorRegistered(event: AuthorRegistered, context: EventContext): CreateShelf {
@@ -52,7 +53,7 @@ Returning commands and events together in one array fails the handler. Anything 
 
 A handler that throws, or a returned side effect that fails, marks the observer partition for that event source as failed, with the error message. Chronicle's failed-partition handling decides when that event is delivered again. Nothing that already happened is undone, so write handlers that are safe to run twice for the same event.
 
-The TypeScript SDK has no counterpart of .NET's `[OnceOnly]` replay exclusion. Treat every delivery as one that may be repeated.
+Since SDK 6.9.0, reactors run on replay by default. For effects such as returned commands, use `@onceOnly()` on the class to skip all handlers during replay, or on individual methods to skip only those handlers. `@replay()` selects a separate handler for a replayed event. See [Chronicle once-only reactors](/chronicle/reactors/once-only/). These markers do not prevent ordinary re-delivery after a failed partition recovers. Keep the effects safe to repeat; SDK 6.7.x and 6.8.x cannot exclude replay.
 
 ## Topics
 

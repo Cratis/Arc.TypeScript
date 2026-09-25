@@ -55,7 +55,7 @@ Arc's `@readModel()` exposes the queries. Chronicle infers the same class as its
 | `watchIterable(Type)` | The same changes as an async iterable, without RxJS |
 | `getStore()` | The tenant's SDK `IEventStore`, for anything else |
 
-`observeAll` keys the list by each model's `id`. Pass a key selector when your model names its identity differently, or when `id` is a concept, as `allAuthors` does with `author.id.toString()`. Unsubscribe, or let Arc end the subscription, to stop watching.
+`observeAll` keys the list by each model's `id`. Pass a key selector when your model names its identity differently, or when `id` is a concept, as `allAuthors` does with `author.id.toString()`. Unsubscribe, or let Arc end the subscription, to stop watching. SDK 6.9.1 and later omit the empty subscription marker from `watch()`; Arc also filters empty keys for older SDKs in its peer range.
 
 ## Consistency
 

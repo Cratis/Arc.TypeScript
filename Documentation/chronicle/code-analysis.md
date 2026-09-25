@@ -16,7 +16,7 @@ The Arc rules that do exist are listed in [Code analysis](../code-analysis/index
 | ARCCHR0003, reactor reaches the event log | Not checked | A reactor that appends through its own SDK client does so outside the side-effect path. Return events instead; see [Reactors](reactors/index.md). |
 | ARCCHR0004, `[EventType]` repeats the type name | N/A | The SDK falls back to the class name, which a bundler may rename. An explicit ID equal to the class name keeps the stored type stable, so it is not redundant here. |
 | ARCCHR0005, Chronicle used but not registered | Partly caught at runtime | A `commandReadModel(Type)` binding with no owner fails `build()`. A returned event without `withChronicle` is not caught: nothing recognizes it, so it becomes the command's ordinary response, and nothing is appended. |
-| ARCCHR0006, manual reactor command without `[OnceOnly]` | N/A | The TypeScript SDK has neither `[OnceOnly]` nor `[Replay]`. Every reactor handler must be safe to repeat; see [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails). |
+| ARCCHR0006, manual reactor command without `[OnceOnly]` | Not checked | SDK 6.9.0 and later support `@onceOnly()` and `@replay()`, but Arc has no lint rule requiring them. Mark non-replayable effects `@onceOnly()` and keep commands safe for failed-partition re-delivery; see [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails). |
 | ARCCHR0007, command injects the event log | Not checked | A handler can reach `ChronicleReadModels.getStore().eventLog` and append immediately. Such an append is outside the command's batch; see [Transactional commands](commands/transactional-commands.md#what-is-outside-the-batch). |
 | ARCCHR0008, data annotations `[Key]` | N/A | There is one `@key()`, from `@cratis/arc.core`, and Chronicle reads it. |
 | ARCCHR0009, secret-looking command value | Handled at runtime, no lint rule | Values of fields whose names contain `password`, `secret`, `token`, `credential`, or `apiKey` are never recorded in the causation chain. Mark any other secret with `@notAudited()`; see [Causation and auditing](commands/causation.md). |
@@ -27,6 +27,7 @@ The Arc rules that do exist are listed in [Code analysis](../code-analysis/index
 The unchecked rows are the ones a reviewer has to catch:
 
 - a reactor or command that appends through the SDK instead of returning events;
+- a reactor with non-replayable effects that lacks `@onceOnly()` on the class or handler;
 - an application that returns events but never calls `withChronicle`;
 - a command meant to append to an existing entity that returns an ID in a tuple instead of `eventSourceIdResponse`.
 
