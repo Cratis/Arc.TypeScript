@@ -42,6 +42,8 @@ Exit codes:
     2  the check could not run (no `node_modules`, no workspace `tsc`, packages not built)
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import re

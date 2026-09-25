@@ -7,7 +7,7 @@ A search query takes tags, a limit, and a flag. You declare each argument once, 
 
 ## Declare arguments
 
-```typescript
+```typescript title="Item.ts"
 import { field } from '@cratis/fundamentals';
 import { argument, query, readModel } from '@cratis/arc.core';
 

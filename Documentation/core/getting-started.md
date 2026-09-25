@@ -7,22 +7,32 @@ An application builder collects your commands, read models, validators, and serv
 
 ## Create, fill, and build
 
-The [Tasks entry point](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/main.ts) uses a dedicated discovery folder:
+The [Tasks entry point](../getting-started/index.md#see-what-started-the-server) shows discovery, service registration, and generated metadata in one place. For an artifact with no injected parameters, you can also add it explicitly:
+
+```typescript title="Status.ts"
+import { field } from '@cratis/fundamentals';
+import { query, readModel } from '@cratis/arc.core';
+
+@readModel()
+export class Status {
+    @field(String) value = 'ready';
+
+    @query()
+    static current(): Status { return new Status(); }
+}
+```
 
 ```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
-import { Tasks } from './Features/Tasks/Tasks.js';
-import { metadata } from './Features/generatedMetadata.js';
+import { Status } from './Status.js';
 
 const builder = ArcApplication.createBuilder();
-builder.useGeneratedMetadata(metadata);
-builder.services.addSingleton(Tasks);
-await builder.discover(new URL('./Features/', import.meta.url));
+builder.add(Status);
 export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-`useGeneratedMetadata(metadata)` installs the parameter bindings that `arc-proxygenerator --metadata` extracted from the source, so `handle(tasks: Tasks)` and a bare `@query()` need no token lists. Call it before `discover()` or `add()`. Without it, the sample's artifacts would need explicit `@inject(...)` and `@query(...)` tokens, and `build()` rejects them as written. See [Generate artifact metadata](../proxy-generation/generated-artifact-metadata.md).
+The Tasks command and queries do take parameters. In the Tasks bootstrap, `useGeneratedMetadata(metadata)` installs the bindings that `arc-proxygenerator --metadata` extracted from the source, so `handle(tasks: Tasks)` and a bare `@query()` need no token lists. Call it before `discover()` or `add()`. Without it, the sample's artifacts would need explicit `@inject(...)` and `@query(...)` tokens, and `build()` rejects them as written. See [Generate artifact metadata](../proxy-generation/generated-artifact-metadata.md).
 
 The Tasks sample sets `Development` in `Samples/Tasks/appsettings.json`; run the workspace command from its package directory (Yarn does this). `createBuilder` accepts the [configuration options](../configuration/index.md) (`ArcOptions`). `build()` returns an `ArcApplication`, and `app.server` is its `ArcServer`. This TypeScript setup corresponds to C#'s standalone `ArcApplication.CreateBuilder(args)`, `builder.AddCratisArc()`, `builder.Build()`, `app.UseCratisArc()`, `app.RunAsync()`. On Node, `app.run()` performs the standalone host step. For an Arc + Chronicle comparison, see [Add event sourcing](../chronicle/add-event-sourcing.md).
 
