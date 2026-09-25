@@ -5,6 +5,7 @@ import { discoveryFiles } from '@cratis/arc.core';
 import { identifier, isPackageSymbol, originalSymbol } from './sourceSymbols.js';
 import { annotation, classChain, fieldsFor, roles, stringArgument } from './sourceAnnotations.js';
 import { queryResult } from './queryResult.js';
+import { commandResponseType } from './commandResponseType.js';
 import ts from 'typescript';
 import { SourceTypeResolver } from './SourceTypeResolver.js';
 import type { SourceAnalysis } from './SourceAnalysis.js';
@@ -98,10 +99,10 @@ export function analyzeSource(project: string, artifacts: string, rootNamespace 
                     ts.isMethodDeclaration(member) && member.name.getText() === 'handle');
                 if (!handle || !ts.isMethodDeclaration(handle)) throw new Error(`${path}: ${owner} requires handle()`);
                 const result = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(handle)!);
-                const unwrapped = checker.getAwaitedType(result) ?? result;
+                const response = commandResponseType(result, checker, handle);
                 operations.push({ kind: 'command', name: owner, owner, namespace, routeOverride: pathOverride,
                     treatWarningsAsErrors: warningOption(annotation(checker, declaration, 'command'), checker),
-                    roles: classRoles, fields, result: resolver.resolve(unwrapped, handle) });
+                    roles: classRoles, fields, result: response ? resolver.resolve(response, handle) : resolver.resolve(checker.getVoidType(), handle) });
             }
             if (isModel) for (const member of declaration.members) {
                 if (!ts.isMethodDeclaration(member) || !annotation(checker, member, 'query')) continue;
