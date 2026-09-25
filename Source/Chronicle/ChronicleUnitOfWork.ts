@@ -8,6 +8,7 @@ import { recordFailure } from '@cratis/arc.core/hosting';
 import type { CommandCommitDisposition } from '@cratis/arc.core';
 import { checkResults } from './ChronicleCommand.js';
 import type { AggregateRoot } from './AggregateRoot.js';
+import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
 
 const current = new AsyncLocalStorage<ChronicleUnitOfWork>();
 
@@ -49,7 +50,7 @@ export class ChronicleUnitOfWork {
         if (!result.isSuccess) this.#nestedFailure = true;
         return result;
     }
-    async commit(result: CommandResult): Promise<CommandResult> {
+    async commit(result: CommandResult, completionTimeoutMs?: number): Promise<CommandResult> {
         if (this.#completed) throw new Error('Chronicle unit of work has already completed');
         this.#completed = true;
         if (!result.isSuccess) return result;
@@ -63,8 +64,13 @@ export class ChronicleUnitOfWork {
         try {
             this.context.signal.throwIfAborted();
             this.disposition = 'Unknown';
-            const outcome = checkResults(await this.#store!.eventLog.appendMany(entries, options), entries.length);
-            if (!outcome) { this.disposition = 'Committed'; return result; }
+            const appended = await this.#store!.eventLog.appendMany(entries, options);
+            const outcome = checkResults(appended, entries.length);
+            if (!outcome) {
+                this.disposition = 'Committed';
+                await waitForProjectionCompletion(appended, completionTimeoutMs, this.context.signal);
+                return result;
+            }
             if (outcome.kind !== 'validation') throw new Error('Unexpected Chronicle append outcome');
             this.disposition = 'NotCommitted';
             return { ...result, response: undefined, validationResults: outcome.results,

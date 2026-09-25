@@ -6,6 +6,7 @@ import type { AppendOptions, AppendResult, EventForEventSourceId } from '@cratis
 import type { z } from 'zod';
 import type { ChronicleCommandDefinition } from './ChronicleCommandDefinition.js';
 import type { ChronicleProduced } from './ChronicleProduced.js';
+import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
 
 function memberName(propertyName: string): string {
     if (/^[A-Z]{2}/.test(propertyName)) return propertyName;
@@ -59,7 +60,7 @@ export function checkResults(results: readonly AppendResult[], expected: number)
 }
 
 export function defineChronicleCommand<S extends z.ZodType, T>(definition: ChronicleCommandDefinition<S, T>): CommandDefinition<S, T | undefined> {
-    const { client, eventStore, namespaceForContext, produce, ...command } = definition;
+    const { client, eventStore, namespaceForContext, produce, completionTimeoutMs, ...command } = definition;
     if (!eventStore) throw new Error('A Chronicle event store is required');
     return defineCommand<S, T | undefined>({
         ...command,
@@ -90,6 +91,7 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
             : await store.eventLog.appendMany([...events], { correlationId: context.correlationId });
         const failure = checkResults(results, events.length);
         if (failure) return failure;
+        await waitForProjectionCompletion(results, completionTimeoutMs, context.signal);
         return commandResponse;
     }
 }

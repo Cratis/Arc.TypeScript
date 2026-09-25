@@ -14,3 +14,5 @@
   href: low-level-definitions.md
 - name: Chronicle commands
   href: chronicle.md
+- name: Chronicle kernel scenarios
+  href: chronicle-kernel.md

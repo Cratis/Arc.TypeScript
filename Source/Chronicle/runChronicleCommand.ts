@@ -4,6 +4,7 @@ import { causationManager, CausationType } from '@cratis/chronicle/auditing';
 import { CorrelationId, correlationIdManager } from '@cratis/chronicle/correlation';
 import { Identity, identityProvider } from '@cratis/chronicle/identity';
 import { getPIIMetadata, getTypePIIMetadata } from '@cratis/chronicle/compliance';
+import { ConceptAs, Guid, DateOnly, TimeOnly, TimeSpan } from '@cratis/fundamentals';
 import type { CommandContext, CommandResult } from '@cratis/arc.core';
 import { notAuditedFields } from './notAudited.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
@@ -16,9 +17,13 @@ export function runChronicleCommand(context: CommandContext, execute: () => Prom
         for (const [name, value] of Object.entries(command)) {
             if (name === '__proto__' || name === 'constructor' || name === 'prototype' ||
                 notAuditedFields(command.constructor).has(name) || getPIIMetadata(command, name) ||
+                (value !== null && typeof value === 'object' && getTypePIIMetadata(value.constructor)) ||
                 /password|secret|token|credential|apiKey/i.test(name)) continue;
-            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
-                properties[`Value.${name}`] = String(value).slice(0, 1024);
+            const primitive: unknown = value instanceof ConceptAs ? value.value : value;
+            if (typeof primitive === 'string' || typeof primitive === 'number' || typeof primitive === 'boolean' ||
+                typeof primitive === 'bigint' || primitive instanceof Guid || primitive instanceof Date ||
+                primitive instanceof DateOnly || primitive instanceof TimeOnly || primitive instanceof TimeSpan)
+                properties[`Value.${name}`] = (primitive instanceof Date ? primitive.toISOString() : String(primitive)).slice(0, 1024);
         }
     }
     const principal = context.principal;
