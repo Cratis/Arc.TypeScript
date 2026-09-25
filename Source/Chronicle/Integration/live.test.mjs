@@ -26,6 +26,10 @@ import { ChronicleArtifacts } from '../dist/ChronicleArtifacts.js';
 import { reactorCommandResultHandler } from '../dist/reactorCommands.js';
 import '../dist/index.js';
 import * as live from '../dist/Integration/LiveArtifacts.js';
+import { CreatePrivateLive } from '../dist/Integration/CreatePrivateLive.js';
+import { PrivateLiveCreated } from '../dist/Integration/PrivateLiveCreated.js';
+import { PrivateLiveView } from '../dist/Integration/PrivateLiveView.js';
+import { ReadPrivateLiveInCommand } from '../dist/Integration/ReadPrivateLiveInCommand.js';
 const { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
     ReadLiveInCommand, AdvanceLiveWithConcurrentAppend, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView } = live;
 
@@ -39,7 +43,8 @@ trace.setGlobalTracerProvider(provider);
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 const artifacts = new ChronicleArtifacts();
 for (const type of [CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
-    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView]) artifacts.register(type);
+    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView,
+    CreatePrivateLive, PrivateLiveCreated, PrivateLiveView, ReadPrivateLiveInCommand]) artifacts.register(type);
 let application;
 const storeName = `ArcTsLive${randomUUID().replaceAll('-', '')}`;
 const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
@@ -57,7 +62,8 @@ builder.services.addScoped(interceptor, () => ({ model: LiveView, intercept: vie
 } }));
 builder.withChronicle({ client, eventStore: storeName });
 builder.add(CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
-    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView);
+    AdvanceLiveWithConcurrentAppend, ReadLiveInCommand, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView,
+    CreatePrivateLive, PrivateLiveCreated, PrivateLiveView, ReadPrivateLiveInCommand);
 application = await builder.build();
 
 async function host(kind) {
@@ -143,6 +149,41 @@ try {
                 const missing = await call(listener.url, 'read-live-in-command', randomUUID(), tenant, adapter);
                 assert.equal(missing.body.isSuccess, false, JSON.stringify(missing));
                 assert.equal(missing.body.validationResults?.[0]?.reason, 'rule', JSON.stringify(missing));
+                const privateId = randomUUID();
+                const privateName = `private-${adapter}`;
+                const createdPrivate = await call(listener.url, 'create-private-live', privateId, tenant, privateName);
+                assert.equal(createdPrivate.body.isSuccess, true, JSON.stringify(createdPrivate));
+                let storedPrivate = null;
+                for (let attempt = 0; attempt < 40 && !storedPrivate; attempt++) {
+                    storedPrivate = await store.readModels.findInstanceById(PrivateLiveView, privateId);
+                    if (!storedPrivate) await delay(250);
+                }
+                assert.ok(storedPrivate, 'private projection materialized');
+                if (storedPrivate.name === privateName)
+                    console.error(`Kernel materialized PII in plaintext for ${adapter}; this run cannot prove decryption`);
+                const privateQuery = await globalThis.fetch(`${listener.url}/api/by-private-id?id=${privateId}`, {
+                    headers: { 'x-test-tenant': tenant }
+                });
+                assert.equal((await privateQuery.json()).data.name, privateName, 'HTTP snapshot releases projected PII');
+                const privateCommand = await call(listener.url, 'read-private-live-in-command', privateId, tenant, privateName);
+                assert.equal(privateCommand.body.isSuccess, true, JSON.stringify(privateCommand));
+                assert.equal(privateCommand.body.response, privateName, 'command injection releases projected PII');
+                const observable = await globalThis.fetch(`${listener.url}/api/watch-private-id?id=${privateId}`, {
+                    headers: { 'x-test-tenant': tenant, accept: 'text/event-stream' }, signal: AbortSignal.timeout(15000)
+                });
+                assert.equal(observable.status, 200);
+                const reader = observable.body.getReader();
+                try {
+                    const first = new TextDecoder().decode((await reader.read()).value);
+                    assert.equal(JSON.parse(first.slice(first.indexOf('data: ') + 6, first.indexOf('\n\n'))).data.name, privateName,
+                        'observable snapshot releases PII');
+                    const updatedName = `updated-${privateName}`;
+                    const update = await call(listener.url, 'create-private-live', privateId, tenant, updatedName);
+                    assert.equal(update.body.isSuccess, true, JSON.stringify(update));
+                    const next = new TextDecoder().decode((await reader.read()).value);
+                    assert.equal(JSON.parse(next.slice(next.indexOf('data: ') + 6, next.indexOf('\n\n'))).data.name, updatedName,
+                        'observable update releases PII');
+                } finally { await reader.cancel(); }
                 const batchId = randomUUID();
                 const batch = await call(listener.url, 'create-live-batch', batchId, tenant, adapter);
                 assert.equal(batch.body.isSuccess, true, JSON.stringify(batch));
