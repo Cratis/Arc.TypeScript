@@ -1,0 +1,24 @@
+{
+  "name": "@cratis/arc.sample.library.web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "../../../node_modules/.bin/tsc -p tsconfig.json && vite build"
+  },
+  "dependencies": {
+    "@cratis/arc": "22.19.1",
+    "@cratis/arc.react": "22.19.1",
+    "@cratis/fundamentals": "7.19.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "reflect-metadata": "0.2.2",
+    "tsyringe": "^4.10.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.2.2"
+  }
+}

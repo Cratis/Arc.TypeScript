@@ -28,7 +28,7 @@ export class TaskItem {
 }
 ```
 
-This excerpt is from the [Tasks sample read model](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts). `GET /api/tasks/listing/all-tasks` answers with a query result whose `data` holds the tasks.
+This excerpt is from the [Tasks sample read model](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/Listing.ts). `GET /api/tasks/listing/all-tasks` answers with a query result whose `data` holds the tasks.
 
 A read model here is a class describing the shape of what you return. Where the data comes from is your choice: an in-memory service, [MongoDB](../mongodb/index.md), [SQL with Drizzle](../sql/index.md), or a Chronicle projection.
 

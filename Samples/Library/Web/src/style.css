@@ -1,0 +1,18 @@
+/* Copyright (c) Cratis. All rights reserved. Licensed under the MIT license. See LICENSE file in the project root for full license information. */
+:root { font-family: ui-sans-serif, system-ui, sans-serif; color: #203c3a; background: #f2f1e9; }
+* { box-sizing: border-box; } body { margin: 0; } main { max-width: 1050px; margin: auto; padding: 4rem 1.5rem; }
+header { padding: 0 0 2rem; border-bottom: 1px solid #b7c5b9; margin-bottom: 2rem; }
+h1 { font-family: Georgia, serif; font-size: clamp(3rem, 8vw, 5rem); margin: .3rem 0; font-weight: normal; }
+header p { font-size: 1.1rem; color: #576d69; }.eyebrow { font-size: .75rem; letter-spacing: .18em; color: #736747; }
+.layout { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(300px, 1.5fr); gap: 1.5rem; }
+.card { background: #fff; border: 1px solid #d4dcd0; padding: 1.8rem; border-radius: 12px; min-width: 0; }
+h2, h3 { font-family: Georgia, serif; font-weight: normal; margin-top: 0; }h2 { font-size: 1.6rem; }
+label { display: block; font-size: .9rem; margin-bottom: .5rem; }input { padding: .8rem; border: 1px solid #a9b7ab; border-radius: 6px; width: 100%; font: inherit; }
+button { font: inherit; cursor: pointer; border: 0; background: #235b4d; color: #fff; padding: .75rem 1rem; border-radius: 6px; }
+button:disabled { opacity: .45; cursor: default; }form > button { margin-top: .9rem; }form p { min-height: 1.3rem; font-size: .85rem; color: #576d69; }
+.muted { color: #576d69; font-size: .9rem; }.authors, .books { list-style: none; padding: 0; }.authors li { border-top: 1px solid #e1e8df; }
+.author { display: flex; justify-content: space-between; width: 100%; background: none; color: #235b4d; text-align: left; border-radius: 0; }
+.author:hover { background: #f1f6f0; }nav { display: flex; align-items: center; gap: .8rem; }nav span { font-size: .85rem; }
+.shelf { margin-top: 2rem; border-top: 1px solid #d4dcd0; padding-top: 1.4rem; }.books li { padding: .3rem 0; }
+.inline { display: flex; gap: .5rem; }.book-form { margin-top: 1.2rem; }
+@media (max-width: 700px) { .layout { grid-template-columns: 1fr; } main { padding-top: 2rem; } }

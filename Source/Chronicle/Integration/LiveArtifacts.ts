@@ -4,7 +4,6 @@ import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { reactor } from '@cratis/chronicle/reactors';
 import type { EventContext } from '@cratis/chronicle/events';
-import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { command, key, readModel, query, argument, service, inject, commandReadModel, commandContext, CommandOperation, tuple } from '@cratis/arc.core';
 import type { CommandContext } from '@cratis/arc.core';
@@ -16,22 +15,23 @@ import { commandAggregate } from '../commandAggregate.js';
 import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 
 @eventType('ArcTypeScriptLiveCreated')
-export class LiveCreated { @field(String) name = ''; }
+export class LiveCreated { @field(String) name: string; constructor(name: string) { this.name = name; } }
 
 @eventType('ArcTypeScriptLiveFollowedUp')
-export class LiveFollowedUp { @field(String) name = ''; }
+export class LiveFollowedUp { @field(String) name: string; constructor(name: string) { this.name = name; } }
 
 @command()
 export class FollowUpLive {
     @field(String) @key() id = '';
     @field(String) name = '';
-    handle(): LiveFollowedUp { return Object.assign(new LiveFollowedUp(), { name: this.name }); }
+    constructor(id = '', name = '') { this.id = id; this.name = name; }
+    handle(): LiveFollowedUp { return new LiveFollowedUp(this.name); }
 }
 
 @reactor('ArcTypeScriptLiveCommandReactor')
 export class LiveCommandReactor {
     liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
-        return Object.assign(new FollowUpLive(), { id: context.eventSourceId, name: event.name });
+        return new FollowUpLive(context.eventSourceId, event.name);
     }
 }
 
@@ -39,7 +39,7 @@ export class LiveCommandReactor {
 export class CreateLive {
     @field(String) @key() id = '';
     @field(String) name = '';
-    handle(): LiveCreated { return Object.assign(new LiveCreated(), { name: this.name }); }
+    handle(): LiveCreated { return new LiveCreated(this.name); }
 }
 
 @command()
@@ -47,7 +47,7 @@ export class CreateLiveExactlyOnce {
     @field(String) @key() id = '';
     @field(String) name = '';
     handle() {
-        return eventsWithConcurrencyScopes([Object.assign(new LiveCreated(), { name: this.name })], {
+        return eventsWithConcurrencyScopes([new LiveCreated(this.name)], {
             [this.id]: { eventSourceId: true, sequenceNumber: EventSequenceNumber.beforeFirst.value }
         });
     }
@@ -65,7 +65,7 @@ export class AdvanceLive {
     @inject(commandAggregate(LiveAggregate))
     handle(aggregate: LiveAggregate) {
         if (aggregate.count !== 1) throw new Error('Live aggregate was not rehydrated');
-        aggregate.apply(Object.assign(new LiveCreated(), { name: this.name }));
+        aggregate.apply(new LiveCreated(this.name));
         return aggregate.commit();
     }
 }
@@ -78,9 +78,9 @@ export class AdvanceLiveWithConcurrentAppend {
     async handle(aggregate: LiveAggregate, context: CommandContext, runtime: ChronicleRuntime) {
         if (aggregate.count !== 1) throw new Error('Live aggregate was not rehydrated');
         const store = await runtime.getStore(context);
-        const competing = await store.eventLog.append(this.id, Object.assign(new LiveCreated(), { name: 'competitor' }));
+        const competing = await store.eventLog.append(this.id, new LiveCreated('competitor'));
         if (!competing.isSuccess) throw new Error('Competing append failed');
-        aggregate.apply(Object.assign(new LiveCreated(), { name: this.name }));
+        aggregate.apply(new LiveCreated(this.name));
         return aggregate.commit();
     }
 }
@@ -98,16 +98,16 @@ export class CreateLiveWithOperation {
     handle() {
         liveOperationExecuted = false;
         liveOperationCompensated = false;
-        return tuple(eventsWithConcurrencyScopes([Object.assign(new LiveCreated(), { name: this.name })], {
+        return tuple(eventsWithConcurrencyScopes([new LiveCreated(this.name)], {
             [this.id]: { eventSourceId: true, sequenceNumber: EventSequenceNumber.beforeFirst.value }
         }), new LiveOperation());
     }
 }
 
 @readModel()
-@chronicleReadModel('ArcTypeScriptLiveView')
 @fromEvent(LiveCreated)
 export class LiveView {
+    static readonly readModelId = 'ArcTypeScriptLiveView';
     @field(String) id = '';
     @field(String) name = '';
     @query(argument('id', String), service(ChronicleReadModels))
@@ -127,6 +127,5 @@ export class ReadLiveInCommand {
 export class CreateLiveBatch {
     @field(String) @key() id = '';
     @field(String) name = '';
-    handle(): LiveCreated[] { return [Object.assign(new LiveCreated(), { name: this.name }),
-        Object.assign(new LiveCreated(), { name: this.name })]; }
+    handle(): LiveCreated[] { return [new LiveCreated(this.name), new LiveCreated(this.name)]; }
 }

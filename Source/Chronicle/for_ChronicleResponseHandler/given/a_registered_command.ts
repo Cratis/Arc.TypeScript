@@ -12,12 +12,12 @@ import { accepted } from '../../for_ChronicleCommand/given/a_command_with_typed_
 import { eventSourceIdResponse, notAudited } from '../../index.js';
 
 @eventType()
-export class Created { @field(String) name = ''; }
+export class Created { @field(String) name: string; constructor(name = '') { this.name = name; } }
 @command()
 export class Create {
     @field(String) @key() id = '';
     @field(String) name = '';
-    handle(): Created { return Object.assign(new Created(), { name: this.name }); }
+    handle(): Created { return new Created(this.name); }
 }
 @command()
 export class CreateRejected {
@@ -52,7 +52,7 @@ export class ReturnEventShapedData {
 @command()
 export class CreateWithResponse {
     @field(String) name = '';
-    handle() { return tuple(eventSourceIdResponse('created-1'), Object.assign(new Created(), { name: this.name })); }
+    handle() { return tuple(eventSourceIdResponse('created-1'), new Created(this.name)); }
 }
 export let operationExecuted = false;
 export let operationCompensated = false;

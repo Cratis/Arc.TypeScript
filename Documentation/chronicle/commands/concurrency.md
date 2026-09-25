@@ -18,7 +18,7 @@ export class CreateLiveExactlyOnce {
     @field(String) @key() id = '';
     @field(String) name = '';
     handle() {
-        return eventsWithConcurrencyScopes([Object.assign(new LiveCreated(), { name: this.name })], {
+        return eventsWithConcurrencyScopes([new LiveCreated(this.name)], {
             [this.id]: { eventSourceId: true, sequenceNumber: EventSequenceNumber.beforeFirst.value }
         });
     }

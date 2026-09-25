@@ -1,0 +1,9 @@
+# Copyright (c) Cratis. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+services:
+  # The development image includes MongoDB for Chronicle's event store and read-model sink.
+  chronicle:
+    image: cratis/chronicle:latest-development
+    ports:
+      - "127.0.0.1:35000:35000"
+      - "127.0.0.1:27017:27017"

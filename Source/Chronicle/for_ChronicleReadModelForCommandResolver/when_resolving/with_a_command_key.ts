@@ -1,7 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { field } from '@cratis/fundamentals';
-import { readModel as chronicleModel } from '@cratis/chronicle/readModels';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { eventType } from '@cratis/chronicle/events';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
@@ -11,7 +10,7 @@ import { context } from '../../for_ChronicleResponseHandler/given/a_registered_c
 import '../../index.js';
 
 @eventType() class AuthorAdded { @field(String) name = ''; }
-@readModel() @chronicleModel() @fromEvent(AuthorAdded)
+@readModel() @fromEvent(AuthorAdded)
 class Author { @field(String) id = ''; @field(String) name = ''; }
 @command() class RenameAuthor {
     @field(String) @key() id = '';
@@ -51,7 +50,10 @@ describe('when resolving a Chronicle read model by the command key', () => {
     beforeEach(async () => {
         find.reset();
         getStore.reset();
-        find.resolves(Object.assign(new Author(), { id: 'author-1', name: 'Ada' }));
+        const author = new Author();
+        author.id = 'author-1';
+        author.name = 'Ada';
+        find.resolves(author);
         getStore.callsFake(async (): Promise<IEventStore> => ({ readModels: { findInstanceById: find } }) as unknown as IEventStore);
         const builder = ArcApplication.createBuilder();
         builder.addChronicle({ eventStore: 'Authors', client: { getEventStore: getStore } as unknown as IChronicleClient });

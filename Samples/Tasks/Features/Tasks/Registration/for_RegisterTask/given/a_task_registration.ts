@@ -2,8 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { CommandScenario } from '@cratis/arc.testing';
 import { Tasks } from '../../../Tasks.js';
-import { RegisterTask } from '../../RegisterTask.js';
-import { RegisterTaskValidator } from '../../RegisterTaskValidator.js';
+import { RegisterTask, RegisterTaskValidator } from '../../Registration.js';
 import { metadata } from '../../../../generatedMetadata.js';
 
 export class a_task_registration {

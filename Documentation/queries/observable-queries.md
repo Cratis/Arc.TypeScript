@@ -7,7 +7,7 @@ A task board should update when someone adds a task, without the browser polling
 
 ## Declare an observable query
 
-The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/TaskItem.ts) marks its live list with `{ observable: true }` and returns a source:
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/Listing.ts) marks its live list with `{ observable: true }` and returns a source:
 
 ```typescript
 @query({ observable: true }, service(Tasks))

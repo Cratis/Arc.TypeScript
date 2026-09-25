@@ -7,7 +7,7 @@ A task title arrives as a string, but it must not be blank. The wire type goes o
 
 ## Add a command rule
 
-The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/RegisterTaskValidator.ts) declares a validator beside `RegisterTask`:
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Registration/Registration.ts) declares a validator beside `RegisterTask`:
 
 ```typescript
 import { CommandValidator, validator } from '@cratis/arc.core';

@@ -30,9 +30,9 @@ TypeScript erases the generic argument of `ConceptAs<T>` at runtime, so `static 
 
 A command is a class. Its decorated fields are the input, and `handle()` is the work:
 
-```typescript title="Features/Tasks/Registration/RegisterTask.ts"
+```typescript title="Features/Tasks/Registration/Registration.ts"
 import { field } from '@cratis/fundamentals';
-import { command, inject } from '@cratis/arc.core';
+import { command, CommandValidator, validator } from '@cratis/arc.core';
 import { TaskId } from '../TaskId.js';
 import { TaskTitle } from '../TaskTitle.js';
 import { Tasks } from '../Tasks.js';
@@ -42,27 +42,11 @@ export class RegisterTask {
     @field(TaskId) id!: TaskId;
     @field(TaskTitle) title!: TaskTitle;
 
-    @inject(Tasks)
     handle(tasks: Tasks): TaskId {
         tasks.register(this.id, this.title);
         return this.id;
     }
 }
-```
-
-Here is what happens that you do not see. Arc reads the JSON body, checks it against the schema derived from the `@field` declarations, and turns the strings into a `TaskId` and a `TaskTitle` on a fresh `RegisterTask` instance. It opens a service scope, resolves `Tasks`, and calls `handle()`. The returned `TaskId` becomes the result's `response`, encoded back to a string.
-
-`@inject(Tasks)` lists the service for each `handle()` parameter in order. TypeScript does not keep parameter types at runtime, so the token list is how Arc knows what to pass. [Dependency injection](../dependency-injection.md) explains the lifetimes.
-
-The route comes from the folder: the sample discovers artifacts under `Features/`, so `Tasks/Registration/RegisterTask.ts` becomes `/api/tasks/registration/register-task`. [Endpoint mapping](../core/endpoint-mapping.md) shows how to keep a route stable when you move a file.
-
-## Guard the input with rules
-
-A title must not be blank. That is a business rule, so it goes in a validator next to the command:
-
-```typescript title="Features/Tasks/Registration/RegisterTaskValidator.ts"
-import { CommandValidator, validator } from '@cratis/arc.core';
-import { RegisterTask } from './RegisterTask.js';
 
 @validator(RegisterTask)
 export class RegisterTaskValidator extends CommandValidator<RegisterTask> {
@@ -73,6 +57,16 @@ export class RegisterTaskValidator extends CommandValidator<RegisterTask> {
     }
 }
 ```
+
+Here is what happens that you do not see. Arc reads the JSON body, checks it against the schema derived from the `@field` declarations, and turns the strings into a `TaskId` and a `TaskTitle` on a fresh `RegisterTask` instance. It opens a service scope, resolves `Tasks`, and calls `handle()`. The returned `TaskId` becomes the result's `response`, encoded back to a string.
+
+Generated metadata lists the `Tasks` service for `handle()`: TypeScript does not keep parameter types at runtime. Without generated metadata, mark the method with `@inject(Tasks)`. [Dependency injection](../dependency-injection.md) explains the lifetimes.
+
+The route comes from the folder: the sample discovers artifacts under `Features/`, so `Tasks/Registration/Registration.ts` becomes `/api/tasks/registration/register-task`. [Endpoint mapping](../core/endpoint-mapping.md) shows how to keep a route stable when you move a file.
+
+## Guard the input with rules
+
+A title must not be blank. The `RegisterTaskValidator` above lives in the **same** `Registration.ts` as its command. That is the [vertical slice convention](../vertical-slices.md), not a requirement that Arc puts on TypeScript files.
 
 A rule that belongs to the value itself, wherever it appears, goes on the concept:
 
@@ -96,9 +90,9 @@ Arc runs both before `handle()`, and on the `/validate` route. Send `"title":"!L
 
 Queries live on a read model as static methods:
 
-```typescript title="Features/Tasks/Listing/TaskItem.ts"
+```typescript title="Features/Tasks/Listing/Listing.ts"
 import { field } from '@cratis/fundamentals';
-import { argument, query, readModel, service } from '@cratis/arc.core';
+import { query, readModel, service } from '@cratis/arc.core';
 import type { BehaviorSubject } from 'rxjs';
 import { TaskId } from '../TaskId.js';
 import { TaskTitle } from '../TaskTitle.js';
@@ -112,15 +106,15 @@ export class TaskItem {
     @query(service(Tasks))
     static allTasks(tasks: Tasks): TaskItem[] { return tasks.all(); }
 
-    @query(argument('id', TaskId), service(Tasks))
+    @query()
     static taskById(id: TaskId, tasks: Tasks): TaskItem | undefined { return tasks.byId(id); }
 
-    @query({ observable: true }, service(Tasks))
+    @query()
     static observeAllTasks(tasks: Tasks): BehaviorSubject<TaskItem[]> { return tasks.observeAll(); }
 }
 ```
 
-Each `@query(...)` lists one descriptor per parameter, in order: `argument('id', TaskId)` binds the `id` query-string value, and `service(Tasks)` resolves a service. `observeAllTasks` returns a live source, so the same route answers a snapshot on GET and streams updates over server-sent events or WebSockets. The sample's in-memory [`Tasks`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Tasks.ts) service stands in for real storage. [Model-bound queries](../queries/model-bound/index.md) and [observable queries](../queries/observable-queries.md) go further.
+Generated metadata binds `id` from the query string and `Tasks` from the service scope. Without generated metadata, list `argument('id', TaskId)` and `service(Tasks)` in parameter order on `@query(...)`. `observeAllTasks` returns a live source, so the same route answers a snapshot on GET and streams updates over server-sent events or WebSockets. The sample's in-memory [`Tasks`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Tasks.ts) service stands in for real storage. [Model-bound queries](../queries/model-bound/index.md) and [observable queries](../queries/observable-queries.md) go further.
 
 ## Wire it together
 
@@ -129,15 +123,17 @@ The entry point registers the service, discovers the decorated classes, and star
 ```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
+import { metadata } from './Features/generatedMetadata.js';
 
-const builder = ArcApplication.createBuilder({ development: true });
+const builder = ArcApplication.createBuilder();
+builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);
 await builder.discover(new URL('./Features/', import.meta.url));
 export const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-`discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. `development: true` returns exception details to callers; leave it off anywhere a real user can reach.
+`discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` in `appsettings.json`, which returns exception details to callers; leave it off anywhere a real user can reach.
 
 :::caution[The discovery folder must not contain the entry point]
 `discover()` refuses a folder that contains the module currently calling it. Keep your artifacts in a dedicated folder such as `Features/`, as the sample does.
@@ -150,8 +146,7 @@ The sample tests the command through the real pipeline without starting a server
 ```typescript title="Features/Tasks/Registration/for_RegisterTask/given/a_task_registration.ts"
 import { CommandScenario } from '@cratis/arc.testing';
 import { Tasks } from '../../../Tasks.js';
-import { RegisterTask } from '../../RegisterTask.js';
-import { RegisterTaskValidator } from '../../RegisterTaskValidator.js';
+import { RegisterTask, RegisterTaskValidator } from '../../Registration.js';
 
 export class a_task_registration {
     tasks = new Tasks();

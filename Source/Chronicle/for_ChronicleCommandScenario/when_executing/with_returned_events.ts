@@ -6,11 +6,11 @@ import { command, key } from '@cratis/arc.core';
 import { ChronicleCommandScenario } from '../../testing/index.js';
 import { eventSourceType, eventForEventSourceId } from '../../index.js';
 
-@eventType() class Registered { @field(String) name = ''; }
+@eventType() class Registered { @field(String) name: string; constructor(name = '') { this.name = name; } }
 @command() @eventSourceType('Task', { concurrency: true }) class Register {
     @field(String) @key() id = '';
     @field(String) name = '';
-    handle(): Registered { return Object.assign(new Registered(), { name: this.name }); }
+    handle(): Registered { return new Registered(this.name); }
 }
 
 @command() class RegisterRouted {
