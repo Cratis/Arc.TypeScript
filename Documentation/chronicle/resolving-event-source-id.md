@@ -13,7 +13,11 @@ Every event belongs to an event source, such as one task. The integration takes 
 | A `@key()` field | That field's value |
 | Neither | A new UUID for each execution |
 
-The key is the same one Arc resolves for the [command context](../commands/command-context.md#give-a-command-a-key).
+The key is the same one Arc resolves for the [command context](../commands/command-context.md#give-a-command-a-key), so read models and aggregates loaded for the command use the same event source.
+
+:::caution[getEventSourceId() must return a string]
+`getEventSourceId()` may return a string or a concept that wraps a string. Any other value, including a Fundamentals `Guid` or a concept that wraps one, fails the command with `The command provided an invalid event source id`. Return `this.id.toString()` for a GUID-based identity. An empty string counts as no value, and the `@key()` field is used instead.
+:::
 
 ## Return the ID to the caller
 
@@ -41,11 +45,12 @@ Class decorators from `@cratis/arc.chronicle` set routing defaults for every eve
 | `@eventSourceType('Task', { concurrency? })` | The event source type |
 | `@eventStreamType('Onboarding', { concurrency? })` | The event stream type |
 | `@eventStreamId('main', { concurrency? })` | The event stream ID |
-| `@eventSubject('subject')` | The compliance subject |
+| `@eventSubject('subject')` | The compliance subject; see [Subject](commands/subject.md) |
 
 `{ concurrency: true }` reads that dimension's tail immediately before the append and scopes it; see [Concurrency](commands/concurrency.md).
 
 ## Related
 
 - [Returning events](commands/index.md)
+- [Event metadata](commands/event-metadata.md)
 - [Command context](../commands/command-context.md)

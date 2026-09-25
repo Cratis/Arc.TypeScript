@@ -47,7 +47,7 @@ With Chronicle [registered](../add-event-sourcing.md), `POST /api/create-task` a
 
 The integration is a [response value handler](../../commands/response-value-handlers.md): it recognizes registered event instances and branded values, and everything else keeps its ordinary meaning. Returning Chronicle events together with [command operations](../../commands/operations/index.md) is rejected before either effect runs.
 
-The event source, routing decorators, and explicit targets are covered in [Resolving the event source ID](../resolving-event-source-id.md).
+The event source, routing decorators, and explicit targets are covered in [Resolving the event source ID](../resolving-event-source-id.md). Everything else an appended event carries, such as its subject, causation, and correlation ID, is listed in [Event metadata](event-metadata.md).
 
 ## Low-level definitions
 
@@ -55,5 +55,6 @@ The older `defineChronicleCommand` remains. It takes a client, an event store, a
 
 ## Related
 
+- [Event metadata](event-metadata.md)
 - [Transactional commands](transactional-commands.md)
 - [Testing Chronicle commands](../../testing/chronicle.md)

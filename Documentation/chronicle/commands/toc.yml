@@ -1,5 +1,9 @@
 - name: Returning events
   href: index.md
+- name: Event metadata
+  href: event-metadata.md
+- name: Subject
+  href: subject.md
 - name: Concurrency
   href: concurrency.md
 - name: Causation and auditing

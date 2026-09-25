@@ -51,7 +51,7 @@ These excerpts are from the [Tasks sample](https://github.com/Cratis/Arc.TypeScr
 
 ## CQRS first, event sourcing optional
 
-Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The core has no dependency on event sourcing or on a database. The Chronicle integration is a separate package: experimental, and not private since v0.12.0; see [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how that boundary works in Arc generally.
+Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The core has no dependency on event sourcing or on a database. The Chronicle integration is a separate, experimental package; see [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how that boundary works in Arc generally.
 
 ## A server for the clients you already have
 
@@ -77,6 +77,7 @@ Arc for TypeScript is versioned independently of Arc on .NET. GitHub source prev
 
 ## Where to go next
 
+- [Why Arc for TypeScript](why-arc-for-typescript.md): who it is for, what it removes, and when it is the wrong fit.
 - [Get started](getting-started/index.md): run the Tasks sample and call its command and query.
 - [Coming from Express and NestJS](coming-from-express-and-nestjs.md): compare Arc with the code you write today.
 - [Hosting overview](overview.md): choose the standalone host or a framework adapter.

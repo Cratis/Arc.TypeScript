@@ -3,7 +3,7 @@ title: Add event sourcing
 description: Register the experimental Chronicle integration on the application builder with a connection string or a caller-owned client, and prepare the Node entry point.
 ---
 
-This page adds Chronicle to an Arc application. After it, commands can [return events](commands/index.md).
+This page adds Chronicle to an Arc application. When you finish, a command can [return events](commands/index.md) and a query can serve [projected read models](read-models/index.md). The Chronicle kernel runs as a separate process; start one before you run the application.
 
 ## Prepare the entry point
 
@@ -27,98 +27,68 @@ const app = await builder.build();
 await app.run();
 ```
 
-The equivalent C# setup, alongside the TypeScript `builder.withChronicle(...)` above, is:
+Importing `@cratis/arc.chronicle` installs the typed `withChronicle` builder method, so `@cratis/arc.core` keeps no dependency on Chronicle. The exported function `withChronicle(builder, options)` does the same; the [Library sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/main.ts) uses that form.
 
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-builder.AddCratisArc(configureBuilder: arc => arc.WithChronicle());
-var app = builder.Build();
-app.UseCratisArc();
-app.Run();
+Call `withChronicle` **before** you discover or add artifacts. The integration watches each registration and records every event type, projection, reducer, reactor, and constraint it sees in a catalog for this application. An artifact registered earlier never reaches Chronicle.
+
+:::caution[Development credentials]
+The connection string above uses the SDK's development credentials and accepts the kernel's self-signed certificate. In production, provide real credentials and `skipTlsValidation=false`.
+:::
+
+## Keep the connection string out of source
+
+`withChronicle` also reads `Cratis:Chronicle` from the application's configuration, the same `appsettings.json` and `Cratis__...` environment variables Arc uses for its own [configuration](../configuration/index.md):
+
+```json title="appsettings.json"
+{
+  "Cratis": {
+    "Chronicle": {
+      "connectionString": "chronicle://localhost:35000",
+      "eventStore": "Library"
+    }
+  }
+}
 ```
 
-Importing `@cratis/arc.chronicle` installs its typed `withChronicle` builder method; Core does not depend on Chronicle. Call `withChronicle` **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors. To avoid keeping a connection string in source, put `Cratis:Chronicle:{ConnectionString,EventStore}` in `appsettings.json` or override it with `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`, then call `builder.withChronicle({})`. Code options win over file and environment settings. The Chronicle engine must run separately.
+Then call `builder.withChronicle({})`. To override the file in a deployment, set `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`. Values passed in code win over the file and the environment, and a `client` passed in code replaces a configured connection string. Registration fails when no event store is set, or when neither or both of a connection string and a client are set.
 
-The experimental private `@cratis/cratis` composition has a shorter TypeScript path (under 20 lines):
+## Choose who owns the client
 
-```typescript
+| Registration | Ownership |
+| --- | --- |
+| `{ connectionString, eventStore }` | Arc creates the SDK client with its per-application artifact catalog and closes it with the application |
+| `{ client, eventStore }` | You pass a caller-owned `IChronicleClient`. Arc never disposes it; your host calls `client.dispose()`. The client must already have an artifact provider that registers the event types, projections, reducers, and reactors you use |
+
+Pass `eventStore` in either case. Every append and read uses the current execution's tenant as the Chronicle namespace, so tenancy you configure for Arc also isolates events.
+
+An Arc-owned client is also wired so that [reactors can return Arc commands](reactors/command-side-effects.md). A caller-owned client needs that handler passed to the SDK before it connects; the reactor page shows how.
+
+## Use the Cratis composition
+
+`@cratis/cratis` composes Arc and the Chronicle integration in one import, the TypeScript counterpart of the .NET `Cratis` package:
+
+```typescript title="main.ts"
 import 'reflect-metadata';
 import { CratisApplication } from '@cratis/cratis';
+
 const builder = CratisApplication.createBuilder();
 await builder.discover(new URL('./Features/', import.meta.url));
 const app = await builder.build();
 await app.run();
 ```
 
-Its `createBuilder()` mirrors C#'s `builder.AddCratis()` followed by `app.UseCratis()`. You can also call `builder.addCratis({ eventStore, connectionString })` after importing `@cratis/cratis` instead of using `CratisApplication.createBuilder()`. Neither path installs authentication automatically. If your routes need authentication, supply an Arc handler in `ArcApplication.createBuilder({ authentication: [...] })` or `CratisApplication.createBuilder({ authentication: [...] })` before hosting. Public routes need no handler. C#'s setup is:
+`CratisApplication.createBuilder(options, chronicle)` creates an Arc builder and registers Chronicle with the `chronicle` options, which default to the `Cratis:Chronicle` configuration. After importing `@cratis/cratis`, `builder.addCratis({ eventStore, connectionString })` does the same on a builder you created yourself. The package re-exports `@cratis/arc.core` and `@cratis/arc.chronicle`, and `@cratis/cratis/testing` re-exports `@cratis/arc.testing` and `@cratis/arc.chronicle/testing`.
 
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-builder.AddCratis();
-var app = builder.Build();
-app.UseCratis();
-app.Run();
-```
+`@cratis/cratis` is experimental like the integration it composes, and it is not published to npm. It does not install an authentication handler. If your routes need authentication, pass one in `CratisApplication.createBuilder({ authentication: [...] })`, as you would to `ArcApplication.createBuilder`; see [Authentication](../core/authentication.md). Public routes need no handler.
 
-Both paths require a separately running Chronicle server. The TS package is a local preview, not published. The integration has an opt-in live kernel suite; this setup example is not a live-kernel verification.
+## Check it
 
-:::caution[Development credentials]
-The connection string above uses the SDK's development credentials and accepts the kernel's self-signed certificate. In production, provide real credentials and `skipTlsValidation=false`.
-:::
+Run a command that returns an event, then read the event back with the Chronicle Workbench or the `cratis` CLI against the same event store and tenant namespace. A 400 answer with a `constraintViolation` or `concurrencyViolation` reason means Chronicle rejected the append; see [Concurrency](commands/concurrency.md). A connection failure fails the command with an exception.
 
-## Choose who owns the client
-
-| Registration | Ownership |
-| --- | --- |
-| `{ connectionString, eventStore }` | Arc creates the SDK client, with a per-builder catalog of the artifacts you `add` or `discover`, and closes it with the application |
-| `{ client, eventStore }` | You pass a caller-owned `IChronicleClient`. Arc never disposes it; your host calls `client.dispose()`. The client must already have a provider that registers the event types, projections, reducers, and reactors you use |
-
-Pass `eventStore` in either case. Every append and read uses the current execution's tenant as the Chronicle namespace.
-
-## Return Arc commands from reactors
-
-With Chronicle SDK 6.6.0 or later, a reactor may return an `@command()` instance or a nonempty array containing **only** Arc commands. Arc executes each command through its validation, authorization, and normal command pipeline, in the triggering event's namespace. A failed command throws at the reactor boundary, so the observer partition fails rather than acknowledging a partial side effect. The commands run in order; a later failure does not undo an earlier committed command. Keep side effects idempotent for re-delivery.
-
-For example, a reactor can translate a recorded event into another command's intent:
-
-```typescript
-import { reactor } from '@cratis/chronicle/reactors';
-import type { EventContext } from '@cratis/chronicle/events';
-import { executeCommandsAsSystem } from '@cratis/arc.chronicle';
-import { LiveCreated, FollowUpLive } from './LiveArtifacts.js';
-
-@executeCommandsAsSystem('writers')
-@reactor()
-export class LiveCommandReactor {
-    liveCreated(event: LiveCreated, context: EventContext): FollowUpLive {
-        return new FollowUpLive(context.eventSourceId, event.name);
-    }
-}
-```
-
-`LiveCreated` is an SDK `@eventType()` class; `FollowUpLive` is an Arc `@command()` with `@field(String) @key() id` and a `@field(String) name`. The exact integration example is exercised in the [live suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/LiveArtifacts.ts).
-
-With an Arc-owned client (`{ connectionString, eventStore }`), `withChronicle` installs the result handler before observations begin. For a caller-owned client, pass the handler to the SDK when creating the client **before connecting it**:
-
-```typescript
-import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
-import { reactorCommandResultHandler } from '@cratis/arc.chronicle';
-
-// Capture the application built later; the SDK invokes this only during observation.
-let application: Awaited<ReturnType<typeof builder.build>>;
-const client = new ChronicleClient(ChronicleOptions.fromConnectionString(connectionString, {
-    clientArtifactsProvider: artifacts,
-    reactorResultHandler: reactorCommandResultHandler(() => application.server, 'Tasks')
-}));
-builder.withChronicle({ eventStore: 'Tasks', client });
-application = await builder.build();
-```
-
-Here `builder`, `connectionString`, and `artifacts` are your configured Arc builder, Chronicle connection string, and SDK artifact provider. Register reactor, command, and event types before building. `reactorCommandResultHandler` declines event-only returns so Chronicle appends them using its own event-side-effect path. **Do not mix returned commands with events or other values in one array**: Arc rejects the mixture rather than silently dropping an item. Return either all commands or all events.
-
-Returned commands have no Arc principal by default, as in .NET. When a command requires a system role, decorate the **reactor class** with `@executeCommandsAsSystem('role-name')` from `@cratis/arc.chronicle`. This supplies a system principal to returned commands (not to imperative calls made inside the reactor). The SDK identity for their appends is the triggering event's identity by default, or the system identity when the decorator is present; the command's causation includes the event source, event type, sequence number, store, and namespace. The commands retain the triggering event's correlation ID. No distributed transaction spans the reactor's commands and the triggering event.
+Next, [return events](commands/index.md) from a command.
 
 ## Related
 
-- [Returning events](commands/index.md)
 - [Chronicle](index.md)
+- [Reactors](reactors/index.md)
+- [Testing Chronicle commands](../testing/chronicle.md)
