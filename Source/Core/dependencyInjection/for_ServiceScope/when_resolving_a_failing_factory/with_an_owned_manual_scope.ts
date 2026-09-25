@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -11,8 +12,9 @@ describe('when resolving a failing factory with an owned manual scope', () => {
     beforeEach(async () => {
         disposals = []; const partial = serviceToken<object>('partial'); const broken = serviceToken<object>('failure');
         const registry = new ServiceRegistry([
-            { token: partial, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { disposals.push('disposed'); } }) },
-            { token: broken, lifetime: 'scoped', dependencies: [partial], factory: async resolver => {
+            { token: partial, lifetime: ServiceLifetime.Scoped,
+                factory: () => ({ [Symbol.dispose]: () => { disposals.push('disposed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Scoped, dependencies: [partial], factory: async resolver => {
                 await resolver.resolve(partial); throw new Error('failed');
             } }
         ]);

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { z } from 'zod';
 import { ArcServer } from '../../../ArcServer.js';
 import { serviceToken } from '../../../dependencyInjection/ServiceToken.js';
@@ -18,11 +19,11 @@ export class a_rendering_server {
     readonly seen: string[] = [];
     readonly server = new ArcServer({
         services: [
-            { token: this.renderer, lifetime: 'scoped', factory: () => ({
+            { token: this.renderer, lifetime: ServiceLifetime.Scoped, factory: () => ({
                 canRender: (value: unknown) => value === 'provider',
                 render: () => { this.seen.push('render'); return queryPage([new Task('provider')], 3); }
             }) },
-            { token: this.interceptor, lifetime: 'scoped', factory: () => ({
+            { token: this.interceptor, lifetime: ServiceLifetime.Scoped, factory: () => ({
                 model: Task, intercept: (model: object) => {
                     const task = model as Task;
                     this.seen.push(task.name);

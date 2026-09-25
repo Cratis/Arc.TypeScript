@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -16,10 +17,12 @@ describe('when disposing a server with singleton aliases and caller owned instan
         const calls: string[] = [];
         const provided = { [Symbol.dispose]: () => { calls.push('caller'); } };
         const server = new ArcServer({ services: [
-            { token: original, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { calls.push('singleton'); } }) },
-            { token: alias, lifetime: 'scoped', dependencies: [original], factory: resolver => resolver.resolve(original) },
-            { token: supplied, lifetime: 'singleton', instance: provided },
-            { token: suppliedAlias, lifetime: 'scoped', dependencies: [supplied], factory: resolver => resolver.resolve(supplied) }
+            { token: original, lifetime: ServiceLifetime.Singleton,
+                factory: () => ({ [Symbol.dispose]: () => { calls.push('singleton'); } }) },
+            { token: alias, lifetime: ServiceLifetime.Scoped, dependencies: [original], factory: resolver => resolver.resolve(original) },
+            { token: supplied, lifetime: ServiceLifetime.Singleton, instance: provided },
+            { token: suppliedAlias, lifetime: ServiceLifetime.Scoped, dependencies: [supplied],
+                factory: resolver => resolver.resolve(supplied) }
         ], queries: [defineQuery({ name: 'Aliases', schema: z.object({}), handlerDependencies: [alias, suppliedAlias], perform: () => true })] });
         success = (await server.performQuery('Aliases', {}, serviceContext('alpha'))).isSuccess;
         beforeShutdown = [...calls];

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -12,9 +13,9 @@ describe('when resolving undeclared dependencies with cycle and captive lifetime
         const recursive = serviceToken<object>('recursive'); const scoped = serviceToken<object>('scoped');
         const singleton = serviceToken<object>('singleton');
         const registry = new ServiceRegistry([
-            { token: recursive, lifetime: 'scoped', factory: resolver => resolver.resolve(recursive) },
-            { token: scoped, lifetime: 'scoped', factory: () => ({}) },
-            { token: singleton, lifetime: 'singleton', factory: resolver => resolver.resolve(scoped) }
+            { token: recursive, lifetime: ServiceLifetime.Scoped, factory: resolver => resolver.resolve(recursive) },
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: () => ({}) },
+            { token: singleton, lifetime: ServiceLifetime.Singleton, factory: resolver => resolver.resolve(scoped) }
         ]);
         try {
             cycleFailure = await captureFailure(registry.createScope(serviceContext('alpha')).resolve(recursive));

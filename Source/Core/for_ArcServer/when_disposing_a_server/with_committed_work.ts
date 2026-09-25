@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -19,7 +20,7 @@ describe('when disposing a server with committed work', () => {
     beforeEach(async () => {
         const late = serviceToken<object>('late dependency');
         const started = gate(); const release = gate(); effects = 0;
-        const server = new ArcServer({ services: [{ token: late, lifetime: 'scoped', factory: () => ({}) }], commands: [
+        const server = new ArcServer({ services: [{ token: late, lifetime: ServiceLifetime.Scoped, factory: () => ({}) }], commands: [
             defineCommand({ name: 'Commit', schema: z.object({}), handle: async () => {
                 effects++; started.release(); await release.promise;
                 await currentServices().resolve(late);

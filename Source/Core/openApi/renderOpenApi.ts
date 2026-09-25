@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '../queries/SortDirection.js';
 import type { Operation } from '../http/Operation.js';
 import type { ArcOptions } from '../ArcOptions.js';
 import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
@@ -36,7 +37,9 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
             ...[
                 ...(paging ? [
                     ['page', { type: 'integer', minimum: 0 }], ['pageSize', { type: 'integer', minimum: 1 }],
-                    ['sortBy', { type: 'string' }], ['sortDirection', { type: 'string', enum: ['asc', 'ascending', 'desc', 'descending'] }]
+                    ['sortBy', { type: 'string' }],
+                    ['sortDirection', { type: 'string',
+                        enum: [SortDirection.Ascending, 'ascending', SortDirection.Descending, 'descending'] }]
                 ] as const : []),
                 ...(observable ? [['waitForFirstResult', { type: 'boolean' }],
                     ['waitForFirstResultTimeout', { type: 'number', exclusiveMinimum: 0, maximum: 120 }]] as const : [])

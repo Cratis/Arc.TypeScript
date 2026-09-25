@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { QueryPagingRequired, queryPage as createQueryPage } from '@cratis/arc.core';
+import { QueryPagingRequired, queryPage as createQueryPage, SortDirection } from '@cratis/arc.core';
 import type { ExecutionContext, PageRequest, QueryOptions, QueryPage } from '@cratis/arc.core';
 import { ObjectId } from 'mongodb';
 import type { CountDocumentsOptions, Document, Filter, FindOptions, WithId } from 'mongodb';
@@ -44,11 +44,11 @@ export class MongoReadModels<T extends Document, I> {
     async queryPage(context: ExecutionContext, input: I, options: QueryOptions,
         findOptions?: MongoPageFindOptions<T>): Promise<QueryPage<WithId<T>>> {
         const sorting = options.sorting;
-        if (sorting && sorting.direction !== 'asc' && sorting.direction !== 'desc')
+        if (sorting && sorting.direction !== SortDirection.Ascending && sorting.direction !== SortDirection.Descending)
             throw new TypeError('MongoDB sorting direction must be asc or desc');
         if (sorting && !this.options.sortableFields?.includes(sorting.field))
             throw new Error(`MongoDB sorting is not allowed for field: ${sorting.field}`);
-        const sort = sorting ? { [sorting.field]: sorting.direction === 'asc' ? 1 as const : -1 as const,
+        const sort = sorting ? { [sorting.field]: sorting.direction === SortDirection.Ascending ? 1 as const : -1 as const,
             ...Object.fromEntries(Object.entries(findOptions?.sort ?? {})
                 .filter(([field]) => field !== sorting.field)) } : findOptions?.sort;
         const page = await this.readPage(context, input, options.paging ?? { page: 0, pageSize: this.maxPageSize },

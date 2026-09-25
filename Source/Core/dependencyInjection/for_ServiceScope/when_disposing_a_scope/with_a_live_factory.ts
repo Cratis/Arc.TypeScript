@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -15,12 +16,12 @@ describe('when disposing a scope with a live factory', () => {
         const scoped = serviceToken<object>('scoped'); const singleton = serviceToken<object>('singleton');
         const entered = gate(); const release = gate(); events = [];
         const registry = new ServiceRegistry([
-            { token: scoped, lifetime: 'scoped', factory: async resolver => {
+            { token: scoped, lifetime: ServiceLifetime.Scoped, factory: async resolver => {
                 entered.release(); await release.promise;
                 await resolver.resolve(singleton);
                 return {};
             } },
-            { token: singleton, lifetime: 'singleton', factory: (_resolver, lifetime) => ({
+            { token: singleton, lifetime: ServiceLifetime.Singleton, factory: (_resolver, lifetime) => ({
                 [Symbol.dispose]: () => { events.push(lifetime.signal.aborted ? 'disposed' : 'not aborted'); }
             }) }
         ]);

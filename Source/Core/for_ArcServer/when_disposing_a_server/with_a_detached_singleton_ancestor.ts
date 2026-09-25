@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -18,13 +19,13 @@ describe('when disposing a server with a detached singleton ancestor', () => {
         const entered = gate(); const release = gate();
         let child!: Promise<Awaited<ReturnType<ArcServer['performQuery']>>>;
         const server = new ArcServer({ services: [
-            { token, lifetime: 'singleton', factory: async () => {
+            { token, lifetime: ServiceLifetime.Singleton, factory: async () => {
                 entered.release(); await release.promise;
                 child = server.performQuery('Broken', {}, serviceContext('nested'));
                 childFailed = !(await child).isSuccess;
                 throw new Error('root failed after nested');
             } },
-            { token: broken, lifetime: 'scoped', factory: () => { throw new Error('nested failed'); } }
+            { token: broken, lifetime: ServiceLifetime.Scoped, factory: () => { throw new Error('nested failed'); } }
         ], queries: [
             defineQuery({ name: 'Start', schema: z.object({}), perform: () => {
                 void currentServices().resolve(token).catch(() => {});

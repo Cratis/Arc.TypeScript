@@ -1,8 +1,10 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { CommandRecoveryStatus } from './CommandRecoveryStatus.js';
+import { CommandOperationCompensation } from './CommandOperationCompensation.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { CommandContext } from './CommandContext.js';
-import type { CommandCommitDisposition } from './CommandCommitDisposition.js';
+import { CommandCommitDisposition } from './CommandCommitDisposition.js';
 import { isCommandOperation, type CommandOperation } from './CommandOperation.js';
 import { CommandOperationBoundary } from './CommandOperationBoundary.js';
 import type { CommandOperationFailure } from './CommandOperationFailure.js';
@@ -48,7 +50,8 @@ export class CommandOperationExecution {
         for (const [index, invocation] of this.#planned.entries()) {
             if (context.signal.aborted) throw context.signal.reason ?? new Error('Command canceled');
             const outcome: CommandOperationOutcome = { invocationIndex: index,
-                operationType: invocation.operation.constructor.name, executionCompleted: false, compensation: 'NotNeeded' };
+                operationType: invocation.operation.constructor.name, executionCompleted: false,
+                compensation: CommandOperationCompensation.NotNeeded };
             this.outcomes.push(outcome);
             try {
                 await CommandOperationBoundary.run(async () => invocation.operation.execute(context.signal, ...invocation.execution));
@@ -59,35 +62,38 @@ export class CommandOperationExecution {
     }
     /** Recover only when commitment is known absent; callbacks share one cooperative cleanup budget. */
     async recover(disposition: CommandCommitDisposition, failure: readonly string[], source: CommandOperationFailure['source']): Promise<CommandRecoverySummary> {
-        const eligible = disposition === 'NoCommit' || disposition === 'NotCommitted';
+        const eligible = disposition === CommandCommitDisposition.NoCommit || disposition === CommandCommitDisposition.NotCommitted;
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), this.timeoutMs);
         try {
-            if (failure.length && !eligible) for (const outcome of this.outcomes) outcome.compensation = 'Suppressed';
+            if (failure.length && !eligible)
+                for (const outcome of this.outcomes) outcome.compensation = CommandOperationCompensation.Suppressed;
             else if (failure.length) for (let index = this.outcomes.length - 1; index >= 0; index--) {
                 const outcome = this.outcomes[index]!;
                 const invocation = this.#planned[index]!;
-                if (!invocation.operation.compensate) { outcome.compensation = 'NotAvailable'; continue; }
-                if (controller.signal.aborted) { outcome.compensation = 'BudgetExpired'; continue; }
+                if (!invocation.operation.compensate) { outcome.compensation = CommandOperationCompensation.NotAvailable; continue; }
+                if (controller.signal.aborted) { outcome.compensation = CommandOperationCompensation.BudgetExpired; continue; }
                 const detail: CommandOperationFailure = Object.freeze({ invocationIndex: index,
                     invocationCompleted: outcome.executionCompleted, isFailingInvocation: index === this.failedIndex,
                     source, commitDisposition: disposition, exceptionMessages: Object.freeze([...failure]) });
                 try {
                     await CommandOperationBoundary.run(async () => invocation.operation.compensate!(detail, controller.signal, ...invocation.compensation));
-                    outcome.compensation = controller.signal.aborted ? 'BudgetExpired' : 'Completed';
-                } catch (error) { outcome.compensation = 'Failed'; outcome.compensationFailure = String(error); }
+                    outcome.compensation = controller.signal.aborted ? CommandOperationCompensation.BudgetExpired
+                        : CommandOperationCompensation.Completed;
+                } catch (error) { outcome.compensation = CommandOperationCompensation.Failed; outcome.compensationFailure = String(error); }
             }
         } finally { clearTimeout(timer); }
-        const compensatedCount = this.outcomes.filter(outcome => outcome.compensation === 'Completed').length;
+        const compensatedCount = this.outcomes.filter(outcome => outcome.compensation === CommandOperationCompensation.Completed).length;
         return {
             commitDisposition: disposition,
-            status: !failure.length || !this.outcomes.length ? 'NotNeeded' : !eligible ?
-                disposition === 'Committed' ? 'Suppressed' : 'Indeterminate' :
-                compensatedCount === this.outcomes.length ? 'Completed' : 'Incomplete',
+            status: !failure.length || !this.outcomes.length ? CommandRecoveryStatus.NotNeeded : !eligible ?
+                disposition === CommandCommitDisposition.Committed ? CommandRecoveryStatus.Suppressed
+                    : CommandRecoveryStatus.Indeterminate :
+                compensatedCount === this.outcomes.length ? CommandRecoveryStatus.Completed : CommandRecoveryStatus.Incomplete,
             startedCount: this.outcomes.length,
             completedCount: this.outcomes.filter(outcome => outcome.executionCompleted).length,
             compensatedCount,
-            failedCompensationCount: this.outcomes.filter(outcome => outcome.compensation === 'Failed').length,
+            failedCompensationCount: this.outcomes.filter(outcome => outcome.compensation === CommandOperationCompensation.Failed).length,
             uncompensatedCount: failure.length ? this.outcomes.length - compensatedCount : 0
         };
     }

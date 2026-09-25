@@ -5,12 +5,13 @@ import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
 import { CommandOperation } from '../../commands/CommandOperation.js';
+import { CommandOperationFailureSource } from '../../commands/CommandOperationFailureSource.js';
 import type { CommandOperationFailure } from '../../commands/CommandOperationFailure.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 describe('when an operation triggers request cancellation', () => {
     let result: CommandResult;
-    let source: string | undefined;
+    let source: CommandOperationFailureSource | undefined;
     beforeEach(async () => {
         const controller = new AbortController();
         class Cancel extends CommandOperation {
@@ -23,7 +24,7 @@ describe('when an operation triggers request cancellation', () => {
     });
     it('should identify cancellation to the compensator', () => {
         result.isSuccess.should.equal(false);
-        source!.should.equal('cancellation');
+        source!.should.equal(CommandOperationFailureSource.Cancellation);
     });
 });
 describe('when a compensator finishes after the shared budget expires', () => {

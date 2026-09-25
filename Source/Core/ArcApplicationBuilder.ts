@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from './dependencyInjection/ServiceLifetime.js';
 import type { ArcOptions } from './ArcOptions.js';
 import type { ArcBuilderExtensions } from './fetch.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
@@ -129,7 +130,7 @@ export class ArcApplicationBuilder {
             const type = policy as (abstract new (...arguments_: never[]) => AuthorizationPolicy);
             const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
             const existing = registrations.find(registration => registration.token === type);
-            if (existing && existing.lifetime !== 'scoped')
+            if (existing && existing.lifetime !== ServiceLifetime.Scoped)
                 throw new Error(`Authorization policy ${name} must be scoped`);
             if (!existing) this.services.addScoped(type);
         }

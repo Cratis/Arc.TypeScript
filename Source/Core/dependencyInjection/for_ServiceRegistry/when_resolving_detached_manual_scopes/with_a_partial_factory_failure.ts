@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -16,7 +17,7 @@ describe('when resolving detached manual scopes with a partial factory failure',
         const released = gate(); calls = [];
         let detached!: Promise<unknown>;
         const registry = new ServiceRegistry([
-            { token: origin, lifetime: 'scoped', factory: () => {
+            { token: origin, lifetime: ServiceLifetime.Scoped, factory: () => {
                 detached = (async () => {
                     await released.promise;
                     const manual = registry.createScope(serviceContext('beta'));
@@ -24,8 +25,8 @@ describe('when resolving detached manual scopes with a partial factory failure',
                 })();
                 return {};
             } },
-            { token: partial, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { calls.push('disposed'); } }) },
-            { token: broken, lifetime: 'scoped', dependencies: [partial], factory: async scope => {
+            { token: partial, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.dispose]: () => { calls.push('disposed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Scoped, dependencies: [partial], factory: async scope => {
                 await scope.resolve(partial);
                 throw new Error('broken');
             } }

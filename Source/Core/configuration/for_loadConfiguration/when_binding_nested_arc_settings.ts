@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../../tenancy/TenantResolverType.js';
 import { should } from 'vitest';
 import { loadConfiguration } from '../loadConfiguration.js';
 
@@ -20,7 +21,7 @@ describe('when binding nested Arc settings from environment variables', () => {
     });
     it('should bind the .NET correlation and tenant paths', () => {
         options?.Arc?.correlationId?.httpHeader?.should.equal('X-Request-ID');
-        options?.Arc?.tenancy?.resolverType?.should.equal('fixed');
+        options?.Arc?.tenancy?.resolverType?.should.equal(TenantResolverType.Fixed);
         options?.Arc?.tenancy?.fixedTenantId?.should.equal('north');
     });
     it('should bind generated endpoint and exception options without enabling discovery', () => {

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { ServiceScope } from '../../ServiceScope.js';
@@ -14,10 +15,10 @@ describe('when disposing a registry with a closing manual scope joined by a sing
         const entered = gate(); const release = gate(); events = [];
         let manual!: ServiceScope;
         const registry = new ServiceRegistry([
-            { token: resource, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => {
+            { token: resource, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.asyncDispose]: async () => {
                 entered.release(); await release.promise; events.push('manual');
             } }) },
-            { token: root, lifetime: 'singleton', factory: () => ({ [Symbol.asyncDispose]: async () => {
+            { token: root, lifetime: ServiceLifetime.Singleton, factory: () => ({ [Symbol.asyncDispose]: async () => {
                 await manual.dispose(); events.push('root');
             } }) }
         ]);

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,9 +16,11 @@ describe('when failing a nested singleton with a failing disposer', () => {
         const active = serviceToken<object>('outer active'); const partial = serviceToken<object>('inner partial singleton');
         const broken = serviceToken<object>('inner broken singleton'); events = [];
         const server = new ArcServer({ services: [
-            { token: active, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { events.push('outer disposed'); } }) },
-            { token: partial, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { events.push('singleton disposed'); throw new Error('cleanup failed'); } }) },
-            { token: broken, lifetime: 'singleton', dependencies: [partial], factory: async resolver => {
+            { token: active, lifetime: ServiceLifetime.Scoped,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('outer disposed'); } }) },
+            { token: partial, lifetime: ServiceLifetime.Singleton,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('singleton disposed'); throw new Error('cleanup failed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Singleton, dependencies: [partial], factory: async resolver => {
                 await resolver.resolve(partial); throw new Error('singleton failed');
             } }
         ], queries: [

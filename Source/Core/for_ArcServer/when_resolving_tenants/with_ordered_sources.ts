@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../../tenancy/TenantResolverType.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -14,7 +15,9 @@ describe('when resolving tenants with ordered sources', () => {
     let anonymous: number;
     let custom: string;
     beforeEach(async () => {
-        const server = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['subdomain', 'claim', 'header'], baseDomain: 'example.com', claimType: 'tenant', required: true, membershipClaim: 'memberships' },
+        const server = new ArcServer({ nativePrincipal: true, tenancy: { sources: [TenantResolverType.Subdomain,
+            TenantResolverType.Claim, TenantResolverType.Header], baseDomain: 'example.com', claimType: 'tenant',
+            required: true, membershipClaim: 'memberships' },
             queries: [defineQuery({ name: 'Tenant', schema: z.object({}), authorization: { authenticated: true }, perform: (_input, context) => context.tenantId })] });
         const run = (authority: string, header = 'south') => server.handle(new Request('http://arc.invalid/api/tenant', { headers: { 'x-cratis-tenant-id': header, 'x-forwarded-host': 'north.example.com' } }), { principal: identityPrincipal, authority });
         resolved = await Promise.all(['south.example.com', 'deep.south.example.com', 'unrelated.test'].map(async authority =>
@@ -22,7 +25,8 @@ describe('when resolving tenants with ordered sources', () => {
         forbidden = (await run('evil.example.com'))!.status;
         invalidHeader = (await run('south.example.com', '../wrong'))!.status;
         anonymous = (await server.handle(new Request('http://arc.invalid/api/tenant', { headers: { 'x-cratis-tenant-id': 'north' } }), { authority: 'example.com' }))!.status;
-        const authoritative = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['fixed'], fixedTenantId: 'north', required: true, resolve: () => 'custom' },
+        const authoritative = new ArcServer({ nativePrincipal: true, tenancy: { sources: [TenantResolverType.Fixed],
+            fixedTenantId: 'north', required: true, resolve: () => 'custom' },
             queries: [defineQuery({ name: 'Tenant', schema: z.object({}), perform: (_input, context) => context.tenantId })] });
         custom = (await (await identityGet(authoritative, '/api/tenant'))!.json()).data;
         await Promise.all([server.dispose(), authoritative.dispose()]);

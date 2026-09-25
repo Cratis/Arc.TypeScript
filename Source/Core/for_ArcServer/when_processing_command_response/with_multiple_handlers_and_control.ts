@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -19,9 +20,11 @@ function server(value: unknown, calls: string[], outcome: unknown = undefined, r
     const handlers = [first, second];
     return new ArcServer({
         services: [
-            { token: first, lifetime: 'scoped', factory: () => ({ canHandle: (_: CommandContext, item: unknown) => item === 'effect',
+            { token: first, lifetime: ServiceLifetime.Scoped, factory: () => ({ canHandle: (_: CommandContext,
+                item: unknown) => item === 'effect',
                 handle: () => { calls.push('first'); return outcome as never; } }) },
-            { token: second, lifetime: 'scoped', factory: () => ({ canHandle: (_: CommandContext, item: unknown) => item === 'effect',
+            { token: second, lifetime: ServiceLifetime.Scoped, factory: () => ({ canHandle: (_: CommandContext,
+                item: unknown) => item === 'effect',
                 handle: () => { calls.push('second'); } }) }
         ],
         commandResponseValueHandlers: reverse ? handlers.reverse() : handlers,

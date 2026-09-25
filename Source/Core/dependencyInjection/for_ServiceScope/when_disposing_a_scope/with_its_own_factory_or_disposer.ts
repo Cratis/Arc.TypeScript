@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -11,7 +12,7 @@ describe('when disposing a scope with its own factory or disposer', () => {
     let disposerFailure: unknown;
     beforeEach(async () => {
         const token = serviceToken<object>('self');
-        const registry = new ServiceRegistry([{ token, lifetime: 'scoped', factory: async scope => {
+        const registry = new ServiceRegistry([{ token, lifetime: ServiceLifetime.Scoped, factory: async scope => {
             factoryFailure = await captureFailure(scope.dispose());
             return { [Symbol.asyncDispose]: async () => { disposerFailure = await captureFailure(scope.dispose()); } };
         } }]);

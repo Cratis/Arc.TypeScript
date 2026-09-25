@@ -9,6 +9,6 @@ export default defineConfig({
         ...base.test,
         // Specs build real TypeScript compiler programs that take seconds; this is compiler cost, not a timing race.
         testTimeout: 30000,
-        hookTimeout: 30000
+        hookTimeout: 60000
     }
 });

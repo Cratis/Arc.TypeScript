@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { describe, it, should } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { ArcApplication, Severity } from '@cratis/arc.core';
@@ -16,7 +17,7 @@ describe('when paging across tenants', given(a_sqlite_database, context => {
         const other = new a_sqlite_database();
         await other.establish();
         other.database.delete(other.table).run();
-        builder.withDrizzle({ dialect: 'sqlite', databaseFactory: tenant => tenant === 'a' ? context.database : other.database,
+        builder.withDrizzle({ dialect: DrizzleDialect.SQLite, databaseFactory: tenant => tenant === 'a' ? context.database : other.database,
             readModels: [{ type: TaskRecord, table: context.table }] });
         const app = await builder.build();
         const identity = (tenantId: string) => ({ tenantId, principal: undefined, allowedSeverity: Severity.Warning,

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -12,7 +13,7 @@ describe('when resolving a recursive singleton with a nested query', () => {
     let nestedSuccess: boolean; let nestedMessages: string; let success: boolean; let data: unknown; let events: string[];
     beforeEach(async () => {
         const singleton = serviceToken<object>('recursive singleton'); events = [];
-        const server = new ArcServer({ services: [{ token: singleton, lifetime: 'singleton', factory: async () => {
+        const server = new ArcServer({ services: [{ token: singleton, lifetime: ServiceLifetime.Singleton, factory: async () => {
             events.push('factory entered');
             const nested = await server.performQuery('Recursive', {}, serviceContext('inner'));
             nestedSuccess = nested.isSuccess; nestedMessages = nested.exceptionMessages.join(' ');

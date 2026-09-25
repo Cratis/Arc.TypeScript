@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -18,8 +19,10 @@ describe('when handling identity requests with a failing singleton', () => {
             const broken = serviceToken<object>('broken singleton');
             const events: string[] = [];
             const server = new ArcServer({ services: [
-                { token: partial, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { events.push('disposed'); throw Error('private cleanup'); } }) },
-                { token: broken, lifetime: 'singleton', dependencies: [partial], factory: async scope => { await scope.resolve(partial); throw Error('private singleton'); } }
+                { token: partial, lifetime: ServiceLifetime.Singleton,
+                    factory: () => ({ [Symbol.dispose]: () => { events.push('disposed'); throw Error('private cleanup'); } }) },
+                { token: broken, lifetime: ServiceLifetime.Singleton, dependencies: [partial],
+                    factory: async scope => { await scope.resolve(partial); throw Error('private singleton'); } }
             ], authentication: [() => ({ status: AuthenticationStatus.Authenticated, principal: identityPrincipal })],
             identityDetails: { schema: z.object({ value: z.string() }), provide: async () => { await currentServices().resolve(broken); return { value: 'secret' }; } },
             development: true, developmentTenants: async () => { await currentServices().resolve(broken); return [{ id: 'secret', name: 'secret' }]; } });

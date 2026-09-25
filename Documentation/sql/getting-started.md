@@ -15,10 +15,10 @@ The Drizzle table describes the storage. The Arc read model describes what a que
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { field, Guid } from '@cratis/fundamentals';
 import { key } from '@cratis/arc.core';
-import { guidCodec, sqliteColumn } from '@cratis/arc.drizzle';
+import { DrizzleDialect, guidCodec, sqliteColumn } from '@cratis/arc.drizzle';
 
 export const tasks = sqliteTable('tasks', {
-    id: sqliteColumn(guidCodec('sqlite'))('id').primaryKey(),
+    id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
     title: text('title').notNull()
 });
 
@@ -28,7 +28,7 @@ export class TaskRecord {
 }
 ```
 
-Every `@field` on the model needs a column with the same property name, and the table needs a primary-key column; registration fails otherwise. `sqliteColumn(guidCodec('sqlite'))` stores the `Guid` as text and reads it back as a `Guid`. [Column types](column-types.md) lists the other codecs.
+Every `@field` on the model needs a column with the same property name, and the table needs a primary-key column; registration fails otherwise. `sqliteColumn(guidCodec(DrizzleDialect.SQLite))` stores the `Guid` as text and reads it back as a `Guid`. [Column types](column-types.md) lists the other codecs.
 
 ## Serve a query
 
@@ -54,7 +54,7 @@ export class TaskQueries {
 import initSqlJs from 'sql.js';
 import { drizzle } from 'drizzle-orm/sql-js';
 import { ArcApplication } from '@cratis/arc.core';
-import '@cratis/arc.drizzle';
+import { DrizzleDialect } from '@cratis/arc.drizzle';
 import { TaskRecord, tasks } from './Tasks.js';
 import { TaskQueries } from './TaskQueries.js';
 
@@ -65,7 +65,7 @@ const database = drizzle(native);
 
 const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } });
 builder.add(TaskQueries).withDrizzle({
-    dialect: 'sqlite',
+    dialect: DrizzleDialect.SQLite,
     database,
     readModels: [{ type: TaskRecord, table: tasks }]
 });

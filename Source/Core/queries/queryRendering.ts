@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from './SortDirection.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { QueryOptions } from './QueryOptions.js';
@@ -54,7 +55,7 @@ export function renderQueryData<T>(definition: Pick<DescriptorBase, 'clientOutpu
                 const first = left && typeof left === 'object' ? Reflect.get(left, field) as unknown : undefined;
                 const second = right && typeof right === 'object' ? Reflect.get(right, field) as unknown : undefined;
                 const comparison = compareValues(first, second);
-                return direction === 'asc' ? comparison : -comparison;
+                return direction === SortDirection.Ascending ? comparison : -comparison;
             });
         }
         const page = options.paging?.page ?? 0;

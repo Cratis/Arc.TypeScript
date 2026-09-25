@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { dirname, relative, resolve, sep } from 'node:path';
-import { discoveryFiles } from '@cratis/arc.core';
+import { ClientOperationKind, discoveryFiles } from '@cratis/arc.core';
 import { isPackageSymbol, originalSymbol } from './sourceSymbols.js';
 import { annotation, classChain, fieldsFor, roles, stringArgument } from './sourceAnnotations.js';
 import { commandResponseType } from './commandResponseType.js';
@@ -40,7 +40,7 @@ function collectCommand(declaration: ts.ClassDeclaration, path: string, namespac
     if (!handle || !ts.isMethodDeclaration(handle)) throw new Error(`${path}: ${owner} requires handle()`);
     const result = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(handle)!);
     const response = commandResponseType(result, checker, handle);
-    operations.push({ kind: 'command', name: owner, owner, namespace, routeOverride,
+    operations.push({ kind: ClientOperationKind.Command, name: owner, owner, namespace, routeOverride,
         treatWarningsAsErrors: warningOption(annotation(checker, declaration, 'command'), checker),
         roles: classRoles, fields,
         result: response ? resolver.resolve(response, handle) : resolver.resolve(checker.getVoidType(), handle) });

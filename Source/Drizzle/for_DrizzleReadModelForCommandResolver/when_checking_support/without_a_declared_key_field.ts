@@ -4,6 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { Severity } from '@cratis/arc.core';
 import { field } from '@cratis/fundamentals';
 import { DrizzleReadModelForCommandResolver } from '../../DrizzleReadModelForCommandResolver.js';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { given } from '../../given.js';
 import { a_sqlite_database } from '../../for_DrizzleReadModels/given/a_sqlite_database.js';
 import { a_builder } from '../../for_withDrizzle/given/a_builder.js';
@@ -15,7 +16,7 @@ describe('when checking support without a declared key field', given(a_builder, 
     const sqlite = new a_sqlite_database();
     let supported: boolean;
     beforeEach(async () => {
-        context.builder.withDrizzle({ dialect: 'sqlite', database: {}, readModels: [{ type: TitleOnly, table: sqlite.table }] });
+        context.builder.withDrizzle({ dialect: DrizzleDialect.SQLite, database: {}, readModels: [{ type: TitleOnly, table: sqlite.table }] });
         const app = await context.builder.build();
         const scope = app.server.services.createScope({ tenantId: 'default', principal: undefined, allowedSeverity: Severity.Warning,
             signal: new AbortController().signal, correlationId: crypto.randomUUID() });

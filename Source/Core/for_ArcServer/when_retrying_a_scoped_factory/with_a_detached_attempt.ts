@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,7 +16,7 @@ describe('when retrying a scoped factory with a detached attempt', () => {
         const token = serviceToken<{ tenant: string | undefined }>('retried scoped');
         const releaseRetry = gate(); let retry: Promise<{ tenant: string | undefined }> | undefined;
         attempts = 0;
-        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (resolver, identity) => {
+        const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped, factory: (resolver, identity) => {
             attempts++;
             if (attempts === 1) {
                 retry = (async () => { await releaseRetry.promise; return resolver.resolve(token); })();

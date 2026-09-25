@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '../../queries/SortDirection.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -18,7 +19,9 @@ describe('when sorting a query with dates booleans and nulls', () => {
         dates = (await (await server.handle(new Request('http://arc.invalid/api/list?sortBy=when')))!.json()).data[0].when;
         booleans = (await (await server.handle(new Request('http://arc.invalid/api/list?sortBy=enabled')))!.json()).data[0].enabled;
         const direct = new ArcServer({ queries: [defineQuery({ name: 'Numbers', schema: z.object({}), perform: () => [{ key: 10n }, { key: null }, { key: 2n }] })] });
-        numbers = (await direct.performQuery('Numbers', {}, { correlationId: crypto.randomUUID(), tenantId: 'tenant', principal: undefined, allowedSeverity: Severity.Warning, signal: new AbortController().signal }, { sorting: { field: 'key', direction: 'asc' } })).data;
+        numbers = (await direct.performQuery('Numbers', {}, { correlationId: crypto.randomUUID(), tenantId: 'tenant',
+            principal: undefined, allowedSeverity: Severity.Warning, signal: new AbortController().signal },
+            { sorting: { field: 'key', direction: SortDirection.Ascending } })).data;
         await Promise.all([server.dispose(), direct.dispose()]);
     });
     it('should sort dates by epoch', () => dates!.should.equal('2020-01-01T00:00:00.000Z'));

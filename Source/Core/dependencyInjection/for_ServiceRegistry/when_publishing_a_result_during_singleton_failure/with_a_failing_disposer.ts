@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../../ArcServer.js';
@@ -21,11 +22,11 @@ describe('when publishing a result during singleton failure with a failing dispo
             const inCompletion = gate(); const brokenEntered = gate(); const releaseBroken = gate(); const failureObserved = gate();
             const events: string[] = [];
             const server = new ArcServer({ services: [
-                { token: partial, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => {
+                { token: partial, lifetime: ServiceLifetime.Singleton, factory: () => ({ [Symbol.dispose]: () => {
                     events.push('singleton disposed');
                     if (throwingDisposer) throw new Error('singleton cleanup failed');
                 } }) },
-                { token: broken, lifetime: 'singleton', factory: async () => {
+                { token: broken, lifetime: ServiceLifetime.Singleton, factory: async () => {
                     brokenEntered.release(); await releaseBroken.promise;
                     throw new Error('singleton factory failed');
                 } }

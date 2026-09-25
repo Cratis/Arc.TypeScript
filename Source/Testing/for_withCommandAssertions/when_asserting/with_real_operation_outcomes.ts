@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { CommandCommitDisposition } from '@cratis/arc.core';
 import { tuple } from '@cratis/arc.core';
 import { an_operation_command, ProbeOperation } from '../../../Core/for_ArcServer/given/an_operation_command.js';
 import { withCommandAssertions } from '../../withCommandAssertions.js';
@@ -16,8 +17,8 @@ describe('when asserting real command operation outcomes', () => {
         (() => result.shouldHaveNoOperationInvocations()).should.throw('Expected no operation invocations');
     });
     it('should identify indeterminate recovery without claiming compensation', async () => {
-        context.disposition = 'NoCommit';
-        context.afterCompletion = 'Unknown';
+        context.disposition = CommandCommitDisposition.NoCommit;
+        context.afterCompletion = CommandCommitDisposition.Unknown;
         context.value = tuple('reply', new ProbeOperation('first', context.events));
         const result = withCommandAssertions(await context.server.executeCommand('Run', context.command, context.context));
         result.shouldHaveExecutedOperation(ProbeOperation).shouldHaveIndeterminateRecovery();

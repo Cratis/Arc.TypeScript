@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer, serviceToken } from '../../index.js';
@@ -21,7 +22,7 @@ describe('when opening an observable query with a failing emission policy', () =
         const token = serviceToken<ObservableEmissionGuard>('failing policy');
         logged = [];
         const server = new ArcServer({ logger: error => { logged.push(error); },
-            services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+            services: [{ token, lifetime: ServiceLifetime.Scoped, factory: (): ObservableEmissionGuard => ({
                 check: () => { throw new Error('secret'); }
             }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({
                 name: 'Numbers', schema: z.object({}), observe: () => subject

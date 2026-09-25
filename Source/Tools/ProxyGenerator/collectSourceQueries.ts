@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import ts from 'typescript';
+import { ClientOperationKind } from '@cratis/arc.core';
 import { annotation, roles, stringArgument } from './sourceAnnotations.js';
 import { identifier, isPackageSymbol, originalSymbol } from './sourceSymbols.js';
 import { queryResult } from './queryResult.js';
@@ -102,7 +103,7 @@ export function collectSourceQueries(declaration: ts.ClassDeclaration, checker: 
             throw new Error(`${path}:${member.getSourceFile().getLineAndCharacterOfPosition(member.getStart()).line + 1}: ` +
                 'Unsupported paged query element');
         const response: SourceType = result.paged ? { ...element, text: `${element.text}[]`, enumerable: true } : element;
-        operations.push({ kind: result.observable ? 'observable' : 'query', name, owner, namespace,
+        operations.push({ kind: result.observable ? ClientOperationKind.Observable : ClientOperationKind.Query, name, owner, namespace,
             treatWarningsAsErrors: warningOption(queryAnnotation, checker), httpMethod: httpMethodOption(queryAnnotation, checker),
             routeOverride: stringArgument(annotation(checker, member, 'path') ?? annotation(checker, member, 'route')) ?? pathOverride,
             roles: annotation(checker, member, 'allowAnonymous') || annotation(checker, member, 'authorize') ||

@@ -54,14 +54,14 @@ For an owner-restricted query, build the filter from the verified principal, suc
 ## Register MongoDB
 
 ```typescript title="main.ts"
-import { ArcApplication } from '@cratis/arc.core';
+import { ArcApplication, TenantResolverType } from '@cratis/arc.core';
 import { MongoClient } from 'mongodb';
 import '@cratis/arc.mongodb';
 import { TaskRecord } from './TaskRecord.js';
 import { TaskQueries } from './TaskQueries.js';
 
 const client = new MongoClient(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017');
-const builder = ArcApplication.createBuilder({ tenancy: { resolverType: 'fixed', fixedTenantId: 'default' } });
+const builder = ArcApplication.createBuilder({ tenancy: { resolverType: TenantResolverType.Fixed, fixedTenantId: 'default' } });
 builder.add(TaskQueries).withMongoDB({
     client, databaseNameResolver: tenant => `tasks_${tenant}`, readModels: [TaskRecord]
 });

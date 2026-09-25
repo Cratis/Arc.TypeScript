@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../../ArcServer.js';
@@ -20,8 +21,8 @@ describe('when disposing a scope with an unrelated manual scope and nested comma
         const token = serviceToken<object>('outer resource'); const resource = serviceToken<object>('other resource');
         effects = 0; events = [];
         const registry = new ServiceRegistry([
-            { token: resource, lifetime: 'scoped', factory: () => ({ [Symbol.dispose]: () => { events.push('other'); } }) },
-            { token, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => {
+            { token: resource, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.dispose]: () => { events.push('other'); } }) },
+            { token, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.asyncDispose]: async () => {
                 const manual = registry.createScope(serviceContext('other'));
                 await manual.resolve(resource);
                 await manual.dispose();

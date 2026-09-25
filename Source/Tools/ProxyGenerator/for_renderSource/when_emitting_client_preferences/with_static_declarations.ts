@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { QueryHttpMethod } from '@cratis/arc.core';
+import { ClientOperationKind, QueryHttpMethod } from '@cratis/arc.core';
 import { renderSource } from '../../renderSource.js';
 import type { SourceAnalysis } from '../../SourceAnalysis.js';
 
@@ -9,9 +9,9 @@ describe('when emitting client preferences with static declarations', () => {
     beforeEach(() => {
         const result = { text: 'string', constructor: 'String', enumerable: false, nullable: false, void: false };
         const analysis: SourceAnalysis = { models: [], operations: [
-            { kind: 'command', name: 'Save', owner: 'Save', namespace: 'Tasks', fields: [], roles: [], result,
+            { kind: ClientOperationKind.Command, name: 'Save', owner: 'Save', namespace: 'Tasks', fields: [], roles: [], result,
                 treatWarningsAsErrors: true },
-            { kind: 'query', name: 'find', owner: 'Task', namespace: 'Tasks', fields: [], roles: [], result,
+            { kind: ClientOperationKind.Query, name: 'find', owner: 'Task', namespace: 'Tasks', fields: [], roles: [], result,
                 treatWarningsAsErrors: true, httpMethod: QueryHttpMethod.Query }
         ] };
         files = renderSource(analysis);

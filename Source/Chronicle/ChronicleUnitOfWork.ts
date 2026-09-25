@@ -5,7 +5,7 @@ import type { IEventStore } from '@cratis/chronicle';
 import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
 import type { CommandContext, CommandResult } from '@cratis/arc.core';
 import { recordFailure } from '@cratis/arc.core/hosting';
-import type { CommandCommitDisposition } from '@cratis/arc.core';
+import { CommandCommitDisposition } from '@cratis/arc.core';
 import { checkResults } from './ChronicleCommand.js';
 import type { AggregateRoot } from './AggregateRoot.js';
 import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
@@ -20,7 +20,7 @@ export class ChronicleUnitOfWork {
     #store?: IEventStore;
     #nestedFailure = false;
     #completed = false;
-    disposition: CommandCommitDisposition = 'NoCommit';
+    disposition: CommandCommitDisposition = CommandCommitDisposition.NoCommit;
     get hasStagedEvents(): boolean { return this.#entries.length > 0 || [...this.#aggregates].some(aggregate => aggregate.hasUnstagedEvents); }
     track(aggregate: AggregateRoot): void { this.#aggregates.add(aggregate); }
     aggregates(): AggregateRoot[] { return [...this.#aggregates]; }
@@ -63,20 +63,21 @@ export class ChronicleUnitOfWork {
             ...(Object.keys(this.#scopes).length ? { concurrencyScopes: { ...this.#scopes } } : {}) };
         try {
             this.context.signal.throwIfAborted();
-            this.disposition = 'Unknown';
+            this.disposition = CommandCommitDisposition.Unknown;
             const appended = await this.#store!.eventLog.appendMany(entries, options);
             const outcome = checkResults(appended, entries.length);
             if (!outcome) {
-                this.disposition = 'Committed';
+                this.disposition = CommandCommitDisposition.Committed;
                 await waitForProjectionCompletion(appended, completionTimeoutMs, this.context.signal);
                 return result;
             }
             if (outcome.kind !== 'validation') throw new Error('Unexpected Chronicle append outcome');
-            this.disposition = 'NotCommitted';
+            this.disposition = CommandCommitDisposition.NotCommitted;
             return { ...result, response: undefined, validationResults: outcome.results,
                 isValid: false, isSuccess: false };
         } catch (error) {
-            if (!this.#store || this.disposition !== 'Unknown') this.disposition = 'NotCommitted';
+            if (!this.#store || this.disposition !== CommandCommitDisposition.Unknown)
+                this.disposition = CommandCommitDisposition.NotCommitted;
             const failed = { ...result, response: undefined, exceptionMessages: [...result.exceptionMessages, String(error)],
                 exceptionStackTrace: error instanceof Error ? error.stack ?? '' : '', hasExceptions: true, isSuccess: false };
             recordFailure(failed, error, result);
