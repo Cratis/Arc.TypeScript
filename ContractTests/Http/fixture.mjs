@@ -115,6 +115,22 @@ const tenancyMode = process.env.ARC_FIXTURE_TENANCY;
 const tenancy = tenancyMode === 'fixed' ? { resolverType: 'fixed', fixedTenantId: 'fixed-tenant' } :
     tenancyMode === 'claim' ? { resolverType: 'claim' } :
         tenancyMode === 'subdomain' ? { resolverType: 'subdomain', baseDomain: 'example.test' } : undefined;
+const delayedStream = defineObservableQuery({
+    name: 'First', namespace: 'FixtureStream', path: '/api/fixture-stream/first', schema: z.object({}), authorization: anonymous,
+    observe: () => {
+        const subject = CurrentValueSubject.pending();
+        setTimeout(() => { subject.next({ value: 'first' }); subject.complete(); }, 150);
+        return subject;
+    }
+});
+const completedStream = defineObservableQuery({
+    name: 'Completed', namespace: 'FixtureStream', path: '/api/fixture-stream/completed', schema: z.object({}), authorization: anonymous,
+    observe: () => {
+        const subject = CurrentValueSubject.pending();
+        setTimeout(() => subject.complete(), 80);
+        return subject;
+    }
+});
 const authentication = request => {
     const role = request.headers.get('X-Fixture-Role');
     if (role === null) return { status: AuthenticationStatus.Anonymous };
@@ -126,7 +142,7 @@ const authentication = request => {
 const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric, inputCases],
     queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, throwingQuery, byId, all, privateItems], tenancy,
-    observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false,
+    observableQueries: [currentStream, pendingStream, delayedStream, completedStream], authentication: [authentication], development: false,
     identityDetails: { schema: z.object({ greeting: z.string() }), provide: principal =>
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
     generatedApis: { segmentsToSkipForRoute: 1 }

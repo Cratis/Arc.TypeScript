@@ -237,6 +237,25 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('observable pending snapshot returns 202', 'GET', '/api/fixture-stream/pending', undefined, {
             status: 202, body: query(202, { isReady: false })
         });
+        await parity('observable first emission is pending without a wait', 'GET', '/api/fixture-stream/first', undefined, {
+            status: 202, body: query(202, { isReady: false })
+        });
+        await parity('observable wait receives the first emission', 'GET',
+            '/api/fixture-stream/first?waitForFirstResult=true&waitForFirstResultTimeout=1', undefined, {
+                status: 200, body: query(200, { data: { value: 'first' } })
+            });
+        await parity('observable short wait times out without a value', 'GET',
+            '/api/fixture-stream/pending?waitForFirstResult=true&waitForFirstResultTimeout=0.02', undefined, {
+                status: 408, body: query(408, { hasExceptions: true, exceptionMessages: [
+                    'Timed out waiting 0.02 seconds for the first observable query result.'
+                ] })
+            });
+        await parity('observable completion before the first value fails instead of reporting pending', 'GET',
+            '/api/fixture-stream/completed?waitForFirstResult=true&waitForFirstResultTimeout=1', undefined, {
+                status: 500, body: query(500, { exceptionMessages: [
+                    'Observable query completed before producing its first result.'
+                ] })
+            });
         await parity('conventional model-bound query binds GUID', 'GET',
             '/api/by-id?id=11111111-1111-4111-8111-111111111111', undefined, {
                 status: 200, body: query(200, { data: { value: correlationId } })
