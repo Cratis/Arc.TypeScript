@@ -65,14 +65,16 @@ export class ArcApplicationBuilder {
     /** Install an optional integration registered by its explicit package import. */
     extend<T>(name: string, options: T): this {
         const extension = ArcApplicationBuilder.extensions().get(name);
-        if (!extension) throw new Error(`Import the Arc integration before calling ${name}`);
+        if (!extension) throw new Error(`Import @cratis/arc.${name} before calling with${name[0]!.toUpperCase()}${name.slice(1)}()`);
         extension(this, options);
         return this;
     }
     /** Register an integration across independently loaded copies of the core package. */
     static registerExtension<T>(name: string, install: (builder: ArcApplicationBuilder, options: T) => void): void {
         const registry = this.extensions();
-        if (registry.has(name)) return;
+        const existing = registry.get(name);
+        if (existing === install) return;
+        if (existing) throw new Error(`Conflicting Arc integration registration: ${name}`);
         registry.set(name, install as (builder: ArcApplicationBuilder, options: unknown) => void);
     }
     private static extensions(): Map<string, (builder: ArcApplicationBuilder, options: unknown) => void> {
@@ -81,6 +83,8 @@ export class ArcApplicationBuilder {
         if (!global[key]) global[key] = new Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>();
         return global[key] as Map<string, (builder: ArcApplicationBuilder, options: unknown) => void>;
     }
+    /** Attach Arc and Chronicle after importing @cratis/cratis. */
+    addCratis(options?: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options ?? {}); }
     /** Attach Chronicle after importing @cratis/arc.chronicle. */
     withChronicle(options: IntegrationOptions<'chronicle'>): this { return this.extend('chronicle', options); }
     /** @deprecated Use withChronicle. */

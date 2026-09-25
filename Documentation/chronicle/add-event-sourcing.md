@@ -27,6 +27,16 @@ const app = await builder.build();
 await app.run();
 ```
 
+The equivalent C# setup, alongside the TypeScript `builder.withChronicle(...)` above, is:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.AddCratisArc(configureBuilder: arc => arc.WithChronicle());
+var app = builder.Build();
+app.UseCratisArc();
+app.Run();
+```
+
 Importing `@cratis/arc.chronicle` registers a typed builder extension without modifying the builder prototype. Call `withChronicle` **before** discovering or adding artifacts, so the integration sees your event types, projections, reducers, and reactors. `addChronicle` remains a deprecated alias. To avoid keeping a connection string in source, put `Cratis:Chronicle:{ConnectionString,EventStore}` in `appsettings.json` or override it with `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`, then call `builder.withChronicle({})`. Code options win over file and environment settings. The Chronicle engine must run separately.
 
 The experimental private `@cratis/cratis` composition has a shorter TypeScript path (under 20 lines):
@@ -40,7 +50,7 @@ const app = await builder.build();
 await app.run();
 ```
 
-Its `createBuilder()` mirrors C#'s `builder.AddCratis()` followed by `app.UseCratis()`, but **does not** install Microsoft identity automatically. Supply an Arc authentication handler explicitly in `ArcApplication.createBuilder({ authentication: [...] })` or in `CratisApplication.createBuilder({ authentication: [...] })` before hosting. C#'s setup is:
+Its `createBuilder()` mirrors C#'s `builder.AddCratis()` followed by `app.UseCratis()`. You can also call `builder.addCratis({ eventStore, connectionString })` after importing `@cratis/cratis` instead of using `CratisApplication.createBuilder()`. Neither path installs authentication automatically. If your routes need authentication, supply an Arc handler in `ArcApplication.createBuilder({ authentication: [...] })` or `CratisApplication.createBuilder({ authentication: [...] })` before hosting. Public routes need no handler. C#'s setup is:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
