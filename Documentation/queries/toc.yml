@@ -10,6 +10,8 @@
   href: using-the-http-query-method.md
 - name: Observable queries
   href: observable-queries.md
+- name: Subscribe to an observable query
+  href: subscribing-to-observable-queries.md
 - name: Multiplexed observable queries
   href: observable-query-demultiplexer.md
 - name: Observable emission guards

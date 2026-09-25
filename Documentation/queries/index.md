@@ -43,6 +43,7 @@ A read model here is a class describing the shape of what you return. Where the 
 | [Query pipeline](query-pipeline.md) | Understand the order of checks and result processing |
 | [Using the HTTP QUERY method](using-the-http-query-method.md) | Send structured arguments in a body |
 | [Observable queries](observable-queries.md) | Serve a snapshot and live updates from the same route |
+| [Subscribe to an observable query](subscribing-to-observable-queries.md) | Receive updates over SSE, a WebSocket, or the `@cratis/arc` client |
 | [Multiplexed observable queries](observable-query-demultiplexer.md) | Share one WebSocket or SSE connection across many subscriptions |
 | [Observable emission guards](observable-query-emission-guards.md) | Re-check access for every emission |
 | [Query health](query-health.md) | Inspect the caller's own hub connections |
