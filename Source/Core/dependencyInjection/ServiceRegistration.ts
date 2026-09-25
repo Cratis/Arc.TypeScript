@@ -4,17 +4,18 @@ import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceIdentifier } from './ServiceIdentifier.js';
 import type { ServiceScope } from './ServiceScope.js';
 import type { SingletonServiceContext } from './SingletonServiceContext.js';
+import { ServiceLifetime } from './ServiceLifetime.js';
 /** Factories belong either to the registry or to an execution, never both. */
 export type ServiceRegistration<T> = {
     readonly token: ServiceIdentifier<T>;
     readonly dependencies?: readonly ServiceIdentifier<unknown>[];
 } & ({
-    readonly lifetime: 'singleton';
+    readonly lifetime: ServiceLifetime.Singleton;
     readonly factory?: (resolver: ServiceScope, context: SingletonServiceContext) => T | Promise<T>;
     /** A supplied instance is caller-owned; the registry never disposes it. */
     readonly instance?: T;
 } | {
-    readonly lifetime: 'scoped' | 'transient';
+    readonly lifetime: Exclude<ServiceLifetime, ServiceLifetime.Singleton>;
     readonly factory?: (resolver: ServiceScope, identity: ExecutionContext) => T | Promise<T>;
     readonly instance?: never;
 });

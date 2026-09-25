@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -15,10 +16,11 @@ describe('when disposing a registry with an abandoned failing factory', () => {
         const partial = serviceToken<object>('partial'); const broken = serviceToken<object>('broken');
         const entered = gate(); const release = gate(); events = [];
         const registry = new ServiceRegistry([
-            { token: partial, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => {
+            { token: partial, lifetime: ServiceLifetime.Singleton, factory: () => ({ [Symbol.dispose]: () => {
                 events.push('disposed'); throw new Error('cleanup failed');
             } }) },
-            { token: broken, lifetime: 'singleton', factory: async () => { entered.release(); await release.promise; throw new Error('failed'); } }
+            { token: broken, lifetime: ServiceLifetime.Singleton,
+                factory: async () => { entered.release(); await release.promise; throw new Error('failed'); } }
         ]);
         const scope = registry.createScope(serviceContext('alpha'));
         try {

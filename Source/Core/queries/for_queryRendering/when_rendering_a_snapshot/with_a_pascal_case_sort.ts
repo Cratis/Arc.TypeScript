@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { field } from '@cratis/fundamentals';
 import { should } from 'vitest';
 import { given } from '../../../given.js';
@@ -22,7 +23,7 @@ class a_pascal_case_page {
     readonly seen: string[] = [];
     readonly token = serviceToken<ReadModelInterceptor>('pascal page interceptor');
     async request(): Promise<{ data: { recordedValue: string }[]; paging: { totalItems: number } }> {
-        const builder = ArcApplication.createBuilder({ services: [{ token: this.token, lifetime: 'scoped', factory: () => ({
+        const builder = ArcApplication.createBuilder({ services: [{ token: this.token, lifetime: ServiceLifetime.Scoped, factory: () => ({
             model: PascalMetric, intercept: (item: object) => {
                 this.seen.push((item as PascalMetric).RecordedValue);
                 return item;

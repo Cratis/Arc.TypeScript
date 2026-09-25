@@ -1,5 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ClientAuthentication } from './ClientAuthentication.js';
+import { ClientOperationKind } from './ClientOperationKind.js';
 import { z } from 'zod';
 import type { ArcServer } from '../ArcServer.js';
 import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
@@ -87,7 +89,9 @@ export function validateClientManifest(value: unknown): ClientManifest {
             fail(at, 'queryName contradicts qualified ID');
         if (!Array.isArray(raw.roles) || raw.roles.length > 128 || raw.roles.some(role => typeof role !== 'string' || !role || role.length > 256)) fail(at, 'invalid roles');
         if (typeof raw.dynamicAuthorization !== 'boolean') fail(at, 'missing dynamic authorization flag');
-        if (!['anonymous', 'authenticated', 'default'].includes(raw.authentication as string) || raw.authentication === 'anonymous' && raw.roles.length || raw.authentication === 'default' && raw.roles.length)
+        if (!Object.values(ClientAuthentication).includes(raw.authentication as ClientAuthentication) ||
+            raw.authentication === ClientAuthentication.Anonymous && raw.roles.length ||
+            raw.authentication === ClientAuthentication.Default && raw.roles.length)
             fail(at, 'authentication contradicts effective roles');
         const input = fields(raw.input, `${at}.input`, 0);
         if (raw.kind !== 'command' && input.some(field => reservedQueryArguments.has(field.name.toLowerCase()) ||
@@ -97,7 +101,10 @@ export function validateClientManifest(value: unknown): ClientManifest {
         if (raw.kind !== 'command' && (output.kind === 'void' || ['string', 'boolean', 'number', 'enum'].includes(output.kind)))
             fail(at, 'scalar query results can lose false/zero/empty values in published client');
         if (input.some(field => field.type.kind === 'dto' || field.type.kind === 'array' && field.type.element.kind === 'dto')) fail(at, 'object input unsupported by client binder');
-        return { id, kind: raw.kind, route: raw.route, methods, ...(raw.kind !== 'command' ? { queryName: id } : {}), roles: [...raw.roles].sort() as string[], authentication: raw.authentication as ClientOperation['authentication'], dynamicAuthorization: raw.dynamicAuthorization, input, output };
+        return { id, kind: raw.kind as ClientOperationKind, route: raw.route, methods,
+            ...(raw.kind !== 'command' ? { queryName: id } : {}), roles: [...raw.roles].sort() as string[],
+            authentication: raw.authentication as ClientOperation['authentication'], dynamicAuthorization: raw.dynamicAuthorization,
+            input, output };
     });
     // Measure only the sanitized copy: never serialize the caller's objects or execute toJSON.
     if (JSON.stringify(operations).length > 1024 * 1024) fail('root', 'manifest exceeds 1 MiB');
@@ -170,13 +177,16 @@ export function exportClientManifest(server: ArcServer): ClientManifest {
         if (!operation.clientOutput) fail(id, 'missing explicit client output metadata');
         const input = inspectClientInput(operation.schema, id);
         return {
-            id, kind: 'observable' in operation && operation.observable === true ? 'observable' : operation.kind, route: operation.route,
+            id, kind: 'observable' in operation && operation.observable === true ? ClientOperationKind.Observable : operation.kind,
+            route: operation.route,
             methods: server.endpoints.get(operation.route)?.split(', ') ?? [],
             ...(operation.kind === 'query' ? { queryName: id } : {}),
-            roles: [...new Set(authorizationRequirements(operation.authorization).flatMap(requirement => requirement.roles ?? []))],
-            authentication: operation.authorization?.anonymous ? 'anonymous' :
+            roles: [...new Set(authorizationRequirements(operation.authorization)
+                .flatMap(requirement => requirement.roles ?? []))],
+            authentication: operation.authorization?.anonymous ? ClientAuthentication.Anonymous :
                 operation.authorization?.authenticated || operation.authorization?.requirements?.some(requirement => requirement.authenticated || requirement.roles?.length || requirement.policy || requirement.schemes?.length) ||
-                    operation.authorization?.roles?.length || operation.authorization?.policy || operation.authorization?.schemes?.length ? 'authenticated' : 'default',
+                    operation.authorization?.roles?.length || operation.authorization?.policy ||
+                        operation.authorization?.schemes?.length ? ClientAuthentication.Authenticated : ClientAuthentication.Default,
             dynamicAuthorization: operation.dynamicAuthorization === true,
             input, output: operation.clientOutput.output
         };

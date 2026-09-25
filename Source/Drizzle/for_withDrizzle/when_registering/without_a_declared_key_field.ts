@@ -3,6 +3,7 @@
 import { beforeEach, describe, it, should } from 'vitest';
 import { field } from '@cratis/fundamentals';
 import { given } from '../../given.js';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { a_sqlite_database } from '../../for_DrizzleReadModels/given/a_sqlite_database.js';
 import { a_builder } from '../given/a_builder.js';
 import '../../index.js';
@@ -13,7 +14,7 @@ describe('when registering a query-only model without a declared key field', giv
     const sqlite = new a_sqlite_database();
     let registered: typeof context.builder;
     beforeEach(() => {
-        registered = context.builder.withDrizzle({ dialect: 'sqlite', database: {},
+        registered = context.builder.withDrizzle({ dialect: DrizzleDialect.SQLite, database: {},
             readModels: [{ type: TitleOnly, table: sqlite.table }] });
     });
     it('should retain its query registration', () => { registered.should.equal(context.builder); });

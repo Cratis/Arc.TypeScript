@@ -72,7 +72,7 @@ The paths below are relative to `Cratis:Arc` in configuration and camelCase in T
 | `Development` / `development` | `false` | Enable the development user and tenant discovery providers. TypeScript-only; it does not change exception exposure. |
 | `CorrelationId:HttpHeader` / `correlationId.httpHeader` | `X-Correlation-ID` | Correlation ID request and response header. |
 | `Tenancy:ResolverType` / `tenancy.resolverType` | `header` when `tenancy` is present | Single `header`, `query`, `claim`, `subdomain`, `development`, or `fixed` source. |
-| `Tenancy:HttpHeader` / `tenancy.httpHeader` | `x-cratis-tenant-id` | Header source; also the fallback for `resolverType: 'subdomain'` or an ordered `['subdomain', 'header']` list. |
+| `Tenancy:HttpHeader` / `tenancy.httpHeader` | `x-cratis-tenant-id` | Header source; also the fallback for `resolverType: TenantResolverType.Subdomain` or an ordered `[TenantResolverType.Subdomain, TenantResolverType.Header]` list. |
 | `Tenancy:BaseDomain` / `tenancy.baseDomain` | None | Required for the verified subdomain source; exactly one preceding DNS label matches. |
 | `Tenancy:QueryParameter` / `tenancy.queryParameter` | `tenantId` | Query-string source. |
 | `Tenancy:ClaimType` / `tenancy.claimType` | `tenant_id` | Claim source; only own string claims on authenticated principals count. |

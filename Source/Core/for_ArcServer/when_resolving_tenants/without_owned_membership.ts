@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../../tenancy/TenantResolverType.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -18,7 +19,8 @@ describe('when resolving tenants without owned membership', () => {
     let noInherited: string;
     beforeEach(async () => {
         invoked = 0;
-        const server = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['header'], membershipClaim: 'constructor' },
+        const server = new ArcServer({ nativePrincipal: true, tenancy: { sources: [TenantResolverType.Header],
+            membershipClaim: 'constructor' },
             commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () => { invoked++; return 1; } })],
             queries: [defineQuery({ name: 'Read', schema: z.object({}), perform: () => { invoked++; return 1; } })] });
         const request = (path: string, identity?: Principal, tenant = 'north') => server.handle(new Request(`http://arc.invalid${path}`, {
@@ -34,10 +36,11 @@ describe('when resolving tenants without owned membership', () => {
             invalid.push({ status: bad.status, length: (await bad.json()).validationResults.length });
             allowed.push((await request(path, { ...identityPrincipal, claims: { constructor: 'north' } }))!.status);
         }
-        const anonymous = new ArcServer({ tenancy: { sources: ['fixed'], fixedTenantId: 'north', membershipClaim: 'memberships' },
+        const anonymous = new ArcServer({ tenancy: { sources: [TenantResolverType.Fixed], fixedTenantId: 'north',
+            membershipClaim: 'memberships' },
             queries: [defineQuery({ name: 'Read', schema: z.object({}), perform: () => { invoked++; return 1; } })] });
         unauthenticated = (await identityGet(anonymous, '/api/read'))!.status;
-        const claim = new ArcServer({ nativePrincipal: true, tenancy: { sources: ['claim'], claimType: 'toString' },
+        const claim = new ArcServer({ nativePrincipal: true, tenancy: { sources: [TenantResolverType.Claim], claimType: 'toString' },
             queries: [defineQuery({ name: 'Read', schema: z.object({}), perform: (_input, context) => context.tenantId ?? 'none' })] });
         noInherited = (await (await claim.handle(new Request('http://arc.invalid/api/read'), { principal: { ...identityPrincipal, claims: {} } }))!.json()).data;
         await Promise.all([server.dispose(), anonymous.dispose(), claim.dispose()]);

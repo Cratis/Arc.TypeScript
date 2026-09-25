@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -14,10 +15,10 @@ describe('when disposing a registry with a live root factory', () => {
         const origin = serviceToken<object>('origin'); const dependency = serviceToken<object>('dependency');
         const entered = gate(); const release = gate(); events = [];
         const registry = new ServiceRegistry([
-            { token: dependency, lifetime: 'singleton', factory: (_resolver, lifetime) => ({
+            { token: dependency, lifetime: ServiceLifetime.Singleton, factory: (_resolver, lifetime) => ({
                 [Symbol.dispose]: () => { events.push(lifetime.signal.aborted ? 'dependency' : 'dependency not aborted'); }
             }) },
-            { token: origin, lifetime: 'singleton', factory: async (resolver, lifetime) => {
+            { token: origin, lifetime: ServiceLifetime.Singleton, factory: async (resolver, lifetime) => {
                 entered.release(); await release.promise;
                 rootAbortedDuringConstruction = lifetime.signal.aborted;
                 await resolver.resolve(dependency);

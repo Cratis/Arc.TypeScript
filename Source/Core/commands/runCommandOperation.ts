@@ -9,6 +9,7 @@ import { authorized } from '../authorization/authorized.js';
 import { commandResult } from './createCommandResult.js';
 import { malformed } from '../http/malformed.js';
 import type { Operation } from '../http/Operation.js';
+import { ClientOperationKind } from '../introspection/ClientOperationKind.js';
 import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { createCommandContext } from './createCommandContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
@@ -41,7 +42,7 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
         return options.commandExecutionRunner ? options.commandExecutionRunner(context, execute) : execute();
     };
     return {
-        ...definition, kind: 'command', route, fullyQualifiedName: fullyQualifiedName(definition),
+        ...definition, kind: ClientOperationKind.Command, route, fullyQualifiedName: fullyQualifiedName(definition),
         dynamicAuthorization: typeof definition.authorize === 'function',
         inputSchema: definition.wireInputSchema ?? z.toJSONSchema(definition.schema),
         run: (input, execution) => invoke(input, execution, CommandOperationMode.Execute),

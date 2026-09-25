@@ -9,7 +9,8 @@ import { isOutcome } from './Outcome.js';
 import type { CommandDefinition } from './CommandDefinition.js';
 import type { CommandContext } from './CommandContext.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
-import type { CommandCommitDisposition } from './CommandCommitDisposition.js';
+import { CommandCommitDisposition } from './CommandCommitDisposition.js';
+import { CommandOperationFailureSource } from './CommandOperationFailureSource.js';
 import type { CommandExecutionScope, CommandOperationExecutionScope } from './CommandExecutionScope.js';
 import { CommandOperationExecution } from './CommandOperationExecution.js';
 import type { CommandResult } from './CommandResult.js';
@@ -25,8 +26,9 @@ function disposition(scopes: readonly CommandExecutionScope[], context: CommandC
     const participants = scopes.filter((scope): scope is CommandOperationExecutionScope =>
         'isCommitParticipant' in scope && scope.isCommitParticipant === true);
     if (participants.length > 1) throw new Error('Operations support at most one deferred commit participant');
-    const value = participants[0]?.getCommitDisposition(context) ?? 'NoCommit';
-    if (!['NoCommit', 'NotCommitted', 'Committed', 'Unknown', 'Mixed'].includes(value))
+    const value = participants[0]?.getCommitDisposition(context) ?? CommandCommitDisposition.NoCommit;
+    if (![CommandCommitDisposition.NoCommit, CommandCommitDisposition.NotCommitted, CommandCommitDisposition.Committed,
+        CommandCommitDisposition.Unknown, CommandCommitDisposition.Mixed].includes(value))
         throw new Error('Invalid command commit disposition');
     return value;
 }
@@ -97,12 +99,12 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
 
 async function completeScopes<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, context: CommandContext,
     scopes: CommandExecutionScope[], snapshot: CommandFailureSnapshot, journal: CommandOperationExecution | undefined,
-    result: CommandResult, source: 'response' | 'execution' | 'cancellation' | 'scope'): Promise<CommandResult> {
+    result: CommandResult, source: CommandOperationFailureSource): Promise<CommandResult> {
     for (const scope of scopes.reverse()) {
         if (journal) result = snapshot.restore(result);
         try { await scope.complete(context, result); }
         catch (error) {
-            if (!snapshot.original) source = 'scope';
+            if (!snapshot.original) source = CommandOperationFailureSource.ScopeCompletion;
             result = commandFailure(context, error, result);
         }
         snapshot.capture(result);
@@ -113,10 +115,10 @@ async function completeScopes<S extends z.ZodType, T>(definition: CommandDefinit
         catch (error) { result = commandFailure(context, error, result); snapshot.capture(result); }
     }
     if (journal) {
-        let commit: CommandCommitDisposition = 'Unknown';
+        let commit: CommandCommitDisposition = CommandCommitDisposition.Unknown;
         try { commit = disposition(scopes, context); }
         catch (error) { result = commandFailure(context, error, result); snapshot.capture(result); }
-        if (result.isSuccess && (commit === 'Unknown' || commit === 'Mixed')) {
+        if (result.isSuccess && (commit === CommandCommitDisposition.Unknown || commit === CommandCommitDisposition.Mixed)) {
             result = commandFailure(context, new Error(`Command commit disposition is ${commit}`), result);
             snapshot.capture(result);
         }
@@ -137,7 +139,7 @@ export async function executeCommandOperation<S extends z.ZodType, T>(definition
         const scopes: CommandExecutionScope[] = [];
         let result: CommandResult = commandResult(context);
         let journal: CommandOperationExecution | undefined;
-        let source: 'response' | 'execution' | 'cancellation' | 'scope' = 'response';
+        let source: CommandOperationFailureSource = CommandOperationFailureSource.ResponseHandling;
         const snapshot = new CommandFailureSnapshot(context);
         try {
             const handled = await handle(definition, value, context, scopes, options);
@@ -150,13 +152,13 @@ export async function executeCommandOperation<S extends z.ZodType, T>(definition
             }
             if (journal && result.isSuccess) {
                 const before = disposition(scopes, context);
-                if (before !== 'NoCommit' && before !== 'NotCommitted')
+                if (before !== CommandCommitDisposition.NoCommit && before !== CommandCommitDisposition.NotCommitted)
                     throw new Error('Operations cannot start after an early, unknown, or mixed business commit');
-                source = 'execution';
+                source = CommandOperationFailureSource.Execution;
                 await journal.execute(context);
             }
         } catch (error) {
-            source = context.signal.aborted ? 'cancellation' : source;
+            source = context.signal.aborted ? CommandOperationFailureSource.Cancellation : source;
             result = commandFailure(context, error, result);
             snapshot.capture(result);
         } finally {

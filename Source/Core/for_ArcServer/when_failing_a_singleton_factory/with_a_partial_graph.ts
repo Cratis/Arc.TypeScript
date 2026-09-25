@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -13,8 +14,9 @@ describe('when failing a singleton factory with a partial graph', () => {
     beforeEach(async () => {
         events = []; const first = serviceToken<object>('first singleton'); const broken = serviceToken<object>('broken singleton');
         const server = new ArcServer({ services: [
-            { token: first, lifetime: 'singleton', factory: () => ({ [Symbol.dispose]: () => { events.push('disposed'); } }) },
-            { token: broken, lifetime: 'singleton', dependencies: [first], factory: async resolver => {
+            { token: first, lifetime: ServiceLifetime.Singleton,
+                factory: () => ({ [Symbol.dispose]: () => { events.push('disposed'); } }) },
+            { token: broken, lifetime: ServiceLifetime.Singleton, dependencies: [first], factory: async resolver => {
                 await resolver.resolve(first); throw new Error('no singleton');
             } }
         ], queries: [defineQuery({ name: 'Broken', schema: z.object({}), handlerDependencies: [broken], perform: () => 1 })] });

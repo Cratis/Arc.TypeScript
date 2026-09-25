@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '../../../../../../../Source/Core/queries/SortDirection.js';
 import { QueryScenario } from '@cratis/arc.testing';
 import { ChronicleReadModels } from '@cratis/arc.chronicle';
 import { AuthorId } from '../../../AuthorId.js';
@@ -19,7 +20,8 @@ describe('when paging projected authors with multiple entries', () => {
     }) as unknown as ChronicleReadModels);
     let result: Awaited<ReturnType<typeof scenario.perform>>;
     beforeAll(async () => {
-        result = await scenario.perform({}, { paging: { page: 0, pageSize: 1 }, sorting: { field: 'name', direction: 'asc' } });
+        result = await scenario.perform({}, { paging: { page: 0, pageSize: 1 }, sorting: { field: 'name',
+            direction: SortDirection.Ascending } });
     });
     afterAll(async () => { await scenario.dispose(); });
     it('should return the first sorted author and total count', () => {

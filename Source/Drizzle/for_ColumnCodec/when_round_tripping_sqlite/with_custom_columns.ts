@@ -1,5 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { DrizzleDialect } from '../../DrizzleDialect.js';
+import { ConceptCodecKind } from '../../ConceptCodecKind.js';
 import { describe, it, should } from 'vitest';
 import initSqlJs from 'sql.js';
 import { drizzle } from 'drizzle-orm/sql-js';
@@ -19,14 +21,14 @@ describe('when round-tripping SQLite custom columns', () => {
         const connection = new SQL.Database();
         try {
             const records = sqliteTable('records', {
-                id: sqliteColumn(guidCodec('sqlite'))('id').primaryKey(),
-                conceptId: sqliteColumn(conceptCodec(TaskId, 'guid', 'sqlite'))('concept_id').notNull(),
-                name: sqliteColumn(conceptCodec(TaskName, 'string', 'sqlite'))('name').notNull(),
-                score: sqliteColumn(conceptCodec(TaskScore, 'number', 'sqlite'))('score').notNull(),
+                id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
+                conceptId: sqliteColumn(conceptCodec(TaskId, ConceptCodecKind.Guid, DrizzleDialect.SQLite))('concept_id').notNull(),
+                name: sqliteColumn(conceptCodec(TaskName, ConceptCodecKind.String, DrizzleDialect.SQLite))('name').notNull(),
+                score: sqliteColumn(conceptCodec(TaskScore, ConceptCodecKind.Number, DrizzleDialect.SQLite))('score').notNull(),
                 date: sqliteColumn(dateOnlyCodec)('date').notNull(),
                 time: sqliteColumn(timeOnlyCodec)('time').notNull(),
                 span: sqliteColumn(timeSpanCodec)('span').notNull(),
-                details: sqliteColumn(jsonCodec('sqlite', value => {
+                details: sqliteColumn(jsonCodec(DrizzleDialect.SQLite, value => {
                     if (!value || typeof value !== 'object' || typeof Reflect.get(value, 'label') !== 'string')
                         throw new Error('Invalid details');
                     return value as { label: string };

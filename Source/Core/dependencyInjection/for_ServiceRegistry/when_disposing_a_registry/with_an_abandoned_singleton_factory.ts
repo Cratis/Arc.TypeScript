@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { serviceToken } from '../../ServiceToken.js';
@@ -12,7 +13,7 @@ describe('when disposing a registry with an abandoned singleton factory', () => 
     beforeEach(async () => {
         const token = serviceToken<object>('abandoned');
         const entered = gate(); const release = gate(); disposals = 0;
-        const registry = new ServiceRegistry([{ token, lifetime: 'singleton', factory: async () => {
+        const registry = new ServiceRegistry([{ token, lifetime: ServiceLifetime.Singleton, factory: async () => {
             entered.release(); await release.promise;
             return { [Symbol.dispose]: () => { disposals++; } };
         } }]);

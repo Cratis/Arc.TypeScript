@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from './ServiceLifetime.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
 import type { ServiceIdentifier, ServiceClass } from './ServiceIdentifier.js';
 import { reflectedParameters } from '../reflection/reflectedParameters.js';
@@ -11,17 +12,17 @@ export class ArcApplicationServices {
     readonly registrations: ServiceRegistration<unknown>[] = [];
     /** Register a service once for the lifetime of the application. */
     addSingleton<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
-        return this.add(token, 'singleton', implementation);
+        return this.add(token, ServiceLifetime.Singleton, implementation);
     }
     /** Register a service once in each execution scope. */
     addScoped<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
-        return this.add(token, 'scoped', implementation);
+        return this.add(token, ServiceLifetime.Scoped, implementation);
     }
     /** Register a service once per resolution. */
     addTransient<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
-        return this.add(token, 'transient', implementation);
+        return this.add(token, ServiceLifetime.Transient, implementation);
     }
-    private add<T>(token: ServiceIdentifier<T>, lifetime: 'singleton' | 'scoped' | 'transient',
+    private add<T>(token: ServiceIdentifier<T>, lifetime: ServiceLifetime,
         implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
         const concrete = implementation ?? (typeof token === 'function' ? token : undefined);
         if (!concrete) throw new Error(`Service ${token.name} requires an implementation`);

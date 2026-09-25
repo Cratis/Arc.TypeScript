@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '@cratis/arc.core';
 import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { MongoReadModels } from '../../MongoReadModels.js';
@@ -14,7 +15,7 @@ describe('when querying a page with unlisted Arc sorting', given(a_tenant_collec
             databaseForTenant: tenant => `app_${tenant}`, filterFor: context.filterFor,
             sortableFields: ['title'] }, 'tasks');
         try { await models.queryPage(executionContext('a'), 'alice', { paging: { page: 0, pageSize: 1 },
-            sorting: { field: '$where', direction: 'asc' } }); }
+            sorting: { field: '$where', direction: SortDirection.Ascending } }); }
         catch (failure) { error = failure; }
     });
     it('should reject before querying MongoDB', () => {

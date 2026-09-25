@@ -10,6 +10,7 @@ description: Run a decorated static query through the real pipeline with QuerySc
 The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/Features/Tasks/Listing/for_TaskItem/when_performing/with_sorting_and_paging.ts) registers two tasks and asks for the first page, sorted by title:
 
 ```typescript
+import { SortDirection } from '@cratis/arc.core';
 import { given } from '@cratis/arc.testing';
 import { TaskId } from '../../../TaskId.js';
 import { TaskTitle } from '../../../TaskTitle.js';
@@ -22,7 +23,7 @@ describe('when performing the tasks query with sorting and paging', given(a_task
         context.tasks.register(TaskId.create(), new TaskTitle('Apple'));
     });
     beforeEach(async () => {
-        result = await context.query.perform({}, { sorting: { field: 'title', direction: 'asc' }, paging: { page: 0, pageSize: 1 } });
+        result = await context.query.perform({}, { sorting: { field: 'title', direction: SortDirection.Ascending }, paging: { page: 0, pageSize: 1 } });
     });
     afterAll(async () => { await context.query.dispose(); await context.observable.dispose(); });
     it('should return the first sorted wire value', () => {

@@ -58,7 +58,7 @@ The first log line is `true 1a638f8e-4444-4444-8888-a0b10cdd9977`; the query ret
 | Model-bound query | Namespace, read-model name, and method: `Tasks.Listing.TaskItem.allTasks` when discovered |
 | Low-level definition | Namespace and name joined with a dot, such as `Tasks.Create`, or the bare name without a namespace |
 
-If you already hold a decorated command instance, `app.server.execute(command, context)` serializes its decorated fields and runs the same pipeline; the registered command name must be unambiguous. Call `validateCommand(name, input, context)` or `validate(command, context)` to check authorization and validation without running the command, like the `/validate` route. `performQuery` takes paging and sorting as its fourth argument, for example `{ paging: { page: 0, pageSize: 10 }, sorting: { field: 'title', direction: 'asc' } }`.
+If you already hold a decorated command instance, `app.server.execute(command, context)` serializes its decorated fields and runs the same pipeline; the registered command name must be unambiguous. Call `validateCommand(name, input, context)` or `validate(command, context)` to check authorization and validation without running the command, like the `/validate` route. `performQuery` takes paging and sorting as its fourth argument. Import `SortDirection` from `@cratis/arc.core`, for example `{ paging: { page: 0, pageSize: 10 }, sorting: { field: 'title', direction: SortDirection.Ascending } }`.
 
 ## What a direct call does differently
 

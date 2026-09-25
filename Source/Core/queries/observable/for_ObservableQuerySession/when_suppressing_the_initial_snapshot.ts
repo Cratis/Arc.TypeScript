@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../../ArcServer.js';
@@ -27,7 +28,7 @@ describe('when suppressing the initial snapshot', () => {
         let suppressed!: () => void;
         const suppressedOnce = new Promise<void>(resolve => { suppressed = resolve; });
         const token = serviceToken<ObservableEmissionGuard>('first emission');
-        const server = new ArcServer({ services: [{ token, lifetime: 'scoped', factory: (): ObservableEmissionGuard => ({
+        const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped, factory: (): ObservableEmissionGuard => ({
             check(emission) {
                 names.push(emission.queryName);
                 tenants.push(emission.context.tenantId);

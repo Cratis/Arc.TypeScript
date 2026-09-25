@@ -18,14 +18,14 @@ Enable the handler only on a host bound to `127.0.0.1`, and only when you run it
 1. Register the handler only for local development. The standalone host binds `127.0.0.1` unless you pass another `host`:
 
     ```typescript title="main.ts"
-    import { ArcApplication, microsoftIdentityPlatform } from '@cratis/arc.core';
+    import { ArcApplication, microsoftIdentityPlatform, TenantResolverType } from '@cratis/arc.core';
 
     const development = process.env.NODE_ENV === 'development';
 
     const builder = ArcApplication.createBuilder({
         development,
         authentication: development ? [microsoftIdentityPlatform()] : [],
-        tenancy: { sources: ['header'], membershipClaim: 'tenants' }
+        tenancy: { sources: [TenantResolverType.Header], membershipClaim: 'tenants' }
     });
     await builder.discover(new URL('./Features/', import.meta.url));
     const app = await builder.build();
@@ -87,10 +87,12 @@ With an [identity details provider](provider-flow.md), `GET /.cratis/me` with th
 Tools that switch users for you, such as [Lens](/tools/lens/), read `/.cratis/users` and `/.cratis/tenants`. Their user entries use the same shape as `principal.json`, so one fixture serves both:
 
 ```typescript
+import { ArcApplication, microsoftIdentityPlatform, TenantResolverType } from '@cratis/arc.core';
+
 const builder = ArcApplication.createBuilder({
     development,
     authentication: development ? [microsoftIdentityPlatform()] : [],
-    tenancy: { sources: ['header'], membershipClaim: 'tenants' },
+    tenancy: { sources: [TenantResolverType.Header], membershipClaim: 'tenants' },
     developmentUsers: () => [{
         microsoftIdentity: {
             identityProvider: 'development', userId: 'ada', userDetails: 'Ada',

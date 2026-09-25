@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../../tenancy/TenantResolverType.js';
 import { afterAll, beforeEach, describe, it, should } from 'vitest';
 import sinon from 'sinon';
 import { z } from 'zod';
@@ -14,7 +15,7 @@ describe('when resolving tenant claims with nonstring claims', () => {
     const perform = sinon.stub().returns('secret');
     const coerce = sinon.stub().returns('north');
     const server = new ArcServer({ nativePrincipal: true,
-        tenancy: { sources: ['claim'], claimType: 'tenant', required: true },
+        tenancy: { sources: [TenantResolverType.Claim], claimType: 'tenant', required: true },
         queries: [defineQuery({ name: 'Read', schema: z.object({}), perform })] });
     let statuses: number[];
     let validity: boolean[];

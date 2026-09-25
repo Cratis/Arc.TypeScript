@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -13,7 +14,8 @@ describe('when handling concurrent queries with scoped tenant services', () => {
     let tenants: unknown[]; let disposals: string[];
     beforeEach(async () => {
         const tenant = serviceToken<{ tenantId: string | undefined }>('per execution tenant'); disposals = [];
-        const server = new ArcServer({ services: [{ token: tenant, lifetime: 'scoped', factory: async (_resolver, identity) => {
+        const server = new ArcServer({ services: [{ token: tenant, lifetime: ServiceLifetime.Scoped,
+            factory: async (_resolver, identity) => {
             await Promise.resolve();
             return { tenantId: identity.tenantId, [Symbol.dispose]: () => { disposals.push(identity.tenantId ?? 'none'); } };
         } }], queries: [defineQuery({ name: 'Tenant', schema: z.object({}), handlerDependencies: [tenant],

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -14,14 +15,17 @@ describe('when executing a command with service factory or disposal failure', ()
     beforeEach(async () => {
         events = []; const first = serviceToken<object>('first'); const last = serviceToken<object>('last');
         const server = new ArcServer({ services: [
-            { token: first, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => { events.push('first disposed'); } }) },
-            { token: last, lifetime: 'scoped', dependencies: [first], factory: async resolver => { await resolver.resolve(first); throw new Error('factory failed'); } }
+            { token: first, lifetime: ServiceLifetime.Scoped,
+                factory: () => ({ [Symbol.asyncDispose]: async () => { events.push('first disposed'); } }) },
+            { token: last, lifetime: ServiceLifetime.Scoped, dependencies: [first],
+                factory: async resolver => { await resolver.resolve(first); throw new Error('factory failed'); } }
         ], commands: [defineCommand({ name: 'Fail', schema: z.object({}), handlerDependencies: [last], handle: () => { events.push('handle'); return 1; } })] });
         const failed = await server.executeCommand('Fail', {}, serviceContext('alpha'));
         factorySuccess = failed.isSuccess; factoryReason = failed.validationResults[0]?.reason;
         await server.dispose();
         const broken = serviceToken<object>('broken');
-        const other = new ArcServer({ services: [{ token: broken, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => { throw new Error('dispose failed'); } }) }],
+        const other = new ArcServer({ services: [{ token: broken, lifetime: ServiceLifetime.Scoped,
+            factory: () => ({ [Symbol.asyncDispose]: async () => { throw new Error('dispose failed'); } }) }],
             commands: [defineCommand({ name: 'Reply', schema: z.object({}), handlerDependencies: [broken], handle: () => 'secret' })] });
         const result = await other.executeCommand('Reply', {}, serviceContext('beta'));
         disposalSuccess = result.isSuccess; disposalResponse = result.response; disposalMessage = result.exceptionMessages[0] ?? '';

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { DrizzleDialect } from './DrizzleDialect.js';
 import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { ExecutionContext } from '@cratis/arc.core';
 import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
@@ -14,7 +15,8 @@ import { getTableColumns } from 'drizzle-orm';
 /** An application retains ownership of its connections, pools, and migrations. */
 export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptions): ArcApplicationBuilder {
     if (!!options.database === !!options.databaseFactory) throw new Error('Drizzle requires exactly one of database or databaseFactory');
-    if (!['postgresql', 'mysql', 'sqlite'].includes(options.dialect)) throw new Error('Unsupported Drizzle dialect');
+    if (![DrizzleDialect.PostgreSQL, DrizzleDialect.MySQL,
+        DrizzleDialect.SQLite].includes(options.dialect)) throw new Error('Unsupported Drizzle dialect');
     if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) ||
         options.maxPageSize <= 0 || options.maxPageSize > 10000))
         throw new RangeError('maxPageSize must be between 1 and 10000');

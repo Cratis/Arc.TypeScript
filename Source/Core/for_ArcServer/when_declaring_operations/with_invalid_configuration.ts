@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { CommandCommitDisposition } from '../../commands/CommandCommitDisposition.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -15,7 +16,8 @@ describe('when two scopes participate in a deferred commit', () => {
     let calls: number;
     beforeEach(async () => {
         calls = 0;
-        const participant = () => ({ isCommitParticipant: true as const, getCommitDisposition: () => 'NoCommit' as const,
+        const participant = () => ({ isCommitParticipant: true as const,
+            getCommitDisposition: () => CommandCommitDisposition.NoCommit as const,
             begin: () => {}, complete: () => {} });
         const server = new ArcServer({ commands: [defineCommand({ name: 'Run', schema: z.object({}),
             scopes: [participant, participant], handle: () => {

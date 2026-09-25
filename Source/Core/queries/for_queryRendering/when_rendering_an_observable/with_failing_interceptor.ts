@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { z } from 'zod';
 import { should } from 'vitest';
 import { given } from '../../../given.js';
@@ -15,7 +16,7 @@ should();
 class a_failing_emission {
     readonly token = serviceToken<ReadModelInterceptor>('failing interceptor');
     readonly server = new ArcServer({
-        services: [{ token: this.token, lifetime: 'scoped', factory: () => ({
+        services: [{ token: this.token, lifetime: ServiceLifetime.Scoped, factory: () => ({
             model: Task, intercept: () => { throw new Error('private interception details'); }
         }) }],
         readModelInterceptors: [this.token],

@@ -4,6 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { command, commandReadModel, inject, key } from '@cratis/arc.core';
 import { field } from '@cratis/fundamentals';
 import { given } from '../../given.js';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { a_sqlite_database } from '../../for_DrizzleReadModels/given/a_sqlite_database.js';
 import { a_builder } from '../../for_withDrizzle/given/a_builder.js';
 import '../../index.js';
@@ -20,7 +21,7 @@ describe('when injecting a model without a declared key field', given(a_builder,
     const sqlite = new a_sqlite_database();
     let failure: Error | undefined;
     beforeEach(async () => {
-        context.builder.withDrizzle({ dialect: 'sqlite', database: {}, readModels: [{ type: TitleOnly, table: sqlite.table }] });
+        context.builder.withDrizzle({ dialect: DrizzleDialect.SQLite, database: {}, readModels: [{ type: TitleOnly, table: sqlite.table }] });
         context.builder.add(RenameTitle);
         failure = await context.builder.build().then(() => undefined, reason => reason as Error);
     });

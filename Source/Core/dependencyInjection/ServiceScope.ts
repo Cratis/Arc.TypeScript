@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from './ServiceLifetime.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceToken } from './ServiceToken.js';
@@ -107,21 +108,24 @@ export class ServiceScope {
     private resolveInChain<T>(token: ServiceToken<T>, identity: ExecutionContext | undefined, chain: readonly ServiceResolutionNode[], captive: boolean): Promise<T> {
         if (!this.canResolve()) throw new ServiceDependencyError('Service scope is disposed');
         const registration = this.#registry.registration(token);
-        if ((captive || this.#singleton) && registration.lifetime !== 'singleton') throw new ServiceDependencyError(`Captive service dependency: ${token.name}`);
-        if (registration.lifetime === 'singleton' && !this.#singleton)
+        if ((captive || this.#singleton) &&
+            registration.lifetime !== ServiceLifetime.Singleton)
+            throw new ServiceDependencyError(`Captive service dependency: ${token.name}`);
+        if (registration.lifetime === ServiceLifetime.Singleton && !this.#singleton)
             return this.#registry.singletonScope().resolveInChain(token, identity, chain, captive);
         if (chain.some(ancestor => ancestor.state === ServiceResolutionState.Pending && ancestor.scope === this && ancestor.token === token.key))
             throw new ServiceDependencyError(`Service dependency cycle: ${token.name}`);
-        const cached = registration.lifetime !== 'transient' ? this.#cache.get(token.key) : undefined;
+        const cached = registration.lifetime !== ServiceLifetime.Transient ? this.#cache.get(token.key) : undefined;
         if (cached) {
             const node = this.#nodes.get(token.key)!;
             return this.#registry.waitFor(node, token.name, chain, cached as Promise<T>);
         }
         const node: ServiceResolutionNode = { scope: this, token: token.key, state: ServiceResolutionState.Pending };
-        if (registration.lifetime !== 'transient') this.#nodes.set(token.key, node);
+        if (registration.lifetime !== ServiceLifetime.Transient) this.#nodes.set(token.key, node);
         // The microtask publishes the cache and pending owner before user code can reenter resolution.
-        const task = resolution.run({ owner: node, chain: [...chain, node], singleton: captive || registration.lifetime === 'singleton', identity }, () =>
-            Promise.resolve().then(() => withServices(this, () => registration.lifetime === 'singleton'
+        const task = resolution.run({ owner: node, chain: [...chain, node], singleton: captive ||
+            registration.lifetime === ServiceLifetime.Singleton, identity }, () =>
+            Promise.resolve().then(() => withServices(this, () => registration.lifetime === ServiceLifetime.Singleton
                 ? withoutRequestContext(() => this.construct(token, () => registration.factory?.(this, this.#registry.singletonContext) as T | Promise<T> | undefined, registration.instance as T | undefined))
                 : this.construct(token, () => identity && registration.factory?.(this, identity) as T | Promise<T> | undefined))));
 
@@ -129,13 +133,13 @@ export class ServiceScope {
         void task.then(() => { node.state = ServiceResolutionState.Settled; this.#pending.delete(task); }, () => {
             node.state = ServiceResolutionState.Settled;
             this.#pending.delete(task);
-            if (this.#singleton && registration.lifetime === 'singleton') this.#registry.markSingletonFailure();
+            if (this.#singleton && registration.lifetime === ServiceLifetime.Singleton) this.#registry.markSingletonFailure();
             if (this.#cache.get(token.key) === task) {
                 this.#cache.delete(token.key);
                 this.#nodes.delete(token.key);
             }
         });
-        if (registration.lifetime !== 'transient') this.#cache.set(token.key, task);
+        if (registration.lifetime !== ServiceLifetime.Transient) this.#cache.set(token.key, task);
         return this.#registry.waitFor(node, token.name, chain, task);
     }
     private async construct<T>(token: ServiceToken<T>, factory: () => T | Promise<T> | undefined, instance?: T): Promise<T> {

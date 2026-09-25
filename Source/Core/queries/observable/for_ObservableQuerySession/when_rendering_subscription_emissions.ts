@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { SortDirection } from '../../SortDirection.js';
 import { should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../../ArcServer.js';
@@ -21,7 +22,7 @@ describe('when rendering subscription emissions', () => {
 
     beforeEach(async () => {
         const subject = new CurrentValueSubject([{ id: 'b' }, { id: 'a' }]);
-        options = { paging: { page: 0, pageSize: 1 }, sorting: { field: 'id', direction: 'asc' } };
+        options = { paging: { page: 0, pageSize: 1 }, sorting: { field: 'id', direction: SortDirection.Ascending } };
         authorized = 0;
         validated = 0;
         observed = 0;

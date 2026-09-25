@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
 import { ServiceScope } from '../../ServiceScope.js';
@@ -14,11 +15,11 @@ describe('when disposing a scope with a cycle through active ancestors', () => {
         const first = serviceToken<object>('first'); const second = serviceToken<object>('second');
         const release = gate(); let detached!: Promise<void>; let a!: ServiceScope; let b!: ServiceScope;
         const registry = new ServiceRegistry([
-            { token: first, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => {
+            { token: first, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.asyncDispose]: async () => {
                 await b.dispose();
                 detached = (async () => { await release.promise; await a.dispose(); })();
             } }) },
-            { token: second, lifetime: 'scoped', factory: () => ({ [Symbol.asyncDispose]: async () => {
+            { token: second, lifetime: ServiceLifetime.Scoped, factory: () => ({ [Symbol.asyncDispose]: async () => {
                 cycleFailure = await captureFailure(a.dispose());
             } }) }
         ]);

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -13,12 +14,12 @@ describe('when resolving nested dependencies with a singleton cycle through a sc
     beforeEach(async () => {
         const a = serviceToken<object>('singleton A'); const b = serviceToken<object>('nested scoped B');
         const server = new ArcServer({ services: [
-            { token: a, lifetime: 'singleton', factory: async () => {
+            { token: a, lifetime: ServiceLifetime.Singleton, factory: async () => {
                 const nested = await server.performQuery('B', {}, serviceContext('nested'));
                 nestedSuccess = nested.isSuccess; cycleMessage = nested.exceptionMessages.join(' ');
                 throw new Error('nested dependency failed');
             } },
-            { token: b, lifetime: 'scoped', factory: resolver => resolver.resolve(a) }
+            { token: b, lifetime: ServiceLifetime.Scoped, factory: resolver => resolver.resolve(a) }
         ], queries: [
             defineQuery({ name: 'A', schema: z.object({}), handlerDependencies: [a], perform: () => 'unexpected' }),
             defineQuery({ name: 'B', schema: z.object({}), handlerDependencies: [b], perform: () => 'unexpected' })

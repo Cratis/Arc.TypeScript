@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../../dependencyInjection/ServiceLifetime.js';
 import { should } from 'vitest';
 import { given } from '../../../given.js';
 import { ArcServer } from '../../../ArcServer.js';
@@ -12,8 +13,10 @@ class a_singleton_extension {
     readonly renderer = serviceToken<QueryRenderer>('singleton renderer');
     readonly interceptor = serviceToken<ReadModelInterceptor>('singleton interceptor');
     readonly services = [
-        { token: this.renderer, lifetime: 'singleton' as const, factory: () => ({ canRender: () => false, render: () => null }) },
-        { token: this.interceptor, lifetime: 'singleton' as const, factory: () => ({ model: Object, intercept: (value: object) => value }) }
+        { token: this.renderer, lifetime: ServiceLifetime.Singleton as const, factory: () => ({ canRender: () => false,
+            render: () => null }) },
+        { token: this.interceptor, lifetime: ServiceLifetime.Singleton as const, factory: () => ({ model: Object,
+            intercept: (value: object) => value }) }
     ];
 }
 describe('when registering query extensions with singleton services', given(a_singleton_extension, context => {

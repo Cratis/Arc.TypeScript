@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '@cratis/arc.core';
 import type { ArcApplicationServices, ServiceScope, ServiceToken } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 
@@ -11,7 +12,7 @@ export class ScenarioServices {
     /** Register a caller-owned fake; Arc does not dispose it. */
     addSingleton<T extends object>(token: ServiceToken<T> | ClassType<T>, instance: T): this {
         this.assertOpen();
-        this.#registrations.push(services => { services.registrations.push({ token, lifetime: 'singleton', instance }); });
+        this.#registrations.push(services => { services.registrations.push({ token, lifetime: ServiceLifetime.Singleton, instance }); });
         return this;
     }
 

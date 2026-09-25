@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { currentServices } from '../../ServiceScope.js';
 import { ServiceRegistry } from '../../ServiceRegistry.js';
@@ -14,7 +15,7 @@ describe('when resolving from a closing scope with settled factory ancestry', ()
         const origin = serviceToken<object>('settled owner'); const dependency = serviceToken<object>('late dependency');
         const release = gate(); let detached!: Promise<void>;
         const registry = new ServiceRegistry([
-            { token: origin, lifetime: 'scoped', factory: resolver => {
+            { token: origin, lifetime: ServiceLifetime.Scoped, factory: resolver => {
                 detached = (async () => {
                     await release.promise;
                     resolutionFailure = await captureFailure(Promise.resolve().then(() => resolver.resolve(dependency)));
@@ -22,7 +23,7 @@ describe('when resolving from a closing scope with settled factory ancestry', ()
                 })();
                 return {};
             } },
-            { token: dependency, lifetime: 'scoped', factory: () => ({}) }
+            { token: dependency, lifetime: ServiceLifetime.Scoped, factory: () => ({}) }
         ]);
         const scope = registry.createScope(serviceContext('alpha'));
         try {

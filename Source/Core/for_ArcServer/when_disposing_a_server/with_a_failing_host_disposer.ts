@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -16,7 +17,7 @@ describe('when disposing a server with a failing host disposer', () => {
     beforeEach(async () => {
         const failing = serviceToken<object>('host cleanup');
         const entered = gate(); const release = gate();
-        const server = new ArcServer({ services: [{ token: failing, lifetime: 'scoped', factory: () => ({
+        const server = new ArcServer({ services: [{ token: failing, lifetime: ServiceLifetime.Scoped, factory: () => ({
             [Symbol.dispose]: () => { throw new Error('host teardown failed'); }
         }) }], commands: [defineCommand({ name: 'Commit', schema: z.object({}), handle: async () => {
             entered.release(); await release.promise; return 'committed';

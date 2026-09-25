@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
@@ -13,7 +14,8 @@ describe('when resolving nested dependencies with independent tenant scopes', ()
     let outerTenant: unknown; let nestedTenant: unknown; let calls: string[];
     beforeEach(async () => {
         const tenant = serviceToken<{ id: string | undefined }>('nested tenant token'); calls = [];
-        const server = new ArcServer({ services: [{ token: tenant, lifetime: 'scoped', factory: async (_resolver, identity) => {
+        const server = new ArcServer({ services: [{ token: tenant, lifetime: ServiceLifetime.Scoped,
+            factory: async (_resolver, identity) => {
             calls.push(identity.tenantId ?? 'none');
             if (identity.tenantId === 'alpha') {
                 const nested = await server.performQuery('Tenant', {}, serviceContext('beta'));

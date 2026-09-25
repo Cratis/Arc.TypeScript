@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { TenantResolverType } from '../../tenancy/TenantResolverType.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { ArcServer } from '../../ArcServer.js';
 import { AuthenticationStatus } from '../../authentication/AuthenticationStatus.js';
@@ -22,7 +23,7 @@ describe('when handling an identity request with verified authentication', () =>
         const good = (await identityGet(server, '/.cratis/me', { Authorization: 'verified' }))!;
         authorized = { status: good.status, value: await good.json(), cookie: good.headers.get('set-cookie')! };
         replay = (await identityGet(server, '/.cratis/me', { Cookie: authorized.cookie.split(';')[0]! }))!.status;
-        const tenantRequired = new ArcServer({ identityDetails, tenancy: { sources: ['header'], required: true } });
+        const tenantRequired = new ArcServer({ identityDetails, tenancy: { sources: [TenantResolverType.Header], required: true } });
         required = (await identityGet(tenantRequired, '/.cratis/me'))!.status;
         await Promise.all([server.dispose(), tenantRequired.dispose()]);
     });

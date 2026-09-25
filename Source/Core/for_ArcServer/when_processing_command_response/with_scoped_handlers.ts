@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
 import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { given } from '../../given.js';
@@ -21,16 +22,16 @@ class a_command_with_scoped_handlers {
         const keys = serviceToken<{ resolve(command: unknown): string | undefined }>('keys');
         this.server = new ArcServer({
             services: [
-                { token: first, lifetime: 'scoped', factory: () => ({
+                { token: first, lifetime: ServiceLifetime.Scoped, factory: () => ({
                     canHandle: (_context: CommandContext, value: unknown) => value === 'effect',
                     handle: (context: CommandContext) => { this.calls.push(`first ${context.key} ${context.values.get('COUNT')}`); }
                 }) },
-                { token: second, lifetime: 'scoped', factory: () => ({
+                { token: second, lifetime: ServiceLifetime.Scoped, factory: () => ({
                     canHandle: (_context: CommandContext, value: unknown) => value === 'effect',
                     handle: () => { this.calls.push('second'); }
                 }) },
-                { token: values, lifetime: 'scoped', factory: () => ({ provide: () => ({ count: 1, COUNT: 2 }) }) },
-                { token: keys, lifetime: 'scoped', factory: () => ({ resolve: () => 'key-7' }) }
+                { token: values, lifetime: ServiceLifetime.Scoped, factory: () => ({ provide: () => ({ count: 1, COUNT: 2 }) }) },
+                { token: keys, lifetime: ServiceLifetime.Scoped, factory: () => ({ resolve: () => 'key-7' }) }
             ],
             commandContextValuesProviders: [values], commandKeyResolvers: [keys],
             commandResponseValueHandlers: [first, second],

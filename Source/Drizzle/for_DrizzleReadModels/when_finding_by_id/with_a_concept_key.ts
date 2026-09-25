@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, it, should } from 'vitest';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { Guid } from '@cratis/fundamentals';
 import { conceptCodec } from '../../ColumnCodec.js';
+import { ConceptCodecKind } from '../../ConceptCodecKind.js';
+import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { sqliteColumn } from '../../columns.js';
 import { DrizzleReadModels } from '../../DrizzleReadModels.js';
 import { given } from '../../given.js';
@@ -14,7 +16,7 @@ import { TaskId } from '../given/TaskId.js';
 should();
 describe('when finding a Drizzle row by a GUID concept key', given(a_sqlite_database, context => {
     const table = sqliteTable('concept_tasks', {
-        id: sqliteColumn(conceptCodec(TaskId, 'guid', 'sqlite'))('id').primaryKey(),
+        id: sqliteColumn(conceptCodec(TaskId, ConceptCodecKind.Guid, DrizzleDialect.SQLite))('id').primaryKey(),
         title: text('title').notNull()
     });
     let record: ConceptTask | null;
