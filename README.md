@@ -51,7 +51,7 @@ export class TaskItem {
 | `@cratis/eslint-plugin-arc-core` | [`Source/CodeAnalysis`](Source/CodeAnalysis) | ESLint 10 flat-config diagnostics for model-bound server artifacts, with an untyped-safe recommended config and an optional type-checked preset. See [Code analysis](Documentation/code-analysis/index.md). |
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.withMongoDB` (deprecated `addMongoDB`), tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
 | `@cratis/arc.drizzle` | [`Source/Drizzle`](Source/Drizzle) | `builder.withDrizzle` (deprecated `addDrizzle`), tenant-scoped SQL handles, explicit column codecs and provider-owned paging; SQLite and PostgreSQL tested, MySQL and observation unverified |
-| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.withChronicle` (deprecated `addChronicle`) appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.6.0 imports natively; an opt-in kernel suite covers aggregate replay and reactor commands. Full .NET transaction parity remains unverified. |
+| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.withChronicle` (deprecated `addChronicle`) appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.7.0 imports natively and infers read models from projections/reducers; an opt-in kernel suite covers aggregate replay and reactor commands. Full .NET transaction parity remains unverified. |
 | `@cratis/cratis` | [`Source/Cratis`](Source/Cratis) | **Experimental source preview.** `CratisApplication.createBuilder()` and `builder.addCratis()` compose Arc and a Chronicle client without installing authentication; not yet published to npm. |
 
 Every package manifest is at version 0.20.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. The default core entry, host adapters, MongoDB, and Drizzle packages need Node.js 22 or later. The Fetch entry has a neutral bundle with `node:async_hooks` as its only Node import; its command, query, and SSE paths ran in Deno 2.9.7, while Bun, Cloudflare Workers, and Next.js deployments remain unverified. The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
@@ -69,7 +69,7 @@ yarn build
 yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
-The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line.
+The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line. The [Library sample](Samples/Library/README.md) adds a React client and optional MongoDB or Chronicle mode; see [Vertical slices](Documentation/vertical-slices.md) for its file layout.
 
 ## What works and what does not
 
@@ -91,7 +91,7 @@ Not implemented:
 - Complete .NET proxy parity. The source analyzer emits bounded client proxies and optional server metadata, but identity-only models and some .NET template options are not yet emitted. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
 - SQL observation and automatic migration execution. [Drizzle SQL](Documentation/sql/index.md) supports explicit conversions and SQL paging but not EF change tracking or cross-process notifications. Named policies and guarded identity handlers are supported; see [authorization policies](Documentation/core/authorization.md). Command operations and effects have a bounded implementation, not a distributed transaction.
 
-The Chronicle integration stays experimental despite passing a bounded live-kernel suite. SDK 6.5.1 handles literal JSON `null` for a missing model, which the suite checks across all three adapters. Command-key read-model injection and a single-event-log nested returned-event batch exist; returned events and command operations cannot be combined. Immediate appends, aggregates, and reactor command effects do not join that batch.
+The Chronicle integration stays experimental despite passing a bounded live-kernel suite. SDK 6.7.0 handles literal JSON `null` for a missing model, which the suite checks across all three adapters. Command-key read-model injection and a single-event-log nested returned-event batch exist; returned events and command operations cannot be combined. Immediate appends, aggregates, and reactor command effects do not join that batch.
 
 The [capability reference](Documentation/reference/capabilities.md) lists every Arc feature family, its status, and the deliberate differences from Arc on .NET.
 
@@ -119,7 +119,7 @@ This repository builds the **server** side under its own `@cratis/arc.core` pack
 
 ## Arc does not require event sourcing
 
-Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.5.1 loads in native Node.js and a bounded suite passes against a live kernel for existing-model resolution and returned-event batches, but the integration does not yet match Arc on .NET's full transactions or aggregate/reactor behavior.
+Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.7.0 loads in native Node.js and a bounded suite passes against a live kernel for read-model resolution, returned-event batches, aggregate replay, and reactor commands. The integration still does not match Arc on .NET's full transaction behavior.
 
 ## Contributing
 
