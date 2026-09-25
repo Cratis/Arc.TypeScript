@@ -79,6 +79,42 @@ Importing `@cratis/arc.drizzle` adds `withDrizzle` to the builder; the exported 
 
 The `create table` statement stands in for a migration so the example is self-contained. `withDrizzle` never creates or changes tables; see [Own the schema](#own-the-schema).
 
+## Load a read model in a command
+
+A command can receive the row whose single primary key matches its `@key()` value. Keep the command and the event it returns in the same slice file:
+
+```typescript title="RenameTask.ts"
+import { field, Guid } from '@cratis/fundamentals';
+import { command, commandReadModel, inject, key } from '@cratis/arc.core';
+import { eventType } from '@cratis/chronicle/events';
+import { TaskRecord } from './Tasks.js';
+
+@eventType()
+export class TaskRenamed {
+    @field(String) previousTitle: string;
+    @field(String) title: string;
+    constructor(previousTitle: string, title: string) {
+        this.previousTitle = previousTitle;
+        this.title = title;
+    }
+}
+
+@command()
+export class RenameTask {
+    @field(Guid) @key() id!: Guid;
+    @field(String) title!: string;
+
+    @inject(commandReadModel(TaskRecord))
+    handle(task: TaskRecord): TaskRenamed {
+        return new TaskRenamed(task.title, this.title);
+    }
+}
+```
+
+Register `RenameTask` and `TaskRenamed` with `builder.add(...)` before `build()`, alongside the SQL model in `withDrizzle.readModels`. Drizzle supplies the command's `TaskRecord` from the current tenant database; a missing required row produces a command validation failure. The key is validated against its model field: Arc codec (custom) columns bind a typed `Guid` or concept for Drizzle to encode; plain text, integer, or UUID columns bind the underlying primitive (a GUID string or concept value). Malformed GUID and integer keys fail before SQL comparison. **Returning an event does not append it through Drizzle:** configure [Chronicle](../chronicle/add-event-sourcing.md) separately to append `TaskRenamed`. Without Chronicle, it is an ordinary command response. Do not register `TaskRecord` as a Chronicle read model as well: injecting it with `commandReadModel` fails at build because two resolvers claim it.
+
+Command read-model injection needs exactly one column with `.primaryKey()`, and that column must be declared as an Arc `@field` on the model. Without either, the model can still serve queries, but a command injecting it fails at build with "Expected one read-model resolver for ModelName, found 0". A table-level `primaryKey({ columns })` is not recognized for this purpose; several column-level primary keys can serve queries but cannot resolve a command's single key. Command read models are tested against SQLite only; PostgreSQL integration tests cover queries, not command injection.
+
 ## Write from a command
 
 A command that writes takes the writable database handle:
@@ -113,6 +149,7 @@ Queries take `drizzleReadModel(Model)`, commands take `drizzleDatabase()`. The r
 | `queryPage(filter, options)` | One page with the total, counted and cut in SQL |
 | `find(filter, sorting?)` | Every match, or throws when there are more than `maxPageSize` |
 | `findOne(filter)` | The first match in primary-key order, or `undefined` |
+| `findById(key)` | The row matching the single primary key, or `null` |
 | `table` | The Drizzle table |
 
 It has no write methods and does not expose the writable database. A filter is a Drizzle `SQL` expression such as `eq(tasks.title, 'a')`, built with bound parameters; never interpolate request input into SQL text.
