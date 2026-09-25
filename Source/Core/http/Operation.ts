@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
 import type { CommandResult } from '../commands/CommandResult.js';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from './DescriptorBase.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { QueryOptions } from '../queries/QueryOptions.js';
 import type { QueryResult } from '../queries/QueryResult.js';
@@ -17,5 +17,8 @@ export interface Operation extends DescriptorBase {
     /** Built-in endpoints are served and documented, but not emitted as application client proxies. */
     readonly internal?: boolean;
     readonly schema: z.ZodType;
-    run(input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly?: boolean): Promise<CommandResult | QueryResult>;
+    /** Execute the command or query through its registered pipeline. */
+    run(input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<CommandResult | QueryResult>;
+    /** Validate a command without running provide, handle, or execution scopes. */
+    validateCommand?(input: unknown, context: ExecutionContext): Promise<CommandResult>;
 }

@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ArcServer } from '../../ArcServer.js';
-import type { ObservableSessions } from '../ObservableSessions.js';
+import type { ObservableSessions } from './ObservableSessions.js';
 
 const owners = new WeakMap<ArcServer, ObservableSessions>();
 

@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { CommandContext } from './CommandContext.js';
 import type { CommandResult } from './CommandResult.js';
-import { commandResult } from '../results/commandResult.js';
-import { hasFailure, originalFailure, recordFailure } from '../results/failureTracking.js';
+import { commandResult } from './createCommandResult.js';
+import { hasFailure, originalFailure, recordFailure } from '../execution/failureTracking.js';
 /** Preserve the first failure even if a completion scope mutates the result. */
 export class CommandFailureSnapshot {
     original?: CommandResult;

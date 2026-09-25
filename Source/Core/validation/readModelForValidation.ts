@@ -2,9 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { CommandContext } from '../commands/CommandContext.js';
-import { commandReadModel } from '../commands/modelBound/readModel.js';
+import { commandReadModel } from '../commands/modelBound/commandReadModel.js';
 import { ReadModelForCommandError } from '../commands/ReadModelForCommandError.js';
-import { resolveCommandArguments } from '../commands/modelBound/commandArgument.js';
+import { resolveCommandArguments } from '../commands/modelBound/commandContextArgument.js';
 import type { ClassType } from '../reflection/ClassType.js';
 
 const current = new AsyncLocalStorage<CommandContext>();

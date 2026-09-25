@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { should } from 'vitest';
-import { ArcServer } from '../../../ArcServer.js';
-import { ObservableLimits } from '../../observable/ObservableLimits.js';
+import { ArcServer } from '../../../../ArcServer.js';
+import { ObservableLimits } from '../../ObservableLimits.js';
 import { ObservableSessions } from '../../ObservableSessions.js';
 
 should();

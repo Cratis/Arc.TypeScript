@@ -217,7 +217,10 @@ import { CommandScenario, QueryScenario } from '@cratis/arc.testing';
 import { analyzeSource } from '@cratis/arc.proxygenerator';
 import plugin from '@cratis/eslint-plugin-arc-core';
 void [attachNodeWebSockets, CommandScenario, QueryScenario, analyzeSource, plugin];
-function configureMongo(builder: ArcApplicationBuilder, options: MongoDBOptions) { withMongoDB(builder, options); }
+function configureMongo(builder: ArcApplicationBuilder, options: MongoDBOptions) {
+    withMongoDB(builder, options);
+    builder.withMongoDB(options);
+}
 void configureMongo;
 const adapterApp = await ArcApplication.createBuilder().build();
 function attachSockets(host: HttpServer) {
@@ -242,6 +245,7 @@ import { CommandScenario as CratisCommandScenario, ChronicleCommandScenario as C
 function configureIntegrations(builder: ArcApplicationBuilder, sql: DrizzleOptions, events: ChronicleRegistration) {
     withDrizzle(builder, sql);
     withChronicle(builder, events);
+    builder.withDrizzle(sql).withChronicle(events);
 }
 function configureCratis(events: ChronicleRegistration) {
     const composed = CratisApplication.createBuilder({ configuration: false }, events);

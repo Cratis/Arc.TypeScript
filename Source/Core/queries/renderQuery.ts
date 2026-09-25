@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ArcOptions } from '../ArcOptions.js';
-import type { DescriptorBase } from '../DescriptorBase.js';
+import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import { encode, fieldsFor, wireName } from '../reflection/wireSchema.js';

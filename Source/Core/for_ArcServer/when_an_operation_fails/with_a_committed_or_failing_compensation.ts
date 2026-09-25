@@ -3,8 +3,8 @@
 import { beforeEach, describe, it, should } from 'vitest';
 import { given } from '../../given.js';
 import { an_operation_command, ProbeOperation } from '../given/an_operation_command.js';
-import { CommandOperation } from '../../commands/CommandOperationDeclaration.js';
-import { tuple } from '../../results/tuple.js';
+import { CommandOperation } from '../../commands/CommandOperation.js';
+import { tuple } from '../../commands/tuple.js';
 import type { CommandResult } from '../../commands/CommandResult.js';
 should();
 describe('when a scope commits before recovery', given(an_operation_command, context => {

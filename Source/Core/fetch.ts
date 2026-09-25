@@ -4,13 +4,16 @@
 export { ArcServer, currentContext } from './ArcServer.js';
 export { FetchArcApplication as ArcApplication } from './FetchArcApplication.js';
 export { ArcApplicationBuilder } from './ArcApplicationBuilder.js';
+/** Integration packages augment this interface on the portable builder. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ArcBuilderExtensions {}
 export type { ArcBuilderIntegrationOptions } from './ArcBuilderIntegrationOptions.js';
 export { canonicalMetadataSignature } from './reflection/generatedMetadataSignature.js';
-export { optionalService } from './reflection/optionalService.js';
+export { optionalService } from './dependencyInjection/optionalService.js';
 export type { GeneratedMetadata, GeneratedArtifactMetadata } from './reflection/GeneratedArtifactMetadata.js';
 /** Convert model-bound values to the same JSON-ready shape as Arc's HTTP pipeline. */
 export { encode as encodeWireValue } from './reflection/wireSchema.js';
-export { ArcApplicationServices } from './ArcApplicationServices.js';
+export { ArcApplicationServices } from './dependencyInjection/ArcApplicationServices.js';
 export { key } from './reflection/key.js';
 export { fieldsFor, wireName } from './reflection/wireSchema.js';
 export type { ClassType } from './reflection/ClassType.js';
@@ -20,7 +23,7 @@ export { nullable } from './reflection/nullable.js';
 export { defaultValue } from './reflection/defaultValue.js';
 export { enumeration } from './reflection/enumeration.js';
 export type { ArcOptions } from './ArcOptions.js';
-export type { DescriptorBase } from './DescriptorBase.js';
+export type { DescriptorBase } from './http/DescriptorBase.js';
 export * from './commands/index.js';
 export * from './queries/index.js';
 export * from './validation/index.js';
@@ -34,4 +37,3 @@ export { routeFor, includeRouteName } from './http/createRouteTable.js';
 export type { NativeRequestContext } from './http/NativeRequestContext.js';
 export type { Operation } from './http/Operation.js';
 export * from './introspection/index.js';
-export * from './results/index.js';

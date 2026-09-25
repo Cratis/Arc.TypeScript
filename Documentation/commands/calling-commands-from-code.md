@@ -8,8 +8,10 @@ Sometimes a command has to run without an HTTP client: an import job, a message 
 | Entry point | Runs | Trusts the caller with |
 | --- | --- | --- |
 | `handle(request, native?)` | The full HTTP pipeline | Nothing beyond an HTTP client |
-| `executeCommand(name, input, context, validateOnly?)` | Authorization, binding, validators, and the command | The whole execution context, including allowed severity |
-| `execute(command, context, validateOnly?)` | The same, for a decorated command instance | The same |
+| `executeCommand(name, input, context)` | Authorization, binding, validators, and the command | The whole execution context, including allowed severity |
+| `execute(command, context)` | The same, for a decorated command instance | The same |
+| `validateCommand(name, input, context)` | Authorization, binding, and validators, without `provide` or `handle` | The whole execution context |
+| `validate(command, context)` | The same, for a decorated command instance | The same |
 | `performQuery(name, input, context, options?)` | Authorization, binding, validators, and the query | The whole execution context, except allowed severity |
 
 ## Run a command and a query directly
@@ -20,8 +22,8 @@ This example uses the Tasks sample's classes, added explicitly:
 import { randomUUID } from 'node:crypto';
 import { ArcApplication, Severity } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
-import { RegisterTask } from './Features/Tasks/Registration/RegisterTask.js';
-import { TaskItem } from './Features/Tasks/Listing/TaskItem.js';
+import { RegisterTask } from './Features/Tasks/Registration/Registration.js';
+import { TaskItem } from './Features/Tasks/Listing/Listing.js';
 
 const builder = ArcApplication.createBuilder();
 builder.services.addSingleton(Tasks);
@@ -56,7 +58,7 @@ The first log line is `true 1a638f8e-4444-4444-8888-a0b10cdd9977`; the query ret
 | Model-bound query | Namespace, read-model name, and method: `Tasks.Listing.TaskItem.allTasks` when discovered |
 | Low-level definition | Namespace and name joined with a dot, such as `Tasks.Create`, or the bare name without a namespace |
 
-If you already hold a decorated command instance, `app.server.execute(command, context)` serializes its decorated fields and runs the same pipeline; the registered command name must be unambiguous. Pass `true` as the last argument of `executeCommand` or `execute` to validate without running the command, like the `/validate` route. `performQuery` takes paging and sorting as its fourth argument, for example `{ paging: { page: 0, pageSize: 10 }, sorting: { field: 'title', direction: 'asc' } }`.
+If you already hold a decorated command instance, `app.server.execute(command, context)` serializes its decorated fields and runs the same pipeline; the registered command name must be unambiguous. Call `validateCommand(name, input, context)` or `validate(command, context)` to check authorization and validation without running the command, like the `/validate` route. `performQuery` takes paging and sorting as its fourth argument, for example `{ paging: { page: 0, pageSize: 10 }, sorting: { field: 'title', direction: 'asc' } }`.
 
 ## What a direct call does differently
 

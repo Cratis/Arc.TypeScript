@@ -23,8 +23,8 @@ describe('when handling a validate named command with denied and validation only
         const url = 'http://localhost/api/submit/validate';
         deniedStatus = (await server.handle(new Request(url, { method: 'POST', body: '{}' })))?.status;
         afterDenial = [...events];
-        validationSuccess = (await server.executeCommand('Submit', {}, { ...serviceContext('alpha'),
-            principal: { id: 'a', isAuthenticated: true, roles: [] } }, true)).isSuccess;
+        validationSuccess = (await server.validateCommand('Submit', {}, { ...serviceContext('alpha'),
+            principal: { id: 'a', isAuthenticated: true, roles: [] } })).isSuccess;
         afterValidation = [...events];
         const http = new ArcServer({ services: [{ token: handler, lifetime: 'scoped', factory: () => { events.push('http factory'); return {}; } }],
             commands: [defineCommand({ name: 'Submit', schema: z.object({}), handlerDependencies: [handler], handle: () => { events.push('http handle'); return 1; } })] });

@@ -1,11 +1,11 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { isArcTuple } from '../results/ArcTuple.js';
-import { isOutcome, type Outcome } from '../results/Outcome.js';
-import { commandResult } from '../results/commandResult.js';
+import { isArcTuple } from './ArcTuple.js';
+import { isOutcome, type Outcome } from './Outcome.js';
+import { commandResult } from './createCommandResult.js';
 import type { CommandResult } from './CommandResult.js';
 import type { CommandContext } from './CommandContext.js';
-import { isCommandOperation } from './CommandOperationDeclaration.js';
+import { isCommandOperation } from './CommandOperation.js';
 import { isCommandOperations } from './CommandOperations.js';
 import type { CommandResponseValueHandler } from './CommandResponseValueHandler.js';
 

@@ -8,11 +8,11 @@ export type { ArcBuilderIntegrationOptions } from './ArcBuilderIntegrationOption
 export type { ArcBuilderOptions } from './configuration/ArcBuilderOptions.js';
 export { discoveryFiles } from './reflection/discoveryFiles.js';
 export { canonicalMetadataSignature } from './reflection/generatedMetadataSignature.js';
-export { optionalService } from './reflection/optionalService.js';
+export { optionalService } from './dependencyInjection/optionalService.js';
 export type { GeneratedMetadata, GeneratedArtifactMetadata } from './reflection/GeneratedArtifactMetadata.js';
 /** Convert model-bound values to the same JSON-ready shape as Arc's HTTP pipeline. */
 export { encode as encodeWireValue } from './reflection/wireSchema.js';
-export { ArcApplicationServices } from './ArcApplicationServices.js';
+export { ArcApplicationServices } from './dependencyInjection/ArcApplicationServices.js';
 export { key } from './reflection/key.js';
 export { fieldsFor, wireName } from './reflection/wireSchema.js';
 export type { ClassType } from './reflection/ClassType.js';
@@ -22,7 +22,7 @@ export { nullable } from './reflection/nullable.js';
 export { defaultValue } from './reflection/defaultValue.js';
 export { enumeration } from './reflection/enumeration.js';
 export type { ArcOptions } from './ArcOptions.js';
-export type { DescriptorBase } from './DescriptorBase.js';
+export type { DescriptorBase } from './http/DescriptorBase.js';
 export * from './commands/index.js';
 export * from './queries/index.js';
 export * from './validation/index.js';
@@ -34,4 +34,3 @@ export * from './execution/index.js';
 export * from './dependencyInjection/index.js';
 export * from './http/index.js';
 export * from './introspection/index.js';
-export * from './results/index.js';

@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
-import { observe } from '../observability.js';
+import { observe } from '../execution/observability.js';
 import { stringifyWire } from '../reflection/stringifyWire.js';
 import type { ArcServer } from '../ArcServer.js';
 import type { NativeRequestContext } from './NativeRequestContext.js';
@@ -17,12 +17,15 @@ import { BadRequest } from './BadRequest.js';
 import { body } from './body.js';
 import { utf8Bytes } from './utf8Bytes.js';
 import { getQuery, structuredQuery } from './queryBinding.js';
-import { commandResult, malformed, queryResult, status } from '../results/index.js';
+import { commandResult } from '../commands/createCommandResult.js';
+import { queryResult } from '../queries/createQueryResult.js';
+import { malformed } from './malformed.js';
+import { status } from './status.js';
 import { allowedSeverity } from '../validation/allowedSeverity.js';
 import { authenticate, verifiedPrincipal } from '../authentication/authenticate.js';
 import { correlation } from '../execution/correlation.js';
 import { exposeExceptionDetails } from '../execution/exposeExceptionDetails.js';
-import { hasFailure, originalFailure } from '../results/failureTracking.js';
+import { hasFailure, originalFailure } from '../execution/failureTracking.js';
 import { Severity } from '../validation/Severity.js';
 import { requestContext } from '../execution/RequestContextStore.js';
 import { isObservableOperation } from '../queries/observable/ObservableOperation.js';
@@ -40,7 +43,8 @@ export interface RequestBindings {
     readonly identitySchema: Record<string, unknown> | undefined;
     hubHttp(request: Request, native?: NativeRequestContext): Promise<Response>;
     runProvider<T>(context: ExecutionContext, callback: () => T | Promise<T>): Promise<T>;
-    runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions, validateOnly?: boolean): Promise<CommandResult | QueryResult>;
+    runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions): Promise<CommandResult | QueryResult>;
+    validateCommand(operation: Operation, input: unknown, context: ExecutionContext): Promise<CommandResult>;
     openSession(name: string, input: unknown, context: ExecutionContext, options: QueryOptions | undefined, admission: 'subscription' | 'snapshot'): Promise<ObservableQuerySession>;
     reserveSession(session: ObservableQuerySession, context: ExecutionContext): void;
 }
@@ -192,7 +196,8 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
                             return send(outcome.result, outcome.code);
                         } finally { await session.close(); }
                     }
-                    const result = await bindings.runScoped(operation, input, context, options, isValidation);
+                    const result = isValidation ? await bindings.validateCommand(operation, input, context) :
+                        await bindings.runScoped(operation, input, context, options);
                     if (hasFailure(result) && !await logFailure(originalFailure(result))) return serverFailure();
                     if (result.exceptionMessages.length) {
                         if (!exposeExceptionDetails(server.options)) {

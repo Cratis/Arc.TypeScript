@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs, DateOnly, DerivedType, Fields, Guid, TimeOnly, TimeSpan, type Field } from '@cratis/fundamentals';
 import { z } from 'zod';
-import { isArcTuple } from '../results/ArcTuple.js';
+import { isArcTuple } from '../commands/ArcTuple.js';
 import { isQueryPage, queryPage } from '../queries/QueryPage.js';
 import { readFieldOptions } from './readFieldOptions.js';
 import type { FieldOptions } from './FieldOptions.js';

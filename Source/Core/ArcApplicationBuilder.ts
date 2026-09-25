@@ -2,8 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
 import type { ArcOptions } from './ArcOptions.js';
+import type { ArcBuilderExtensions } from './fetch.js';
 import type { CratisConfiguration } from './configuration/loadConfiguration.js';
-import { ArcApplicationServices } from './ArcApplicationServices.js';
+import { ArcApplicationServices } from './dependencyInjection/ArcApplicationServices.js';
 import { FetchArcApplication } from './FetchArcApplication.js';
 import { ArcServer } from './ArcServer.js';
 import type { CommandDefinition } from './commands/CommandDefinition.js';
@@ -28,7 +29,7 @@ import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
 import type { QueryRenderer } from './queries/QueryRenderer.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ReadModelForCommandResolver } from './commands/ReadModelForCommandResolver.js';
-import { readModelArgument } from './commands/modelBound/readModel.js';
+import { readModelArgument } from './commands/modelBound/commandReadModel.js';
 import type { CommandContext } from './commands/CommandContext.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
@@ -37,6 +38,10 @@ import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js
 import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider.js';
 
 /** Collect decorated artifacts and their services into one executable application. */
+// Interface merging exposes integration-owned methods without depending on optional packages in core.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-unsafe-declaration-merging
+export interface ArcApplicationBuilder extends ArcBuilderExtensions {}
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class ArcApplicationBuilder {
     readonly services = new ArcApplicationServices();
     readonly #artifacts: Artifact[] = [];

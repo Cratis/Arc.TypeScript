@@ -4,7 +4,7 @@ import type { ArcOptions } from '../ArcOptions.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import type { CommandContext } from './CommandContext.js';
 import type { CommandExecutionScope } from './CommandExecutionScope.js';
-import { isCommandOperation } from './CommandOperationDeclaration.js';
+import { isCommandOperation } from './CommandOperation.js';
 import { isCommandOperations } from './CommandOperations.js';
 import { CommandOperationBoundary } from './CommandOperationBoundary.js';
 import { CommandOperationExecution } from './CommandOperationExecution.js';

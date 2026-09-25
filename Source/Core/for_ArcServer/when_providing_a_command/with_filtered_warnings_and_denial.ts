@@ -4,7 +4,7 @@ import { beforeEach, describe, it, should } from 'vitest';
 import { z } from 'zod';
 import { ArcServer } from '../../ArcServer.js';
 import { defineCommand } from '../../commands/defineCommand.js';
-import { denied, rejected } from '../../results/Outcome.js';
+import { denied, rejected } from '../../commands/Outcome.js';
 import { Severity } from '../../validation/Severity.js';
 import { validation } from '../../validation/ValidationResult.js';
 import { runtimePost } from '../given/a_runtime_request.js';
