@@ -9,6 +9,8 @@ import type { ChronicleProduced } from './ChronicleProduced.js';
 export interface ChronicleCommandDefinition<S extends z.ZodType, T> extends Omit<CommandDefinition<S, T | undefined>, 'handle'> {
     readonly client: IChronicleClient;
     readonly eventStore: string;
+    /** Opt in to a bounded wait for kernel observer completion after a successful append (milliseconds). */
+    readonly completionTimeoutMs?: number;
     readonly namespaceForContext: (context: ExecutionContext) => string;
     readonly produce: (input: z.output<S>, context: ExecutionContext, provided: unknown) => ChronicleProduced<T> | Promise<ChronicleProduced<T>>;
 }

@@ -40,7 +40,7 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     builder.services.addScoped(ChronicleCommandKeyResolver);
     builder.addCommandKeyResolver(ChronicleCommandKeyResolver);
     builder.addCommandExecutionRunner(runChronicleCommand);
-    builder.addCommandExecutionScope(() => new ChronicleCommandScope());
+    builder.addCommandExecutionScope(() => new ChronicleCommandScope(registration.completionTimeoutMs));
     return builder;
 }
 

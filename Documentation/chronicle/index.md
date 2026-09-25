@@ -92,6 +92,8 @@ The `@key()` field names the event source, so the registration lands in that aut
 | [Compliance](compliance.md) | Know what the integration does, and does not do, for personal data |
 | [Code analysis](code-analysis.md) | See which .NET `ARCCHR` diagnostics apply in TypeScript |
 | [Testing Chronicle commands](../testing/chronicle.md) | Assert returned events without a kernel |
+| [Testing against a kernel](../testing/chronicle-kernel.md) | Check projections and constraints against a live Chronicle kernel |
+| [Read consistency](../queries/read-consistency.md) | Select passive reads or wait for observer completion after a write |
 
 ## Where it stops
 

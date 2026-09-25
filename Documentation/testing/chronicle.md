@@ -55,7 +55,7 @@ Pass every event type the command returns to `for(...)`; the in-memory log refus
 
 ## What it does not do
 
-The in-memory log records successful returned events and their routing and accepts concurrency scopes, but it does not enforce concurrency or constraints, run projections, or replace the kernel suite. Use `Source/Chronicle/run-integration.sh` for behavior against a real kernel.
+The in-memory log records successful returned events and their routing and accepts concurrency scopes, but it does not enforce concurrency or constraints, run projections, or replace the kernel suite. Use the [kernel-backed scenario](chronicle-kernel.md) to run a slice against a real kernel, or `Source/Chronicle/run-integration.sh` for adapter-level integration checks.
 
 ## Related
 

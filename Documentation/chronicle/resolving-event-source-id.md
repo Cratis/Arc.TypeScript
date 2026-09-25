@@ -15,9 +15,7 @@ Every event belongs to an event source, such as one task. The integration takes 
 
 The key is the same one Arc resolves for the [command context](../commands/command-context.md#give-a-command-a-key), so read models and aggregates loaded for the command use the same event source.
 
-:::caution[getEventSourceId() must return a string]
-`getEventSourceId()` may return a string or a concept that wraps a string. Any other value, including a Fundamentals `Guid` or a concept that wraps one, fails the command with `The command provided an invalid event source id`. Return `this.id.toString()` for a GUID-based identity. An empty string counts as no value, and the `@key()` field is used instead.
-:::
+`getEventSourceId()` accepts a string, a Fundamentals `Guid`, or a concept wrapping a primitive or `Guid`; Arc converts it to the event source ID string. Unsupported objects fail with `The command provided an invalid event source id`, rather than producing an ambiguous object name. An empty string counts as no value, and the `@key()` field is used instead.
 
 ## Return the ID to the caller
 
