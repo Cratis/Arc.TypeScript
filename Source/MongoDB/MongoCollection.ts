@@ -4,17 +4,10 @@ import { queryPage } from '@cratis/arc.core';
 import type { ExecutionContext, QueryOptions, QueryPage } from '@cratis/arc.core';
 import type { ChangeStream, Collection, Db, Document, Filter, FindOptions, Timestamp } from 'mongodb';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
-import type { MongoNamingPolicy } from './MongoNamingPolicy.js';
+import type { MongoCollectionOptions } from './MongoCollectionOptions.js';
 import { MongoDocumentCodec } from './MongoDocumentCodec.js';
 import { MongoObservation } from './MongoObservation.js';
 import { MongoObservable } from './MongoObservable.js';
-
-export type MongoCollectionOptions = {
-    ignoreConventions?: boolean;
-    maxObservableItems?: number;
-    maxPageSize?: number;
-    namingPolicy?: MongoNamingPolicy;
-};
 
 /** Tenant-bound model collection. The underlying driver collection remains available for writes. */
 export class MongoCollection<T extends object> {

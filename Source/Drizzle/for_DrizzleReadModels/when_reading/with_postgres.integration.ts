@@ -7,9 +7,9 @@ import { drizzle as nodePostgres } from 'drizzle-orm/node-postgres';
 import { drizzle as postgresJs } from 'drizzle-orm/postgres-js';
 import { pgTable, text } from 'drizzle-orm/pg-core';
 import { ConceptAs, DateOnly, field, Guid, TimeOnly } from '@cratis/fundamentals';
-import { conceptCodec, dateOnlyCodec, guidCodec, jsonCodec, timeOnlyCodec } from './ColumnCodec.js';
-import { pgColumn } from './columns.js';
-import { DrizzleReadModels } from './DrizzleReadModels.js';
+import { conceptCodec, dateOnlyCodec, guidCodec, jsonCodec, timeOnlyCodec } from '../../ColumnCodec.js';
+import { pgColumn } from '../../columns.js';
+import { DrizzleReadModels } from '../../DrizzleReadModels.js';
 
 should();
 class TaskName extends ConceptAs<string> { static readonly valueType = String; }
