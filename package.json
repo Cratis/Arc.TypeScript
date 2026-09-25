@@ -29,6 +29,7 @@
     "build": "tsc -b Source/Core Source/Testing && tsc -b && yarn check:metadata",
     "clean": "node scripts/clean.mjs",
     "ci:clean": "yarn clean && yarn ci",
+    "ci:linux": "bash scripts/ci-linux.sh",
     "check:metadata": "node Samples/Tasks/check-metadata.mjs && node Source/Tools/ProxyGenerator/dist/cli.js --project Samples/Library/tsconfig.json --artifacts Samples/Library/Features --output Samples/Library/Web/src/generated --metadata Samples/Library/Features/generatedMetadata.ts --check-metadata",
     "check:consumers": "node scripts/check-consumers.mjs",
     "check:fetch": "node scripts/check-fetch-runtime.mjs",
@@ -36,7 +37,7 @@
     "set-version": "node scripts/set-version.mjs",
     "test": "vitest run",
     "specs": "yarn test",
-    "ci": "yarn tsc -b Source/Core Source/Testing Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
+    "ci": "yarn tsc -b Source/Core Source/Testing Source/Chronicle Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn build && yarn check:consumers && yarn check:fetch && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && node --test scripts/for_release/*.test.mjs && yarn set-version --check"
   },
   "devDependencies": {
     "@cratis/fundamentals": "7.19.6",
