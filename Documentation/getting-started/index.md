@@ -10,12 +10,12 @@ With Arc you write the parts that are yours: a command class that registers a ta
 In this walkthrough you run the Tasks sample from this repository and talk to it with `curl`. By the end you have a server on `127.0.0.1:3000` that accepts a command, rejects invalid input before the handler runs, and serves the tasks you stored. No event store or database is involved.
 
 :::caution[Source preview]
-No Arc for TypeScript server package is published to npm yet. Work inside a clone of this repository; the API may still change. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application.
+No Arc for TypeScript server package is published to npm yet. Work inside a clone of this repository; the API may still change. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application. To start a project of your own, follow [Create an application](create-an-application.md).
 :::
 
 ## Build and run the sample
 
-You need Node.js 22.19 or later, Git, Corepack, and `curl`.
+You need Node.js 22.19 or later, Git, Corepack, and `curl`. Node.js 25 and later no longer include Corepack; if `corepack enable` reports that the command is not found, run `npm install --global corepack` first.
 
 ```bash
 git clone https://github.com/Cratis/Arc.TypeScript.git
@@ -156,4 +156,4 @@ The concepts carry over; the spelling is TypeScript:
 
 ## Next step
 
-Open the sample and read it file by file in [Your first command](your-first-command.md). After that, [Continue in the browser](continue-in-the-browser.md) generates a typed client and calls this server from a React page.
+Open the sample and read it file by file in [Your first command](your-first-command.md). After that, [Continue in the browser](continue-in-the-browser.md) generates a typed client and calls this server from a React page. When you want a project of your own, [Create an application](create-an-application.md) sets one up from an empty folder.

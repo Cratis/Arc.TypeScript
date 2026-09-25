@@ -1,8 +1,9 @@
-<!-- Copyright (c) Cratis. All rights reserved. Licensed under the MIT license. See LICENSE file in the project root for full license information. -->
+---
+title: Explore the Library sample
+description: Run the event-sourced Library sample against a local Chronicle kernel, then trace one feature from command to event, projection, and a live React view.
+---
 
-# Explore the Library sample
-
-What does an event-sourced Arc feature look like when it reaches a browser? The Library sample takes the authors and books from the [shared tutorial](https://www.cratis.io/arc/tutorial/first-slice/) and makes the whole path visible: a command returns an event, Chronicle appends it and projects the read model, and an observable query updates the React view.
+What does an event-sourced Arc feature look like when it reaches a browser? The Library sample takes the authors and books from the [shared tutorial](/arc/tutorial/first-slice/) and makes the whole path visible: a command returns an event, Chronicle appends it and projects the read model, and an observable query updates the React view.
 
 :::caution[Source preview]
 Arc for TypeScript server packages and their Chronicle integration are experimental source-preview packages. Run this sample inside a clone of the repository, against your own development Chronicle kernel. Its fixed librarian identity is for local demonstration only; never expose this server publicly.

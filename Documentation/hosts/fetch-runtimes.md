@@ -3,7 +3,7 @@ title: Fetch API runtimes
 description: Serve Arc commands, queries, and SSE from Bun, Deno, Cloudflare Workers, or a Next.js route handler without a Node HTTP listener.
 ---
 
-You can handle Arc requests without starting a Node server. Import the **source-preview** `@cratis/arc.core/fetch` entry, register artifacts explicitly, and hand the resulting `app.fetch` to your host. The package is not published to npm; build it in this workspace first. Bun, Cloudflare Workers, and Next.js deployment have **not** been run end to end here; see [Verification](#boundaries-and-verification).
+You can handle Arc requests without starting a Node server. Import the **source-preview** `@cratis/arc.core/fetch` entry, register artifacts explicitly, and hand the resulting `app.fetch` to your host. The package is not published to npm; install a tarball packed from a built clone, as [Create an application](../getting-started/create-an-application.md) shows, or use it inside the clone's workspace. Bun, Cloudflare Workers, and Next.js deployment have **not** been run end to end here; see [Verification](#boundaries-and-verification).
 
 ## Build the application once
 

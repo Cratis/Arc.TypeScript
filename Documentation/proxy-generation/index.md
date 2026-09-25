@@ -8,7 +8,7 @@ A frontend that calls your commands and queries through hand-written `fetch` cal
 `arc-proxygenerator` removes that drift. It reads your TypeScript project and writes typed proxies for the published `@cratis/arc` client: command and query classes, React hooks, models, and the client-safe part of your validators, all with the routes the server serves. Rename a field on the server, regenerate, and the frontend compiler shows you every place that needs to change.
 
 :::note[Source preview]
-`@cratis/arc.proxygenerator` is not published to npm. Run its CLI from a clone of this repository after `yarn build`.
+`@cratis/arc.proxygenerator` is not published to npm. Run its CLI from a clone of this repository after `yarn build`, or install a packed tarball in your own project, as [Create an application](../getting-started/create-an-application.md) shows.
 :::
 
 ## How it works
