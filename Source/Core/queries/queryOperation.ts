@@ -74,6 +74,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 await prepareDependencies(definition.handlerDependencies);
                 throwIfCanceled(context, 'Query canceled');
                 const data = await definition.perform(value, context, options);
+                throwIfCanceled(context, 'Query canceled');
                 return observable ? queryResult(context, { data }) : await renderQuery(definition, data, context, options, serverOptions);
             } catch (error) {
                 if (error instanceof QueryPagingRequired) return queryResult(context, {
