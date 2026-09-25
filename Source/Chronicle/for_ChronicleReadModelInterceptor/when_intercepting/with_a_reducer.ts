@@ -5,7 +5,11 @@ import { a_projection } from '../given/a_projection.js';
 
 describe('when intercepting a reducer read model', given(a_projection, context => {
     let result: object;
-    beforeEach(async () => { result = await context.interceptor('reducer').intercept(context.reducedView); });
-    it('should not release the SDK-released model again', () => { (result === context.reducedView).should.equal(true); });
-    it('should not contact the store', () => { context.getStore.called.should.equal(false); });
+    beforeEach(async () => {
+        context.release.resetHistory();
+        context.getStore.resetHistory();
+        result = await context.interceptor('reducer').intercept(context.reducedView);
+    });
+    it('should release a reducer model read outside Chronicle', () => { (result as { name: string }).name.should.equal('plain'); });
+    it('should contact the tenant store', () => { context.getStore.calledOnce.should.equal(true); });
 }));

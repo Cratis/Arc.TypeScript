@@ -5,14 +5,14 @@ import { given } from '../../given.js';
 import { ChronicleReadModelForCommandResolver } from '../../ChronicleReadModelForCommandResolver.js';
 import { a_projection } from '../../for_ChronicleReadModelInterceptor/given/a_projection.js';
 
-describe('when injecting a projection whose release fails', given(a_projection, context => {
-    let failure: unknown;
+describe('when injecting a projection while release is unavailable', given(a_projection, context => {
+    let result: object | null;
     beforeEach(async () => {
+        context.release.resetHistory();
         context.release.rejects(new Error('kernel rejected release'));
-        try {
-            await new ChronicleReadModelForCommandResolver(context.runtime, context.artifacts)
-                .find(context.model, '1', context.context as CommandContext);
-        } catch (error) { failure = error; }
+        result = await new ChronicleReadModelForCommandResolver(context.runtime, context.artifacts)
+            .find(context.model, '1', context.context as CommandContext);
     });
-    it('should fail instead of injecting ciphertext', () => { (failure as Error).message.should.equal('kernel rejected release'); });
+    it('should inject the already released kernel result', () => { (result === context.privateView).should.equal(true); });
+    it('should not call release', () => { context.release.called.should.equal(false); });
 }));

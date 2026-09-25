@@ -41,16 +41,6 @@ export class ChronicleArtifacts implements IClientArtifactsProvider {
     }
     private of(kind: DecoratorType): Constructor[] { return [...this.#types.get(kind) ?? []]; }
     get eventTypes(): Constructor[] { return this.of(DecoratorType.EventType); }
-    /** Chronicle-backed projection models, excluding reducer-only and unbacked read models. */
-    get projectionReadModels(): Constructor[] {
-        const types = new Set(this.of(DecoratorType.ReadModel)
-            .filter(type => hasFromEventMetadata(type) || hasModelBoundMappings(type)));
-        for (const projection of this.projections) {
-            const model = getProjectionMetadata(projection)?.readModelType;
-            if (model) types.add(model);
-        }
-        return [...types];
-    }
     get readModels(): Constructor[] {
         const types = new Set(this.of(DecoratorType.ReadModel));
         for (const projection of this.projections) {

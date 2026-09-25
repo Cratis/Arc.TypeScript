@@ -12,7 +12,7 @@ describe('when injecting a Chronicle projection with personal data', given(a_pro
         const resolver = new ChronicleReadModelForCommandResolver(context.runtime, context.artifacts);
         result = await resolver.find(context.model, '1', context.context as CommandContext);
     });
-    it('should inject the released value', () => { result!.name.should.equal('plain'); });
-    it('should use the tenant store for release', () => { context.getStore.calledWith(context.context).should.equal(true); });
-    it('should release exactly once', () => { context.release.calledOnce.should.equal(true); });
+    it('should inject the kernel result unchanged', () => { (result === context.privateView).should.equal(true); });
+    it('should use the tenant store for lookup', () => { context.getStore.calledWith(context.context).should.equal(true); });
+    it('should not release it again', () => { context.release.called.should.equal(false); });
 }));

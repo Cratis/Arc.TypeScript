@@ -6,5 +6,5 @@ import { a_projection } from '../given/a_projection.js';
 describe('when registering a private projection alongside a reducer and a public projection', given(a_projection, context => {
     let count: number;
     beforeEach(async () => { count = await context.registeredInterceptors(); });
-    it('should register only the private projection interceptor', () => { count.should.equal(1); });
+    it('should register interceptors for both protected models', () => { count.should.equal(2); });
 }));

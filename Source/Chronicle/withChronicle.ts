@@ -14,7 +14,7 @@ import { ChronicleRuntime } from './ChronicleRuntime.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
 import { ChronicleCommandScope } from './ChronicleCommandScope.js';
-import { hasProjectedCompliance } from './hasProjectedCompliance.js';
+import { hasProtectedReadModel } from './hasProtectedReadModel.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
 export function withChronicle(builder: ArcApplicationBuilder, options: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
@@ -29,12 +29,12 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     const registeredInterceptors = new Set<Constructor>();
     builder.addArtifactObserver(type => {
         const matched = artifacts.register(type as Constructor);
-        for (const model of artifacts.projectionReadModels) {
-            if (registeredInterceptors.has(model) || !hasProjectedCompliance(model, artifacts)) continue;
+        for (const model of artifacts.readModels) {
+            if (registeredInterceptors.has(model) || !hasProtectedReadModel(model)) continue;
             registeredInterceptors.add(model);
             const token = serviceToken<ReadModelInterceptor>(`Chronicle read model release: ${model.name}`);
             builder.services.addScoped(token, async scope =>
-                new ChronicleReadModelInterceptor(model as Constructor<object>, await scope.resolve(ChronicleRuntime), scope.identity!, artifacts));
+                new ChronicleReadModelInterceptor(model as Constructor<object>, await scope.resolve(ChronicleRuntime), scope.identity!));
             builder.addReadModelInterceptor(token);
         }
         return matched;

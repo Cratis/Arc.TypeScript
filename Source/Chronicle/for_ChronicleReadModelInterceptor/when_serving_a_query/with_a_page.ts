@@ -6,7 +6,10 @@ import { a_projection } from '../given/a_projection.js';
 
 describe('when serving a Chronicle projection page', given(a_projection, context => {
     let result: Awaited<ReturnType<a_projection['query']>>;
-    beforeEach(async () => { result = await context.query(queryPage([context.privateView, context.privateView], 2)); });
+    beforeEach(async () => {
+        context.release.resetHistory();
+        result = await context.query(queryPage([context.privateView, context.privateView], 2));
+    });
     it('should release each item', () => { context.release.callCount.should.equal(2); });
     it('should return a released page', () => {
         (result.data as { name: string }[]).map(item => item.name).should.deep.equal(['plain', 'plain']);
