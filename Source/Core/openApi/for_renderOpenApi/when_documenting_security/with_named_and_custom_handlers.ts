@@ -13,7 +13,8 @@ const custom: AuthenticationHandler = async () => ({ status: AuthenticationStatu
 class a_named_handler {
     readonly options = { authentication: [custom], authenticationSchemes: { jwt, bearer: jwt } };
     operation(authorization: Operation['authorization']): Operation {
-        return { kind: 'command', name: 'Save', route: '/api/save', schema: z.object({}), inputSchema: {}, authorization,
+        return { kind: 'command', name: 'Save', fullyQualifiedName: 'Save', route: '/api/save',
+            schema: z.object({}), inputSchema: {}, authorization,
             run: async () => { throw new Error('not called'); } } as Operation;
     }
     security(operation: Operation): unknown {
