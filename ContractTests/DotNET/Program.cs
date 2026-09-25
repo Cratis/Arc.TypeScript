@@ -12,6 +12,7 @@ using Cratis.Arc.Commands;
 using Cratis.Arc.Commands.ModelBound;
 using Cratis.Arc.Identity;
 using Cratis.Arc.Queries.ModelBound;
+using Cratis.Arc.Tenancy;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -27,12 +28,20 @@ builder.Logging.ClearProviders();
 builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
 builder.Services.AddSingleton<HttpFixture.EchoExecutions>();
 builder.Services.AddSingleton<HttpFixture.QueryExecutions>();
+builder.Services.AddSingleton<HttpFixture.InputCaseExecutions>();
+builder.Services.AddSingleton<HttpFixture.QueryCaseExecutions>();
 builder.Services.AddArcAuthorizationPolicy<HttpFixture.FixtureAdminPolicy>("FixtureAdmin");
 builder.Services.AddAuthentication("Fixture")
     .AddScheme<AuthenticationSchemeOptions, HttpFixture.FixtureAuthentication>("Fixture", _ => { });
 builder.AddCratisArc(configureOptions: options =>
 {
-    options.IdentityDetailsProvider = typeof(DefaultIdentityDetailsProvider);
+    switch (Environment.GetEnvironmentVariable("ARC_FIXTURE_TENANCY"))
+    {
+        case "fixed": options.UseFixedTenancy("fixed-tenant"); break;
+        case "claim": options.UseClaimTenancy(); break;
+        case "subdomain": options.UseSubdomainTenancy("example.test"); break;
+    }
+    options.IdentityDetailsProvider = typeof(HttpFixture.FixtureIdentityProvider);
     options.ExposeExceptionDetails = false;
     options.GeneratedApis.RoutePrefix = "api";
     options.GeneratedApis.SegmentsToSkipForRoute = 1;
@@ -82,7 +91,8 @@ namespace HttpFixture
             {
                 return Task.FromResult(AuthenticateResult.Fail("Invalid fixture credential"));
             }
-            var claims = new[] { new Claim(ClaimTypes.NameIdentifier, "fixture-user"), new Claim(ClaimTypes.Role, parsed.ToString()) };
+            var claims = new[] { new Claim("sub", "fixture-user"), new Claim(ClaimTypes.Name, "fixture-user"),
+                new Claim(ClaimTypes.Role, parsed.ToString()), new Claim("tenant_id", "claim-tenant") };
             var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
 
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));

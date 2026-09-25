@@ -76,4 +76,35 @@ public record FixtureStream(string Value)
     [AllowAnonymous]
     [Cratis.Arc.Queries.ModelBound.Path("/api/fixture-stream/pending")]
     public static ISubject<FixtureStream> Pending() => PendingValue;
+
+    /// <summary>Emits its first value after a short delay for HTTP wait requests.</summary>
+    /// <returns>A new, initially pending source.</returns>
+    [AllowAnonymous]
+    [Cratis.Arc.Queries.ModelBound.Path("/api/fixture-stream/first")]
+    public static ISubject<FixtureStream> First()
+    {
+        var subject = new Subject<FixtureStream>();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(150);
+            subject.OnNext(new("first"));
+            subject.OnCompleted();
+        });
+        return subject;
+    }
+
+    /// <summary>Completes without emitting a value.</summary>
+    /// <returns>A new, initially pending source.</returns>
+    [AllowAnonymous]
+    [Cratis.Arc.Queries.ModelBound.Path("/api/fixture-stream/completed")]
+    public static ISubject<FixtureStream> Completed()
+    {
+        var subject = new Subject<FixtureStream>();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(80);
+            subject.OnCompleted();
+        });
+        return subject;
+    }
 }

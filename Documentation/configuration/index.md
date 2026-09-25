@@ -14,7 +14,7 @@ Where options come from depends on how you create the application. The host you 
 | Entry point | Reads `appsettings.json` and environment | Typical use |
 | --- | --- | --- |
 | `ArcApplication.createBuilder()` from `@cratis/arc.core` | Yes, unless you pass `configuration: false` | Node applications, with discovery and the standalone host |
-| `CratisApplication.createBuilder()` from `@cratis/cratis` | Yes, including `Cratis:Chronicle` | Arc and the experimental Chronicle integration in one call; see [Add event sourcing](../chronicle/add-event-sourcing.md) |
+| `CratisApplication.createBuilder()` from `@cratis/cratis` | Yes, including `Cratis:Chronicle` | Arc and the experimental Chronicle integration in one call; see [The Cratis package](../chronicle/cratis-package.md) |
 | `ArcApplication.createBuilder()` from `@cratis/arc.core/fetch` | No, code options only | Fetch API runtimes without a filesystem; see [Fetch API runtimes](../hosts/fetch-runtimes.md) |
 | `new ArcServer(options)` | No, code options only | [Low-level definitions](../commands/low-level-definitions.md) and specs |
 
