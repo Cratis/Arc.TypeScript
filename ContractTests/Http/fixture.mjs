@@ -17,6 +17,7 @@ import { PolicyItems, RateLookup } from './modelBound/dist/PolicyAndObservable.j
 import { cratisArc } from '@cratis/arc.express';
 
 let executions = 0;
+let queryExecutions = 0;
 const items = Object.freeze([{ id: 1, name: 'Ada' }, { id: 2, name: 'Grace' }, { id: 3, name: 'Linus' }]);
 const valueSchema = z.object({ value: z.string() });
 const anonymous = { anonymous: true };
@@ -61,7 +62,11 @@ const byId = defineQuery({
 });
 const all = defineQuery({
     name: 'All', namespace: 'FixtureItem', path: '/api/items', schema: z.object({}), authorization: anonymous,
-    perform: () => [...items]
+    perform: () => { queryExecutions++; return [...items]; }
+});
+const queryCount = defineQuery({
+    name: 'Current', namespace: 'QueryCount', path: '/api/query-count', schema: z.object({}), authorization: anonymous,
+    perform: () => ({ count: queryExecutions })
 });
 const privateItems = defineQuery({
     name: 'Private', namespace: 'FixtureItem', path: '/api/items/private', schema: z.object({}), authorization: admin,
@@ -84,7 +89,7 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
-    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, byId, all, privateItems],
+    commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric], queries: [echoCount, queryCount, byId, all, privateItems],
     observableQueries: [currentStream, pendingStream], authentication: [authentication], development: false, generatedApis: { segmentsToSkipForRoute: 1 }
 });
 builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,

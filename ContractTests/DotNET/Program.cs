@@ -26,6 +26,7 @@ builder.Configuration.Sources.Clear();
 builder.Logging.ClearProviders();
 builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
 builder.Services.AddSingleton<HttpFixture.EchoExecutions>();
+builder.Services.AddSingleton<HttpFixture.QueryExecutions>();
 builder.Services.AddArcAuthorizationPolicy<HttpFixture.FixtureAdminPolicy>("FixtureAdmin");
 builder.Services.AddAuthentication("Fixture")
     .AddScheme<AuthenticationSchemeOptions, HttpFixture.FixtureAuthentication>("Fixture", _ => { });
@@ -144,6 +145,40 @@ namespace HttpFixture
     }
 
     /// <summary>
+    /// Counts fixture item query handler invocations.
+    /// </summary>
+    public sealed class QueryExecutions
+    {
+        long _count;
+
+        /// <summary>
+        /// Gets the number of query invocations.
+        /// </summary>
+        public long Count => Interlocked.Read(ref _count);
+
+        /// <summary>
+        /// Records a query invocation.
+        /// </summary>
+        public void Record() => Interlocked.Increment(ref _count);
+    }
+
+    /// <summary>
+    /// Exposes the item query handler count without changing it.
+    /// </summary>
+    [ReadModel]
+    public record QueryCount(long Count)
+    {
+        /// <summary>
+        /// Reads the count of item query handler invocations.
+        /// </summary>
+        /// <param name="executions">The fixture query execution counter.</param>
+        /// <returns>The count.</returns>
+        [AllowAnonymous]
+        [Cratis.Arc.Queries.ModelBound.Path("/api/query-count")]
+        public static QueryCount Current([FromServices] QueryExecutions executions) => new(executions.Count);
+    }
+
+    /// <summary>
     /// The response to an echo command.
     /// </summary>
     /// <param name="Value">The echoed value.</param>
@@ -247,7 +282,12 @@ namespace HttpFixture
         /// <returns>The fixture items.</returns>
         [AllowAnonymous]
         [Cratis.Arc.Queries.ModelBound.Path("/api/items")]
-        public static IQueryable<FixtureItem> All() => Items.AsQueryable();
+        public static IQueryable<FixtureItem> All([FromServices] QueryExecutions executions)
+        {
+            executions.Record();
+
+            return Items.AsQueryable();
+        }
 
         /// <summary>
         /// Returns the same items only for fixture administrators.
