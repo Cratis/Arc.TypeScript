@@ -20,10 +20,12 @@ if [ -z "${ARC_CHRONICLE_TEST_URL:-}" ]; then
     trap cleanup EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    container_id=$(docker run -d --name "$name" -p 127.0.0.1::35000 cratis/chronicle:latest-development)
+    container_id=$(docker run -d --name "$name" -p 127.0.0.1::35000 -p 127.0.0.1::27017 cratis/chronicle:latest-development)
     port=$(docker port "$container_id" 35000/tcp)
+    mongo_port=$(docker port "$container_id" 27017/tcp)
     ARC_CHRONICLE_TEST_URL="chronicle://localhost:${port##*:}"
-    export ARC_CHRONICLE_TEST_URL
+    ARC_CHRONICLE_TEST_MONGO_URL="mongodb://127.0.0.1:${mongo_port##*:}"
+    export ARC_CHRONICLE_TEST_URL ARC_CHRONICLE_TEST_MONGO_URL
     ready=0
     for attempt in $(seq 1 90); do
         if curl -kfsS --max-time 2 "https://localhost:${port##*:}/" >/dev/null 2>&1; then
