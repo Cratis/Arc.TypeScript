@@ -31,7 +31,7 @@ export async function runCommandFilters(context: CommandContext, options: ArcOpt
             if (fragment !== undefined) {
                 const merged = mergeFilterFragment(result, fragment);
                 result = commandResult(context, { ...merged,
-                    authorizationFailureReason: result.authorizationFailureReason || fragment.authorizationFailureReason,
+                    authorizationFailureReason: merged.authorizationFailureReason,
                     validationResults: merged.validationResults.filter(item => item.severity > context.allowedSeverity)
                 });
             }

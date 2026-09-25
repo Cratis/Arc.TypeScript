@@ -29,7 +29,7 @@ export async function runQueryFilters(context: QueryContext, options: ArcOptions
             checkCancellation();
             if (fragment !== undefined) {
                 const merged = mergeFilterFragment(result, fragment);
-                result = queryResult(context, { ...merged, isReady: result.isReady && fragment.isReady !== false });
+                result = queryResult(context, merged);
             }
             if (!result.isSuccess) break;
         }
