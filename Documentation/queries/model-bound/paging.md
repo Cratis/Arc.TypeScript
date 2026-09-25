@@ -28,7 +28,8 @@ export class Product {
     static recent(catalog: Catalog, options: QueryOptions) {
         const page = options.paging?.page ?? 0;
         const size = options.paging?.pageSize ?? 0;
-        const items = size ? catalog.items.slice(page * size, (page + 1) * size) : catalog.items;
+        const offset = Math.min(2_147_483_647, page * size);
+        const items = size ? catalog.items.slice(offset, offset + size) : catalog.items;
         return queryPage(items, catalog.items.length);
     }
 }
@@ -41,11 +42,15 @@ With `Catalog` registered as a singleton, `GET /api/all?pageSize=2&sortBy=name&s
 | Request | Meaning |
 | --- | --- |
 | GET `pageSize` of 1 or more | Page `page` (zero-based, default 0) of that size |
-| GET `pageSize` of 0, negative, or not an integer | 400 `malformedRequest` |
+| GET `pageSize` of 0 or negative, or `page` negative with a valid positive size | 400 with a paging rule (`Size` or `Page`) |
+| GET nonnumeric or out-of-int32 `page`/`pageSize` | Defaults to page 0 or unpaged, respectively |
 | `QUERY` `paging.pageSize` of 1 or more | Page `paging.page` of that size |
-| `QUERY` with `pageSize: 0`, or without `pageSize` | Unpaged |
+| `QUERY` with nonpositive `pageSize`, or without `pageSize` | Unpaged; a page without a size is ignored |
+| `QUERY` with nonnumeric or out-of-int32 paging values | 400 with a redacted exception envelope; the handler does not run |
 | `sortBy` or `sorting.field` | Sort by that field. The name must start with a letter and contain only letters, digits, and `_`. |
 | `sortDirection` or `sorting.direction` | `asc`, `ascending`, `desc`, or `descending`, in any case; `asc` by default. A direction without a field answers 400. |
+
+Invalid directions answer 400 with `malformedRequest` and the `sortDirection` (GET) or `sorting.direction` (`QUERY`) member. Page offsets are clamped to the signed 32-bit maximum before slicing in memory, so large valid page and size values cannot overflow the offset. Providers that cut their own pages must apply equivalent bounds before using the offset in their data source.
 
 In-memory sorting requires the field on every item, or the request answers 400. Dates compare by time, numbers and bigints numerically, `false` before `true`, and `null` or `undefined` before any value in ascending order. Other values compare as strings with `localeCompare`, which is not .NET invariant-culture collation; sort in the data source when a stable cross-platform order matters.
 
