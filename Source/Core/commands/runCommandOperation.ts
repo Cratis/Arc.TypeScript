@@ -17,6 +17,7 @@ import { commandFailure, executeCommandOperation } from './executeCommandOperati
 import { runCommandFilters } from './runCommandFilters.js';
 import type { CommandContext } from './CommandContext.js';
 import { withOperationName } from '../execution/withOperationName.js';
+import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 
 enum CommandOperationMode { Execute, Validate }
 
@@ -25,13 +26,15 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
     options: ArcOptions = {}): Operation {
     const operationName = fullyQualifiedName(definition);
     const invoke = async (input: unknown, execution: ExecutionContext, mode: CommandOperationMode): Promise<CommandResult> => {
-        if (!await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input))
-            return commandResult(execution, { isAuthorized: false });
+        const allowed = await authorized(definition.authorization, execution, options.authorizationPolicies ?? {}, definition, input);
+        throwIfCanceled(execution, 'Command canceled');
+        if (!allowed) return commandResult(execution, { isAuthorized: false });
         const parsed = definition.schema.safeParse(input);
         if (parsed.success) {
             try {
-                if (definition.authorize && !await definition.authorize(parsed.data, execution))
-                    return commandResult(execution, { isAuthorized: false });
+                const permitted = definition.authorize ? await definition.authorize(parsed.data, execution) : true;
+                throwIfCanceled(execution, 'Command canceled');
+                if (!permitted) return commandResult(execution, { isAuthorized: false });
             } catch (error) {
                 return commandFailure(withOperationName({ ...execution, command: parsed.data, key: undefined,
                     values: new CommandContextValues() }, operationName), error);
@@ -41,8 +44,12 @@ export function commandOperation<S extends z.ZodType, T>(definition: CommandDefi
             values: new CommandContextValues(), readModelResolvers: options.readModelForCommandResolvers }, operationName);
         let context: CommandContext = minimalContext;
         if (parsed.success) {
-            try { context = withOperationName(
-                await createCommandContext(definition.commandFactory?.(parsed.data) ?? parsed.data, execution, options), operationName); }
+            try {
+                throwIfCanceled(execution, 'Command canceled');
+                context = withOperationName(
+                    await createCommandContext(definition.commandFactory?.(parsed.data) ?? parsed.data, execution, options), operationName);
+                throwIfCanceled(execution, 'Command canceled');
+            }
             catch (error) { return commandFailure(minimalContext, error); }
         }
         const authorization = await runCommandFilters(context, options, true);

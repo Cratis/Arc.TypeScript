@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import type { ArcOptions } from '../ArcOptions.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
 import { recordFailure } from '../execution/failureTracking.js';
+import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { isOutcome } from './Outcome.js';
 import type { CommandDefinition } from './CommandDefinition.js';
@@ -51,13 +52,16 @@ export function commandFailure(context: CommandContext, error: unknown, previous
 async function preflight<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, value: z.output<S>,
     context: CommandContext): Promise<CommandResult | undefined> {
     try {
+        throwIfCanceled(context, 'Command canceled');
         await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
+        throwIfCanceled(context, 'Command canceled');
         const issues = await observe('cratis.arc.command.filter', context.correlationId,
             { command_type: fullyQualifiedName(definition) }, () =>
                 validate([definition.validate, ...(definition.filters ?? [])], value, context));
+        throwIfCanceled(context, 'Command canceled');
         if (issues.length) return commandResult(context, { validationResults: issues });
     } catch (error) {
-        if (context.signal.aborted) throw error;
+        if (context.signal.aborted) throw context.signal.reason ?? error;
         const result = commandResult(context, {
             validationResults: error instanceof ServiceDependencyError ? dependencyFailure(error) : validatorFailure()
         });
@@ -70,16 +74,22 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
     scopes: CommandExecutionScope[], options: ArcOptions): Promise<{
         result: CommandResult; journal?: CommandOperationExecution; prepared: boolean
     }> {
+    throwIfCanceled(context, 'Command canceled');
     await prepareDependencies(definition.handlerDependencies);
+    throwIfCanceled(context, 'Command canceled');
     for (const create of [...options.commandExecutionScopes ?? [], ...definition.scopes ?? []]) {
+        throwIfCanceled(context, 'Command canceled');
         const scope = create();
         scopes.push(scope);
         await scope.begin(context);
+        throwIfCanceled(context, 'Command canceled');
     }
     let provided: unknown;
     let result: CommandResult = commandResult(context);
     if (definition.provide) {
+        throwIfCanceled(context, 'Command canceled');
         provided = await definition.provide(value, context);
+        throwIfCanceled(context, 'Command canceled');
         if (isOutcome(provided)) {
             if (provided.kind === 'denied') result = commandResult(context,
                 { isAuthorized: false, authorizationFailureReason: provided.reason });
@@ -92,8 +102,11 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
         }
     }
     if (!result.isSuccess) return { result, prepared: false };
-    const { result: response, journal } = await prepareCommandResponse(
-        await definition.handle(value, context, provided), context, scopes, options);
+    throwIfCanceled(context, 'Command canceled');
+    const handled = await definition.handle(value, context, provided);
+    throwIfCanceled(context, 'Command canceled');
+    const { result: response, journal } = await prepareCommandResponse(handled, context, scopes, options);
+    throwIfCanceled(context, 'Command canceled');
     return { result: response, journal, prepared: true };
 }
 
@@ -133,8 +146,10 @@ async function completeScopes<S extends z.ZodType, T>(definition: CommandDefinit
 export async function executeCommandOperation<S extends z.ZodType, T>(definition: CommandDefinition<S, T>, value: z.output<S>,
     context: CommandContext, options: ArcOptions, validateOnly: boolean): Promise<CommandResult> {
     try {
+        throwIfCanceled(context, 'Command canceled');
         const rejected = await preflight(definition, value, context);
         if (rejected) return rejected;
+        throwIfCanceled(context, 'Command canceled');
         if (validateOnly) return commandResult(context);
         const scopes: CommandExecutionScope[] = [];
         let result: CommandResult = commandResult(context);
@@ -151,10 +166,12 @@ export async function executeCommandOperation<S extends z.ZodType, T>(definition
                 snapshot.capture(result);
             }
             if (journal && result.isSuccess) {
+                throwIfCanceled(context, 'Command canceled');
                 const before = disposition(scopes, context);
                 if (before !== CommandCommitDisposition.NoCommit && before !== CommandCommitDisposition.NotCommitted)
                     throw new Error('Operations cannot start after an early, unknown, or mixed business commit');
                 source = CommandOperationFailureSource.Execution;
+                throwIfCanceled(context, 'Command canceled');
                 await journal.execute(context);
             }
         } catch (error) {
