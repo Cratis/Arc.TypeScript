@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { defineCommand, isOutcome, rejected, validation } from '@cratis/arc.core';
-import { acknowledgeCommandCommit, flattenCommandResponse, inlineCommitClientResponse, isCommandOperation, isCommandOperations } from '@cratis/arc.core/hosting';
+import { acknowledgeCommandCommit, inlineCommitClientResponse, isArcTuple, isCommandOperation, isCommandOperations } from '@cratis/arc.core/hosting';
 import { hasEventType } from '@cratis/chronicle/events';
 import type { CommandDefinition, ExecutionContext, Outcome, ValidationResult } from '@cratis/arc.core';
 import type { AppendOptions, AppendResult, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
@@ -65,14 +65,18 @@ export function checkResults(results: readonly AppendResult[], expected: number)
     return undefined;
 }
 
-function isAppendValue(value: unknown, store: IEventStore): boolean {
+function containsAppendValue(value: unknown, store: IEventStore, seen = new Set<object>()): boolean {
+    if (typeof value !== 'object' || value === null || seen.has(value)) return false;
+    seen.add(value);
     if (isCommandOperation(value) || isCommandOperations(value) ||
         value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
-    if (Array.isArray(value)) return value.length === 0 || value.some(item => isAppendValue(item, store));
-    if (typeof value !== 'object' || value === null) return false;
+    if (isArcTuple(value)) return value.values.some(item => containsAppendValue(item, store, seen));
+    if (isOutcome(value)) return value.kind === 'response' && containsAppendValue(value.value, store, seen);
+    if (Array.isArray(value)) return value.some(item => containsAppendValue(item, store, seen));
     if (isRoutedEvent(value) ||
         (typeof Reflect.get(value, 'eventSourceId') === 'string' &&
             typeof Reflect.get(value, 'event') === 'object' && Reflect.get(value, 'event') !== null)) return true;
+    // Ordinary object properties are client data, not values handed to response handlers.
     return hasEventType(value.constructor) || store.eventTypes.all.some(type => type === value.constructor);
 }
 
@@ -112,12 +116,11 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
         // The append is acknowledged: a later cancellation cannot undo it or erase its response.
         acknowledgeCommandCommit(context);
         await waitForProjectionCompletion(results, completionTimeoutMs, context.signal);
-        const leaves = flattenCommandResponse(commandResponse);
-        if (leaves.some(leaf => isAppendValue(leaf, store))) {
+        if (containsAppendValue(commandResponse, store)) {
             context.signal.throwIfAborted();
             throw new Error('A Chronicle command cannot return an event or command operation as its client response');
         }
-        if (commandResponse !== null && commandResponse !== undefined && (leaves.length !== 1 || leaves[0] !== commandResponse)) {
+        if (isArcTuple(commandResponse)) {
             context.signal.throwIfAborted();
             throw new Error('A Chronicle command cannot return an Arc tuple as its client response');
         }

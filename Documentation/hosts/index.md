@@ -35,7 +35,7 @@ This is the [Tasks sample's bootstrap](https://github.com/Cratis/Arc.TypeScript/
 | `@cratis/arc.hono` | `app.use(cratisArc(arc))`; Node: `serveCratisArc` | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` for Node hosting |
 | `@cratis/arc.core/hosting` | `attachNodeWebSockets` and adapter hosting primitives | None |
 
-Each adapter accepts a built `ArcApplication` or low-level `ArcServer`.
+Each adapter accepts a built `ArcApplication` or low-level `ArcServer`. The `@cratis/arc.core/hosting` subpath also exposes integration-only command helpers. Applications must not call these helpers; `inlineCommitClientResponse`, for example, lets a trusted integration mark a command whose handler commits inline.
 
 ## Pick your framework
 

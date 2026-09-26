@@ -13,15 +13,17 @@ export { serveUpgradedSocket } from './queries/observable/serveUpgradedSocket.js
 export { observableLimits } from './queries/observable/observableHosting.js';
 export type { NodeWebSocketLike } from './queries/observable/NodeWebSocketLike.js';
 export { prepareObservableUpgrade } from './queries/observable/prepareObservableUpgrade.js';
-/** Integration-only: acknowledge a commit before cancellation can discard its response. */
+/** Integration-only. Applications must not call this; it lets a trusted integration acknowledge an inline commit before cancellation can discard its response. */
 export { acknowledgeCommandCommit } from './commands/acknowledgeCommandCommit.js';
-/** Integration-only: only an inline-commit adapter may mark a definition with this symbol. */
+/** Integration-only. Applications must not call this; it lets a trusted integration mark a command whose handler commits inline. */
 export { inlineCommitClientResponse } from './commands/CommandDefinition.js';
-/** Integration-only: recognize operation declarations across copies of Core. */
+/** Integration-only. Applications must not call this; it lets a trusted integration recognize operation declarations across copies of Core. */
 export { isCommandOperation } from './commands/CommandOperation.js';
-/** Integration-only: recognize operation batches across copies of Core. */
+/** Integration-only. Applications must not call this; it lets a trusted integration recognize operation batches across copies of Core. */
 export { isCommandOperations } from './commands/CommandOperations.js';
-/** Integration-only: flatten responses exactly as Core will flatten them. */
+/** Integration-only. Applications must not call this; it lets a trusted integration recognize branded tuples across copies of Core. */
+export { isArcTuple } from './commands/ArcTuple.js';
+/** Integration-only. Applications must not call this; it lets a trusted integration flatten responses exactly as Core will flatten them. */
 export { flattenCommandResponse } from './commands/processCommandResponse.js';
 /** Preserve the original integration failure for host-side diagnostics and cleanup. */
 export { recordFailure } from './execution/failureTracking.js';
