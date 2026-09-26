@@ -12,7 +12,11 @@ type ClassType<T extends object = object> = new () => T;
 export class ChronicleQueryScenario<T = unknown> {
     readonly #scenario: QueryScenario<T>;
     readonly #readModels: ChronicleScenarioReadModels;
+    readonly #model: ClassType;
+    readonly #method: string;
     private constructor(model: ClassType, method: string, artifacts: ClassType[]) {
+        this.#model = model;
+        this.#method = method;
         this.#scenario = QueryScenario.for<T>(model, method, ...artifacts);
         this.#readModels = new ChronicleScenarioReadModels([model, ...artifacts], () => this.context.tenantId);
         const stores = new Map<string, IEventStore>();
@@ -41,8 +45,14 @@ export class ChronicleQueryScenario<T = unknown> {
         this.#readModels.givenReadModel(type, sourceId, instance, tenant);
         return this;
     }
-    perform(arguments_: Record<string, unknown> = {}, options?: QueryOptions): Promise<QueryResult<T>> {
-        return this.#scenario.perform(arguments_, options);
+    async perform(arguments_: Record<string, unknown> = {}, options?: QueryOptions): Promise<QueryResult<T>> {
+        try { return await this.#scenario.perform(arguments_, options); }
+        catch (error) {
+            if (error instanceof Error && error.message ===
+                `Streaming query ${this.#model.name}.${this.#method} is not supported by QueryScenario; use ObservableQueryScenario`)
+                throw new Error(`Streaming query ${this.#model.name}.${this.#method} requires ChronicleKernelScenario for observation`, { cause: error });
+            throw error;
+        }
     }
     dispose(): Promise<void> { return this.#scenario.dispose(); }
 }

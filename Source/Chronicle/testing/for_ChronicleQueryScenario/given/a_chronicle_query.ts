@@ -27,6 +27,8 @@ export class BalanceReducer {
     @query(service(ChronicleReadModels))
     static async all(models: ChronicleReadModels): Promise<Balance[]> { return models.getAll(Balance); }
     @query(service(ChronicleReadModels))
+    static async watch(models: ChronicleReadModels) { return (await models.getStore()).readModels.watch(Balance); }
+    @query({ observable: true }, service(ChronicleReadModels))
     static stream(models: ChronicleReadModels) { return models.observeAll(Balance); }
 }
 export class a_chronicle_query {

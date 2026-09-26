@@ -18,6 +18,20 @@ describe('when performing a Chronicle query for seeded projection history', give
     });
 }));
 
+describe('when performing a Chronicle query that watches read models', given(a_chronicle_query, context => {
+    let scenario: ReturnType<typeof context.create>;
+    let result: Awaited<ReturnType<typeof scenario.perform>>;
+    beforeEach(async () => {
+        scenario = context.create('watch');
+        result = await scenario.perform();
+    });
+    afterEach(async () => { await scenario.dispose(); });
+    it('should reject unbacked watches with a kernel hint', () => {
+        result.isSuccess.should.equal(false);
+        JSON.stringify(result).should.contain('cannot watch read models; use ChronicleKernelScenario');
+    });
+}));
+
 describe('when performing a Chronicle query that lists read models', given(a_chronicle_query, context => {
     let scenario: ReturnType<typeof context.create>;
     let result: Awaited<ReturnType<typeof scenario.perform>>;

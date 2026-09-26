@@ -17,6 +17,7 @@ import { decode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 import { throwIfCanceled } from '../../execution/throwIfCanceled.js';
+import { SnapshotStreamError } from './snapshotStreamSource.js';
 
 const argumentsOnly = (parameters: readonly Parameter[]): Extract<Parameter, { kind: 'argument' }>[] =>
     parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
@@ -124,21 +125,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
             if (value && typeof value === 'object' &&
                 (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function' ||
                     'subscribe' in value && typeof value.subscribe === 'function')) {
-                const rejection = new Error(`Snapshot query ${type.name}.${name} returned an observable`);
-                try {
-                    const disposable = value as { [Symbol.asyncDispose]?: () => PromiseLike<void>; [Symbol.dispose]?: () => void };
-                    const asyncDispose = disposable[Symbol.asyncDispose];
-                    const dispose = disposable[Symbol.dispose];
-                    if (typeof asyncDispose === 'function') await asyncDispose.call(value);
-                    else if (typeof dispose === 'function') dispose.call(value);
-                    else if ('unsubscribe' in value && typeof value.unsubscribe === 'function')
-                        await value.unsubscribe();
-                    else if ('dispose' in value && typeof value.dispose === 'function')
-                        await value.dispose();
-                    else if (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function')
-                        await (value as AsyncIterable<unknown>)[Symbol.asyncIterator]().return?.();
-                } catch { /* Preserve the snapshot boundary error if producer cleanup fails. */ }
-                throw rejection;
+                throw new SnapshotStreamError(`Snapshot query ${type.name}.${name} returned an observable`, value);
             }
             validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             return value;
