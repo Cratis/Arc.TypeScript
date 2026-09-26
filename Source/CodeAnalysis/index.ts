@@ -13,6 +13,7 @@ import { arc0015 } from './rules/arc0015.js';
 import { arc0019 } from './rules/arc0019.js';
 import { arcchr0003 } from './rules/arcchr0003.js';
 import { arcchr0007 } from './rules/arcchr0007.js';
+import { arcchr0009 } from './rules/arcchr0009.js';
 import { arcchr0010 } from './rules/arcchr0010.js';
 import { missingField } from './rules/missingField.js';
 import { declaredField } from './rules/declaredField.js';
@@ -26,7 +27,7 @@ import { validatorTarget } from './rules/validatorTarget.js';
 /** Arc server diagnostics, including .NET ARC identifiers where semantics overlap. */
 const rules = {
     arc0002, arc0003, arc0004, arc0005, arc0010, arc0012, arc0014, arc0015, arc0019,
-    arcchr0003, arcchr0007, arcchr0010,
+    arcchr0003, arcchr0007, arcchr0009, arcchr0010,
     'missing-field': missingField,
     'declared-field': declaredField,
     'inject-binding': injectBinding,

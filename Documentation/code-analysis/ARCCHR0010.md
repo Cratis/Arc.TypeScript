@@ -8,8 +8,8 @@ as an ordinary response. Chronicle still chooses a fallback event source ID. If 
 identify the new stream, return `tuple(eventSourceIdResponse(id), new Created())` or supply the
 command key through `@key()`, `getKey()`, or `getEventSourceId()`.
 
-This type-checked rule recognizes a direct `Guid.parse(...)` imported from `@cratis/fundamentals`
-and a `new` event class decorated with `@eventType()` from `@cratis/chronicle/events`.
-It does not guess from string responses, factories, indirect return values, or inherited command keys;
-an ordinary Guid
-response may be intentional. See [Resolving the event source ID](../chronicle/resolving-event-source-id.md#return-the-id-to-the-caller).
+This type-checked rule recognizes fundamentals `Guid` values including `Guid.create()`,
+`Guid.parse(...)`, and variables, beside a direct `new` event decorated with `@eventType()`
+from `@cratis/chronicle` or `@cratis/chronicle/events`. It does not guess from string responses,
+event factories, indirect return values, or inherited command keys or event-type decorators;
+an ordinary Guid response may be intentional. See [Resolving the event source ID](../chronicle/resolving-event-source-id.md#return-the-id-to-the-caller).

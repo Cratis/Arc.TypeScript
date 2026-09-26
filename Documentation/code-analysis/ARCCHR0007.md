@@ -4,10 +4,12 @@ description: Return events from a Chronicle-backed command handler to preserve i
 ---
 
 A decorated command's `handle()` should return events for the Chronicle integration to append.
-Directly calling `this.store.eventLog.append(...)` or `appendMany(...)` bypasses the returned-event
-batch. The rule also detects a local `store` obtained with `await this.runtime.getStore(...)`.
-It does not follow helpers, callbacks, or arbitrary stores and does not forbid standalone Arc commands
-from returning non-event responses.
+Direct appends from `handle()` or `provide()` to `eventLog.append(...)` or `appendMany(...)`
+(including `.transactional`) bypass the returned-event batch. The rule recognizes `this.store`,
+a local store obtained with `await this.runtime.getStore(...)`, and stores obtained from a
+`@inject(ChronicleReadModels)` or `@inject(ChronicleRuntime)` parameter, both through a local
+variable and inline `await` calls. It does not follow helpers, callbacks, or arbitrary stores and
+does not forbid standalone Arc commands from returning non-event responses.
 
 ```ts
 // Instead of: await this.store.eventLog.append(this.id, new Registered());

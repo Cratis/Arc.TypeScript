@@ -21,8 +21,34 @@ export const arcchr0010 = ESLintUtils.RuleCreator.withoutDocs({
             const declared = type.getSymbol()?.declarations?.some(declaration => ts.isClassDeclaration(declaration) &&
                 ts.canHaveDecorators(declaration) && ts.getDecorators(declaration)?.some(decorator =>
                     ts.isCallExpression(decorator.expression) &&
-                    tsImported(types.checker, decorator.expression.expression, '@cratis/chronicle/events', 'eventType')));
+                    (tsImported(types.checker, decorator.expression.expression, '@cratis/chronicle/events', 'eventType') ||
+                        tsImported(types.checker, decorator.expression.expression, '@cratis/chronicle', 'eventType'))));
             return declared ? node.callee.name : undefined;
+        };
+        const fundamentalsGuid = (node: TSESTree.Node): boolean => {
+            const types = typesFor(context);
+            if (!types) return false;
+            const expression = types.node(node);
+            const symbol = types.checker.getTypeAtLocation(expression).getSymbol();
+            if (!symbol) return false;
+            const source = expression.getSourceFile();
+            return source.statements.some(statement => {
+                if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
+                    statement.moduleSpecifier.text !== '@cratis/fundamentals') return false;
+                const bindings = statement.importClause?.namedBindings;
+                if (bindings && ts.isNamedImports(bindings)) return bindings.elements.some(specifier => {
+                    const imported = types.checker.getSymbolAtLocation(specifier.name);
+                    return (specifier.propertyName?.text ?? specifier.name.text) === 'Guid' &&
+                        !!imported && types.checker.getAliasedSymbol(imported) === symbol;
+                });
+                if (bindings && ts.isNamespaceImport(bindings)) {
+                    const imported = types.checker.getSymbolAtLocation(bindings.name);
+                    return !!imported && types.checker.getExportsOfModule(types.checker.getAliasedSymbol(imported))
+                        .some(candidate => candidate.name === 'Guid' &&
+                            (candidate.flags & ts.SymbolFlags.Alias ? types.checker.getAliasedSymbol(candidate) : candidate) === symbol);
+                }
+                return false;
+            });
         };
         return { ClassDeclaration(node) {
             if (!node.id || !decorated(context, node, 'command') || node.superClass ||
@@ -38,10 +64,7 @@ export const arcchr0010 = ESLintUtils.RuleCreator.withoutDocs({
                     const args = part.argument.arguments;
                     if (args.some(arg => arg.type === AST_NODE_TYPES.CallExpression &&
                         imported(context, arg.callee, '@cratis/arc.chronicle', 'eventSourceIdResponse'))) return;
-                    const guid = args.find(arg => arg.type === AST_NODE_TYPES.CallExpression &&
-                        arg.callee.type === AST_NODE_TYPES.MemberExpression && !arg.callee.computed &&
-                        arg.callee.property.type === AST_NODE_TYPES.Identifier && arg.callee.property.name === 'parse' &&
-                        imported(context, arg.callee.object, '@cratis/fundamentals', 'Guid'));
+                    const guid = args.find(arg => arg.type !== AST_NODE_TYPES.SpreadElement && fundamentalsGuid(arg));
                     const event = args.map(eventName).find(Boolean);
                     if (guid && event) context.report({ node: guid, messageId: 'guid', data: { name: node.id!.name, event } });
                 }

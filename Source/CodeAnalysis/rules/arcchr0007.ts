@@ -7,7 +7,7 @@ import { decorated } from './syntax.js';
 /** Flag immediate appends through a command handler's own event store. */
 export const arcchr0007 = ESLintUtils.RuleCreator.withoutDocs({
     meta: { type: 'problem', docs: { description: 'Command handler must not append directly to the event log' },
-        messages: { append: "Command '{{name}}' appends to the default event log in 'handle'. " +
+        messages: { append: "Command '{{name}}' appends to the default event log in '{{method}}'. " +
             'Express every append through the handler return type, not the event log.' }, schema: [] },
     defaultOptions: [],
     create(context) {
@@ -15,8 +15,8 @@ export const arcchr0007 = ESLintUtils.RuleCreator.withoutDocs({
             if (!ownStore(context, node)) return;
             const enclosing = enclosingMethod(node);
             if (!enclosing?.owner.id || enclosing.method.key.type !== AST_NODE_TYPES.Identifier ||
-                enclosing.method.key.name !== 'handle' || !decorated(context, enclosing.owner, 'command')) return;
-            context.report({ node, messageId: 'append', data: { name: enclosing.owner.id.name } });
+                !['handle', 'provide'].includes(enclosing.method.key.name) || !decorated(context, enclosing.owner, 'command')) return;
+            context.report({ node, messageId: 'append', data: { name: enclosing.owner.id.name, method: enclosing.method.key.name } });
         } };
     }
 });
