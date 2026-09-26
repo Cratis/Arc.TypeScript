@@ -8,6 +8,11 @@ import { isObservableOperation } from '../queries/observable/ObservableOperation
 import { resultSchema } from './resultSchema.js';
 import { isJwtBearer } from '../authentication/jwtBearer.js';
 
+const pagingDescriptions: Record<string, string> = {
+    page: 'Page number to show', pageSize: 'Number of items to limit a page to',
+    sortBy: 'Sort by field name', sortDirection: 'Sort direction'
+};
+
 /** Render the GET representation of Arc routes. The QUERY method has no OpenAPI path-item equivalent. */
 export function renderOpenApi(commands: readonly Operation[], queries: readonly Operation[], options: ArcOptions = {}): Record<string, unknown> {
     const paths: Record<string, Record<string, unknown>> = {};
@@ -30,36 +35,59 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
         const inputs = Object.entries(operation.inputSchema.properties as Record<string, unknown> ?? {});
         const reserved = new Set(inputs.map(([name]) => name.toLowerCase()));
         const cardinality = operation.generatedReturn?.cardinality;
-        const paging = cardinality !== 'one' && cardinality !== 'void';
+        // Advertise paging only for declared arrays and queryPage results; unknown returns cannot be inferred safely.
+        const paging = cardinality === 'many' || cardinality === 'paged';
         const parameters = operation.kind === 'query' ? [
             ...inputs.map(([name, schema]) =>
                 ({ name, in: 'query', required: (operation.inputSchema.required as string[] ?? []).includes(name), schema })),
             ...[
                 ...(paging ? [
-                    ['page', { type: 'integer', minimum: 0 }], ['pageSize', { type: 'integer', minimum: 1 }],
+                    ['page', { type: 'integer', format: 'int32', minimum: 0 }], ['pageSize', { type: 'integer', format: 'int32', minimum: 1 }],
                     ['sortBy', { type: 'string' }],
                     ['sortDirection', { type: 'string',
                         enum: [SortDirection.Ascending, 'ascending', SortDirection.Descending, 'descending'] }]
                 ] as const : []),
                 ...(observable ? [['waitForFirstResult', { type: 'boolean' }],
                     ['waitForFirstResultTimeout', { type: 'number', exclusiveMinimum: 0, maximum: 120 }]] as const : [])
-            ].filter(([name]) => !reserved.has(name.toLowerCase())).map(([name, schema]) => ({ name, in: 'query', required: false, schema }))
+            ].filter(([name]) => !reserved.has(name.toLowerCase())).map(([name, schema]) => ({ name, in: 'query', required: false,
+                ...(pagingDescriptions[name] ? { description: pagingDescriptions[name] } : {}), schema }))
         ] : undefined;
         const operationId = operation.fullyQualifiedName;
         paths[operation.route] ??= {};
+        const tags = [operation.routeNamespace ?? operation.namespace ?? operation.name];
+        const securityRequirements = security.length ? { security: security.map(name => ({ [name]: [] })) } : {};
+        // Named handlers only run on routes that select them; default handlers run even on anonymous routes;
+        // a host-supplied native principal can only produce 401 on protected routes.
+        const canAuthenticate = !!(options.authentication?.length || explicit.length || (options.nativePrincipal && protectedRoute));
+        const unauthenticated = canAuthenticate ? { '401': { description: 'Unauthenticated',
+            content: { 'application/json': { schema: resultSchema(operation, false) } } } } : {};
+        const requestBody = { required: true, content: { 'application/json': { schema: operation.inputSchema } } };
         paths[operation.route]![method] = {
-            operationId, tags: [operation.routeNamespace ?? operation.namespace ?? operation.name],
+            operationId, tags,
             summary: operation.summary ?? '',
-            ...(security.length ? { security: security.map(name => ({ [name]: [] })) } : {}),
-            ...(operation.kind === 'command' ? { requestBody: { required: true, content: { 'application/json': { schema: operation.inputSchema } } } } : { parameters }),
+            ...securityRequirements,
+            ...(operation.kind === 'command' ? { requestBody } : { parameters }),
             responses: { '200': response,
                 ...(observable ? { '202': { description: 'No current value', content: { 'application/json': { schema: resultSchema(operation, false) } } },
                     '408': { description: 'First-result wait timed out', content: { 'application/json': { schema: resultSchema(operation, false) } } },
                     '503': { description: 'Subscription limit reached', content: { 'application/json': { schema: resultSchema(operation, false) } } } } : {}),
                 '400': { description: 'Invalid request', content: { 'application/json': { schema: resultSchema(operation, false) } } },
+                ...unauthenticated,
                 '403': { description: 'Not authorized', content: { 'application/json': { schema: resultSchema(operation, false) } } },
                 '500': { description: 'Server error', content: { 'application/json': { schema: resultSchema(operation, false) } } } }
         };
+        if (operation.kind === 'command') {
+            (paths[operation.route + '/validate'] ??= {}).post = {
+                operationId: `${operationId}:validate`, tags,
+                summary: `Validate ${operation.name} without executing it`,
+                ...securityRequirements, requestBody,
+                responses: Object.fromEntries(['200', '400', ...(canAuthenticate ? ['401'] : []), '403', '500'].map(code => [code, {
+                    description: code === '200' ? 'Result' : code === '400' ? 'Invalid request' :
+                        code === '401' ? 'Unauthenticated' : code === '403' ? 'Not authorized' : 'Server error',
+                    content: { 'application/json': { schema: resultSchema(operation, false) } }
+                }]))
+            };
+        }
     }
     return { openapi: '3.1.0', info: { title: 'Arc', version: options.generatedApis?.openApiVersion ?? '0.1.0' },
         ...(schemes.length ? { components: { securitySchemes: Object.fromEntries(schemes.map(name => [name,

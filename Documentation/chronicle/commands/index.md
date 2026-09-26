@@ -45,7 +45,7 @@ With Chronicle [registered](../add-event-sourcing.md), `POST /api/create-task` a
 | `eventForEventSourceId({ eventSourceId, event, ... })` | Appended to that event source with explicit routing |
 | `eventsWithConcurrencyScopes(events, scopes)` | Appended with exact concurrency scopes; see [Concurrency](concurrency.md) |
 
-The integration is a [response value handler](../../commands/response-value-handlers.md): it recognizes registered event instances and branded values, and everything else keeps its ordinary meaning. Returning Chronicle events together with [command operations](../../commands/operations/index.md) is rejected before either effect runs.
+The integration is a [response value handler](../../commands/response-value-handlers.md): it recognizes registered event instances and branded values, and everything else keeps its ordinary meaning. A command can return Chronicle events together with [command operations](../../commands/operations/index.md) in a `tuple(...)`: the operations run first, and the event batch decides whether they are compensated; see [Events and command operations](transactional-commands.md#events-and-command-operations). An event or operation can't be the command's client response.
 
 The event source, routing decorators, and explicit targets are covered in [Resolving the event source ID](../resolving-event-source-id.md). Everything else an appended event carries, such as its subject, causation, and correlation ID, is listed in [Event metadata](event-metadata.md).
 
