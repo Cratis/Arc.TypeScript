@@ -110,7 +110,7 @@ await scenario.dispose();
 
 Here `AccountBalanceReducer` handles `AccountOpened` and produces the `AccountBalance` injected into `CheckAccount`.
 The SDK's `ReadModelScenario` (introduced in `@cratis/chronicle` 6.14.0) folds the seeded events on demand for each source.
-The package peer minimum is 6.14.0 because importing `@cratis/arc.chronicle/testing` requires this SDK subpath. A different source has no balance;
+The main `@cratis/arc.chronicle` entry supports `@cratis/chronicle` 6.7.0 and later. Seeding reducer history through `given.forEventSource(...).events` requires SDK 6.14.0 or later; the scenario loads its testing subpath only when it needs to fold seeded history. A different source has no balance;
 required `commandReadModel(AccountBalance)` rejects it and an optional read model receives `null`. Seeding does not
 appear in `result.appendedEvents` or `scenario.appendedEvents`. Later command appends are **not** folded into this
 scenario's read models, matching the .NET command scenario's seeded-history lookup. Use a kernel scenario to test
@@ -118,11 +118,14 @@ observer updates caused by commands.
 
 Seed history for a different tenant with `scenario.given.forEventSource('account-1', 'tenant-a').events(...)` and set
 that tenant in the command's trusted context before executing. `given.forEventSource(id).readModel(instance)` pins
-state for the current tenant instead; `givenReadModel(Type, id, instance, tenant?)` remains available.
+state for the current tenant instead; `givenReadModel(Type, id, instance, tenant?)` also defaults to the current tenant.
+If you select a source before setting `scenario.context.tenantId`, the default tenant is resolved when you call `.events(...)` or `.readModel(...)`.
 A pinned instance wins over history for its type, source and tenant.
 
-A projection-backed model cannot be evaluated offline: the scenario reports an error naming
-`ChronicleKernelScenario`. Aggregates also require the kernel scenario because the in-memory event log cannot
+A projection-backed model with seeded history cannot be evaluated offline: the scenario reports an error naming
+`ChronicleKernelScenario`. With no history for that source, it is missing just like an unseeded reducer-backed model.
+A plain `@readModel()` without a reducer or projection is also missing even when other models have seeded history.
+Aggregates also require the kernel scenario because the in-memory event log cannot
 replay their routed event history. This is not a substitute for constraints, concurrency, compliance or reactors.
 
 ## Pin the read model a command reads
@@ -167,7 +170,7 @@ Pass everything the command touches to `for(...)`: its event types, validators, 
 
 A pinned read model belongs to one ID and one tenant:
 
-- The tenant defaults to `Default`, which is also the tenant a scenario uses when `scenario.context` sets none. Pass the tenant as the fourth argument when the test sets `tenantId` on the context.
+- The tenant defaults to the current `scenario.context.tenantId`, or `Default` when the context sets none. Pass the tenant as the fourth argument to pin a model in a different tenant.
 - A read model that is neither pinned nor materialized by reducer events is missing. `commandReadModel(Book)` rejects the command, and `commandReadModel(Book, { optional: true })` hands `handle()` a `null`.
 - A command that injects `ChronicleReadModels` and calls `findInstanceById` or `getById` receives the pinned instance for any ID, not only the command key. `getAll` and the observe methods are not backed by the in-memory store.
 
@@ -225,7 +228,7 @@ To run a command as a signed-in user, set the principal on `scenario.context`, a
 | `context` | Trusted request values, such as the principal and tenant |
 | `given.forEventSource(sourceId, tenant?).events(...events)` | Seed ordered history for a source and tenant (default: current context tenant) |
 | `given.forEventSource(sourceId, tenant?).readModel(instance)` | Pin a read model by its instance type |
-| `givenReadModel(Type, sourceId, instance, tenant?)` | Pin a read model instance; the tenant defaults to `Default` |
+| `givenReadModel(Type, sourceId, instance, tenant?)` | Pin a read model instance; the tenant defaults to the current context tenant (or `Default`) |
 | `execute(values)` | Run the command; the result has the usual [command assertions](commands.md#assertions) |
 | `result.appendedEvents` | The events this execution appended |
 | `result.shouldHaveAppendedEvent(Type, sourceId?, predicate?)` | An event of that type was appended in this execution, optionally to a source and matching a predicate |
@@ -234,7 +237,7 @@ To run a command as a signed-in user, set the principal on `scenario.context`, a
 
 ## What the in-memory scenario does not do
 
-The in-memory log records the events a command appends, with their routing, subject, and tags, and it accepts concurrency scopes. It does not enforce concurrency or constraints, run projections or reactors, load aggregates, or replace the kernel suite.
+The in-memory log records the events a command appends, with their routing, subject, and tags, and it accepts concurrency scopes. Its tail sequence number counts command appends only, not seeded history. It does not enforce concurrency or constraints, run projections or reactors, load aggregates, or replace the kernel suite.
 
 It can seed reducer history, but an aggregate cannot load it, and commands do not update reducer state in this fixture. When the decision depends on projection or aggregate history, use the [kernel scenario](chronicle-kernel.md#seed-an-event-sources-history), which seeds a book's loan and returns it through an aggregate. `Source/Chronicle/run-integration.sh` covers adapter-level integration checks.
 

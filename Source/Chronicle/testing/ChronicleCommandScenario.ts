@@ -4,7 +4,8 @@ import { CommandScenario, type ScenarioCommandResult } from '@cratis/arc.testing
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import { EventSequenceNumber, type AppendOptions, type AppendResult, type EventForEventSourceId } from '@cratis/chronicle/eventSequences';
 import { getEventTypeMetadata } from '@cratis/chronicle/events';
-import { ReadModelScenario } from '@cratis/chronicle/testing';
+import type { ReadModelScenario } from '@cratis/chronicle/testing';
+import { getReducerMetadata } from '@cratis/chronicle/reducers';
 import { ChronicleArtifacts } from '../ChronicleArtifacts.js';
 import '../withChronicle.js';
 
@@ -73,10 +74,11 @@ export class ChronicleCommandScenario<T extends object> {
     get given() {
         return {
             /** Select an event source in the current tenant, or specify another tenant. */
-            forEventSource: (sourceId: string, tenant = this.context.tenantId ?? 'Default') => ({
+            forEventSource: (sourceId: string, tenant?: string) => ({
             /** Append events to this source's seeded history without recording them as command output. */
             events: (...events: object[]): void => {
-                const history = this.#seeded.get(tenant) ?? new Map<string, object[]>();
+                const resolvedTenant = tenant ?? this.context.tenantId ?? 'Default';
+                const history = this.#seeded.get(resolvedTenant) ?? new Map<string, object[]>();
                 const source = history.get(sourceId) ?? [];
                 for (const event of events) {
                     if (!this.#catalog.eventTypes.includes(event.constructor as ClassType) || !getEventTypeMetadata(event.constructor))
@@ -84,8 +86,8 @@ export class ChronicleCommandScenario<T extends object> {
                 }
                 source.push(...events);
                 history.set(sourceId, source);
-                this.#seeded.set(tenant, history);
-                this.#materialized.delete(tenant);
+                this.#seeded.set(resolvedTenant, history);
+                this.#materialized.delete(resolvedTenant);
             },
             /** Pin an instance for this source, taking precedence over reducer history. */
             readModel: <R extends object>(instance: R): void => {
@@ -94,7 +96,8 @@ export class ChronicleCommandScenario<T extends object> {
         }) };
     }
     /** Pin a read model to a source and tenant before executing a command. */
-    givenReadModel<R extends object>(type: ClassType<R>, sourceId: string, instance: R, tenant = 'Default'): this {
+    givenReadModel<R extends object>(type: ClassType<R>, sourceId: string, instance: R, tenant?: string): this {
+        tenant ??= this.context.tenantId ?? 'Default';
         const tenants = this.#readModels.get(type) ?? new Map<string, Map<string, unknown>>();
         const values = tenants.get(tenant) ?? new Map<string, unknown>();
         values.set(sourceId, instance);
@@ -105,18 +108,27 @@ export class ChronicleCommandScenario<T extends object> {
     async #findReadModel(model: ClassType, id: string, tenant: string): Promise<unknown> {
         const pinned = this.#readModels.get(model)?.get(tenant)?.get(id);
         if (pinned !== undefined) return pinned;
+        if (!this.#seeded.get(tenant)?.get(id)?.length) return null;
+        if (!this.#catalog.reducers.some(type => getReducerMetadata(type)?.readModel === model)) {
+            if (this.#catalog.hasProjectionFor(model))
+                throw new Error(`Projection-backed read model '${model.name}' is not supported yet; use a kernel-backed test. Use ChronicleKernelScenario for projections.`);
+            return null;
+        }
         let byType = this.#materialized.get(tenant);
         if (!byType) { byType = new Map(); this.#materialized.set(tenant, byType); }
         let scenario = byType.get(model);
         if (!scenario) {
-            try { scenario = new ReadModelScenario(model, this.#catalog); }
+            let Scenario: typeof ReadModelScenario;
+            try { ({ ReadModelScenario: Scenario } = await import('@cratis/chronicle/testing')); }
             catch (error) {
-                if (error instanceof Error && error.message.startsWith('No reducer found') &&
-                    !this.#seeded.get(tenant)?.get(id)?.length) return null;
-                if (error instanceof Error && error.message.includes('Projection-backed read model'))
-                    throw new Error(`${error.message} Use ChronicleKernelScenario for projections.`, { cause: error });
+                if ((error as NodeJS.ErrnoException).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' ||
+                    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND')
+                    throw new Error('given.forEventSource(...).events requires @cratis/chronicle >= 6.14', { cause: error });
                 throw error;
             }
+            if (typeof Scenario !== 'function')
+                throw new Error('given.forEventSource(...).events requires @cratis/chronicle >= 6.14');
+            scenario = new Scenario(model, this.#catalog);
             for (const [sourceId, events] of this.#seeded.get(tenant) ?? []) scenario.given.forEventSource(sourceId).events(...events);
             byType.set(model, scenario);
         }

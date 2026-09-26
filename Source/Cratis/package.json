@@ -31,7 +31,7 @@
     "@cratis/arc.testing": "workspace:^"
   },
   "peerDependencies": {
-    "@cratis/chronicle": "^6.14.0",
+    "@cratis/chronicle": "^6.7.0",
     "@cratis/fundamentals": "^7.19.6",
     "rxjs": "^7.8.2",
     "zod": "^4.1.0"

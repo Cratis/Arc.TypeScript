@@ -121,7 +121,7 @@ This repository builds the **server** side under its own `@cratis/arc.core` pack
 
 ## Arc does not require event sourcing
 
-Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.10.0 loads in native Node.js and a bounded suite passes against a live kernel for read-model resolution, returned-event batches, aggregate replay, and reactor commands. The integration still does not match Arc on .NET's full transaction behavior.
+Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.14.0 loads in native Node.js; the live-kernel suite for read-model resolution, returned-event batches, aggregate replay, and reactor commands was last verified with 6.10.0. The integration still does not match Arc on .NET's full transaction behavior.
 
 ## Contributing
 

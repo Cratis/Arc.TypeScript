@@ -182,7 +182,7 @@ The integration pages describe behavior. This section records the checks behind 
 
 ### Chronicle checks
 
-The integration uses the published Chronicle TypeScript SDK, `@cratis/chronicle` 6.14.0, with `@cratis/fundamentals` 7.19.6; both load in native Node ESM with NodeNext resolution. The ordinary `yarn test` specs use typed substitutes and never start a kernel. An opt-in suite, `bash Source/Chronicle/run-integration.sh`, runs [`Source/Chronicle/Integration/live.test.mjs`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/live.test.mjs) against a real development kernel and checks:
+The specs run with the published Chronicle TypeScript SDK, `@cratis/chronicle` 6.14.0, and `@cratis/fundamentals` 7.19.6; both load in native Node ESM with NodeNext resolution. The live suite was last verified with SDK 6.10.0; a 6.14.0 attempt could not start the local kernel because its MongoDB connection was refused. The ordinary `yarn test` specs use typed substitutes and never start a kernel. An opt-in suite, `bash Source/Chronicle/run-integration.sh`, runs [`Source/Chronicle/Integration/live.test.mjs`](https://github.com/Cratis/Arc.TypeScript/blob/main/Source/Chronicle/Integration/live.test.mjs) against a real development kernel and checks:
 
 - returned-event batches, readback, and tenant isolation;
 - a reactor that returns an Arc command, executed in the triggering event's tenant;

@@ -17,6 +17,7 @@ class ItemReducer {
     itemAdded(event: ItemAdded, current?: ItemState): ItemState { return { count: (current?.count ?? 0) + event.amount }; }
 }
 @fromEvent(ItemAdded) class ProjectedState { @field(Number) amount = 0; }
+@readModel() class UnreducedState { @field(Number) amount = 0; }
 @command() class CheckItem {
     @field(String) @key() id = '';
     @inject(commandReadModel(ItemState))
@@ -31,6 +32,16 @@ class ItemReducer {
     @field(String) @key() id = '';
     @inject(commandReadModel(ProjectedState))
     handle(state: ProjectedState): number { return state.amount; }
+}
+@command() class CheckOptionalProjectedItem {
+    @field(String) @key() id = '';
+    @inject(commandReadModel(ProjectedState, { optional: true }))
+    handle(state: ProjectedState | null): boolean { return state === null; }
+}
+@command() class CheckUnreducedItem {
+    @field(String) @key() id = '';
+    @inject(commandReadModel(UnreducedState, { optional: true }))
+    handle(state: UnreducedState | null): boolean { return state === null; }
 }
 @command() class ValidateItem {
     @field(String) @key() id = '';
@@ -70,11 +81,13 @@ export class a_reduced_command {
     readonly check = CheckItem;
     readonly optional = CheckOptionalItem;
     readonly projected = CheckProjectedItem;
+    readonly optionalProjected = CheckOptionalProjectedItem;
+    readonly unreduced = CheckUnreducedItem;
     readonly validate = ValidateItem;
     readonly validated = CheckValidatedItem;
     readonly aggregate = CheckAggregate;
     create<T extends object>(commandType: new () => T): ChronicleCommandScenario<T> {
         return ChronicleCommandScenario.for(commandType, ItemAdded, ItemChecked, ItemState, ItemReducer,
-            ProjectedState, CheckValidatedItemValidator);
+            ProjectedState, UnreducedState, CheckValidatedItemValidator);
     }
 }
