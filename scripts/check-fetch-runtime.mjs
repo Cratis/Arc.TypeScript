@@ -30,4 +30,4 @@ const context = vm.createContext({ exports, module: { exports },
 new vm.Script(outputFiles[0].text, { filename: 'arc-fetch-bundle.cjs' }).runInContext(context);
 assert.equal(vm.runInContext('typeof process + ":" + typeof Buffer', context), 'undefined:undefined');
 await context.module.exports.runScenario();
-console.log('Fetch neutral bundle: 1 allowed external; VM (no process or Buffer): command, query, direct and hub SSE, 404 passed');
+console.log('Fetch neutral bundle: 1 allowed external; VM (no process or Buffer): shared Fetch scenario passed');

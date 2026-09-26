@@ -12,4 +12,4 @@ const result = spawnSync(executable, ['run', '--quiet', '-'], { input: `${output
     encoding: 'utf8', stdio: ['pipe', 'inherit', 'inherit'] });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 2);
-console.log('Deno Fetch: command, query, direct and hub SSE, 404 passed');
+console.log('Deno Fetch: shared Fetch scenario passed');

@@ -36,6 +36,8 @@
     "check:consumers": "node scripts/check-consumers.mjs",
     "check:fetch": "node scripts/check-fetch-runtime.mjs",
     "check:fetch:deno": "node scripts/check-fetch-deno.mjs",
+    "check:fetch:bun": "node scripts/check-fetch-bun.mjs",
+    "check:fetch:next": "node scripts/check-fetch-next.mjs",
     "set-version": "node scripts/set-version.mjs",
     "test": "vitest run",
     "specs": "yarn test",
