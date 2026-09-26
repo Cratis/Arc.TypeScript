@@ -98,11 +98,12 @@ export class AddTask {
     @inject(drizzleDatabase<SQLJsDatabase>())
     handle(database: DrizzleHandle<SQLJsDatabase>): void {
         database.native.insert(tasks).values({ id: this.id, title: this.title }).run();
+        database.notifyChanged(tasks);
     }
 }
 ```
 
-`drizzleDatabase<T>()` resolves to a `DrizzleHandle` whose `native` property is the tenant's Drizzle database, typed as you declare it. Register `AddTask` with `builder.add(...)` like the query.
+`drizzleDatabase<T>()` resolves to a `DrizzleHandle` whose `native` property is the tenant's Drizzle database, typed as you declare it. Register `AddTask` with `builder.add(...)` like the query. `notifyChanged(tasks)` validates the registered table; it publishes changes only when you opt in to [in-process observation](observing-tables.md). Inside the command, publication follows execution (including a transaction awaited inside it), not a transaction owned by a host or outer runner. For those, call it after commit.
 
 ## Load a read model in a command
 
@@ -146,6 +147,7 @@ Queries take `drizzleReadModel(Model)`, commands take `drizzleDatabase()`. The r
 | `findOne(filter)` | The first match in primary-key order, or `undefined` |
 | `findById(key)` | The row matching the single primary key, or `null` |
 | `table` | The Drizzle table |
+| `observe(filter?)`, `observePage(filter, options)`, `observeById(key)` | Experimental opt-in in-process SQL observations; [limits](observing-tables.md) |
 
 It has no write methods and does not expose the writable database. A filter is a Drizzle `SQL` expression such as `eq(tasks.title, 'a')`, built with bound parameters; never interpolate request input into SQL text.
 

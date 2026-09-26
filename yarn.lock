@@ -45,8 +45,8 @@ __metadata:
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.37.0
-    "@cratis/arc.testing": ^0.37.0
+    "@cratis/arc.core": ^0.38.0
+    "@cratis/arc.testing": ^0.38.0
     "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
@@ -148,11 +148,13 @@ __metadata:
     mysql2: "npm:^3.24.4"
     pg: "npm:^8.0.0"
     postgres: "npm:^3.4.9"
+    rxjs: "npm:^7.8.2"
     sql.js: "npm:^1.14.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.37.0
+    "@cratis/arc.core": ^0.38.0
     "@cratis/fundamentals": ^7.19.6
     drizzle-orm: ^0.45.0
+    rxjs: ^7.8.2
   languageName: unknown
   linkType: soft
 
@@ -215,7 +217,7 @@ __metadata:
     mongodb: "npm:^6.21.0"
     rxjs: "npm:^7.8.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.37.0
+    "@cratis/arc.core": ^0.38.0
     "@cratis/fundamentals": ^7.19.6
     "@opentelemetry/api": ^1.9.0
     mongodb: ^6.21.0
