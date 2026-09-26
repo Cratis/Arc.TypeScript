@@ -200,6 +200,51 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 } finally { await Promise.all([ts?.stop(), net.stop()]); }
             });
         }
+        for (const [mode, path] of [['execute', '/api/filter-parity-command'],
+            ['validate', '/api/filter-parity-command/validate']]) {
+            const response = mode === 'execute' ? { response: 'allow-valid' } : {};
+            await parity(`command filter ${mode} denies before validation`, 'POST', path, { value: 'deny-invalid' }, {
+                status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+            });
+            await parity(`command filter ${mode} denies valid input`, 'POST', path, { value: 'deny-valid' }, {
+                status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+            });
+            await parity(`command filter ${mode} allows invalid input`, 'POST', path, { value: 'allow-invalid' }, {
+                status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Value is invalid',
+                    members: ['value'], reason: 'rule' }] })
+            });
+            await parity(`command filter ${mode} allows valid input`, 'POST', path, { value: 'allow-valid' }, {
+                status: 200, body: command(200, response)
+            });
+            await divergence(`command filter ${mode} denies malformed input in TypeScript`, 'POST', path,
+                { value: ['deny'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                { status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' }) });
+            await divergence(`command filter ${mode} allows malformed input with different message`, 'POST', path,
+                { value: ['allow'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+        }
+        for (const [name, value, expected] of [
+            ['denies invalid arguments before validation', 'deny-invalid', { status: 403, body: query(403, { isAuthorized: false }) }],
+            ['denies valid arguments', 'deny-valid', { status: 403, body: query(403, { isAuthorized: false }) }],
+            ['allows invalid arguments to reach validation', 'allow-invalid', { status: 400, body: query(400, {
+                validationResults: [{ severity: 3, message: 'Value is invalid', members: ['value'], reason: 'rule' }] }) }],
+            ['allows valid arguments', 'allow-valid', { status: 200, body: query(200, { data: { value: 'allow-valid' } }) }]
+        ]) {
+            await parity(`query filter ${name}`, 'GET', `/api/filter-parity-query?value=${value}`, undefined, expected);
+        }
+        await parity('QUERY filter denies before validation', 'QUERY', '/api/filter-parity-query',
+            { arguments: { value: 'deny-invalid' } }, { status: 403, body: query(403, { isAuthorized: false }),
+                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
+        await parity('QUERY filter allows a valid query', 'QUERY', '/api/filter-parity-query',
+            { arguments: { value: 'allow-valid' } }, { status: 200, body: query(200, { data: { value: 'allow-valid' } }),
+                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
+        await parity('observable query filter denies at snapshot admission', 'GET', '/api/filter-parity-stream?value=deny-valid',
+            undefined, { status: 403, body: query(403, { isAuthorized: false }) });
+        await parity('observable query filter denies direct SSE admission', 'GET',
+            '/api/filter-parity-stream?value=deny-valid', undefined,
+            { status: 403, body: query(403, { isAuthorized: false }) }, { Accept: 'text/event-stream' });
+        await parity('observable query filter allows snapshot admission', 'GET', '/api/filter-parity-stream?value=allow-valid',
+            undefined, { status: 200, body: query(200, { data: { value: 'allow-valid' } }) });
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });

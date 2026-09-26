@@ -18,12 +18,12 @@ describe('when waiting for Chronicle projection completion', () => {
         await waitForProjectionCompletion([acknowledgment], 2500, new AbortController().signal).should.be.rejectedWith(
             'Chronicle append committed, but observer completion failed for 1 partition(s)');
     });
-    it('should propagate cancellation while the kernel wait is pending', async () => {
+    it('should stop waiting without failing an acknowledged append when canceled', async () => {
         const abort = new AbortController();
         const pending = { ...accepted(), waitForCompletion: async () => new Promise<never>(() => {}) };
         const promise = waitForProjectionCompletion([pending], 2500, abort.signal);
         abort.abort(new Error('request canceled'));
-        await promise.should.be.rejectedWith('request canceled');
+        await promise.should.be.fulfilled;
     });
     it('should refuse an unbounded wait', async () => {
         await waitForProjectionCompletion([accepted()], 0, new AbortController().signal).should.be.rejectedWith(

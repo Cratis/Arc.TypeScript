@@ -17,6 +17,7 @@ import type { WireType } from '../../reflection/WireType.js';
 import { decode, objectSchema } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 import { withCommandValidationContext } from '../../validation/readModelForValidation.js';
+import { throwIfCanceled } from '../../execution/throwIfCanceled.js';
 import type { CompiledCommand } from './CompiledCommand.js';
 /** Compile a decorated command onto the existing Arc command pipeline. */
 export function compileCommand(type: ClassType, namespace: string, graph?: ModelGraphValidator): CompiledCommand {
@@ -56,7 +57,9 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
                 graph.validate(decode(type as WireType, input), context.signal, '', context.correlationId)) : undefined,
         provide: hasProvider ? async (_input, context) => {
             const instance = (context as CommandContext).command as { provide(...parameters: unknown[]): unknown };
-            const value = await instance.provide(...await resolveCommandArguments(provideTokens, context as CommandContext));
+            const arguments_ = await resolveCommandArguments(provideTokens, context as CommandContext);
+            throwIfCanceled(context, 'Command canceled');
+            const value = await instance.provide(...arguments_);
             if (isOutcome(value)) return value.kind === 'response' ? { instance, value: value.value } : value;
             return { instance, value };
         } : undefined,
@@ -66,6 +69,7 @@ export function compileCommand(type: ClassType, namespace: string, graph?: Model
             const instance = hasProvider ? preparation!.instance :
                 (context as CommandContext).command as { handle(...parameters: unknown[]): unknown };
             const services = await resolveCommandArguments(tokens, context as CommandContext, preparation?.value);
+            throwIfCanceled(context, 'Command canceled');
             const result = await instance.handle(...(hasProvider && !typedPreparation ? [preparation!.value] : []), ...services);
             if (!isOutcome(result)) validateGeneratedReturn(`${type.name}.handle`, metadata.handleValueResult ?? metadata.handleResult, result);
             return result;

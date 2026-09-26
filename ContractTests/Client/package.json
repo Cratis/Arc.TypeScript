@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.core-client-contract",
-  "version": "0.30.4",
+  "version": "0.31.0",
   "private": true,
   "type": "module",
   "dependencies": {

@@ -6,6 +6,10 @@ import { z } from 'zod';
 import { ArcApplication, AuthenticationStatus, CurrentValueSubject, currentContext, defineCommand, defineObservableQuery,
     defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
+import { FilterParityCommand } from './modelBound/dist/FilterParityCommand.js';
+import { FilterParityCommandValidator } from './modelBound/dist/FilterParityCommandValidator.js';
+import { FilterParityAuthorizationFilter } from './modelBound/dist/FilterParityAuthorizationFilter.js';
+import { FilterParityQueryAuthorizationFilter } from './modelBound/dist/FilterParityQueryAuthorizationFilter.js';
 import { ModelBoundCommandValidator } from './modelBound/dist/ModelBoundCommandValidator.js';
 import { ModelBoundTitle } from './modelBound/dist/ModelBoundTitle.js';
 import { ModelBoundLookup } from './modelBound/dist/ModelBoundLookup.js';
@@ -77,6 +81,12 @@ const queryCase = defineQuery({
     validate: ({ value }) => value ? [] : [validation('Value is required', ['value'])],
     perform: ({ value }) => { queryCaseExecutions++; return { value }; }
 });
+const filterParityQuery = defineQuery({
+    name: 'Find', namespace: 'FilterParityQuery', path: '/api/filter-parity-query', schema: valueSchema,
+    authorization: anonymous,
+    validate: ({ value }) => value.endsWith('invalid') ? [validation('Value is invalid', ['value'])] : [],
+    perform: ({ value }) => ({ value })
+});
 const throwingQuery = defineQuery({
     name: 'Fail', namespace: 'QueryCase', path: '/api/query-case/fail', schema: z.object({}), authorization: anonymous,
     perform: () => { throw new Error('Private fixture failure detail'); }
@@ -108,6 +118,10 @@ const privateItems = defineQuery({
 const currentStream = defineObservableQuery({
     name: 'Current', namespace: 'FixtureStream', path: '/api/fixture-stream/current', schema: z.object({}), authorization: anonymous,
     observe: () => CurrentValueSubject.of({ value: 'ready' })
+});
+const filterParityStream = defineObservableQuery({
+    name: 'Current', namespace: 'FilterParityStream', path: '/api/filter-parity-stream', schema: valueSchema,
+    authorization: anonymous, observe: ({ value }) => CurrentValueSubject.of({ value })
 });
 const pendingStream = defineObservableQuery({
     name: 'Pending', namespace: 'FixtureStream', path: '/api/fixture-stream/pending', schema: z.object({}), authorization: anonymous,
@@ -144,14 +158,16 @@ const authentication = request => {
 };
 const builder = ArcApplication.createBuilder({
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric, inputCases],
-    queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, throwingQuery,
+    queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, filterParityQuery, throwingQuery,
         byId, all, privateItems], tenancy,
-    observableQueries: [currentStream, pendingStream, delayedStream, completedStream], authentication: [authentication], development: false,
+    observableQueries: [currentStream, filterParityStream, pendingStream, delayedStream, completedStream], authentication: [authentication], development: false,
     identityDetails: { schema: z.object({ greeting: z.string() }), provide: principal =>
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
     generatedApis: { segmentsToSkipForRoute: 1 }
 });
-builder.add(ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
+builder.add(FilterParityCommand, FilterParityCommandValidator, FilterParityAuthorizationFilter,
+    FilterParityQueryAuthorizationFilter,
+    ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
     PolicyItems, RateLookup, AnonymousClassCases, AuthorizationOverride, MethodRoleCases, RoleCases);
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));

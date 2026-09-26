@@ -40,10 +40,10 @@ describe('when executing a command with invalid aborted or failing scope', () =>
         afterAbort = [...events];
         await server.dispose();
     });
-    it('should dispose validator services after invalid and aborted validation', () => {
+    it('should dispose invalid validation services but not resolve them for a pre-aborted command', () => {
         invalid.should.equal(true); afterInvalid.should.deep.equal(['validator disposed']);
         abortedSuccess.should.equal(false);
-        afterAbort.should.deep.equal(['validator disposed', 'complete', 'handler disposed', 'validator disposed']);
+        afterAbort.should.deep.equal(['validator disposed', 'complete', 'handler disposed']);
     });
     it('should complete a failing scope and dispose its handler without calling it', () => {
         scopeException.should.equal(true);

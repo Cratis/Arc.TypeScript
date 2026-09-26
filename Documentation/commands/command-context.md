@@ -9,6 +9,7 @@ description: Read a command's key, values, and request identity from CommandCont
 
 | Property | Meaning |
 | --- | --- |
+| `operationName` | The declaration's namespace-qualified name (`fullyQualifiedName` in introspection); optional on manually built contexts |
 | `command` | The bound command instance |
 | `key` | The command's key, resolved once per execution; `undefined` when none |
 | `values` | Named values from context value providers; lookup is case-insensitive |
@@ -18,7 +19,7 @@ description: Read a command's key, values, and request identity from CommandCont
 | `allowedSeverity` | The [severity](validation-severity-filtering.md) that blocks |
 | `signal` | An `AbortSignal` that aborts when the caller disconnects |
 
-The context is frozen; `currentContext()` returns the same execution context from anywhere inside the request, even deep in a service.
+Arc-created command contexts have a non-writable, non-configurable `operationName`; the rest of the context remains mutable for values and response handling. Manually built contexts can omit the name. Authorization filters that depend on it must deny an absent name or explicitly handle manual contexts, never infer the operation from the command payload. `currentContext()` returns the execution context from anywhere inside the request, even deep in a service.
 
 ## Bind it into a handler
 
@@ -53,7 +54,7 @@ The key identifies what the command is about, such as the task being assigned. N
 2. If none answers, a command that implements `getKey()` uses its result.
 3. Otherwise the field marked `@key()` is used; a concept is unwrapped to its primitive value.
 
-Arc resolves the key once per execution. The .NET equivalent of a key rule is `ICanResolveKeyForCommand`. The experimental Chronicle integration also uses the key as the default event source ID; see [Resolving the event source ID](../chronicle/resolving-event-source-id.md).
+Arc resolves the key once per execution, after declared authorization and binding but before global authorization filters. Context-value providers and key resolvers are trusted preparation and must not make protected business mutations; they are different from command `provide()`, which runs after authorization and validation. The .NET equivalent of a key rule is `ICanResolveKeyForCommand`. The experimental Chronicle integration also uses the key as the default event source ID; see [Resolving the event source ID](../chronicle/resolving-event-source-id.md).
 
 ## Add values to every command
 

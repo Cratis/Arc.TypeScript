@@ -15,6 +15,8 @@ import type { QueryOptions } from '../QueryOptions.js';
 import type { ObservableSource } from '../observable/ObservableSource.js';
 import { decode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
+import type { ExecutionContext } from '../../execution/ExecutionContext.js';
+import { throwIfCanceled } from '../../execution/throwIfCanceled.js';
 
 const argumentsOnly = (parameters: readonly Parameter[]): Extract<Parameter, { kind: 'argument' }>[] =>
     parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
@@ -88,12 +90,17 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     const authorization = methodAuthorization ?? metadata.authorization;
     if (authorization?.anonymous && (authorization.authenticated || authorization.roles?.length))
         throw new Error(`Conflicting Arc authorization: ${type.name}.${name}`);
-    const perform = async (input: unknown, options: QueryOptions): Promise<unknown> => {
+    const perform = async (input: unknown, context: ExecutionContext, options: QueryOptions): Promise<unknown> => {
         const values = input as Record<string, unknown>;
         const scope = currentServices();
-        const arguments_ = await Promise.all(parameters.map(parameter => parameter.kind === 'service' ?
-            parameter.optional && !scope.registry.hasRegistration(parameter.token) ? null : scope.resolve(parameter.token) :
-            parameter.kind === 'options' ? options : decode(parameter.type, values[parameter.name], parameter.element)));
+        const arguments_ = await Promise.all(parameters.map(async parameter => {
+            const value = parameter.kind === 'service' ?
+                parameter.optional && !scope.registry.hasRegistration(parameter.token) ? null : await scope.resolve(parameter.token) :
+                parameter.kind === 'options' ? options : decode(parameter.type, values[parameter.name], parameter.element);
+            throwIfCanceled(context, 'Query canceled');
+            return value;
+        }));
+        throwIfCanceled(context, 'Query canceled');
         return method.apply(type, arguments_);
     };
     const descriptor = {
@@ -107,12 +114,13 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
             validateInput(parameters, declaration, graph, input, context) : undefined
     };
     if (declaration.observable) return {
-        definition: { ...descriptor, observe: async (input, _context, options) => await perform(input, options) as ObservableSource<unknown> },
+        definition: { ...descriptor, observe: async (input, context, options) =>
+            await perform(input, context, options) as ObservableSource<unknown> },
         dependencies: services, observable: true
     };
     return {
-        definition: { ...descriptor, perform: async (input, _context, options) => {
-            const value = await perform(input, options);
+        definition: { ...descriptor, perform: async (input, context, options) => {
+            const value = await perform(input, context, options);
             validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             if (value && typeof value === 'object' &&
                 (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {

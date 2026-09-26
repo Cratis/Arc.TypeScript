@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.proxygenerator",
-  "version": "0.30.4",
+  "version": "0.31.0",
   "description": "TypeScript source analyzer and deterministic Arc client proxy generator",
   "repository": {
     "type": "git",
