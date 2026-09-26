@@ -97,7 +97,19 @@ A factory declares its own `dependencies` for preflight and resolves them with i
 - A factory alias of an existing singleton or caller-owned instance does not take ownership. Returning an object owned by another scope fails with a service dependency error.
 - If you pass your own `ServiceRegistry` in `services`, you own its disposal; the server does not dispose it. It cannot be combined with builder registrations.
 
-Registry shutdown drains admitted work and pending singleton construction, then aborts the registry signal and disposes singletons. It rejects new executions and scopes. A singleton factory that fails poisons the registry and triggers the same shutdown. Cancellation is cooperative: factories and handlers must observe their signal. Do not await `registry.dispose()` from inside its own handler, factory, or disposer; it rejects to prevent a deadlock. Stop singleton background loops when the registry signal aborts, then join them in the singleton's disposer.
+A host integration with work outside Arc's execution tracker can register a shutdown participant on `server.services` (or on its own `ServiceRegistry`):
+
+```typescript
+const remove = server.services.addShutdownParticipant({
+    stop() { /* reject new work and request cancellation; do not close dependencies */ },
+    async drain() { /* await every previously admitted operation and its cleanup */ }
+});
+// Call remove() only if the integration is detached before shutdown begins.
+```
+
+Registration and new execution/scope admission close together when shutdown starts. Shutdown invokes **every** participant's synchronous `stop()` (even when one throws), then awaits **every** `drain()` to settlement, then drains remaining tracked executions, disposes scopes, aborts the registry signal, and disposes singletons. Participant and service-disposal errors are reported together as a `Service registry disposal failed` aggregate after cleanup. `drain()` has no default timeout: cancellation is cooperative, and dependencies stay alive until admitted work settles. A participant may use an already admitted scope while draining, but cannot admit a new scope or execution. Removing a participant after shutdown starts does not remove it from that shutdown. Concurrent and repeated registry disposal calls join the same shutdown.
+
+A singleton factory that fails poisons the registry and triggers this same sequence. Do not await `registry.dispose()` from inside its own participant's stop/drain, handler, factory, or disposer; it rejects with a service dependency error rather than deadlocking. Stop singleton background loops when the registry signal aborts, then join them in the singleton's disposer. When supplying a registry to a server, the host still owns its disposal; `server.dispose()` does not dispose that registry.
 
 For every scope, `scope.identity`, the `execution` argument passed to scoped **and transient** factories, and `currentContext()` during their construction use the same frozen, plain creation-time snapshot of the declared execution context fields, including fields supplied by class getters (such as `tenantId` and `signal`). This remains true even when a factory is first resolved during borrowed work or an outer scope's service is resolved from a nested invocation. The snapshot retains the caller's **original principal object reference**, not a clone or frozen copy. Its mutable roles and claims remain mutable for ordinary requests; changing the caller's context fields after scope creation does not change the scoped tenant, correlation ID, or signal. Outside factory construction, `currentContext()` continues to reflect the current execution. Built-in Chronicle, MongoDB, and Drizzle factories also read this stable scope identity.
 
