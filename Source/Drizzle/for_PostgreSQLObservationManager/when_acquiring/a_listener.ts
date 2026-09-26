@@ -59,6 +59,23 @@ describe('when acquiring shared PostgreSQL observation leases', () => {
             client.closeCount.should.equal(1);
         } finally { first.release(); second.release(); }
     });
+    it('should report a heartbeat transport failure once to all leases', async () => {
+        const query = client.query.bind(client);
+        client.query = async statement => {
+            if (statement === 'SELECT 1') throw new Error('private network address');
+            return query(statement);
+        };
+        manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify,
+            listener: () => client }, 1, 100);
+        const lease = manager.acquire('tenant', database, table, () => {}, error => failures.push(error));
+        await lease.ready;
+        const deadline = Date.now() + 1000;
+        while (!failures.length && Date.now() < deadline)
+            await new Promise<void>(resolve => setTimeout(resolve, 2));
+        failures.should.have.lengthOf(1);
+        failures[0]!.message.should.equal('PostgreSQL change listener lost: heartbeat failure');
+        lease.release();
+    });
     it('should cancel acquisition on last release and end a late factory result', async () => {
         let provide!: (connection: FakeListener) => void;
         const pending = new Promise<FakeListener>(resolve => { provide = resolve; });

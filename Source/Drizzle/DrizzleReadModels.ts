@@ -34,19 +34,21 @@ export class DrizzleReadModels<T extends object> {
     readonly #observations = new Set<DrizzleObservable<unknown>>();
     #disposed = false;
     readonly #binding?: DrizzleObservationBinding;
+    readonly #signal?: AbortSignal;
     constructor(private readonly database: DrizzleDatabase, readonly table: Table, type: new () => T,
         private readonly maxPageSize = 100, codec?: DrizzleModelCodec<T>,
         notifications?: DrizzleChangeNotifications | DrizzleObservationBinding, tenant?: string,
         signal?: AbortSignal) {
         this.#binding = notifications && 'notifications' in notifications ? notifications :
             notifications && tenant ? { notifications, tenant, signal } : undefined;
+        this.#signal = this.#binding?.signal ?? signal;
         if (!Number.isSafeInteger(maxPageSize) || maxPageSize <= 0 || maxPageSize > 10000)
             throw new RangeError('maxPageSize must be between 1 and 10000');
         this.columns = getTableColumns(table);
         this.keys = Object.values(this.columns).filter(column => column.primary);
         if (!this.keys.length) throw new Error('A Drizzle read model requires a primary key for stable paging');
         this.codec = codec ?? new DrizzleModelCodec(type, this.columns);
-        this.#binding?.signal?.addEventListener('abort', this.abort, { once: true });
+        this.#signal?.addEventListener('abort', this.abort, { once: true });
     }
 
     private get db(): ReadDatabase { return this.database as ReadDatabase; }
@@ -78,14 +80,14 @@ export class DrizzleReadModels<T extends object> {
 
     private observeWith<Value>(read: () => Promise<Value>): DrizzleObservable<Value> {
         const canStart = (): void => {
-            if (this.#disposed || this.#binding?.signal?.aborted) throw new Error('Drizzle read models have been disposed');
+            if (this.#disposed || this.#signal?.aborted) throw new Error('Drizzle read models have been disposed');
             if (!this.#binding?.notifications.enabled && !this.#binding?.postgresql) throw new Error(
                 'Drizzle observation is not enabled; set observation: DrizzleObservation.InProcess in withDrizzle');
         };
         const observable = new DrizzleObservable<Value>(onClose => new DrizzleObservationSession(read,
             (changed, fail) => this.#binding!.postgresql ? this.#binding!.postgresql.acquire(this.#binding!.tenant,
                 this.database, this.table, changed, fail) : this.#binding!.notifications.listen(this.#binding!.tenant, this.table, changed),
-            this.#binding?.signal, onClose), canStart,
+            this.#signal, onClose), canStart,
         () => this.#observations.add(observable), () => this.#observations.delete(observable));
         return observable;
     }
@@ -128,7 +130,7 @@ export class DrizzleReadModels<T extends object> {
     async [Symbol.asyncDispose](): Promise<void> {
         if (this.#disposed) return;
         this.#disposed = true;
-        this.#binding?.signal?.removeEventListener('abort', this.abort);
+        this.#signal?.removeEventListener('abort', this.abort);
         for (const observation of this.#observations) observation.close();
         this.#observations.clear();
     }
