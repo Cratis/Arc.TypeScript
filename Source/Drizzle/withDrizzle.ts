@@ -14,6 +14,7 @@ import { getTableColumns } from 'drizzle-orm';
 import type { Table } from 'drizzle-orm';
 import { DrizzleObservation } from './DrizzleObservation.js';
 import { DrizzleChangeNotifications } from './DrizzleChangeNotifications.js';
+import { PostgreSQLObservationManager } from './PostgreSQLObservationManager.js';
 
 /** An application retains ownership of its connections, pools, and migrations. */
 export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptions): ArcApplicationBuilder {
@@ -23,8 +24,13 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
     if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) ||
         options.maxPageSize <= 0 || options.maxPageSize > 10000))
         throw new RangeError('maxPageSize must be between 1 and 10000');
-    if (options.observation !== undefined && options.observation !== DrizzleObservation.InProcess)
+    const postgresql = typeof options.observation === 'object' && options.observation?.mode === DrizzleObservation.PostgreSQLNotify;
+    if (options.observation !== undefined && options.observation !== DrizzleObservation.InProcess && !postgresql)
         throw new Error('Unsupported Drizzle observation mode');
+    if (postgresql && options.dialect !== DrizzleDialect.PostgreSQL)
+        throw new Error('PostgreSQL observation requires DrizzleDialect.PostgreSQL');
+    if (postgresql && typeof (options.observation as { listener?: unknown }).listener !== 'function')
+        throw new Error('PostgreSQL observation requires a listener factory');
     const tables = new Map<new () => object, Table>();
     const notifications = new DrizzleChangeNotifications(tables, options.observation === DrizzleObservation.InProcess);
     const registered = new Set<new () => object>();
@@ -43,6 +49,10 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
         codecs.set(type, codec);
     }
     builder.services.addSingleton(DrizzleChangeNotifications, () => notifications);
+    if (postgresql) {
+        const configuration = options.observation as import('./PostgreSQLObservationOptions.js').PostgreSQLObservationOptions;
+        builder.services.addSingleton(PostgreSQLObservationManager, () => new PostgreSQLObservationManager(configuration));
+    }
     builder.services.addScoped(DrizzleReadModelForCommandResolver, () => new DrizzleReadModelForCommandResolver(commandModels));
     builder.addCommandExecutionRunner((context, execute) => context.tenantId ?
         notifications.run(context.tenantId.toLowerCase(), execute) : execute());
@@ -57,9 +67,13 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
         return new DrizzleHandle(database, notifications, tenant);
     });
     for (const { type, table } of options.readModels ?? []) {
-        builder.services.addScoped(drizzleReadModel(type), async scope =>
-            new DrizzleReadModels((await scope.resolve(drizzleDatabase())).native, table, type, options.maxPageSize, codecs.get(type)!,
-                notifications, scope.identity?.tenantId?.toLowerCase(), scope.identity?.signal));
+        builder.services.addScoped(drizzleReadModel(type), async scope => {
+            const database = (await scope.resolve(drizzleDatabase())).native;
+            const tenant = scope.identity?.tenantId?.toLowerCase();
+            return new DrizzleReadModels(database, table, type, options.maxPageSize, codecs.get(type)!,
+                tenant ? { notifications, tenant, signal: scope.identity?.signal,
+                    postgresql: postgresql ? await scope.resolve(PostgreSQLObservationManager) : undefined } : undefined);
+        });
     }
     return builder;
 }

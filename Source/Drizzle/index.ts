@@ -8,6 +8,13 @@ export { DrizzleReadModelForCommandResolver } from './DrizzleReadModelForCommand
 export type { DrizzleOptions } from './DrizzleOptions.js';
 export { DrizzleDialect } from './DrizzleDialect.js';
 export { DrizzleObservation } from './DrizzleObservation.js';
+export type { PostgreSQLObservationOptions } from './PostgreSQLObservationOptions.js';
+export type { PostgreSQLListenerContext } from './PostgreSQLListenerContext.js';
+export type { PostgreSQLListenerConnection } from './PostgreSQLListenerConnection.js';
+export type { NodePostgresClient } from './nodePostgresListener.js';
+export { nodePostgresListener } from './nodePostgresListener.js';
+export type { PostgreSQLChangeTriggerOptions } from './postgresqlChangeTrigger.js';
+export { postgresqlChangeTrigger } from './postgresqlChangeTrigger.js';
 export { DrizzleObservable } from './DrizzleObservable.js';
 export type { DrizzleDatabase } from './DrizzleDatabase.js';
 export type { DrizzleFilter } from './DrizzleFilter.js';
