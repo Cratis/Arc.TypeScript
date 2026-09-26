@@ -102,7 +102,8 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
         checker.getReturnTypeOfSignature(handleSignature));
     const response = handleReturn && describeCommandResponse(handleReturn, checker, handle!);
     const responseType = response?.response;
-    const responseShape = responseType ? metadataResult(responseType, checker, imports, handle!) :
+    const responseShape = responseType ? metadataResult(responseType, checker, imports, handle!, false, undefined, true,
+        checker.isArrayType(responseType) ? response.paths.flatMap(path => path.response ? [path.response] : []) : undefined) :
         "{ cardinality: 'void', nullable: false }";
     const valueParts = handleReturn && (handleReturn.isUnion() ? handleReturn.types : [handleReturn])
         .filter(part => !isOutcomeType(part, checker))

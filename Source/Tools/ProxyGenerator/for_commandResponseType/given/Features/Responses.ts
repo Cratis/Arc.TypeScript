@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ConceptAs, field } from '@cratis/fundamentals';
-import { command, CommandOperation, CommandOperations, denied, rejected, response, tuple, validation } from '@cratis/arc.core';
+import { command, CommandOperation, CommandOperations, denied, query, readModel, rejected, response, tuple, validation } from '@cratis/arc.core';
 import type { ArcTuple, Outcome } from '@cratis/arc.core';
 import { eventType as chronicleEvent } from '@cratis/chronicle/events';
 import {
@@ -97,9 +97,17 @@ export enum Color { Red = 1, Blue = 2 }
 @command() export class BooleanResult { handle(): boolean { return true; } }
 @command() export class ColorResult { handle(): Color { return Color.Blue; } }
 @command() export class LiteralResult { handle(): 'created' | 'existing' { return 'created'; } }
+@command() export class OptionalBooleanResult { handle(): boolean | undefined { return undefined; } }
+@command() export class VoidBooleanResult { handle(): boolean | void { return undefined; } }
+@command() export class NullableColorResult { handle(): Color | null { return null; } }
+@command() export class OptionalLiteralResult { handle(): 'created' | 'existing' | undefined { return undefined; } }
 @command() export class WrappedBooleanResult { handle(): Outcome<boolean> { return response(true); } }
 export class TaskId extends ConceptAs<string> { static readonly valueType = String; }
 export class UserId extends ConceptAs<string> { static readonly valueType = String; }
 @command() export class DistinctConcepts { handle(): TaskId | UserId { return new TaskId('task'); } }
+@command() export class DistinctConceptArrays { handle(): TaskId[] | UserId[] { return [new TaskId('task')]; } }
 export class Date { @field(String) value = ''; }
 @command() export class NamedDate { handle(): Date { return new Date(); } }
+@readModel() export class LiteralQueries {
+    @query() static exists(): boolean { return true; }
+}

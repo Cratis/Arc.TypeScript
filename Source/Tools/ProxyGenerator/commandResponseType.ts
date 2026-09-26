@@ -71,7 +71,9 @@ export function describeCommandResponse(type: ts.Type, checker: ts.TypeChecker, 
         }
         // A literal union has one decoder (the primitive or enum), not one alternative per literal.
         if (candidate.isUnion()) {
-            if (candidate.types.every(part => !!(part.flags &
+            const values = candidate.types.filter(part => !(part.flags &
+                (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Void)));
+            if (values.length && values.every(part => !!(part.flags &
                 (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral))))
                 return visible(candidate) ? [[candidate]] : [[]];
             return candidate.types.flatMap(paths);

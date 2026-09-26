@@ -16,10 +16,10 @@ describe('when analyzing alternative command paths', () => {
         analysis = analyzeSource(resolve(root, 'tsconfig.json'), resolve(root, 'Features'));
         metadata = renderGeneratedMetadata(resolve(root, 'tsconfig.json'), resolve(root, 'Features'), resolve(root, 'generatedMetadata.ts'));
     });
-    const verify = (name: string, proxy: string, shape: string | RegExp) => {
+    const verify = (name: string, proxy: string, shape: string | RegExp, nullable = false) => {
         analysis.operations.find(item => item.name === name)!.result.text.should.equal(proxy, name);
         const entry = metadata.split('\n').find(line => line.includes(`\\"name\\":\\"${name}\\"`))!;
-        if (typeof shape === 'string') entry.should.contain(`handleResult: { cardinality: 'one', nullable: false, element: ${shape} }`);
+        if (typeof shape === 'string') entry.should.contain(`handleResult: { cardinality: 'one', nullable: ${nullable}, element: ${shape} }`);
         else {
             entry.should.match(shape);
             const alias = /handleResult: \{[^}]*element: (_arc\d+) \}/.exec(entry)![1];
@@ -57,11 +57,29 @@ describe('when analyzing alternative command paths', () => {
         const entry = verify('LiteralResult', '"created" | "existing"', 'String');
         entry.should.not.contain('handleValueResult:');
     });
+    it('should retain an optional boolean and its nullability', () => {
+        verify('OptionalBooleanResult', 'boolean', 'Boolean', true);
+    });
+    it('should retain a boolean union with void as nullable', () => {
+        verify('VoidBooleanResult', 'boolean', 'Boolean', true);
+    });
+    it('should retain a nullable enum and its nullability', () => {
+        verify('NullableColorResult', 'Color', 'Number', true);
+    });
+    it('should retain an optional string literal union and its nullability', () => {
+        verify('OptionalLiteralResult', '"created" | "existing"', 'String', true);
+    });
     it('should retain the full boolean in an Outcome', () => {
         verify('WrappedBooleanResult', 'boolean', 'Boolean').should.contain("handleValueResult: { cardinality: 'void', nullable: true }");
     });
     it('should use the shared primitive for distinct concepts', () => {
         verify('DistinctConcepts', 'string', 'String').should.not.match(/handleResult: \{[^}]*element: _arc\d+/);
+    });
+    it('should use the shared primitive for arrays of distinct concepts', () => {
+        analysis.operations.find(item => item.name === 'DistinctConceptArrays')!.result.text.should.equal('string[]');
+        const entry = metadata.split('\n').find(line => line.includes('\\"name\\":\\"DistinctConceptArrays\\"'))!;
+        entry.should.contain("handleResult: { cardinality: 'many', nullable: false, element: String }");
+        entry.should.not.match(/handleResult: \{[^}]*element: _arc\d+/);
     });
     it('should not treat a user DTO named Date as the standard Date', () => {
         verify('NamedDate', 'Date', /handleResult: \{ cardinality: 'one', nullable: false, element: _arc\d+ \}/);
