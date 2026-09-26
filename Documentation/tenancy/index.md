@@ -88,4 +88,4 @@ The storage integrations select per-tenant storage from the resolved tenant:
 - Selection, membership, and storage isolation are separate decisions. Configure all three.
 - Headers select, principals prove.
 
-Next, pick your sources in [Tenant resolvers](resolvers.md), then check your storage in [Storage isolation](isolation.md).
+Next, follow one request through all three decisions in [Tenancy end to end](end-to-end.md), or pick your sources in [Tenant resolvers](resolvers.md) and check your storage in [Storage isolation](isolation.md).
