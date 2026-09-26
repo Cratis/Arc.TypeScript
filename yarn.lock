@@ -45,8 +45,8 @@ __metadata:
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/arc.core": ^0.33.0
-    "@cratis/arc.testing": ^0.33.0
+    "@cratis/arc.core": ^0.35.0
+    "@cratis/arc.testing": ^0.35.0
     "@cratis/chronicle": ^6.7.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
@@ -87,7 +87,12 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
+    "@cratis/arc.fastify": "workspace:^"
+    "@cratis/arc.hono": "workspace:^"
     express: "npm:^5.1.0"
+    fastify: "npm:^5.6.0"
+    hono: "npm:^4.9.0"
+    ws: "npm:^8.21.3"
     zod: "npm:^4.1.0"
   languageName: unknown
   linkType: soft
@@ -145,7 +150,7 @@ __metadata:
     postgres: "npm:^3.4.9"
     sql.js: "npm:^1.14.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.33.0
+    "@cratis/arc.core": ^0.35.0
     "@cratis/fundamentals": ^7.19.6
     drizzle-orm: ^0.45.0
   languageName: unknown
@@ -165,7 +170,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/arc.fastify@workspace:*, @cratis/arc.fastify@workspace:Source/Fastify":
+"@cratis/arc.fastify@workspace:*, @cratis/arc.fastify@workspace:Source/Fastify, @cratis/arc.fastify@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.fastify@workspace:Source/Fastify"
   dependencies:
@@ -180,7 +185,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/arc.hono@workspace:*, @cratis/arc.hono@workspace:Source/Hono":
+"@cratis/arc.hono@workspace:*, @cratis/arc.hono@workspace:Source/Hono, @cratis/arc.hono@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.hono@workspace:Source/Hono"
   dependencies:
@@ -210,7 +215,7 @@ __metadata:
     mongodb: "npm:^6.21.0"
     rxjs: "npm:^7.8.2"
   peerDependencies:
-    "@cratis/arc.core": ^0.33.0
+    "@cratis/arc.core": ^0.35.0
     "@cratis/fundamentals": ^7.19.6
     "@opentelemetry/api": ^1.9.0
     mongodb: ^6.21.0

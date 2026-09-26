@@ -48,7 +48,7 @@ Add a runnable sample only for a journey no sample, adapter suite, or contract c
 
 ## Before you open a pull request
 
-`yarn ci` runs all of the above with the rest of the gate. [Contributing](https://github.com/Cratis/Arc.TypeScript/blob/main/CONTRIBUTING.md) lists every step, and [Preview a TypeScript release](releases.md) covers release checks.
+`yarn ci` runs all of the above with the rest of the gate. [Contributing](https://github.com/Cratis/Arc.TypeScript/blob/main/CONTRIBUTING.md) lists every step, and [Prepare and publish a TypeScript release](releases.md) covers release checks and publication.
 
 ## Related
 
