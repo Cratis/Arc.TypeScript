@@ -371,6 +371,24 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 });
             } finally { if (adapter !== 'express') await host.stop(); }
         }
+        for (const [name, path, expected] of [
+            ['DTO response', 'outcome-dto', { response: { value: 'created' } }],
+            ['primitive response', 'outcome-primitive', { response: 42 }],
+            ['Result success DTO', 'outcome-error-case', { response: { value: 'created' } }],
+            ['tuple alternative response', 'outcome-tuple', { response: { value: 'created' } }]
+        ]) await parity(`OneOf ${name}`, 'POST', `/api/${path}`, { fail: false }, { status: 200, body: command(200, expected) });
+        await parity('OneOf validation branch', 'POST', '/api/outcome-dto', { fail: true }, {
+            status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Outcome rejected', members: ['fail'], reason: 'rule' }] })
+        });
+        await parity('OneOf authorization branch', 'POST', '/api/outcome-primitive', { fail: true }, {
+            status: 403, body: command(403, { authorizationFailureReason: 'Outcome denied' })
+        });
+        await parity('Result arbitrary error DTO is a successful response', 'POST', '/api/outcome-error-case', { fail: true }, {
+            status: 200, body: command(200, { response: { code: 'already-exists' } })
+        });
+        await parity('OneOf tuple validation consumes the accompanying response', 'POST', '/api/outcome-tuple', { fail: true }, {
+            status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Tuple rejected', members: ['fail'], reason: 'rule' }] })
+        });
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });
