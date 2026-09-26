@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import ts from 'typescript';
-import { isPackageSymbol, isTypeFrom } from './sourceSymbols.js';
+import { isPackageSymbol, isStandardType, isTypeFrom } from './sourceSymbols.js';
 import { isOutcomeType } from './isOutcomeType.js';
 
 /** A path is one possible execution; members of a path are returned together, not alternatives. */
@@ -33,7 +33,7 @@ export function describeCommandResponse(type: ts.Type, checker: ts.TypeChecker, 
                 return fail('Use CommandOperations instead of returning an ordinary collection of operation declarations');
             if (element && (element.isUnion() ? element.types : [element]).some(part => isOutcomeType(part, checker)))
                 return fail('Return an Outcome for the entire command response, not an array of Outcome values');
-            if (element && !visible(element)) return false;
+            if (element && (element.isUnion() ? element.types.every(part => !visible(part)) : !visible(element))) return false;
         }
         return true;
     };
@@ -48,7 +48,7 @@ export function describeCommandResponse(type: ts.Type, checker: ts.TypeChecker, 
         if (candidate.flags & ts.TypeFlags.NumberLike) return 'Number';
         if (candidate.flags & ts.TypeFlags.BooleanLike) return 'Boolean';
         const symbol = candidate.aliasSymbol ?? candidate.getSymbol();
-        if (symbol?.getName() === 'Date') return 'Date';
+        if (isStandardType(candidate, 'Date')) return 'Date';
         const base = candidate.getBaseTypes()?.find(part => isTypeFrom(checker, part, 'ConceptAs', '@cratis/fundamentals'));
         if (base) {
             const value = checker.getTypeArguments(base as ts.TypeReference)[0];
@@ -69,7 +69,13 @@ export function describeCommandResponse(type: ts.Type, checker: ts.TypeChecker, 
             }
             if (kindType?.isStringLiteral() && (kindType.value === 'validation' || kindType.value === 'denied')) return [[]];
         }
-        if (candidate.isUnion()) return candidate.types.flatMap(paths);
+        // A literal union has one decoder (the primitive or enum), not one alternative per literal.
+        if (candidate.isUnion()) {
+            if (candidate.types.every(part => !!(part.flags &
+                (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral))))
+                return visible(candidate) ? [[candidate]] : [[]];
+            return candidate.types.flatMap(paths);
+        }
         if (isTypeFrom(checker, candidate, 'EventSourceIdResponse', '@cratis/arc.chronicle')) {
             const value = candidate.getProperty('value');
             return value ? paths(checker.getTypeOfSymbolAtLocation(value, location)) : [[]];
@@ -90,8 +96,14 @@ export function describeCommandResponse(type: ts.Type, checker: ts.TypeChecker, 
     const first = responses[0];
     if (first && responses.some(part => representation(part) !== representation(first)))
         return fail('Multiple unhandled command response types; return one response DTO with an application-owned status field');
+    // Distinct concepts sharing a wire representation have no single concept token for metadata.
+    const concepts = responses.flatMap(part => part.getBaseTypes()?.filter(base =>
+        isTypeFrom(checker, base, 'ConceptAs', '@cratis/fundamentals')) ?? []);
+    const primitive = responses.some(part => part !== first) && concepts.length ?
+        checker.getTypeArguments(concepts[0] as ts.TypeReference)[0] : undefined;
     // Prefer the broad type when a literal and its primitive appear on separate paths.
-    const response = responses.find(part => part === first && !(part.flags & (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral))) ??
+    const response = primitive ?? responses.find(part => part === first && !(part.flags &
+        (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral))) ??
         responses.find(part => !(part.flags & (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral))) ?? first;
     return { paths: alternatives, response };
 }

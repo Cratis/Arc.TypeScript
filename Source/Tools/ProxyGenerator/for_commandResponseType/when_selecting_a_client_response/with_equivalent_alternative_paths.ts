@@ -11,27 +11,60 @@ const root = resolve(import.meta.dirname, '../given');
 
 describe('when analyzing alternative command paths', () => {
     let analysis: ReturnType<typeof analyzeSource>;
-    beforeEach(() => { analysis = analyzeSource(resolve(root, 'tsconfig.json'), resolve(root, 'Features')); });
+    let metadata: string;
+    beforeEach(() => {
+        analysis = analyzeSource(resolve(root, 'tsconfig.json'), resolve(root, 'Features'));
+        metadata = renderGeneratedMetadata(resolve(root, 'tsconfig.json'), resolve(root, 'Features'), resolve(root, 'generatedMetadata.ts'));
+    });
+    const verify = (name: string, proxy: string, shape: string | RegExp) => {
+        analysis.operations.find(item => item.name === name)!.result.text.should.equal(proxy, name);
+        const entry = metadata.split('\n').find(line => line.includes(`\\"name\\":\\"${name}\\"`))!;
+        if (typeof shape === 'string') entry.should.contain(`handleResult: { cardinality: 'one', nullable: false, element: ${shape} }`);
+        else {
+            entry.should.match(shape);
+            const alias = /handleResult: \{[^}]*element: (_arc\d+) \}/.exec(entry)![1];
+            const model = proxy.replace(/\[\]$/, '');
+            metadata.should.contain(`import { ${model} as ${alias} }`);
+        }
+        return entry;
+    };
 
     it('should retain one DTO for an alias and an unwrapped path', () => {
-        analysis.operations.find(item => item.name === 'AliasedResponse')!.result.text.should.equal('Plain');
+        verify('AliasedResponse', 'Plain', /handleResult: \{ cardinality: 'one', nullable: false, element: _arc\d+ \}/);
     });
     it('should await a promise path before comparing decoders', () => {
-        analysis.operations.find(item => item.name === 'AwaitedAlternative')!.result.text.should.equal('Plain');
+        verify('AwaitedAlternative', 'Plain', /handleResult: \{ cardinality: 'one', nullable: false, element: _arc\d+ \}/);
     });
     it('should distinguish tuple members from alternative paths', () => {
         for (const name of ['TupleAlternatives', 'NestedTupleAlternative'])
-            analysis.operations.find(item => item.name === name)!.result.text.should.equal('Plain', name);
+            verify(name, 'Plain', /handleResult: \{ cardinality: 'one', nullable: false, element: _arc\d+ \}/);
     });
     it('should preserve array cardinality across paths', () => {
-        analysis.operations.find(item => item.name === 'ArrayAlternatives')!.result.text.should.equal('Plain[]');
+        verify('ArrayAlternatives', 'Plain[]', /handleResult: \{ cardinality: 'many', nullable: false, element: _arc\d+ \}/);
     });
     it('should retain a primitive result across wrapped and unwrapped paths', () => {
-        analysis.operations.find(item => item.name === 'SamePrimitivePaths')!.result.text.should.equal('string');
+        verify('SamePrimitivePaths', 'string', 'String');
     });
-    it('should use the same selected decoder in generated runtime metadata', () => {
-        const metadata = renderGeneratedMetadata(resolve(root, 'tsconfig.json'), resolve(root, 'Features'), resolve(root, 'generatedMetadata.ts'));
-        metadata.should.match(/handleResult: \{ cardinality: 'many', nullable: false, element: _arc\d+ \}/);
+    it('should retain boolean as a full union rather than the first literal', () => {
+        const entry = verify('BooleanResult', 'boolean', 'Boolean');
+        entry.should.not.contain('handleValueResult:');
+    });
+    it('should retain an enum as a full union', () => {
+        const entry = verify('ColorResult', 'Color', 'Number');
+        entry.should.not.contain('handleValueResult:');
+    });
+    it('should retain a string literal union', () => {
+        const entry = verify('LiteralResult', '"created" | "existing"', 'String');
+        entry.should.not.contain('handleValueResult:');
+    });
+    it('should retain the full boolean in an Outcome', () => {
+        verify('WrappedBooleanResult', 'boolean', 'Boolean').should.contain("handleValueResult: { cardinality: 'void', nullable: true }");
+    });
+    it('should use the shared primitive for distinct concepts', () => {
+        verify('DistinctConcepts', 'string', 'String').should.not.match(/handleResult: \{[^}]*element: _arc\d+/);
+    });
+    it('should not treat a user DTO named Date as the standard Date', () => {
+        verify('NamedDate', 'Date', /handleResult: \{ cardinality: 'one', nullable: false, element: _arc\d+ \}/);
     });
 });
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import ts from 'typescript';
 import { MetadataImports } from './MetadataImports.js';
+import { isStandardType } from './sourceSymbols.js';
 
 /** Describe result cardinality and element type without executing the method. */
 export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: MetadataImports, location: ts.Node,
@@ -15,10 +16,11 @@ export function metadataResult(type: ts.Type, checker: ts.TypeChecker, imports: 
     const cardinality = paged ? 'paged' : many ? 'many' : value.flags & ts.TypeFlags.Void ? 'void' : 'one';
     let token: string | undefined;
     if (!includeElement) return `{ cardinality: '${cardinality}', nullable: ${nullable} }`;
-    if (element.flags & ts.TypeFlags.StringLike) token = 'String';
-    else if (element.flags & ts.TypeFlags.NumberLike) token = 'Number';
-    else if (element.flags & ts.TypeFlags.BooleanLike) token = 'Boolean';
-    else if (element.getSymbol()?.getName() === 'Date') token = 'Date';
+    const members = element.isUnion() ? element.types : [element];
+    if (members.every(part => !!(part.flags & ts.TypeFlags.StringLike))) token = 'String';
+    else if (members.every(part => !!(part.flags & ts.TypeFlags.NumberLike))) token = 'Number';
+    else if (members.every(part => !!(part.flags & ts.TypeFlags.BooleanLike))) token = 'Boolean';
+    else if (isStandardType(element, 'Date')) token = 'Date';
     else if (element.getSymbol()?.declarations?.some(ts.isClassDeclaration)) token = imports.classToken(element, location);
     return `{ cardinality: '${cardinality}', nullable: ${nullable}${token ? `, element: ${token}` : ''}` +
         `${observable === undefined ? '' : `, observable: ${observable}`} }`;
