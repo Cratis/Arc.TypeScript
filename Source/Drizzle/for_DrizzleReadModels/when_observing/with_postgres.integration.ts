@@ -7,10 +7,11 @@ import { drizzle as postgresDrizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { pgTable, text } from 'drizzle-orm/pg-core';
 import type { Table } from 'drizzle-orm';
-import { field } from '@cratis/fundamentals';
 import { ArcApplication, Severity } from '@cratis/arc.core';
 import { drizzleReadModel } from '../../drizzleToken.js';
 import '../../index.js';
+import { Task } from './given/Task.js';
+import { OtherTask } from './given/OtherTask.js';
 import { DrizzleChangeNotifications } from '../../DrizzleChangeNotifications.js';
 import { DrizzleReadModels } from '../../DrizzleReadModels.js';
 import { PostgreSQLObservationManager } from '../../PostgreSQLObservationManager.js';
@@ -20,8 +21,6 @@ import { DrizzleObservation } from '../../DrizzleObservation.js';
 import { DrizzleDialect } from '../../DrizzleDialect.js';
 
 should();
-class Task { @field(String) id!: string; @field(String) title!: string; }
-class OtherTask { @field(String) id!: string; @field(String) title!: string; }
 const table = pgTable('tasks', { id: text('id').primaryKey(), title: text('title').notNull() });
 const otherTable = pgTable('other_tasks', { id: text('id').primaryKey(), title: text('title').notNull() });
 const uri = process.env.ARC_POSTGRES_TEST_URI;

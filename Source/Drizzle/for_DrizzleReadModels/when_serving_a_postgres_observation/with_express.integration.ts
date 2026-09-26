@@ -5,19 +5,14 @@ import express from 'express';
 import { Client, Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { pgTable, text } from 'drizzle-orm/pg-core';
-import { field } from '@cratis/fundamentals';
-import { ArcApplication, key, query, readModel, service } from '@cratis/arc.core';
+import { ArcApplication } from '@cratis/arc.core';
 import { cratisArc } from '../../../Express/index.js';
-import { DrizzleDialect, DrizzleObservation, drizzleReadModel, nodePostgresListener,
-    postgresqlChangeTrigger, type DrizzleReadModels } from '../../index.js';
+import { DrizzleDialect, DrizzleObservation, nodePostgresListener,
+    postgresqlChangeTrigger } from '../../index.js';
+import { StreamTask } from './given/StreamTask.js';
+import { StreamTasks } from './given/StreamTasks.js';
 
-class StreamTask { @field(String) @key() id!: string; @field(String) title!: string; }
 const tasks = pgTable('tasks', { id: text('id').primaryKey(), title: text('title').notNull() });
-@readModel()
-class StreamTasks {
-    @query({ observable: true }, service(drizzleReadModel(StreamTask)))
-    static all(models: DrizzleReadModels<StreamTask>) { return models.observe(); }
-}
 
 describe('when serving an experimental PostgreSQL observation through SSE', () => {
     it('should send the initial snapshot and a raw SQL update, then release the listener on disconnect', async () => {
