@@ -48,6 +48,79 @@ You see the query result, then spans and a `cratis.arc.operation.duration` histo
 
 If the SDK starts after Arc is imported, Arc uses the API's proxy tracer. Initialize the SDK before sending requests so nothing is missed.
 
+## Connect host HTTP spans to Arc
+
+If you need a request trace across host middleware and Arc, start your SDK **before importing** the HTTP server or adapter. The host owns W3C `traceparent` extraction and propagation; Arc emits child spans under the active context. The following runnable Express host uses an in-memory exporter for inspection (use your own exporter in production). Install `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `express`, and `zod` in the host application.
+
+```typescript title="observability-host.ts"
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { SpanKind } from '@opentelemetry/api';
+
+const exporter = new InMemorySpanExporter();
+const instrumentations = getNodeAutoInstrumentations().filter(item =>
+    ['@opentelemetry/instrumentation-http', '@opentelemetry/instrumentation-express'].includes(item.instrumentationName));
+const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)], instrumentations });
+sdk.start();
+
+const { createServer } = await import('node:http');
+const { default: express } = await import('express');
+const { ArcServer, defineCommand } = await import('@cratis/arc.core');
+const { cratisArc } = await import('@cratis/arc.express');
+const { z } = await import('zod');
+const arc = new ArcServer({ commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }),
+    handle: ({ value }) => value })] });
+const host = express();
+host.use(cratisArc(arc));
+const server = createServer(host);
+try {
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw Error('No listening port');
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/echo`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"value":"ok"}'
+    });
+    if (response.status !== 200) throw Error(`HTTP ${response.status}`);
+    await response.text();
+    const spans = exporter.getFinishedSpans();
+    const http = spans.find(span => span.kind === SpanKind.SERVER);
+    const arcHttp = spans.find(span => span.name === 'cratis.arc.http.handle');
+    if (!http || arcHttp?.parentSpanContext?.spanId !== http.spanContext().spanId) throw Error('Missing parent span');
+    console.log(http.name, '→', arcHttp.name);
+} finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await arc.dispose();
+    await sdk.shutdown();
+}
+```
+
+The host's Node HTTP span surrounds Arc's INTERNAL `cratis.arc.http.handle` span; it is not a second Arc SERVER span. `yarn check:observability-recipes` exercises **real HTTP** with Express (HTTP and Express instrumentation), Fastify (HTTP and Fastify instrumentation), and Hono on its Node server (HTTP instrumentation; no Hono-specific instrumentation installed). For each host it asserts exactly one HTTP SERVER span parents the Arc span for a command. It also checks the structured-logging recipe below. In-memory export proves local parenting, not remote collector delivery or trace-context propagation through a proxy.
+
+## Log errors without exposing payloads
+
+Arc's `logger(error, correlationId)` callback runs on the server side. Pino can serialize the error under `err` without logging a command or request body. Install `pino` in the host application; do not send this logger's output to the client.
+
+```typescript title="logging.ts"
+import pino from 'pino';
+import { ArcServer, defineCommand } from '@cratis/arc.core';
+import { z } from 'zod';
+
+const log = pino();
+const arc = new ArcServer({ exposeExceptionDetails: false,
+    commands: [defineCommand({ name: 'Fail', schema: z.object({ value: z.string() }),
+        handle: () => { throw Error('private handler failure'); } })],
+    logger: (error, correlationId) => log.error({ err: error, correlationId }, 'Arc request failed')
+});
+try {
+    const response = await arc.handle(new Request('http://localhost/api/fail', { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: '{"value":"secret"}' }));
+    console.log(response?.status, await response?.text());
+} finally { await arc.dispose(); }
+```
+
+The HTTP response is redacted outside development (explicitly set here). `yarn check:observability-recipes` asserts that a failing command logs its correlation ID and error, that the HTTP response does not reveal the error, and that the structured log does not contain the command payload. Control log access and retention according to your application's secrets policy; the serialized `err` can contain sensitive exception details.
+
 ## Span names
 
 | Span | Boundary | Attributes |

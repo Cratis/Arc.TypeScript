@@ -42,7 +42,7 @@ Each adapter accepts a built `ArcApplication` or low-level `ArcServer`. The `@cr
 - [Express](express.md): one middleware, mounted before body parsers.
 - [Fastify](fastify.md): an encapsulated plugin with its own raw-body parser.
 - [Hono](hono.md): middleware on a Fetch API framework, with raw-path checks on Node.
-- [Fetch API runtimes](fetch-runtimes.md): explicitly registered artifacts over `app.fetch` for Bun, Deno, Cloudflare Workers with `nodejs_compat`, and Next.js Node route handlers. The package is an unpublished source preview; read the verification boundary before deployment.
+- [Fetch API runtimes](fetch-runtimes.md): explicitly registered artifacts over `app.fetch` for a checked Next.js Node.js production-server route handler and bounded Bun/Deno checks. The package is an unpublished source preview; read the verification boundary before deployment.
 
 Express needs a listener attach step for WebSockets; Fastify's plugin and Hono's Node helper attach them in the setup call, described in [WebSockets](websockets.md). To use a principal your framework already verified, see [Native principal](native-principal.md).
 
