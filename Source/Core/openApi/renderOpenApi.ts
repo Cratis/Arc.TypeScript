@@ -56,7 +56,8 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
         paths[operation.route] ??= {};
         const tags = [operation.routeNamespace ?? operation.namespace ?? operation.name];
         const securityRequirements = security.length ? { security: security.map(name => ({ [name]: [] })) } : {};
-        // Named handlers only run on routes that select them; default handlers run even on anonymous routes.
+        // Named handlers only run on routes that select them; default handlers run even on anonymous routes;
+        // a host-supplied native principal can only produce 401 on protected routes.
         const canAuthenticate = !!(options.authentication?.length || explicit.length || (options.nativePrincipal && protectedRoute));
         const unauthenticated = canAuthenticate ? { '401': { description: 'Unauthenticated',
             content: { 'application/json': { schema: resultSchema(operation, false) } } } } : {};

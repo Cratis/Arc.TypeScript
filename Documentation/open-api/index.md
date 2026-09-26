@@ -65,11 +65,11 @@ The Tasks sample registers its metadata, so its `registerTask` response is descr
 
 For a low-level array query declared with `defineQuery`, put `generatedReturn` on the descriptor to advertise paging without generated artifact metadata:
 
-```typescript
+```typescript title="allTasks.ts"
 import { defineQuery } from '@cratis/arc.core';
 import { z } from 'zod';
 
-const allTasks = defineQuery({
+export const allTasks = defineQuery({
     name: 'AllTasks',
     schema: z.object({}),
     generatedReturn: { cardinality: 'many', nullable: false },
