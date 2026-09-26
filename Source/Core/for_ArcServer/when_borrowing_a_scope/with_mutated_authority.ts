@@ -16,6 +16,7 @@ describe('when borrowing a scope after its original authority is mutated', () =>
     let getterTenant: string | undefined;
     let getterSignal: AbortSignal | undefined;
     let matchesScope: boolean;
+    let matchesScopeAuthority: boolean;
     let originalSignal: AbortSignal;
     let ordinaryPrincipal: ExecutionContext['principal'];
     beforeEach(async () => {
@@ -50,6 +51,7 @@ describe('when borrowing a scope after its original authority is mutated', () =>
                 await Promise.resolve();
                 factoryContext = currentContext();
                 factoryAuthority = await currentServices().resolve(authority);
+                matchesScopeAuthority = factoryAuthority === scope.identity;
                 getterTenant = await scope.resolve(fromScope);
                 return currentContext();
             }, { correlationId: 'E51A25C3-465D-4701-95CA-1F8B84C308D8' });
@@ -68,14 +70,20 @@ describe('when borrowing a scope after its original authority is mutated', () =>
         observed!.principal!.id.should.equal('original');
         observed!.principal!.scheme!.should.equal('Verified');
         observed!.principal!.roles.should.deep.equal(['Reader']);
-        factoryAuthority.principal!.roles.should.deep.equal(['Reader']);
-        (factoryAuthority.principal === ordinaryPrincipal).should.equal(false);
-        factoryAuthority.correlationId.should.equal('e51a25c3-465d-4701-95ca-1f8b84c308d8');
+        factoryAuthority.principal!.roles.should.deep.equal(['Reader', 'Admin']);
+        (factoryAuthority.principal === ordinaryPrincipal).should.equal(true);
+        matchesScopeAuthority.should.equal(true);
+        factoryAuthority.correlationId.should.equal('initial');
+        factoryAuthority.signal.should.equal(originalSignal);
         (observed!.principal!.claims as object).should.deep.equal({ group: { name: 'before' } });
     });
     it('should expose only the invocation correlation and the borrowed services', () => {
         observed!.correlationId.should.equal('e51a25c3-465d-4701-95ca-1f8b84c308d8');
         (factoryContext === observed).should.equal(true);
+        (observed!.principal === ordinaryPrincipal).should.equal(false);
+        Object.isFrozen(observed).should.equal(true);
+        Object.isFrozen(observed!.principal!.roles).should.equal(true);
+        Object.isFrozen(observed!.principal!.claims).should.equal(true);
         matchesScope.should.equal(true);
     });
 });

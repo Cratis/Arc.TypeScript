@@ -45,11 +45,6 @@ export function hasLivingServiceDisposal(registry: ServiceRegistry, scope?: Serv
 }
 const resolution = new AsyncLocalStorage<{ owner: ServiceResolutionNode | undefined; chain: readonly ServiceResolutionNode[]; singleton: boolean; identity: ExecutionContext | undefined } | undefined>();
 const current = new AsyncLocalStorage<ServiceScope>();
-const borrowedIdentity = new AsyncLocalStorage<{ scope: ServiceScope; context: ExecutionContext }>();
-/** Scoped factories created during borrowed work receive its detached authority. */
-export function withBorrowedServiceAuthority<T>(scope: ServiceScope, context: ExecutionContext, callback: () => T): T {
-    return borrowedIdentity.run({ scope, context }, callback);
-}
 /** Includes detached factories after their originating request frame has drained. */
 export function hasLivingServiceResolution(registry: ServiceRegistry): boolean {
     return resolution.getStore()?.chain.some(node => serviceScopeRegistry(node.scope) === registry && node.state === ServiceResolutionState.Pending) ?? false;
@@ -130,8 +125,7 @@ export class ServiceScope {
         const chain = active?.chain.filter(node => node.state === ServiceResolutionState.Pending) ?? [];
         const owner = active?.owner;
         const inherit = owner?.state === ServiceResolutionState.Pending && serviceScopeRegistry(owner.scope) === this.#registry;
-        const borrowed = borrowedIdentity.getStore();
-        const identity = this.#singleton ? undefined : borrowed?.scope === this ? borrowed.context : this.#authority;
+        const identity = this.#singleton ? undefined : this.#authority;
         const captive = inherit ? active?.singleton ?? false : false;
         const task = this.resolveInChain(token, identity, chain, captive);
         if (chain.length || current.getStore() === this) return task;
