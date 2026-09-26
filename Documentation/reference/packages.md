@@ -44,4 +44,4 @@ The core, adapter, MongoDB, and Drizzle packages need Node.js 22 or later. Build
 ## Related
 
 - [Capability reference](capabilities.md)
-- [Preview a TypeScript release](../contributing/releases.md)
+- [Prepare and publish a TypeScript release](../contributing/releases.md)

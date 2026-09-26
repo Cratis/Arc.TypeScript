@@ -72,7 +72,7 @@ The shared Arc pages, such as the [tutorial](/arc/tutorial/first-slice/) and the
 
 ## Releases
 
-Arc for TypeScript is versioned independently of Arc on .NET. GitHub source previews are available; npm publication is disabled. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Preview a TypeScript release](contributing/releases.md).
+Arc for TypeScript is versioned independently of Arc on .NET. GitHub source previews are available; npm publication is disabled. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Prepare and publish a TypeScript release](contributing/releases.md).
 
 ## Where to go next
 
