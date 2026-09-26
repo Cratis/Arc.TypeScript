@@ -24,5 +24,6 @@ export type { QueryPage } from './QueryPage.js';
 export type { SortRequest } from './SortRequest.js';
 export { SortDirection } from './SortDirection.js';
 export type { QueryResult } from './QueryResult.js';
+export { snapshotStreamSource } from './modelBound/snapshotStreamSource.js';
 export { defineQuery } from './defineQuery.js';
 export * from './observable/index.js';
