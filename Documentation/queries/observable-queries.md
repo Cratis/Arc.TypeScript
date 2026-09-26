@@ -78,7 +78,7 @@ curl -N -H 'Accept: text/event-stream' \
 
 With two tasks registered, each frame holds the second task in descending title order, and `paging` reports `{"page":1,"size":1,"totalItems":2,"totalPages":2}`. When a third task arrives, the next frame is sorted and cut again, and `totalItems` follows the whole list. A generated client's `useWithPaging(pageSize)` hook sends the same parameters.
 
-Arc pages the arrays your source emits, in memory. An observable query cannot return a `queryPage`; generated metadata rejects that declaration at build. For a collection too large to emit whole, narrow what the source emits with query arguments, or use a database integration that observes a query, such as [MongoDB change streams](../mongodb/observing-collections.md). The [paging rules](model-bound/paging.md#request-parameters) for invalid sizes and sort fields are the same as for snapshots.
+Arc pages the arrays your source emits, in memory. An observable query cannot return a `queryPage`; generated metadata rejects that declaration at build. For a collection too large to emit whole, narrow what the source emits with query arguments, or use a database integration that observes a query, such as [MongoDB change streams](../mongodb/observing-collections.md) or [in-process SQL observation](../sql/observing-tables.md) with `observePage`. The [paging rules](model-bound/paging.md#request-parameters) for invalid sizes and sort fields are the same as for snapshots.
 
 ## Authorize a live query
 
