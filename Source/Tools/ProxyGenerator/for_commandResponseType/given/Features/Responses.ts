@@ -59,3 +59,32 @@ class Save extends CommandOperation { execute(): void {} }
 @command() export class EventArrayOrRejection {
     handle(): Registered[] | Outcome<never> { return rejected(validation('Invalid')); }
 }
+
+type AliasedOutcome = Outcome<Plain>;
+@command() export class AliasedResponse {
+    @field(Boolean) wrapped = false;
+    handle(): AliasedOutcome | Plain { return this.wrapped ? response(new Plain()) : new Plain(); }
+}
+@command() export class AwaitedAlternative {
+    @field(Boolean) later = false;
+    handle(): Plain | Promise<Plain> { return this.later ? Promise.resolve(new Plain()) : new Plain(); }
+}
+@command() export class TupleAlternatives {
+    @field(Boolean) wrapped = false;
+    handle(): Outcome<ArcTuple<readonly [Registered, Plain]>> | Plain {
+        return this.wrapped ? response(tuple(new Registered(), new Plain())) : new Plain();
+    }
+}
+@command() export class NestedTupleAlternative {
+    handle(): ArcTuple<readonly [Registered, ArcTuple<readonly [Registered, Plain]>]> | Outcome<Plain> {
+        return response(new Plain());
+    }
+}
+@command() export class ArrayAlternatives {
+    @field(Boolean) wrapped = false;
+    handle(): Plain[] | Outcome<Plain[]> { return this.wrapped ? response([new Plain()]) : [new Plain()]; }
+}
+@command() export class SamePrimitivePaths {
+    @field(Boolean) wrapped = false;
+    handle(): Outcome<string> | string { return this.wrapped ? response('visible') : 'visible'; }
+}

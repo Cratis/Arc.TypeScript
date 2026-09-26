@@ -23,12 +23,16 @@ export class OutcomePrimitive {
 
 @command({ namespace: 'HttpFixture' })
 @allowAnonymous()
-export class OutcomeErrorCase {
+class OutcomeErrorCase {
     @field(Boolean) fail!: boolean;
     handle(): Outcome<OutcomeReply | OutcomeError> {
         return this.fail ? response(new OutcomeError('already-exists')) : response(new OutcomeReply('created'));
     }
 }
+
+// This runtime-only fixture has two incompatible client DTO constructors. The generator must reject it,
+// so do not export the class as a discoverable proxy artifact.
+export const incompatibleOutcomeCommand = () => OutcomeErrorCase;
 
 @command({ namespace: 'HttpFixture' })
 @allowAnonymous()
