@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { acknowledgeCommandCommit, CommandOperation, CommandOperations, defineCommand, inlineCommitClientResponse, isOutcome, rejected, validation } from '@cratis/arc.core';
+import { defineCommand, isOutcome, rejected, validation } from '@cratis/arc.core';
+import { acknowledgeCommandCommit, flattenCommandResponse, inlineCommitClientResponse, isCommandOperation, isCommandOperations } from '@cratis/arc.core/hosting';
 import { hasEventType } from '@cratis/chronicle/events';
 import type { CommandDefinition, ExecutionContext, Outcome, ValidationResult } from '@cratis/arc.core';
 import type { AppendOptions, AppendResult, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
@@ -65,7 +66,7 @@ export function checkResults(results: readonly AppendResult[], expected: number)
 }
 
 function isAppendValue(value: unknown, store: IEventStore): boolean {
-    if (value instanceof CommandOperation || value instanceof CommandOperations ||
+    if (isCommandOperation(value) || isCommandOperations(value) ||
         value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
     if (Array.isArray(value)) return value.length === 0 || value.some(item => isAppendValue(item, store));
     if (typeof value !== 'object' || value === null) return false;
@@ -111,9 +112,14 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
         // The append is acknowledged: a later cancellation cannot undo it or erase its response.
         acknowledgeCommandCommit(context);
         await waitForProjectionCompletion(results, completionTimeoutMs, context.signal);
-        if (isAppendValue(commandResponse, store)) {
+        const leaves = flattenCommandResponse(commandResponse);
+        if (leaves.some(leaf => isAppendValue(leaf, store))) {
             context.signal.throwIfAborted();
             throw new Error('A Chronicle command cannot return an event or command operation as its client response');
+        }
+        if (commandResponse !== null && commandResponse !== undefined && (leaves.length !== 1 || leaves[0] !== commandResponse)) {
+            context.signal.throwIfAborted();
+            throw new Error('A Chronicle command cannot return an Arc tuple as its client response');
         }
         return commandResponse;
     }

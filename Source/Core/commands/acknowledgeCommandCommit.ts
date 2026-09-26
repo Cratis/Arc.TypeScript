@@ -4,7 +4,7 @@ import type { ExecutionContext } from '../execution/ExecutionContext.js';
 
 const acknowledged = new WeakSet<ExecutionContext>();
 
-/** Record an irreversible inline business commit after the persistence provider acknowledges it. */
+/** Integration-only: record an irreversible inline commit after the provider acknowledges it. */
 export function acknowledgeCommandCommit(context: ExecutionContext): void { acknowledged.add(context); }
 
 /** Whether this command already has an acknowledged inline commit that cancellation cannot undo. */

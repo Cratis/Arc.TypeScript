@@ -7,7 +7,7 @@ import type { CommandExecutionScope } from './CommandExecutionScope.js';
 import type { CommandFilter } from './CommandFilter.js';
 import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
-/** Internal contract for definitions whose handler commits before returning a client response. */
+/** Integration-only contract for handlers committing before a client response. */
 export const inlineCommitClientResponse = Symbol('Arc.inlineCommitClientResponse');
 export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;

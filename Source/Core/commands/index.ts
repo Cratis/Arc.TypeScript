@@ -2,10 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 export { command, isArcCommand } from './modelBound/index.js';
 export { defineCommand } from './defineCommand.js';
-export { acknowledgeCommandCommit } from './acknowledgeCommandCommit.js';
 export type { CommandDefinition } from './CommandDefinition.js';
-/** Integration-only marker used by Chronicle's inline-commit command adapter. */
-export { inlineCommitClientResponse } from './CommandDefinition.js';
 export type { CommandExecutionScope } from './CommandExecutionScope.js';
 export type { CommandFilter } from './CommandFilter.js';
 export type { AuthorizationCommandFilter } from './AuthorizationCommandFilter.js';
