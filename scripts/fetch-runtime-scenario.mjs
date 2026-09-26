@@ -67,9 +67,25 @@ export async function runScenario(dispatch, { queryMethod = true } = {}) {
         const response = await send(request('/api/live', { headers: { accept: 'text/event-stream' }, signal: abort.signal }));
         check(response.status === 200 && response.body, 'SSE failed');
         const reader = response.body.getReader();
-        check(new TextDecoder().decode((await reader.read()).value).includes('ready'), 'SSE emission failed');
-        abort.abort();
-        await reader.cancel().catch(() => {});
+        try {
+            check(new TextDecoder().decode((await reader.read()).value).includes('ready'), 'SSE emission failed');
+            const active = await send(request('/api/active-streams'));
+            const activeBody = await active.text();
+            check(active.status === 200, `SSE subscription status failed (${active.status}: ${activeBody})`);
+            const activeData = JSON.parse(activeBody);
+            check(activeData.data?.count === 1, `SSE subscription was not active (${JSON.stringify(activeData)})`);
+        } finally {
+            abort.abort();
+            await reader.cancel().catch(() => {});
+        }
+        let released = false;
+        for (let attempt = 0; attempt < 25; attempt++) {
+            const active = await send(request('/api/active-streams'));
+            check(active.status === 200, 'SSE subscription status failed');
+            if ((await active.json()).data?.count === 0) { released = true; break; }
+            await new Promise(resolveDelay => setTimeout(resolveDelay, 100));
+        }
+        check(released, 'SSE subscription not released after abort');
         const hubResponse = await send(request('/.cratis/queries/sse'));
         check(hubResponse.status === 200 && hubResponse.body, 'SSE hub failed');
         const events = hubResponse.body.getReader();

@@ -10,6 +10,10 @@ const { outputFiles } = await build({ entryPoints: [entry], bundle: true, platfo
 const executable = process.env.DENO_BIN ?? 'deno';
 const result = spawnSync(executable, ['run', '--quiet', '-'], { input: `${outputFiles[0].text}\nawait runScenario();\n`,
     encoding: 'utf8', stdio: ['pipe', 'inherit', 'inherit'] });
+if (result.error?.code === 'ENOENT') {
+    console.error(`deno runtime not installed (${executable}); check not run`);
+    process.exit(2);
+}
 if (result.error) throw result.error;
-if (result.status !== 0) process.exit(result.status ?? 2);
+if (result.status !== 0) process.exit(1);
 console.log('Deno Fetch: shared Fetch scenario passed');
