@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { request as httpRequest } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import WebSocket from 'ws';
 import { normalize, request, startServer } from './harness.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../', import.meta.url)));
@@ -33,6 +34,20 @@ const tsReaderFailure = query(400, { isValid: true, hasExceptions: true, excepti
 const pagingRule = (message, member) => query(400, { validationResults: [{ severity: 3, message, members: [member], reason: 'rule' }] });
 const badDirection = member => query(400, { validationResults: [{ severity: 3,
     message: 'The sort direction is not a recognized value.', members: [member], reason: 'malformedRequest' }] });
+const directSocket = async (baseUrl, value, closeOnOpen = false) => {
+    const socket = new WebSocket(`${baseUrl.replace('http:', 'ws:')}/api/filter-parity-stream?value=${value}`, {
+        headers: { 'X-Correlation-ID': correlationId }
+    });
+    let timer;
+    try {
+        return await Promise.race([new Promise((resolveFrame, reject) => {
+            socket.once('error', reject);
+            socket.once('open', () => { if (closeOnOpen) { socket.close(); resolveFrame(undefined); } });
+            socket.once('message', data => resolveFrame(JSON.parse(data.toString())));
+            socket.once('close', () => { if (!closeOnOpen) reject(new Error('WebSocket closed before admission result')); });
+        }), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Direct WebSocket admission timed out')), 3000); })]);
+    } finally { clearTimeout(timer); socket.terminate(); }
+};
 // fetch overrides Host with the dialed loopback address. Exercise the explicit authority with a raw HTTP request.
 const requestWithHost = (baseUrl, path, headers) => new Promise((resolveResponse, reject) => {
     const connection = httpRequest(new URL(path, baseUrl), { headers }, response => {
@@ -59,9 +74,9 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         typescript = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'], {
             cwd: root, kind: 'typescript-http-fixture-ready'
         });
-        const send = async (method, path, body, headers = {}) => {
+        const send = async (method, path, body, headers = {}, typescriptUrl = typescript.url) => {
             const options = { 'X-Correlation-ID': correlationId, ...headers };
-            return Promise.all([request(dotnet.url, method, path, body, options), request(typescript.url, method, path, body, options)]);
+            return Promise.all([request(dotnet.url, method, path, body, options), request(typescriptUrl, method, path, body, options)]);
         };
         const check = (actual, expected, label, headerNames = [correlationHeader, 'content-type']) => {
             assert.equal(actual.status, expected.status, `${label}: status; body=${JSON.stringify(actual.body)}`);
@@ -71,8 +86,8 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             }
             return normalize(actual, { headers: headerNames });
         };
-        const parity = async (name, method, path, body, expected, headers = {}, extraHeaders = []) => t.test(name, async () => {
-            const [net, ts] = await send(method, path, body, headers);
+        const parity = async (name, method, path, body, expected, headers = {}, extraHeaders = [], typescriptUrl = typescript.url) => t.test(name, async () => {
+            const [net, ts] = await send(method, path, body, headers, typescriptUrl);
             const expectedResponse = { status: expected.status, body: expected.body, headers: {
                 [correlationHeader]: correlationId, 'content-type': 'application/json; charset=utf-8', ...expected.headers
             } };
@@ -81,8 +96,8 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             const right = check(ts, expectedResponse, 'TypeScript', selected);
             assert.deepEqual(right, left, `${name}: protocol parity`);
         });
-        const divergence = async (name, method, path, body, dotnetExpected, typescriptExpected, headers = {}, extraHeaders = []) => t.test(name, async context => {
-            const [net, ts] = await send(method, path, body, headers);
+        const divergence = async (name, method, path, body, dotnetExpected, typescriptExpected, headers = {}, extraHeaders = [], typescriptUrl = typescript.url) => t.test(name, async context => {
+            const [net, ts] = await send(method, path, body, headers, typescriptUrl);
             const selected = [correlationHeader, 'content-type', ...extraHeaders];
             check(net, { status: dotnetExpected.status, body: dotnetExpected.body, headers: { [correlationHeader]: correlationId, 'content-type': 'application/json; charset=utf-8', ...dotnetExpected.headers } }, '.NET', selected);
             check(ts, { status: typescriptExpected.status, body: typescriptExpected.body, headers: { [correlationHeader]: correlationId, 'content-type': 'application/json; charset=utf-8', ...typescriptExpected.headers } }, 'TypeScript', selected);
@@ -200,51 +215,134 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 } finally { await Promise.all([ts?.stop(), net.stop()]); }
             });
         }
-        for (const [mode, path] of [['execute', '/api/filter-parity-command'],
-            ['validate', '/api/filter-parity-command/validate']]) {
-            const response = mode === 'execute' ? { response: 'allow-valid' } : {};
-            await parity(`command filter ${mode} denies before validation`, 'POST', path, { value: 'deny-invalid' }, {
-                status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+        for (const adapter of ['express', 'fastify', 'hono']) {
+            const host = adapter === 'express' ? typescript : await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'], {
+                cwd: root, kind: 'typescript-http-fixture-ready', env: { ...process.env, ARC_FIXTURE_ADAPTER: adapter }
             });
-            await parity(`command filter ${mode} denies valid input`, 'POST', path, { value: 'deny-valid' }, {
-                status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
-            });
-            await parity(`command filter ${mode} allows invalid input`, 'POST', path, { value: 'allow-invalid' }, {
-                status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Value is invalid',
-                    members: ['value'], reason: 'rule' }] })
-            });
-            await parity(`command filter ${mode} allows valid input`, 'POST', path, { value: 'allow-valid' }, {
-                status: 200, body: command(200, response)
-            });
-            await divergence(`command filter ${mode} denies malformed input in TypeScript`, 'POST', path,
-                { value: ['deny'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
-                { status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' }) });
-            await divergence(`command filter ${mode} allows malformed input with different message`, 'POST', path,
-                { value: ['allow'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
-                { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+            try {
+                const filterParity = (name, method, path, body, expected, headers = {}, extraHeaders = []) =>
+                    parity(`${adapter}: ${name}`, method, path, body, expected, headers, extraHeaders, host.url);
+                const filterDivergence = (name, method, path, body, netExpected, tsExpected, headers = {}, extraHeaders = []) =>
+                    divergence(`${adapter}: ${name}`, method, path, body, netExpected, tsExpected, headers, extraHeaders, host.url);
+                for (const [mode, path] of [['execute', '/api/filter-parity-command'],
+                    ['validate', '/api/filter-parity-command/validate']]) {
+                    const response = mode === 'execute' ? { response: 'allow-valid' } : {};
+                    await filterParity(`command filter ${mode} denies before validation`, 'POST', path, { value: 'deny-invalid' }, {
+                        status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+                    });
+                    await filterParity(`command filter ${mode} denies valid input`, 'POST', path, { value: 'deny-valid' }, {
+                        status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' })
+                    });
+                    await filterParity(`command filter ${mode} allows invalid input`, 'POST', path, { value: 'allow-invalid' }, {
+                        status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Value is invalid',
+                            members: ['value'], reason: 'rule' }] })
+                    });
+                    await filterParity(`command filter ${mode} allows valid input`, 'POST', path, { value: 'allow-valid' }, {
+                        status: 200, body: command(200, response)
+                    });
+                    await filterDivergence(`command filter ${mode} denies malformed input in TypeScript`, 'POST', path,
+                        { value: ['deny'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                        { status: 403, body: command(403, { authorizationFailureReason: 'Fixture filter denied' }) });
+                    await filterDivergence(`command filter ${mode} allows malformed input with different message`, 'POST', path,
+                        { value: ['allow'] }, { status: 400, body: command(400, { validationResults: [malformedDotNet] }) },
+                        { status: 400, body: command(400, { validationResults: [malformedTypeScript] }) });
+                }
+                for (const [name, value, expected] of [
+                    ['denies invalid arguments before validation', 'deny-invalid', { status: 403, body: query(403, { isAuthorized: false }) }],
+                    ['denies valid arguments', 'deny-valid', { status: 403, body: query(403, { isAuthorized: false }) }],
+                    ['allows invalid arguments to reach validation', 'allow-invalid', { status: 400, body: query(400, {
+                        validationResults: [{ severity: 3, message: 'Value is invalid', members: ['value'], reason: 'rule' }] }) }],
+                    ['allows valid arguments', 'allow-valid', { status: 200, body: query(200, { data: { value: 'allow-valid' } }) }]
+                ]) {
+                    await filterParity(`query filter ${name}`, 'GET', `/api/filter-parity-query?value=${value}`, undefined, expected);
+                }
+                await filterParity('QUERY filter denies before validation', 'QUERY', '/api/filter-parity-query',
+                    { arguments: { value: 'deny-invalid' } }, { status: 403, body: query(403, { isAuthorized: false }),
+                        headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
+                await filterParity('QUERY filter allows a valid query', 'QUERY', '/api/filter-parity-query',
+                    { arguments: { value: 'allow-valid' } }, { status: 200, body: query(200, { data: { value: 'allow-valid' } }),
+                        headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
+                await filterParity('observable query filter denies at snapshot admission', 'GET', '/api/filter-parity-stream?value=deny-valid',
+                    undefined, { status: 403, body: query(403, { isAuthorized: false }) });
+                await filterParity('observable query filter denies direct SSE admission', 'GET',
+                    '/api/filter-parity-stream?value=deny-valid', undefined,
+                    { status: 403, body: query(403, { isAuthorized: false }) }, { Accept: 'text/event-stream' });
+                await filterParity('observable query filter allows snapshot admission', 'GET', '/api/filter-parity-stream?value=allow-valid',
+                    undefined, { status: 200, body: query(200, { data: { value: 'allow-valid' } }) });
+                const observations = async () => {
+                    const result = await request(host.url, 'GET', '/api/filter-parity-observations');
+                    assert.equal(result.status, 200);
+                    return result.body.data.events;
+                };
+                const trace = async (name, method, path, body, stages) => t.test(`${adapter}: ${name}`, async () => {
+                    const before = await observations();
+                    const actual = await request(host.url, method, path, body);
+                    const after = await observations();
+                    assert.deepEqual(after.slice(before.length).map(event => event.stage), stages);
+                    return actual;
+                });
+                await trace('command denial skips ordinary filter, validator construction and handler', 'POST',
+                    '/api/filter-parity-command', { value: 'deny-valid' }, ['command authorization']);
+                await trace('validate denial skips ordinary filter and validator construction', 'POST',
+                    '/api/filter-parity-command/validate', { value: 'deny-invalid' }, ['command authorization']);
+                await trace('command authorization precedes ordinary filter and validation', 'POST',
+                    '/api/filter-parity-command', { value: 'allow-invalid' },
+                    ['command authorization', 'command ordinary', 'command validator constructed', 'command validator']);
+                await trace('command allowed after validation reaches handler', 'POST',
+                    '/api/filter-parity-command', { value: 'allow-valid' },
+                    ['command authorization', 'command ordinary', 'command validator constructed', 'command validator', 'command handler']);
+                await trace('query denial skips ordinary filter and validator/performer dependencies', 'GET',
+                    '/api/filter-parity-query?value=deny-invalid', undefined, ['query authorization']);
+                await trace('query authorization precedes ordinary filter, validation and performer', 'GET',
+                    '/api/filter-parity-query?value=allow-valid', undefined,
+                    ['query authorization', 'query ordinary', 'query validator dependency constructed', 'query validator',
+                        'query performer dependency constructed', 'query performer']);
+                await trace('query invalid arguments do not construct performer dependencies', 'GET',
+                    '/api/filter-parity-query?value=allow-invalid', undefined,
+                    ['query authorization', 'query ordinary', 'query validator dependency constructed', 'query validator']);
+                await trace('observable denial skips ordinary filter and observer', 'GET',
+                    '/api/filter-parity-stream?value=deny-valid', undefined, ['query authorization']);
+                await t.test(`${adapter}: direct SSE allow emits a filtered value and can disconnect early`, async () => {
+                    const before = await observations();
+                    for (const [label, baseUrl] of [['.NET', dotnet.url], [adapter, host.url]]) {
+                        const controller = new AbortController();
+                        try {
+                            const response = await fetch(`${baseUrl}/api/filter-parity-stream?value=allow-valid`, {
+                                headers: { Accept: 'text/event-stream', 'X-Correlation-ID': correlationId }, signal: controller.signal
+                            });
+                            assert.equal(response.status, 200, label);
+                            assert.match(response.headers.get('content-type'), /^text\/event-stream/, label);
+                            const reader = response.body.getReader();
+                            const { value } = await reader.read();
+                            assert.deepEqual(JSON.parse(new TextDecoder().decode(value).split('data: ')[1].split('\n')[0]).data,
+                                { value: 'allow-valid' }, label);
+                        } finally { controller.abort(); }
+                    }
+                    const after = await observations();
+                    assert.deepEqual(after.slice(before.length).map(event => event.stage),
+                        ['query authorization', 'query ordinary', 'query observer']);
+                });
+                // The published .NET HTTP fixture exposes direct SSE, but no direct WebSocket upgrade endpoint.
+                for (const [value, allowed] of [['deny-valid', false], ['allow-valid', true]]) {
+                    await t.test(`${adapter}: direct WebSocket filter ${allowed ? 'allow' : 'denial'}`, async () => {
+                        const before = await observations();
+                        const frame = await directSocket(host.url, value);
+                        assert.equal(frame.type, 'Data');
+                        assert.deepEqual(frame.data, allowed
+                            ? query(200, { data: { value } }) : query(403, { isAuthorized: false }));
+                        const after = await observations();
+                        assert.deepEqual(after.slice(before.length).map(event => event.stage), allowed
+                            ? ['query authorization', 'query ordinary', 'query observer'] : ['query authorization']);
+                    });
+                }
+                await t.test(`${adapter}: early WebSocket disconnect leaves admission healthy`, async () => {
+                    await directSocket(host.url, 'allow-valid', true);
+                    const result = await request(host.url, 'GET', '/api/filter-parity-stream?value=allow-valid');
+                    assert.equal(result.status, 200);
+                    assert.deepEqual(result.body.data, { value: 'allow-valid' });
+                });
+            } finally { if (adapter !== 'express') await host.stop(); }
         }
-        for (const [name, value, expected] of [
-            ['denies invalid arguments before validation', 'deny-invalid', { status: 403, body: query(403, { isAuthorized: false }) }],
-            ['denies valid arguments', 'deny-valid', { status: 403, body: query(403, { isAuthorized: false }) }],
-            ['allows invalid arguments to reach validation', 'allow-invalid', { status: 400, body: query(400, {
-                validationResults: [{ severity: 3, message: 'Value is invalid', members: ['value'], reason: 'rule' }] }) }],
-            ['allows valid arguments', 'allow-valid', { status: 200, body: query(200, { data: { value: 'allow-valid' } }) }]
-        ]) {
-            await parity(`query filter ${name}`, 'GET', `/api/filter-parity-query?value=${value}`, undefined, expected);
-        }
-        await parity('QUERY filter denies before validation', 'QUERY', '/api/filter-parity-query',
-            { arguments: { value: 'deny-invalid' } }, { status: 403, body: query(403, { isAuthorized: false }),
-                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
-        await parity('QUERY filter allows a valid query', 'QUERY', '/api/filter-parity-query',
-            { arguments: { value: 'allow-valid' } }, { status: 200, body: query(200, { data: { value: 'allow-valid' } }),
-                headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
-        await parity('observable query filter denies at snapshot admission', 'GET', '/api/filter-parity-stream?value=deny-valid',
-            undefined, { status: 403, body: query(403, { isAuthorized: false }) });
-        await parity('observable query filter denies direct SSE admission', 'GET',
-            '/api/filter-parity-stream?value=deny-valid', undefined,
-            { status: 403, body: query(403, { isAuthorized: false }) }, { Accept: 'text/event-stream' });
-        await parity('observable query filter allows snapshot admission', 'GET', '/api/filter-parity-stream?value=allow-valid',
-            undefined, { status: 200, body: query(200, { data: { value: 'allow-valid' } }) });
         await parity('model-bound command materializes and returns a string', 'POST', '/api/model-bound-command', { title: 'readable' }, {
             status: 200, body: command(200, { response: 'readable' })
         });

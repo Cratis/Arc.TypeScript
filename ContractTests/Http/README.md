@@ -3,7 +3,7 @@
 
 # Paired HTTP contract checks
 
-These black-box checks start the **published** Cratis.Arc 22.23.0 .NET fixture and a separate Node process using the **built** `@cratis/arc.core` package mounted in real Express 5 via `@cratis/arc.express`. Both bind ephemeral loopback ports and are terminated on completion or interruption. The fixture code defines the same commands, queries, role headers and in-memory data; it does not synthesize Arc response envelopes. The runner sends identical requests with a fixed correlation ID (except the invalid-correlation case), asserts independent expected statuses and complete JSON envelopes for each host, then compares the selected protocol response headers and envelope fields without stripping flags, data, paging or keys.
+These black-box checks start the **published** Cratis.Arc 22.23.0 .NET fixture and separate Node processes using the **built** `@cratis/arc.core` package mounted in real Express 5, Fastify, and Hono hosts. General checks run only against Express; filter admission checks run against all three adapters paired with the same .NET fixture. Each binds an ephemeral loopback port and are terminated on completion or interruption. The fixture code defines the same commands, queries, role headers and in-memory data; it does not synthesize Arc response envelopes. The runner sends identical requests with a fixed correlation ID (except the invalid-correlation case), asserts independent expected statuses and complete JSON envelopes for each host, then compares the selected protocol response headers and envelope fields without stripping flags, data, paging or keys.
 
 From the repository root, with Node >=22, .NET SDK 10.x, .NET/ASP.NET Core runtimes 10.0.11 and workspace dependencies already installed:
 
@@ -11,10 +11,13 @@ From the repository root, with Node >=22, .NET SDK 10.x, .NET/ASP.NET Core runti
 dotnet restore ContractTests/DotNET/HttpFixture.csproj --locked-mode
 dotnet build ContractTests/DotNET/HttpFixture.csproj -c Debug --no-restore
 yarn build
+yarn tsc -p ContractTests/Http/modelBound/tsconfig.json
 node --test ContractTests/Http/conformance.test.mjs
 ```
 
 `ContractTests/Http/package.json` declares private fixture dependencies and is included in the root workspace. Do not build against an Arc sibling checkout. The runner launches the built .NET DLL directly and requires the .NET readiness JSON; a missing binary or unavailable import is a test failure, not a skip. Child startup and HTTP requests have deadlines, child output is bounded and included on startup failure.
+
+Filter checks pair command execute and `/validate`, query GET and `QUERY`, observable snapshots, and direct SSE denial/allow with .NET for each adapter. TypeScript-only fixture traces assert authorization-filter-before-ordinary-filter-before-validation order and that denials skip validator/performer dependency construction and handlers. Direct WebSocket denial and allow and early SSE/WebSocket disconnect are checked on each TypeScript adapter; the published .NET HTTP fixture has no direct WebSocket upgrade route. These checks do not claim .NET direct-WebSocket parity.
 
 Coverage is deliberately limited to the listed fixture routes: command execution and validation-only nonexecution (verified with the count query), business-rule and malformed-input rejection, authenticated role and named-policy allow/deny (including validation-only denial), GET and QUERY argument binding, numeric concept arguments, validation severity, observable snapshots with current (200) and pending (202) values, paging, QUERY sorting and `Cache-Control: no-store`, production exception redaction, missing routes, 405/`Allow`, ignored unknown command properties, and correlation propagation/replacement. It is **not** full Arc parity, a security audit or a replacement for the runtime and integration specs.
 
