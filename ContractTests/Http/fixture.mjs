@@ -186,16 +186,16 @@ const builder = ArcApplication.createBuilder({
         principal.roles.includes('Admin') ? { greeting: 'Hello fixture-user' } : undefined },
     generatedApis: { segmentsToSkipForRoute: 1 }
 });
+builder.services.addScoped(FilterParityValidatorDependency).addScoped(FilterParityPerformerDependency)
+    .addScoped(FilterParityOrdinaryCommandFilter).addScoped(FilterParityOrdinaryQueryFilter);
+// Register ordinary filters before discovering authorization filters: execution order must still put authorization first.
+builder.addCommandPipelineFilter(FilterParityOrdinaryCommandFilter)
+    .addQueryPipelineFilter(FilterParityOrdinaryQueryFilter);
 builder.add(FilterParityCommand, FilterParityCommandValidator, FilterParityAuthorizationFilter,
     FilterParityQueryAuthorizationFilter,
     ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
     PolicyItems, RateLookup, AnonymousClassCases, AuthorizationOverride, MethodRoleCases, RoleCases);
-builder.services.addScoped(FilterParityValidatorDependency).addScoped(FilterParityPerformerDependency)
-    .addScoped(FilterParityOrdinaryCommandFilter).addScoped(FilterParityOrdinaryQueryFilter);
-// Deliberately register ordinary filters first to pin authorization-first execution order.
-builder.addCommandPipelineFilter(FilterParityOrdinaryCommandFilter)
-    .addQueryPipelineFilter(FilterParityOrdinaryQueryFilter);
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));
 const arc = await builder.build();
 const adapter = process.env.ARC_FIXTURE_ADAPTER ?? 'express';
