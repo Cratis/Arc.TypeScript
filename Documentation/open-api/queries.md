@@ -13,16 +13,16 @@ Each query argument becomes a `query` parameter. `required` comes from the input
 
 ## Paging and sorting parameters
 
-Arc adds four parameters to a query that can return a list:
+Arc adds four parameters to a query whose result pages:
 
 | Parameter | Schema |
 | --- | --- |
-| `page` | integer, minimum 0 |
-| `pageSize` | integer, minimum 1 |
+| `page` | integer (`int32`), minimum 0 |
+| `pageSize` | integer (`int32`), minimum 1 |
 | `sortBy` | string |
 | `sortDirection` | `asc`, `ascending`, `desc`, or `descending` |
 
-A query "can return a list" when generated metadata declares an array result, or when Arc does not know the result type. A query declared to return one item, such as `taskById`, or nothing, gets no paging parameters. `allTasks` returns `TaskItem[]`, so it lists all four.
+A query's result pages when its return is declared as an array or a `queryPage` result, through generated metadata or `generatedReturn` on a low-level definition. A query declared to return one item, such as `taskById`, or nothing, gets no paging parameters, and neither does a query whose return Arc doesn't know or a renderer-backed query: the runtime still pages those, but the document only advertises what it can prove. `allTasks` returns `TaskItem[]`, so it lists all four. See [Summaries and result types need generated metadata](index.md#summaries-and-result-types-need-generated-metadata) for declaring `generatedReturn`.
 
 `page`, `pageSize`, `sortBy`, and `sortDirection` are reserved query-string names, compared case-insensitively: Arc reads them as paging and sorting and removes them before binding the query's arguments, so a query argument with one of these names never receives the value. Name your own arguments differently.
 
@@ -45,7 +45,7 @@ WebSocket and multiplexed hub transports are not described. [Using observable qu
 
 ## Responses
 
-Every query documents 200, 400, 403, and 500, all with the `QueryResult` envelope. It carries the same `correlationId`, `isSuccess`, `isAuthorized`, `isValid`, `hasExceptions`, `validationResults`, `exceptionMessages`, and `exceptionStackTrace` properties as a [command's envelope](commands.md#responses), plus:
+Every query documents 200, 400, 403, and 500, all with the `QueryResult` envelope, and 401 when authentication can reject the request (see [401 responses](commands.md#401-responses)). It carries the same `correlationId`, `isSuccess`, `isAuthorized`, `isValid`, `hasExceptions`, `validationResults`, `exceptionMessages`, and `exceptionStackTrace` properties as a [command's envelope](commands.md#responses), plus:
 
 | Property | Type |
 | --- | --- |

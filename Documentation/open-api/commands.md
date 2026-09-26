@@ -21,7 +21,7 @@ The request body schema is built from the command's `@field` declarations, with 
 
 ## Responses
 
-Every command documents four responses, all with the same `CommandResult` envelope:
+Every command documents four responses, all with the same `CommandResult` envelope, plus 401 when authentication can reject the request (see [401 responses](#401-responses)):
 
 | Status | Meaning |
 | --- | --- |
@@ -49,10 +49,16 @@ The 400, 403, and 500 envelopes never include `response`, because a failed comma
 
 Without generated metadata, the document leaves `response` out rather than guess it from the input or run the handler. The runtime response does not change; only its description is missing.
 
+## The validation-only operation
+
+Each command also has a `POST <route>/validate` operation, which runs authorization, filters, and validation without the handler. It shares the execute operation's request body, tag, and security requirements; its operationId is the execute operationId with `:validate` appended, such as `Tasks.Registration.RegisterTask:validate`. Its responses use the untyped command result envelope, because validation never returns a `response`.
+
+## 401 responses
+
+When authentication can reject a request, both the execute and the validation-only operation also list 401 with the untyped envelope: when default authentication handlers are configured (they run even on anonymous routes), when the command selects a named scheme, or when a host-supplied native principal is required on a protected route. Without any of these, Arc never answers 401 and the operations don't list it.
+
 ## What is not described
 
-- **The `/validate` route.** Each command also answers `POST <route>/validate`, which runs validation without the handler. It is not in the document; [Command introspection](../introspection/commands.md) lists it.
-- **401.** A request with a rejected credential can answer 401, which the operation does not list.
 - **Routes outside Arc.** Arc for TypeScript has no controllers. Routes you add to Express, Fastify, or Hono yourself are not Arc commands and do not appear. There is no opt-out attribute, because every Arc command uses the envelope.
 
 ## Related
