@@ -3,7 +3,7 @@
 import ts from 'typescript';
 import { ClientOperationKind } from '@cratis/arc.core';
 import { annotation, roles, stringArgument } from './sourceAnnotations.js';
-import { identifier, isPackageSymbol, originalSymbol } from './sourceSymbols.js';
+import { identifier, isPackageSymbol, isTypeFrom, originalSymbol } from './sourceSymbols.js';
 import { queryResult } from './queryResult.js';
 import { warningOption, httpMethodOption } from './sourceOperationOptions.js';
 import type { SourceField } from './SourceField.js';
@@ -27,9 +27,18 @@ function boundParameters(member: ts.MethodDeclaration, explicit: readonly ts.Exp
             isPackageSymbol(checker, item.expression, 'argument', '@cratis/arc.core') && item.arguments[0] &&
             ts.isStringLiteral(item.arguments[0]) && item.arguments[0].text === parameterName);
         if (!binding) {
-            const serviceBinding = explicit.some(item => ts.isCallExpression(item) &&
-                isPackageSymbol(checker, item.expression, 'service', '@cratis/arc.core') && item.arguments[0] &&
-                originalSymbol(checker, item.arguments[0]) === checker.getTypeAtLocation(parameter).symbol);
+            const serviceBinding = explicit.some(item => {
+                if (!ts.isCallExpression(item) || !isPackageSymbol(checker, item.expression, 'service', '@cratis/arc.core') ||
+                    !item.arguments[0]) return false;
+                const binding = item.arguments[0];
+                const parameterType = checker.getTypeAtLocation(parameter);
+                if (originalSymbol(checker, binding) === parameterType.symbol) return true;
+                const token = checker.getTypeAtLocation(binding);
+                if (!isTypeFrom(checker, token, 'ServiceToken', '@cratis/arc.core')) return false;
+                const serviceType = checker.getTypeArguments(token as ts.TypeReference)[0];
+                return !!serviceType && checker.isTypeAssignableTo(serviceType, parameterType) &&
+                    checker.isTypeAssignableTo(parameterType, serviceType);
+            });
             const type = checker.getTypeAtLocation(parameter);
             const actual = type.isUnion() ? type.types.find(part =>
                 !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined))) ?? type : type;

@@ -4,6 +4,7 @@ export { ArcScenario } from './ArcScenario.js';
 export { given } from './given.js';
 export { CommandScenario } from './CommandScenario.js';
 export { QueryScenario } from './QueryScenario.js';
+export { StreamingQueryNotSupportedError } from './StreamingQueryNotSupportedError.js';
 export { ObservableQueryScenario } from './ObservableQueryScenario.js';
 export type { ScenarioCommandResult } from './ScenarioCommandResult.js';
 export type { ObservableScenarioResult } from './ObservableScenarioResult.js';

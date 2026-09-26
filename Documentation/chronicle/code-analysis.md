@@ -4,10 +4,10 @@ description: Arc on .NET's Chronicle diagnostics mapped to TypeScript lint rules
 ---
 
 Arc on .NET v22.23.0 ships ten Chronicle analyzers (`ARCCHR0001`–`ARCCHR0010`).
-Four have bounded TypeScript ESLint analogs in `@cratis/eslint-plugin-arc-core`.
+Five have bounded TypeScript ESLint analogs in `@cratis/eslint-plugin-arc-core`.
 Configure the plugin as described in [Code analysis](../code-analysis/index.md).
 Both presets enable `arcchr0003`, `arcchr0007`, and `arcchr0009`.
-`arcchr0010` needs type information and is enabled by `recommended-type-checked`.
+`arcchr0006` and `arcchr0010` need type information and are enabled by `recommended-type-checked`.
 ESLint reports enabled rules as errors, including analogs of .NET warnings.
 
 ## ARCCHR mapping
@@ -19,7 +19,7 @@ ESLint reports enabled rules as errors, including analogs of .NET warnings.
 | [ARCCHR0003](../code-analysis/ARCCHR0003.md), reactor reaches default log | Warning | ESLint analog |
 | ARCCHR0004, redundant `[EventType]` id | Warning | N/A |
 | ARCCHR0005, Chronicle used but not configured | Warning | Partly caught at runtime |
-| ARCCHR0006, reactor executes a command without replay decision | Warning | Not implemented yet |
+| [ARCCHR0006](../code-analysis/ARCCHR0006.md), reactor returns a command without a replay decision | Warning | Type-checked ESLint analog |
 | [ARCCHR0007](../code-analysis/ARCCHR0007.md), command injects event log | Warning | ESLint analog |
 | ARCCHR0008, data annotations `[Key]` | Warning | N/A |
 | [ARCCHR0009](../code-analysis/ARCCHR0009.md), secret-looking command property | Warning | ESLint analog for names not masked at runtime |
@@ -37,9 +37,11 @@ ESLint reports enabled rules as errors, including analogs of .NET warnings.
 - **ARCCHR0005:** `commandReadModel(Type)` without an owner fails `build()`.
   A returned event without `withChronicle` becomes an ordinary response and is not caught.
   A per-file ESLint rule cannot prove registration in a separate host module.
-- **ARCCHR0006:** Not implemented yet. TypeScript reactors normally return commands instead of calling
-  .NET's `ICommandPipeline.Execute`; a returned command still needs an explicit replay policy.
-  The SDK supports `@onceOnly()` and `@replay()`, so a bounded lint rule is feasible.
+- **ARCCHR0006:** TypeScript reactors return Arc commands rather than calling .NET's
+  `ICommandPipeline.Execute`. The type-checked rule follows same-class helper calls back to live
+  handlers and warns when none has a replay decision. Class- or handler-level `@onceOnly()` and an
+  `@replay()` handler for the same event silence it. Dispatch matches the camel-cased event class
+  name, not the parameter annotation. See [the rule's bounds](../code-analysis/ARCCHR0006.md).
 - **ARCCHR0007:** The rule finds direct `eventLog.append` or `appendMany` calls from a command's
   `handle()` or `provide()` through an artifact store or a `@inject(ChronicleReadModels | ChronicleRuntime)`
   parameter, including local and inline `getStore()` calls. Indirect appends remain a review concern.
@@ -59,8 +61,9 @@ this mapping does not add either rule.
 ## What to check in review
 
 - Appends through helper methods or stores not held directly by a command or reactor can bypass the return-value pipeline.
-- Reactors returning commands need a replay decision; `@onceOnly()` skips replay but does not prevent
-  failed-partition re-delivery. See [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails).
+- Commands executed manually inside a reactor (for example through an Arc server) are not detected.
+  They still need a replay decision; `@onceOnly()` skips replay but does not prevent failed-partition
+  re-delivery. See [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails).
 - An app that returns events must install `withChronicle`; check the host, not just the artifact file.
 - A tuple carrying an ordinary string instead of `eventSourceIdResponse(id)` does not select an event source;
   see [Resolving the event source ID](resolving-event-source-id.md#return-the-id-to-the-caller).

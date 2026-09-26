@@ -9,8 +9,8 @@ import { build } from 'esbuild';
 import { runScenario } from './fetch-runtime-scenario.mjs';
 
 export const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-export const scratch = process.env.ARC_RUNTIME_SCRATCH ?? resolve(root, '../../scratch/runtimes');
-export const tool = name => process.env[`${name.toUpperCase()}_BIN`] ?? resolve(scratch, 'node_modules/.bin', name);
+export const scratch = process.env.ARC_RUNTIME_SCRATCH ?? resolve(root, '.ai-work/scratch/runtimes');
+export const tool = name => process.env[`${name.toUpperCase()}_BIN`] ?? resolve(name === 'next' ? root : scratch, 'node_modules/.bin', name);
 export function available(name) {
     const result = spawnSync(tool(name), ['--version'], { encoding: 'utf8' });
     if (result.error?.code === 'ENOENT') {

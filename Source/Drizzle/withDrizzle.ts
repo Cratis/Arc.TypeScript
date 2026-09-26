@@ -11,6 +11,9 @@ import { drizzleDatabase, drizzleReadModel } from './drizzleToken.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
 import { DrizzleReadModelForCommandResolver } from './DrizzleReadModelForCommandResolver.js';
 import { getTableColumns } from 'drizzle-orm';
+import type { Table } from 'drizzle-orm';
+import { DrizzleObservation } from './DrizzleObservation.js';
+import { DrizzleChangeNotifications } from './DrizzleChangeNotifications.js';
 
 /** An application retains ownership of its connections, pools, and migrations. */
 export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOptions): ArcApplicationBuilder {
@@ -20,6 +23,10 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
     if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) ||
         options.maxPageSize <= 0 || options.maxPageSize > 10000))
         throw new RangeError('maxPageSize must be between 1 and 10000');
+    if (options.observation !== undefined && options.observation !== DrizzleObservation.InProcess)
+        throw new Error('Unsupported Drizzle observation mode');
+    const tables = new Map<new () => object, Table>();
+    const notifications = new DrizzleChangeNotifications(tables, options.observation === DrizzleObservation.InProcess);
     const registered = new Set<new () => object>();
     // Check registrations before a request opens a tenant scope; reuse one codec per type.
     const codecs = new Map<new () => object, DrizzleModelCodec<object>>();
@@ -27,6 +34,7 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
     for (const { type, table } of options.readModels ?? []) {
         if (registered.has(type)) throw new Error(`Duplicate Drizzle read model: ${type.name}`);
         registered.add(type);
+        tables.set(type, table);
         const columns = getTableColumns(table);
         const codec = new DrizzleModelCodec(type, columns);
         const keys = Object.entries(columns).filter(([, column]) => column.primary);
@@ -34,7 +42,10 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
         new DrizzleReadModels({}, table, type, options.maxPageSize, codec);
         codecs.set(type, codec);
     }
+    builder.services.addSingleton(DrizzleChangeNotifications, () => notifications);
     builder.services.addScoped(DrizzleReadModelForCommandResolver, () => new DrizzleReadModelForCommandResolver(commandModels));
+    builder.addCommandExecutionRunner((context, execute) => context.tenantId ?
+        notifications.run(context.tenantId.toLowerCase(), execute) : execute());
     builder.addReadModelForCommandResolver(DrizzleReadModelForCommandResolver);
     builder.services.addScoped(drizzleDatabase(), async scope => {
         const context: ExecutionContext | undefined = scope.identity;
@@ -43,11 +54,12 @@ export function withDrizzle(builder: ArcApplicationBuilder, options: DrizzleOpti
         if (options.database && tenant !== 'default') throw new Error('Drizzle database is only available for the default tenant');
         const database = options.databaseFactory ? await options.databaseFactory(tenant, context) : options.database;
         if (!database) throw new Error('Drizzle tenant database resolver returned no database');
-        return new DrizzleHandle(database);
+        return new DrizzleHandle(database, notifications, tenant);
     });
     for (const { type, table } of options.readModels ?? []) {
         builder.services.addScoped(drizzleReadModel(type), async scope =>
-            new DrizzleReadModels((await scope.resolve(drizzleDatabase())).native, table, type, options.maxPageSize, codecs.get(type)!));
+            new DrizzleReadModels((await scope.resolve(drizzleDatabase())).native, table, type, options.maxPageSize, codecs.get(type)!,
+                notifications, scope.identity?.tenantId?.toLowerCase(), scope.identity?.signal));
     }
     return builder;
 }

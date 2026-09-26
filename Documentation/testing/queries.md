@@ -63,6 +63,50 @@ export class a_task_listing {
 - The result is the actual `QueryResult`. Queries always use `Warning` as the allowed severity.
 - `withContext({ principal, tenantId })` sets a trusted identity, as for commands.
 
+## Query Chronicle read models in memory
+
+`ChronicleQueryScenario` runs a snapshot query through the same Arc query pipeline, with tenant-scoped in-memory Chronicle state. A query can inject `ChronicleReadModels` and call `getById` or `findInstanceById` to read a seeded source. Register the query's event, reducer, and read-model types as artifacts:
+
+```typescript title="Features/Accounts/for_AccountBalance/when_querying/with_seeded_history.ts"
+import { field } from '@cratis/fundamentals';
+import { eventType } from '@cratis/chronicle/events';
+import { reducer } from '@cratis/chronicle/reducers';
+import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
+import { argument, query, readModel, service } from '@cratis/arc.core';
+import { ChronicleReadModels } from '@cratis/arc.chronicle';
+import { ChronicleQueryScenario } from '@cratis/arc.chronicle/testing';
+
+@eventType() class BalanceChanged { @field(Number) amount: number; constructor(amount = 0) { this.amount = amount; } }
+@chronicleReadModel() class AccountBalance { @field(Number) amount = 0; }
+@reducer('account-balance-query-reducer', undefined, AccountBalance)
+class BalanceReducer {
+    balanceChanged(event: BalanceChanged, current?: AccountBalance): AccountBalance {
+        return { amount: (current?.amount ?? 0) + event.amount };
+    }
+}
+@readModel() class AccountQueries {
+    @query(argument('id', String), service(ChronicleReadModels))
+    static byId(id: string, models: ChronicleReadModels): Promise<AccountBalance | null> {
+        return models.getById(AccountBalance, id);
+    }
+}
+
+const scenario = ChronicleQueryScenario.for<{ amount: number }>(AccountQueries, 'byId',
+    AccountBalance, BalanceChanged, BalanceReducer);
+scenario.given.forEventSource('account-1').events(new BalanceChanged(25));
+const result = await scenario.perform({ id: 'account-1' });
+result.data!.amount.should.equal(25);
+await scenario.dispose();
+```
+
+`given.forEventSource(id, tenant?).readModel(instance)` pins a value for that source, read-model type, and tenant; pins win over reducer history. `givenReadModel(Type, id, instance, tenant?)` can also pin by explicit type. Without a pin or reducible history, a keyed lookup returns `null`. The tenant defaults to the current trusted `scenario.context.tenantId` (or `Default`) **when** `.events()` or `.readModel()` is called; `withContext({ tenantId })` selects the tenant used by the query. Only keyed lookups are backed in memory. `getAll` and store watches reject with a kernel hint. Declared observable queries cannot be performed by `ChronicleQueryScenario`: observation needs `ChronicleKernelScenario` because `ObservableQueryScenario` has no in-memory Chronicle wiring. Seeded projection history also requires a kernel. Event seeding needs `@cratis/chronicle` 6.14 or later. See [Testing Chronicle commands](chronicle.md) for the same seeding rules and [kernel scenarios](chronicle-kernel.md) for projections.
+
+## Snapshot versus streaming
+
+`QueryScenario.perform()` rejects decorated `@query({ observable: true })` methods instead of returning a current snapshot as `ArcServer.performQuery()` does. For non-Chronicle observable queries, use [ObservableQueryScenario](observable-queries.md). `ChronicleQueryScenario.perform()` also rejects declared observable queries and directs you to `ChronicleKernelScenario` for observation.
+
+A method declared as a snapshot that unexpectedly returns a subscribable or async iterable is rejected by the core query pipeline without touching the returned source. Sources returned from a query in a scenario are treated as scenario-owned and may be closed. `QueryScenario` attempts bounded, cancellation-aware cleanup of the rejected source before returning the snapshot boundary failure; production callers never unsubscribe, dispose, or create an iterator on a shared source. Custom scenario harnesses can use `snapshotStreamSource(result)` from `@cratis/arc.core` to obtain the source only when the query result carries the original snapshot boundary failure.
+
 ## Related
 
 - [Testing observable queries](observable-queries.md)

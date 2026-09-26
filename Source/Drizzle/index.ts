@@ -7,6 +7,8 @@ export { DrizzleReadModels } from './DrizzleReadModels.js';
 export { DrizzleReadModelForCommandResolver } from './DrizzleReadModelForCommandResolver.js';
 export type { DrizzleOptions } from './DrizzleOptions.js';
 export { DrizzleDialect } from './DrizzleDialect.js';
+export { DrizzleObservation } from './DrizzleObservation.js';
+export { DrizzleObservable } from './DrizzleObservable.js';
 export type { DrizzleDatabase } from './DrizzleDatabase.js';
 export type { DrizzleFilter } from './DrizzleFilter.js';
 export type { ColumnCodec } from './ColumnCodec.js';

@@ -8,5 +8,7 @@
   href: schema-and-migrations.md
 - name: Paging and sorting
   href: paging.md
+- name: Observe tables in process
+  href: observing-tables.md
 - name: Tenancy
   href: tenancy.md
