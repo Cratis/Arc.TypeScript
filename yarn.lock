@@ -40,14 +40,14 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.10.0"
+    "@cratis/chronicle": "npm:6.14.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
     "@cratis/arc.core": ^0.31.0
     "@cratis/arc.testing": ^0.31.0
-    "@cratis/chronicle": ^6.7.0
+    "@cratis/chronicle": ^6.14.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
     zod: ^4.1.0
@@ -269,7 +269,7 @@ __metadata:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.10.0"
+    "@cratis/chronicle": "npm:6.14.0"
     "@cratis/fundamentals": "npm:7.19.6"
     express: "npm:^5.1.0"
     rxjs: "npm:^7.8.2"
@@ -296,23 +296,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle.contracts@npm:19.4.0":
-  version: 19.4.0
-  resolution: "@cratis/chronicle.contracts@npm:19.4.0"
+"@cratis/chronicle.contracts@npm:19.6.1":
+  version: 19.6.1
+  resolution: "@cratis/chronicle.contracts@npm:19.6.1"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.14.0"
     "@grpc/grpc-js": "npm:^1.14.4"
     nice-grpc: "npm:^2.1.17"
-  checksum: 10c0/bf44625f1329f029ffdec697c3350fc6326c3cff372310ee02a037264c27ab632dffa29fd86ef50e9afb3f953e4577ceb2817c6c43b997f1cfdc50c50de6d505
+  checksum: 10c0/31e95f1637747f1b6b5e34d117b6037ed7f3d815e98ae90d3e9cc073408e2f45950abc022badea58b9ef36acf3f8ab6be0737fe454116ceb60b087323f2f461e
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.10.0":
-  version: 6.10.0
-  resolution: "@cratis/chronicle@npm:6.10.0"
+"@cratis/chronicle@npm:6.14.0":
+  version: 6.14.0
+  resolution: "@cratis/chronicle@npm:6.14.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
-    "@cratis/chronicle.contracts": "npm:19.4.0"
+    "@cratis/chronicle.contracts": "npm:19.6.1"
     "@grpc/grpc-js": "npm:^1.14.4"
     "@opentelemetry/api": "npm:^1.9.1"
     glob: "npm:^13.0.6"
@@ -322,7 +322,7 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/f5f904feba3274ba469d9299184f8f1c4bf32fb86a33aad8c33caaa074040a922c1f5506240f213d4cc6c68dfd87589c3d8c135a2cb56dc58de710b69e31d1b8
+  checksum: 10c0/ffe35240102d31247ad7dbbd9d838d1bdf06d7b45c29c23eab498048ab14126e4a3e08043e392480912b9bd46cfd215926816f5b02b89123673137ddeef702aa
   languageName: node
   linkType: hard
 
@@ -333,12 +333,12 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.10.0"
+    "@cratis/chronicle": "npm:6.14.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/chronicle": ^6.7.0
+    "@cratis/chronicle": ^6.14.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
     zod: ^4.1.0
