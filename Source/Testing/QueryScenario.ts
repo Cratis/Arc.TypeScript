@@ -3,6 +3,7 @@
 import { encodeWireValue, snapshotStreamSource, type ArcApplicationBuilder, type ExecutionContext, type QueryOptions, type QueryResult } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 import { ScenarioHost } from './ScenarioHost.js';
+import { StreamingQueryNotSupportedError } from './StreamingQueryNotSupportedError.js';
 import { wireRoundTrip } from './wireRoundTrip.js';
 
 async function releaseSnapshotStream(source: object, signal: AbortSignal): Promise<void> {
@@ -64,7 +65,7 @@ export class QueryScenario<T = unknown> {
         if (matches.length !== 1) throw new Error(`Unregistered or ambiguous Arc query: ${name}`);
         const operation = matches[0]!;
         if ('observable' in operation && operation.observable === true)
-            throw new Error(`Streaming query ${name} is not supported by QueryScenario; use ObservableQueryScenario`);
+            throw new StreamingQueryNotSupportedError(name);
         const input = this.#host.serializationRoundTrip ? wireRoundTrip(arguments_) : encodeWireValue(arguments_);
         const execution = this.#host.execution();
         const result = await application.server.performQuery([operation.namespace, operation.name].filter(Boolean).join('.'), input,

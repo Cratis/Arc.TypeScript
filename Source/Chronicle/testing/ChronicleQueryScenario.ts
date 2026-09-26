@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { QueryScenario } from '@cratis/arc.testing';
+import { QueryScenario, StreamingQueryNotSupportedError } from '@cratis/arc.testing';
 import type { ArcApplicationBuilder, ExecutionContext, QueryOptions, QueryResult } from '@cratis/arc.core';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import { ChronicleScenarioReadModels } from './ChronicleScenarioReadModels.js';
@@ -48,8 +48,7 @@ export class ChronicleQueryScenario<T = unknown> {
     async perform(arguments_: Record<string, unknown> = {}, options?: QueryOptions): Promise<QueryResult<T>> {
         try { return await this.#scenario.perform(arguments_, options); }
         catch (error) {
-            if (error instanceof Error && error.message ===
-                `Streaming query ${this.#model.name}.${this.#method} is not supported by QueryScenario; use ObservableQueryScenario`)
+            if (error instanceof StreamingQueryNotSupportedError && error.queryName === `${this.#model.name}.${this.#method}`)
                 throw new Error(`Streaming query ${this.#model.name}.${this.#method} requires ChronicleKernelScenario for observation`, { cause: error });
             throw error;
         }

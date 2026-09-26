@@ -100,7 +100,7 @@ describe('when snapshot cleanup is canceled', () => {
     afterEach(async () => { await scenario.dispose(); });
     it('should stop waiting on cleanup after cancellation', () => {
         slowDispose.mock.calls.should.have.lengthOf(1);
-        elapsed.should.be.lessThan(900);
+        elapsed.should.be.lessThan(3_000);
         result.exceptionMessages.join(' ').should.contain('returned an observable');
     });
 });

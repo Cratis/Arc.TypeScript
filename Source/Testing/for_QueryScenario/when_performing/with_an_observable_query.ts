@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { query, readModel } from '@cratis/arc.core';
 import { QueryScenario } from '../../QueryScenario.js';
+import { StreamingQueryNotSupportedError } from '../../StreamingQueryNotSupportedError.js';
 
 const invoked = vi.fn();
 @readModel()
@@ -21,6 +22,7 @@ describe('when performing a declared streaming query as a snapshot', () => {
     afterEach(async () => { await scenario.dispose(); });
     it('should reject before invoking the producer', () => { invoked.mock.calls.should.have.lengthOf(0); });
     it('should direct the caller to an observable scenario', () => {
+        (failure instanceof StreamingQueryNotSupportedError).should.equal(true);
         (failure as Error).message.should.contain('ObservableQueryScenario');
     });
 });
