@@ -101,6 +101,12 @@ Registry shutdown drains admitted work and pending singleton construction, then 
 
 Nested commands and queries keep their causal dependency ancestry for cycle detection but get their own execution identity and scoped lifetime guard; the same scoped token in two independent nested scopes is not a cycle.
 
+## Borrow a scope in a host integration
+
+A trusted host integration can call `server.runInScope(scope, callback, { correlationId, signal })` to run construction and callbacks with `currentContext()` and `currentServices()` set. Create the scope with `server.services.createScope(context)` and dispose it yourself after all borrowed work settles; `runInScope` does not own it. The scope captures tenant, principal (including roles and claims), transport identity, severity, and cancellation authority at creation. An invocation may change only its correlation ID and add a cancellation signal linked to the scope's signal. Nested calls restore the prior context when they settle.
+
+This is a trusted host API, **not an authorization mechanism** or a way to authenticate a principal. Use the normal command or query pipeline for authorization; do not expose scope creation or borrowed execution to untrusted callers.
+
 ## Related
 
 - [Build an application](core/getting-started.md)

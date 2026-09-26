@@ -3,6 +3,7 @@
 import { ServiceLifetime } from './ServiceLifetime.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
+import { snapshotPrincipal } from '../execution/snapshotPrincipal.js';
 import type { ServiceToken } from './ServiceToken.js';
 import { normalizeServiceToken, type ServiceIdentifier } from './ServiceIdentifier.js';
 import type { ServiceRegistry } from './ServiceRegistry.js';
@@ -14,7 +15,8 @@ import { withoutRequestContext } from '../execution/RequestContextStore.js';
 import type { ServiceDisposalFrame } from './ServiceDisposalFrame.js';
 import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
-const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void> }>();
+const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void>;
+    authority: () => ExecutionContext | undefined }>();
 const disposal = new AsyncLocalStorage<ServiceDisposalFrame>();
 /** Package-private shutdown entry points; never methods on the public scope. */
 export function createSingletonServiceScope(registry: ServiceRegistry): ServiceScope {
@@ -23,6 +25,13 @@ export function createSingletonServiceScope(registry: ServiceRegistry): ServiceS
 export function closeServiceScope(scope: ServiceScope): Promise<void> { return internals.get(scope)!.close(); }
 export function disposeCreatedServices(scope: ServiceScope): Promise<void> { return internals.get(scope)!.disposeCreated(); }
 export function serviceScopeRegistry(scope: ServiceScope): ServiceRegistry { return internals.get(scope)!.registry; }
+/** Check unshadowable scope state before borrowing an admitted scope. */
+export function borrowedScopeAuthority(scope: ServiceScope, registry: ServiceRegistry): ExecutionContext {
+    const internal = internals.get(scope);
+    if (!internal || internal.registry !== registry || !internal.authority())
+        throw new ServiceDependencyError('Invalid Arc service scope');
+    return internal.authority()!;
+}
 /** A live disposer cannot join registry shutdown, including through nested disposal. */
 export function hasLivingServiceDisposal(registry: ServiceRegistry, scope?: ServiceScope): boolean {
     let frame = disposal.getStore();
@@ -62,16 +71,20 @@ export class ServiceScope {
     readonly #singleton: boolean;
     readonly #registry: ServiceRegistry;
     readonly #identity: ExecutionContext | undefined;
+    readonly #authority: ExecutionContext | undefined;
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined);
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined, ...capability: unknown[]) {
         if (capability.length && (capability.length !== 1 || capability[0] !== singletonCapability))
             throw new ServiceDependencyError('Invalid service scope construction');
         this.#registry = registry;
         this.#identity = identity;
+        this.#authority = identity && Object.freeze({ ...identity,
+            principal: identity.principal ? snapshotPrincipal(identity.principal) : undefined });
         this.#singleton = capability.length === 1;
         if (this.#singleton) registry.assertLive();
         else registry.admitScope(this);
-        internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated() });
+        internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),
+            authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#authority : undefined });
     }
     get singleton(): boolean { return this.#singleton; }
     get registry(): ServiceRegistry { return this.#registry; }
@@ -92,7 +105,7 @@ export class ServiceScope {
         const chain = active?.chain.filter(node => node.state === ServiceResolutionState.Pending) ?? [];
         const owner = active?.owner;
         const inherit = owner?.state === ServiceResolutionState.Pending && serviceScopeRegistry(owner.scope) === this.#registry;
-        const identity = this.#singleton ? undefined : this.#identity;
+        const identity = this.#singleton ? undefined : this.#authority;
         const captive = inherit ? active?.singleton ?? false : false;
         const task = this.resolveInChain(token, identity, chain, captive);
         if (chain.length || current.getStore() === this) return task;

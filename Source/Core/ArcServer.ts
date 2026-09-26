@@ -24,6 +24,8 @@ import { requestContext } from './execution/RequestContextStore.js';
 import { isObservableOperation } from './queries/observable/ObservableOperation.js';
 import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import { runOwned } from './execution/runOwned.js';
+import { runInScope } from './execution/runInScope.js';
+import type { ServiceScope } from './dependencyInjection/ServiceScope.js';
 import { runProvider } from './execution/runProvider.js';
 import { disposeObservableServer } from './queries/observable/disposeObservableServer.js';
 import type { ObservableQuerySession } from './queries/observable/ObservableQuerySession.js';
@@ -84,6 +86,16 @@ export class ArcServer {
         this.#hub = new ObservableQueryHub(this);
         this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
         registerObservableCleanup(this, this.#sessions);
+    }
+
+    /**
+     * Run trusted host work in a borrowed scope without disposing it. Authority comes from the
+     * scope's creation snapshot; only correlation and an additional cancellation signal can vary.
+     * This is not an authorization mechanism. The caller must dispose the scope when work ends.
+     */
+    runInScope<T>(scope: ServiceScope, callback: () => T | Promise<T>,
+        options?: { correlationId?: string; signal?: AbortSignal }): Promise<T> {
+        return runInScope(this.services, this.#generatedMetadata, scope, callback, options);
     }
 
     private runScoped(operation: Operation, input: unknown, context: ExecutionContext, options?: QueryOptions,
