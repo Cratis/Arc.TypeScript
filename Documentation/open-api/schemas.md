@@ -52,35 +52,15 @@ Its request body schema in `/openapi.json`:
 }
 ```
 
-The sections below explain each property.
+The sections below explain each property. Concepts, enums, and result types have their own pages; this page covers the field modifiers and derived types that apply to all of them.
 
 ## Concepts
 
-A concept is described as the value it wraps. `TaskId` is a `ConceptAs<Guid>`, so `id` is a UUID string with a pattern; `Estimate` wraps a number, so `estimate` is a number. The concept's name does not appear anywhere in the document, because nothing on the wire carries it.
-
-| Declared type | Schema |
-| --- | --- |
-| `String`, or a concept over it | `{ "type": "string" }` |
-| `Number`, or a concept over it | `{ "type": "number" }` |
-| `Boolean`, or a concept over it | `{ "type": "boolean" }` |
-| `Guid`, or a concept over it | A string with `format: "uuid"` and a UUID pattern |
-| `Date` | A string with `format: "date-time"` |
-| `DateOnly` / `TimeOnly` | A string with `format: "date"` / `format: "time"` and a pattern |
-| `TimeSpan` | A string with a .NET-style `[-][d.]hh:mm:ss[.fffffff]` pattern |
-| A `@field` model class | An inline object schema of its fields |
-
-Concept validators do not become schema constraints. A rule such as "at most 100 characters" is enforced by Arc when the request arrives, and returned as a validation result, but the schema only says `string`.
+A concept is described as the value it wraps: `id` is a UUID string, and `estimate` is a number. The name `TaskId` appears nowhere, because nothing on the wire carries it. [Concepts in the document](concepts.md) has the table for every declared type, and explains why concept validators do not become schema constraints.
 
 ## Enums
 
-A TypeScript enum is not a runtime type that `@field` accepts, so you declare the scalar with `@field(Number)` or `@field(String)` and restrict it with `@enumeration(Enum)`. The schema lists the enum's **values**, one `const` per member:
-
-- A numeric enum such as `Priority` is described as the numbers `0`, `1`, and `2`. Arc ignores the reverse mappings TypeScript adds to numeric enums, so the names `Low`, `Normal`, and `High` do not appear.
-- A string enum such as `Status` is described as its string values, `open` and `done`.
-
-The wire carries the same values, so a client that follows the schema sends valid input. If your consumers need readable names, use a string enum: its values are the names they see in the document and on the wire. See [Wire format](../reference/wire-format.md) for how numeric enums and .NET compare.
-
-Arc on .NET differs here: the enum transformer in its ASP.NET Core OpenAPI integration lists the member names under an `integer` type, while the wire carries numbers. Arc for TypeScript describes the values it actually sends.
+`@enumeration(Enum)` lists the enum's values, one `const` per member: `priority` is `0`, `1`, or `2`, and `status` is `open` or `done`. [Enums in the document](enums.md) covers numeric and string enums and the difference from Arc on .NET.
 
 ## Optional, nullable, and default values
 
@@ -97,13 +77,11 @@ In input schemas, a field whose type has registered `@derivedType('id')` subclas
 
 ## Result types
 
-Command responses and query data use the same rules, with two differences:
-
-- They appear only when [generated artifact metadata](../proxy-generation/generated-artifact-metadata.md) declares the return type. Otherwise the envelope has no `response` or `data` property.
-- They describe output, so a model's object schema sets `additionalProperties: false`. A query that may return nothing, such as the Tasks sample's `taskById` returning `TaskItem | undefined`, is described as `anyOf` the model and `null`.
+Command responses and query data use the same rules, with two differences: they appear only when [generated artifact metadata](../proxy-generation/generated-artifact-metadata.md) declares the return type, and output object schemas set `additionalProperties: false`. See [Commands in the document](commands.md#the-typed-response) and [Queries in the document](queries.md#responses).
 
 ## Related
 
 - [OpenAPI](index.md)
+- [Model-bound and low-level operations](model-bound.md), for where each part of an operation comes from
 - [Concepts](../concepts.md)
 - [Command introspection](../introspection/commands.md)

@@ -4,6 +4,8 @@
   href: getting-started.md
 - name: Column types and conversions
   href: column-types.md
+- name: Map the schema and own migrations
+  href: schema-and-migrations.md
 - name: Paging and sorting
   href: paging.md
 - name: Observe tables in process

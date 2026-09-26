@@ -20,7 +20,7 @@ The Chronicle integration and its testing helpers are experimental. See [Chronic
 | Constraints and concurrency | Not enforced | Enforced |
 | Projections | Not run | Run; assert them with `shouldHaveReadModel` |
 
-Start with `ChronicleCommandScenario`. Most tests check the decision a command makes from the state it is given, and the in-memory scenario checks that in milliseconds. Move to `ChronicleKernelScenario` when the test depends on an aggregate, a projection, a constraint, or a concurrency check; [Test Chronicle commands against a kernel](chronicle-kernel.md) covers it.
+Start with `ChronicleCommandScenario`. Most tests check the decision a command makes from the state it is given, and the in-memory scenario checks that in milliseconds. For snapshot queries injecting `ChronicleReadModels`, [ChronicleQueryScenario](queries.md#query-chronicle-read-models-in-memory) reuses the same pin and reducer-history seeding rules for keyed lookups. Move to `ChronicleKernelScenario` when the test depends on an aggregate, a projection, a constraint, or a concurrency check; [Test Chronicle commands against a kernel](chronicle-kernel.md) covers it.
 
 ## The slice under test
 

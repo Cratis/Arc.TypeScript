@@ -163,7 +163,7 @@ Your application owns the schema and its migrations; Arc has no migration engine
 - With a database per tenant, migrate **every** tenant's database. A migration that succeeded on one tenant proves nothing about the others.
 - Do not run schema changes from `databaseFactory`; it runs on requests.
 
-There is no TypeScript counterpart of .NET's `AddStringColumn` and `AddJsonColumn` EF migration helpers. Declare column types with the [column codecs](column-types.md) and let drizzle-kit generate the SQL.
+There is no TypeScript counterpart of .NET's `AddStringColumn` and `AddJsonColumn` EF migration helpers. Declare column types with the [column codecs](column-types.md) and let drizzle-kit generate the SQL. [Map the schema and own migrations](schema-and-migrations.md) shows the workflow for one or many tenant databases.
 
 ## Own the connection
 

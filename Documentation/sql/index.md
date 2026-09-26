@@ -15,6 +15,7 @@ Your read models live in SQL tables. Every query needs the right database for th
 | --- | --- |
 | Register a database and read models with `withDrizzle`, serve a query, load a model by a command key, write from a command, and keep queries on a read-only handle | [Get started](getting-started.md) |
 | Store GUIDs, concepts, dates, times, durations, and JSON per dialect | [Column types](column-types.md) |
+| Map model fields to columns, generate and apply migrations, and choose database credentials | [Map the schema and own migrations](schema-and-migrations.md) |
 | Count, sort, and page in SQL | [Paging and sorting](paging.md) |
 | Announce writes and observe tenant-scoped SQL results in process (Experimental) | [Observe tables](observing-tables.md) |
 | Route each tenant to its own database | [Tenancy](tenancy.md) |

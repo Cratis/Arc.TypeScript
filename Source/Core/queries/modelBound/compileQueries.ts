@@ -17,6 +17,7 @@ import { decode, fieldsFor, schemaFor } from '../../reflection/wireSchema.js';
 import type { ModelGraphValidator } from '../../validation/ModelGraphValidator.js';
 import type { ExecutionContext } from '../../execution/ExecutionContext.js';
 import { throwIfCanceled } from '../../execution/throwIfCanceled.js';
+import { SnapshotStreamError } from './snapshotStreamSource.js';
 
 const argumentsOnly = (parameters: readonly Parameter[]): Extract<Parameter, { kind: 'argument' }>[] =>
     parameters.filter((parameter): parameter is Extract<Parameter, { kind: 'argument' }> => parameter.kind === 'argument');
@@ -121,11 +122,12 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     return {
         definition: { ...descriptor, perform: async (input, context, options) => {
             const value = await perform(input, context, options);
-            validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             if (value && typeof value === 'object' &&
-                (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {
-                throw new Error(`Snapshot query ${type.name}.${name} returned an observable`);
+                (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function' ||
+                    'subscribe' in value && typeof value.subscribe === 'function')) {
+                throw new SnapshotStreamError(`Snapshot query ${type.name}.${name} returned an observable`, value);
             }
+            validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             return value;
         } },
         dependencies: services, observable: false

@@ -40,7 +40,7 @@ Two lessons build the habit step by step, each with runnable specs:
 | `ChronicleCommandScenario` | Commands that return Chronicle events, without a kernel | [Chronicle](chronicle.md) |
 | `ChronicleKernelScenario` | Chronicle commands with seeded events, aggregates, projections, and constraints | [Chronicle kernel scenarios](chronicle-kernel.md) |
 
-Every scenario builds its application lazily on the first call, lets you register fakes first, and must be disposed with `await scenario.dispose()`; disposal is idempotent.
+Every scenario builds its application lazily on the first call, lets you register fakes first, and must be disposed with `await scenario.dispose()`; disposal is idempotent. For the built-in Node.js runner, [run a CommandScenario with node:test](node-test.md) using `after` for disposal.
 
 ## Share a context with given()
 

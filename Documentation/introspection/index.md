@@ -41,7 +41,7 @@ Introspection, [`/openapi.json`](../open-api/index.md), and the [proxy generator
 | OpenAPI | General HTTP tooling: API clients, gateways, and code generators for other languages |
 | Proxy generator | Your TypeScript frontend, generated from source at build time without a running server |
 
-[How types appear in the document](../open-api/schemas.md) explains how concepts, enums, and optional fields are rendered, and applies to the introspection schemas too.
+[How types appear in the document](../open-api/schemas.md) explains how concepts, enums, and optional fields are rendered, and applies to the introspection schemas too. [Concepts in the document](../open-api/concepts.md) and [Enums in the document](../open-api/enums.md) go into detail.
 
 ## Related
 

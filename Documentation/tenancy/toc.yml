@@ -1,5 +1,7 @@
 - name: Overview
   href: index.md
+- name: Tenancy end to end
+  href: end-to-end.md
 - name: Tenant resolvers
   href: resolvers.md
 - name: Storage isolation

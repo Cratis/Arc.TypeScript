@@ -1,9 +1,41 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { encodeWireValue, type ArcApplicationBuilder, type ExecutionContext, type QueryOptions, type QueryResult } from '@cratis/arc.core';
+import { encodeWireValue, snapshotStreamSource, type ArcApplicationBuilder, type ExecutionContext, type QueryOptions, type QueryResult } from '@cratis/arc.core';
 import type { ClassType } from './ScenarioType.js';
 import { ScenarioHost } from './ScenarioHost.js';
+import { StreamingQueryNotSupportedError } from './StreamingQueryNotSupportedError.js';
 import { wireRoundTrip } from './wireRoundTrip.js';
+
+async function releaseSnapshotStream(source: object, signal: AbortSignal): Promise<void> {
+    if (signal.aborted) return;
+    const disposable = source as { [Symbol.asyncDispose]?: () => PromiseLike<void>; [Symbol.dispose]?: () => void;
+        unsubscribe?: () => void | PromiseLike<void>; dispose?: () => void | PromiseLike<void>;
+        [Symbol.asyncIterator]?: () => AsyncIterator<unknown> };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancel: (() => void) | undefined;
+    try {
+        let release: () => unknown;
+        if (typeof disposable[Symbol.asyncDispose] === 'function') release = () => disposable[Symbol.asyncDispose]!();
+        else if (typeof disposable[Symbol.dispose] === 'function') release = () => disposable[Symbol.dispose]!();
+        else if (typeof disposable.unsubscribe === 'function') release = () => disposable.unsubscribe!();
+        else if (typeof disposable.dispose === 'function') release = () => disposable.dispose!();
+        else if (typeof disposable[Symbol.asyncIterator] === 'function') release = () => disposable[Symbol.asyncIterator]!().return?.() ?? undefined;
+        else return;
+        await Promise.race([
+            Promise.resolve().then(() => { if (!signal.aborted) return release(); }),
+            new Promise<void>(resolve => { timer = setTimeout(resolve, 1_000); }),
+            new Promise<void>(resolve => {
+                cancel = resolve;
+                signal.addEventListener('abort', cancel, { once: true });
+                if (signal.aborted) resolve();
+            })
+        ]);
+    } catch { /* Preserve the snapshot boundary error if scenario-owned cleanup fails. */ }
+    finally {
+        if (timer) clearTimeout(timer);
+        if (cancel) signal.removeEventListener('abort', cancel);
+    }
+}
 
 /** Runs a decorated static @query method through the real query pipeline. */
 export class QueryScenario<T = unknown> {
@@ -32,9 +64,14 @@ export class QueryScenario<T = unknown> {
         const matches = application.server.queries.filter(item => item.name === this.method && (item.namespace === this.model.name || item.namespace?.endsWith(`.${this.model.name}`)));
         if (matches.length !== 1) throw new Error(`Unregistered or ambiguous Arc query: ${name}`);
         const operation = matches[0]!;
+        if ('observable' in operation && operation.observable === true)
+            throw new StreamingQueryNotSupportedError(name);
         const input = this.#host.serializationRoundTrip ? wireRoundTrip(arguments_) : encodeWireValue(arguments_);
+        const execution = this.#host.execution();
         const result = await application.server.performQuery([operation.namespace, operation.name].filter(Boolean).join('.'), input,
-            this.#host.execution(), options) as QueryResult<T>;
+            execution, options) as QueryResult<T>;
+        const source = snapshotStreamSource(result);
+        if (source) await releaseSnapshotStream(source, execution.signal);
         if (this.#host.serializationRoundTrip && result.data !== undefined) return { ...result, data: wireRoundTrip(result.data) as T };
         return result;
     }
