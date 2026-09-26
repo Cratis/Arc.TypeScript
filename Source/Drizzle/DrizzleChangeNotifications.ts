@@ -7,8 +7,8 @@ import type { Table } from 'drizzle-orm';
 /** Application-local, tenant-isolated change bus. Table keys are registered object identities. */
 export class DrizzleChangeNotifications {
     readonly #listeners = new Map<string, Map<Table, Set<() => void>>>();
-    readonly #frames = new AsyncLocalStorage<{ tenant: string; pending: Set<Table>; active: boolean }>();
-    constructor(private readonly tables: ReadonlyMap<new () => object, Table>, private readonly enabled: boolean) {}
+    readonly #frames = new AsyncLocalStorage<Map<string, { pending: Set<Table>; active: boolean }>>();
+    constructor(private readonly tables: ReadonlyMap<new () => object, Table>, readonly enabled: boolean) {}
 
     /** Validate even in disabled mode, then queue within a command or publish immediately. */
     notify(tenant: string, targets: readonly (Table | (new () => object))[]): void {
@@ -23,8 +23,8 @@ export class DrizzleChangeNotifications {
             return table;
         });
         if (!this.enabled) return;
-        const frame = this.#frames.getStore();
-        if (frame?.active && frame.tenant === tenant) {
+        const frame = this.#frames.getStore()?.get(tenant);
+        if (frame?.active) {
             for (const table of resolved) frame.pending.add(table);
         } else for (const table of new Set(resolved)) this.publish(tenant, table);
     }
@@ -32,9 +32,11 @@ export class DrizzleChangeNotifications {
     /** Nested calls for this tenant join the ambient frame; independent calls never share one. */
     async run<T>(tenant: string, execute: () => Promise<T>): Promise<T> {
         const active = this.#frames.getStore();
-        if (active?.active && active.tenant === tenant) return execute();
-        const frame = { tenant, pending: new Set<Table>(), active: true };
-        return this.#frames.run(frame, async () => {
+        if (active?.get(tenant)?.active) return execute();
+        const frame = { pending: new Set<Table>(), active: true };
+        const frames = new Map(active);
+        frames.set(tenant, frame);
+        return this.#frames.run(frames, async () => {
             try { return await execute(); }
             finally {
                 frame.active = false;

@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { AsyncResource } from 'node:async_hooks';
 import type { Subscriber } from 'rxjs';
 
 /** Single-flight observation with an adoptable, retained initial snapshot. */
@@ -10,6 +11,9 @@ export class DrizzleObservationSession<T> {
     #running = false;
     #closed = false;
     #hasValue = false;
+    #scheduled = false;
+    #released = false;
+    readonly #readContext = new AsyncResource('DrizzleObservation');
     readonly #cancellations = new Set<(reason: Error) => void>();
     readonly #initial: Promise<T>;
 
@@ -24,7 +28,7 @@ export class DrizzleObservationSession<T> {
         this.#release = listen(() => {
             if (this.#closed) return;
             this.#dirty = true;
-            if (this.#subscriber) void this.pump();
+            if (this.#subscriber) this.schedule();
         });
         signal?.addEventListener('abort', this.abort, { once: true });
         this.#initial = this.read().then(value => {
@@ -58,10 +62,19 @@ export class DrizzleObservationSession<T> {
         void this.#initial.then(value => {
             if (this.#closed || subscriber.closed) return;
             subscriber.next(value);
-            if (this.#dirty) void this.pump();
+            if (this.#dirty) this.schedule();
         }, error => {
             if (!this.#closed && !subscriber.closed) subscriber.error(error);
             this.close();
+        });
+    }
+
+    private schedule(): void {
+        if (this.#scheduled || this.#running || this.#closed) return;
+        this.#scheduled = true;
+        setImmediate(() => {
+            this.#scheduled = false;
+            if (!this.#closed) this.#readContext.runInAsyncScope(() => { void this.pump(); });
         });
     }
 
@@ -83,9 +96,13 @@ export class DrizzleObservationSession<T> {
     private readonly abort = (): void => { this.close(); };
 
     private release(): void {
+        if (this.#released) return;
+        this.#released = true;
         this.#release?.();
         this.#release = undefined;
         this.signal?.removeEventListener('abort', this.abort);
+        this.#readContext.emitDestroy();
+        this.onClose();
     }
 
     close(): void {
@@ -95,6 +112,5 @@ export class DrizzleObservationSession<T> {
         for (const cancel of this.#cancellations) cancel(new Error('Drizzle observation was closed'));
         this.#cancellations.clear();
         this.#subscriber?.complete();
-        this.onClose();
     }
 }

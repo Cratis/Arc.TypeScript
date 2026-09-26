@@ -92,8 +92,9 @@ for (const adapter of ['Express', 'Fastify', 'Hono'] as const) {
                 notifications.listenerCount('default').should.equal(1);
                 controller.abort();
                 await reader.cancel().catch(() => {});
-                for (let attempt = 0; attempt < 20 && notifications.listenerCount('default'); attempt++)
-                    await new Promise<void>(resolve => setImmediate(resolve));
+                const deadline = Date.now() + 2000;
+                while (notifications.listenerCount('default') && Date.now() < deadline)
+                    await new Promise<void>(resolve => setTimeout(resolve, 10));
                 notifications.listenerCount('default').should.equal(0);
                 await busScope.dispose();
             } finally {

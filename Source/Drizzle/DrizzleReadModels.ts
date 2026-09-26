@@ -75,7 +75,7 @@ export class DrizzleReadModels<T extends object> {
     private observeWith<Value>(read: () => Promise<Value>): DrizzleObservable<Value> {
         const canStart = (): void => {
             if (this.#disposed || this.signal?.aborted) throw new Error('Drizzle read models have been disposed');
-            if (!this.notifications || !this.tenant) throw new Error(
+            if (!this.notifications?.enabled || !this.tenant) throw new Error(
                 'Drizzle observation is not enabled; set observation: DrizzleObservation.InProcess in withDrizzle');
         };
         const observable = new DrizzleObservable<Value>(onClose => new DrizzleObservationSession(read,
