@@ -22,6 +22,11 @@ describe('when configuring the Arc rules', () => {
         }
     });
 
+    it('should enable the reactor replay rule only with type information', () => {
+        (recommended.rules?.['arc-core/arcchr0006'] === undefined).should.equal(true);
+        (typeChecked.rules?.['arc-core/arcchr0006'] === 'error').should.equal(true);
+    });
+
     it('should enable the Guid response rule only with type information', () => {
         (recommended.rules?.['arc-core/arcchr0010'] === undefined).should.equal(true);
         (typeChecked.rules?.['arc-core/arcchr0010'] === 'error').should.equal(true);
