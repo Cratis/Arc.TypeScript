@@ -33,6 +33,28 @@ Send `{ "id": "<valid task UUID>", "title": "" }` to `POST /api/tasks/registrati
 
 Here is what happened. Arc bound the body to a `RegisterTask`, ran every validator for the command and for the concepts on its fields, and collected all their results. A failure does not stop the other rules, so a form can show every problem at once. Because a result was above the allowed severity, Arc answered 400 and never reached `handle()`. A type mismatch, a missing required field, or malformed JSON fails earlier with `malformedRequest` and no rule message.
 
+## Construct validation results
+
+Use `ValidationResult.information`, `ValidationResult.warning`, or `ValidationResult.error` when a low-level validator or a command outcome needs a result at a specific severity. The optional second argument carries members and rule-author-owned state; `reason` defaults to `rule`. Use `reasonDetail` to identify a specific rejection without parsing its message. The existing `validation(message, members?, reason?, severity?)` helper remains available.
+
+```typescript title="validation-results.ts"
+import { defineCommand, ValidationResult } from '@cratis/arc.core';
+import { z } from 'zod';
+
+export const save = defineCommand({
+    name: 'Save',
+    schema: z.object({ title: z.string() }),
+    validate: ({ title }) => title.trim() ? [] : [
+        ValidationResult.error('A title is required', {
+            members: ['title'], state: { attempted: title }, reasonDetail: 'TitleRequired'
+        })
+    ],
+    handle: () => undefined
+});
+```
+
+`state` and `reasonDetail` reach the HTTP validation result for commands and queries when supplied; absent optional fields are omitted. The installed `@cratis/arc` client models these fields and the open-ended string `reason` on its validation results. Treat `state` as application-owned, JSON-serializable data: responses are serialized with `JSON.stringify`, so a `Map` or `Set` becomes `{}`, a class instance arrives as a plain object without its prototype (or as its `toJSON()` output), and a `bigint` fails serialization.
+
 ## Choose where to reject
 
 Validators are one of several places a command can say no. Each place sees different information and runs at a different moment, so the right one depends on what the decision needs:
