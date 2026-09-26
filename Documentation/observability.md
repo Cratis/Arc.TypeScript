@@ -26,7 +26,8 @@ const sdk = new NodeSDK({
     traceExporter: new ConsoleSpanExporter(),
     metricReaders: [new PeriodicExportingMetricReader({
         exporter: new ConsoleMetricExporter(), exportIntervalMillis: 1000
-    })]
+    })],
+    logRecordProcessors: []
 });
 sdk.start();
 
@@ -50,22 +51,25 @@ If the SDK starts after Arc is imported, Arc uses the API's proxy tracer. Initia
 
 ## Connect host HTTP spans to Arc
 
-If you need a request trace across host middleware and Arc, start your SDK **before importing** the HTTP server or adapter. The host owns W3C `traceparent` extraction and propagation; Arc emits child spans under the active context. The following runnable Express host uses an in-memory exporter for inspection (use your own exporter in production). Install `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `express`, and `zod` in the host application.
+If you need a request trace across host middleware and Arc, start your SDK **before loading** the HTTP server or adapter. The host owns W3C `traceparent` extraction and propagation; Arc emits child spans under the active context. The following Express host uses an in-memory span exporter for inspection (use your own exporter in production). It enables only HTTP and Express instrumentation, and disables metric and log exporting. Express is loaded with CommonJS `require` after SDK startup because the Express instrumentation does not hook ESM imports without an OpenTelemetry loader hook. Install `@opentelemetry/instrumentation-http`, `@opentelemetry/instrumentation-express`, `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `express`, and `zod` in the host application.
 
 ```typescript title="observability-host.ts"
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { createRequire } from 'node:module';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { SpanKind } from '@opentelemetry/api';
 
 const exporter = new InMemorySpanExporter();
-const instrumentations = getNodeAutoInstrumentations().filter(item =>
-    ['@opentelemetry/instrumentation-http', '@opentelemetry/instrumentation-express'].includes(item.instrumentationName));
-const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)], instrumentations });
+const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)],
+    metricReaders: [], logRecordProcessors: [],
+    instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()] });
 sdk.start();
 
-const { createServer } = await import('node:http');
-const { default: express } = await import('express');
+const require = createRequire(import.meta.url);
+const { createServer } = require('node:http') as typeof import('node:http');
+const express = require('express') as typeof import('express');
 const { ArcServer, defineCommand } = await import('@cratis/arc.core');
 const { cratisArc } = await import('@cratis/arc.express');
 const { z } = await import('zod');
@@ -84,9 +88,33 @@ try {
     if (response.status !== 200) throw Error(`HTTP ${response.status}`);
     await response.text();
     const spans = exporter.getFinishedSpans();
-    const http = spans.find(span => span.kind === SpanKind.SERVER);
-    const arcHttp = spans.find(span => span.name === 'cratis.arc.http.handle');
-    if (!http || arcHttp?.parentSpanContext?.spanId !== http.spanContext().spanId) throw Error('Missing parent span');
+    const servers = spans.filter(span => span.kind === SpanKind.SERVER &&
+        (span.attributes['http.method'] ?? span.attributes['http.request.method']) === 'POST' &&
+        (span.attributes['http.target'] ?? span.attributes['url.path']) === '/api/echo');
+    const arcSpans = spans.filter(span => span.name === 'cratis.arc.http.handle');
+    const http = servers[0];
+    const arcHttp = arcSpans[0];
+    if (servers.length !== 1 || arcSpans.length !== 1 || !http || !arcHttp || arcHttp.kind !== SpanKind.INTERNAL) {
+        throw Error('Expected one HTTP SERVER span and one Arc INTERNAL span');
+    }
+    const traceId = http.spanContext().traceId;
+    const byId = new Map(spans.filter(span => span.spanContext().traceId === traceId)
+        .map(span => [span.spanContext().spanId, span]));
+    const ancestors = new Set<string>();
+    let parentId = arcHttp.parentSpanContext?.spanId;
+    while (parentId && parentId !== http.spanContext().spanId) {
+        if (ancestors.has(parentId)) throw Error('Span ancestry has a cycle');
+        ancestors.add(parentId);
+        const parent = byId.get(parentId);
+        if (!parent) throw Error('Missing ancestor span');
+        parentId = parent.parentSpanContext?.spanId;
+    }
+    if (arcHttp.spanContext().traceId !== traceId || parentId !== http.spanContext().spanId) {
+        throw Error('Arc span does not descend from HTTP SERVER span');
+    }
+    if (![...ancestors].some(id => byId.get(id)?.instrumentationScope.name === '@opentelemetry/instrumentation-express')) {
+        throw Error('Missing Express instrumentation span in Arc ancestry');
+    }
     console.log(http.name, '→', arcHttp.name);
 } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
@@ -95,7 +123,7 @@ try {
 }
 ```
 
-The host's Node HTTP span surrounds Arc's INTERNAL `cratis.arc.http.handle` span; it is not a second Arc SERVER span. `yarn check:observability-recipes` exercises **real HTTP** with Express (HTTP and Express instrumentation), Fastify (HTTP and Fastify instrumentation), and Hono on its Node server (HTTP instrumentation; no Hono-specific instrumentation installed). For each host it asserts exactly one HTTP SERVER span parents the Arc span for a command. It also checks the structured-logging recipe below. In-memory export proves local parenting, not remote collector delivery or trace-context propagation through a proxy.
+The host's Node HTTP span is an ancestor of Arc's INTERNAL `cratis.arc.http.handle` span (with Express middleware spans between them); it is not a second Arc SERVER span. `yarn check:observability-recipes` exercises **real HTTP** with Express (HTTP and Express instrumentation), Fastify (HTTP and Fastify instrumentation), and Hono on its Node server (HTTP instrumentation; no Hono-specific instrumentation installed). For each host it asserts exactly one HTTP SERVER span is an ancestor of the Arc span for a command; for Express and Fastify it also requires a framework instrumentation span in the ancestry. It also checks the structured-logging recipe below. In-memory export proves local parenting, not remote collector delivery or trace-context propagation through a proxy.
 
 ## Log errors without exposing payloads
 

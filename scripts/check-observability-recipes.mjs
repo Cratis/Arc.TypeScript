@@ -2,22 +2,26 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import assert from 'node:assert/strict';
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
+import { createRequire } from 'node:module';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { SpanKind } from '@opentelemetry/api';
 import pino from 'pino';
 
 const exporter = new InMemorySpanExporter();
-const names = new Set(['@opentelemetry/instrumentation-http', '@opentelemetry/instrumentation-express',
-    '@opentelemetry/instrumentation-fastify']);
 const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)],
-    instrumentations: getNodeAutoInstrumentations().filter(instrumentation => names.has(instrumentation.instrumentationName)) });
-sdk.start(); // Start before importing HTTP or host modules.
+    metricReaders: [], logRecordProcessors: [],
+    instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation(), new FastifyInstrumentation()] });
+sdk.start(); // Start before loading HTTP or host modules.
 
-const { createServer } = await import('node:http');
+const require = createRequire(import.meta.url);
+const { createServer } = require('node:http');
 const { once } = await import('node:events');
-const { default: express } = await import('express');
-const { default: Fastify } = await import('fastify');
+// Framework instrumentation patches CommonJS require; ESM imports alone do not activate it.
+const express = require('express');
+const Fastify = require('fastify');
 const { Hono } = await import('hono');
 const { serve } = await import('@hono/node-server');
 const { ArcServer, defineCommand } = await import('@cratis/arc.core');
@@ -50,15 +54,34 @@ async function verify(name, start) {
         assert.equal((await response.json()).response, 'ok');
         const spans = exporter.getFinishedSpans();
         const serverSpans = spans.filter(span => span.kind === SpanKind.SERVER &&
-            span.attributes['http.method'] === 'POST' && span.attributes['http.target'] === '/api/echo');
+            (span.attributes['http.method'] ?? span.attributes['http.request.method']) === 'POST' &&
+            (span.attributes['http.target'] ?? span.attributes['url.path']) === '/api/echo');
         assert.equal(serverSpans.length, 1, `${name} must produce exactly one HTTP server span`);
         const arcSpans = spans.filter(span => span.name === 'cratis.arc.http.handle');
         assert.equal(arcSpans.length, 1, `${name} must produce one Arc HTTP span`);
         assert.equal(arcSpans[0].kind, SpanKind.INTERNAL);
-        assert.equal(arcSpans[0].parentSpanContext?.spanId, serverSpans[0].spanContext().spanId,
-            `${name} HTTP server span must parent Arc HTTP span`);
-        assert.equal(arcSpans[0].spanContext().traceId, serverSpans[0].spanContext().traceId);
-        console.log(`${name}: HTTP SERVER span parents Arc INTERNAL span`);
+        const serverSpan = serverSpans[0];
+        const traceId = serverSpan.spanContext().traceId;
+        const byId = new Map(spans.filter(span => span.spanContext().traceId === traceId)
+            .map(span => [span.spanContext().spanId, span]));
+        const ancestors = new Set();
+        let parentId = arcSpans[0].parentSpanContext?.spanId;
+        while (parentId && parentId !== serverSpan.spanContext().spanId) {
+            assert.ok(!ancestors.has(parentId), `${name} span ancestry has a cycle`);
+            ancestors.add(parentId);
+            const parent = byId.get(parentId);
+            assert.ok(parent, `${name} Arc HTTP span has a missing ancestor`);
+            parentId = parent.parentSpanContext?.spanId;
+        }
+        assert.equal(arcSpans[0].spanContext().traceId, traceId);
+        assert.equal(parentId, serverSpan.spanContext().spanId,
+            `${name} Arc HTTP span must descend from the HTTP server span`);
+        if (name !== 'Hono') {
+            assert.ok([...ancestors].some(id => byId.get(id)?.instrumentationScope.name ===
+                `@opentelemetry/instrumentation-${name.toLowerCase()}`),
+            `${name} framework instrumentation must be in the Arc span ancestry`);
+        }
+        console.log(`${name}: Arc INTERNAL span descends from HTTP SERVER span${name === 'Hono' ? '' : ' through framework instrumentation'}`);
     } finally { if (host) await host.close(); await arc.dispose(); }
 }
 
