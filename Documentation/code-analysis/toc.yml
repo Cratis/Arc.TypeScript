@@ -20,8 +20,16 @@
   href: ARC0015.md
 - name: ARC0019 Authorization conflict
   href: ARC0019.md
+- name: ARCCHR0003 Reactor default log
+  href: ARCCHR0003.md
 - name: ARCCHR0006 Reactor replay decision
   href: ARCCHR0006.md
+- name: ARCCHR0007 Command default log
+  href: ARCCHR0007.md
+- name: ARCCHR0009 Sensitive command fields
+  href: ARCCHR0009.md
+- name: ARCCHR0010 Guid response
+  href: ARCCHR0010.md
 - name: Missing field
   href: missing-field.md
 - name: Declared field

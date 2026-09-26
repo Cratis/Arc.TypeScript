@@ -61,8 +61,9 @@ this mapping does not add either rule.
 ## What to check in review
 
 - Appends through helper methods or stores not held directly by a command or reactor can bypass the return-value pipeline.
-- Returned commands executed outside a direct reactor return expression, such as manual Arc server calls,
-  still need a replay decision; `@onceOnly()` skips replay but does not prevent failed-partition re-delivery. See [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails).
+- Commands executed manually inside a reactor (for example through an Arc server) are not detected.
+  They still need a replay decision; `@onceOnly()` skips replay but does not prevent failed-partition
+  re-delivery. See [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails).
 - An app that returns events must install `withChronicle`; check the host, not just the artifact file.
 - A tuple carrying an ordinary string instead of `eventSourceIdResponse(id)` does not select an event source;
   see [Resolving the event source ID](resolving-event-source-id.md#return-the-id-to-the-caller).
