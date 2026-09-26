@@ -121,11 +121,26 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
     return {
         definition: { ...descriptor, perform: async (input, context, options) => {
             const value = await perform(input, context, options);
-            validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             if (value && typeof value === 'object' &&
-                (Symbol.asyncIterator in value || 'subscribe' in value && typeof value.subscribe === 'function')) {
-                throw new Error(`Snapshot query ${type.name}.${name} returned an observable`);
+                (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function' ||
+                    'subscribe' in value && typeof value.subscribe === 'function')) {
+                const rejection = new Error(`Snapshot query ${type.name}.${name} returned an observable`);
+                try {
+                    const disposable = value as { [Symbol.asyncDispose]?: () => PromiseLike<void>; [Symbol.dispose]?: () => void };
+                    const asyncDispose = disposable[Symbol.asyncDispose];
+                    const dispose = disposable[Symbol.dispose];
+                    if (typeof asyncDispose === 'function') await asyncDispose.call(value);
+                    else if (typeof dispose === 'function') dispose.call(value);
+                    else if ('unsubscribe' in value && typeof value.unsubscribe === 'function')
+                        await value.unsubscribe();
+                    else if ('dispose' in value && typeof value.dispose === 'function')
+                        await value.dispose();
+                    else if (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function')
+                        await (value as AsyncIterable<unknown>)[Symbol.asyncIterator]().return?.();
+                } catch { /* Preserve the snapshot boundary error if producer cleanup fails. */ }
+                throw rejection;
             }
+            validateGeneratedReturn(`${type.name}.${name}`, declaration.result, value);
             return value;
         } },
         dependencies: services, observable: false

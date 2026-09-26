@@ -32,6 +32,8 @@ export class QueryScenario<T = unknown> {
         const matches = application.server.queries.filter(item => item.name === this.method && (item.namespace === this.model.name || item.namespace?.endsWith(`.${this.model.name}`)));
         if (matches.length !== 1) throw new Error(`Unregistered or ambiguous Arc query: ${name}`);
         const operation = matches[0]!;
+        if ('observable' in operation && operation.observable === true)
+            throw new Error(`Streaming query ${name} is not supported by QueryScenario; use ObservableQueryScenario`);
         const input = this.#host.serializationRoundTrip ? wireRoundTrip(arguments_) : encodeWireValue(arguments_);
         const result = await application.server.performQuery([operation.namespace, operation.name].filter(Boolean).join('.'), input,
             this.#host.execution(), options) as QueryResult<T>;
