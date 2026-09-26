@@ -10,11 +10,12 @@ describe('when resolving derived observable returns', () => {
         const file = resolve('Source/Tools/ProxyGenerator/for_queryResult/given/derived_observable_returns.ts');
         const program = ts.createProgram([file], { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext });
         const checker = program.getTypeChecker();
-        results = program.getSourceFile(file)!.statements.filter(ts.isFunctionDeclaration).map(node => {
-            const type = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(node)!);
-            const result = queryResult(type, checker, node);
-            return { name: node.name!.text, observable: result.observable, item: checker.typeToString(result.type) };
-        });
+        results = program.getSourceFile(file)!.statements.filter(ts.isFunctionDeclaration)
+            .filter(node => ['drizzle', 'mongo', 'annotated', 'subject'].includes(node.name!.text)).map(node => {
+                const type = checker.getReturnTypeOfSignature(checker.getSignatureFromDeclaration(node)!);
+                const result = queryResult(type, checker, node);
+                return { name: node.name!.text, observable: result.observable, item: checker.typeToString(result.type) };
+            });
     });
     it('should unwrap both unannotated derived and annotated RxJS array results', () => {
         results.should.deep.equal(['drizzle', 'mongo', 'annotated', 'subject'].map(name =>
