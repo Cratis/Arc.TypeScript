@@ -31,29 +31,96 @@ const options = {
     module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
     target: ts.ScriptTarget.ES2022, strict: true, skipLibCheck: false, noEmit: true, types: ['node']
 };
-const host = ts.createCompilerHost(options);
-const readFile = host.readFile.bind(host);
-const fileExists = host.fileExists.bind(host);
-host.readFile = filename => filename === consumer ? source : readFile(filename);
-host.fileExists = filename => filename === consumer || fileExists(filename);
-const program = ts.createProgram([consumer, ...entries.map(entry => entry.declaration)], options, host);
-const diagnostics = ts.getPreEmitDiagnostics(program);
-// These installed upstream declarations currently fail strict checking even without Arc. Never
-// suppress diagnostics in this repository's dist or the consumer; report the known external debt.
-const upstream = diagnostics.filter(diagnostic => {
+// Strict checking of the installed dependencies produces this exact external debt. Each
+// entry is removed when its count changes (including dropping to zero); never exempt Arc dist.
+const upstreamAllowlist = [
+    // Chronicle contracts uses an extensionless relative import; remove when its NodeNext exports add the extension.
+    { package: '@cratis/chronicle.contracts', code: 2834, count: 1 },
+    // Chronicle imports absent contracts exports; remove when the installed Chronicle/contracts versions agree.
+    { package: '@cratis/chronicle', code: 2305, count: 41 },
+    // Chronicle references absent contracts namespace members; remove when the installed versions agree.
+    { package: '@cratis/chronicle', code: 2694, count: 20 },
+    // Drizzle's optional gel types are not installed; remove when its declarations stop requiring gel.
+    { package: 'drizzle-orm', code: 2307, count: 6 },
+    // Drizzle's SingleStore builder override has a conflicting type; remove when Drizzle corrects the override.
+    { package: 'drizzle-orm', code: 2416, count: 1 },
+    // Drizzle query classes lack the SQLWrapper getSQL member; remove when Drizzle implements it.
+    { package: 'drizzle-orm', code: 2420, count: 5 },
+    // Drizzle's selected-field strings violate keyof constraints; remove when Drizzle fixes its generics.
+    { package: 'drizzle-orm', code: 2344, count: 18 },
+    // Drizzle builders/select classes lack inherited abstract members; remove when Drizzle implements them.
+    { package: 'drizzle-orm', code: 2515, count: 33 },
+    // Drizzle role types do not overlap their config types; remove when Drizzle aligns those types.
+    { package: 'drizzle-orm', code: 2559, count: 2 }
+];
+const arcDeclaration = entries.find(entry => entry.name === '@cratis/arc.core')?.declaration;
+if (!arcDeclaration) throw new Error('Expected @cratis/arc.core declaration for self-test');
+
+function compile(plantArcError = false) {
+    const host = ts.createCompilerHost(options);
+    const readFile = host.readFile.bind(host);
+    const fileExists = host.fileExists.bind(host);
+    host.readFile = filename => {
+        if (filename === consumer) return source;
+        const content = readFile(filename);
+        if (plantArcError && filename === arcDeclaration && content !== undefined) {
+            return `${content}\nexport type __ArcDeclarationSelfTest = __ArcDeclarationSelfTestMissingType;\n`;
+        }
+        return content;
+    };
+    host.fileExists = filename => filename === consumer || fileExists(filename);
+    const program = ts.createProgram([consumer, ...entries.map(entry => entry.declaration)], options, host);
+    return ts.getPreEmitDiagnostics(program);
+}
+
+function allowedEntry(diagnostic) {
     const file = diagnostic.file?.fileName;
-    if (!file) return false;
+    if (!file) return undefined;
     const path = relative(join(root, 'node_modules'), file).split(sep).join('/');
-    return path.startsWith('@cratis/chronicle.contracts/') && diagnostic.code === 2834 ||
-        path.startsWith('@cratis/chronicle/') && [2305, 2694].includes(diagnostic.code) ||
-        path.startsWith('drizzle-orm/') && [2307, 2416, 2420, 2344, 2515, 2559].includes(diagnostic.code);
-});
-const failures = diagnostics.filter(diagnostic => !upstream.includes(diagnostic));
-if (failures.length) {
-    console.error(ts.formatDiagnosticsWithColorAndContext(failures, {
+    return upstreamAllowlist.find(entry => path.startsWith(`${entry.package}/`) && diagnostic.code === entry.code);
+}
+
+function evaluate(diagnostics) {
+    const counts = new Map(upstreamAllowlist.map(entry => [entry, 0]));
+    const failures = [];
+    for (const diagnostic of diagnostics) {
+        const entry = allowedEntry(diagnostic);
+        if (entry) counts.set(entry, counts.get(entry) + 1);
+        else failures.push(diagnostic);
+    }
+    const mismatches = upstreamAllowlist.filter(entry => counts.get(entry) !== entry.count)
+        .map(entry => ({ entry, actual: counts.get(entry) }));
+    return { passed: failures.length === 0 && mismatches.length === 0,
+        failures, mismatches, excluded: diagnostics.length - failures.length };
+}
+
+const diagnostics = compile();
+const verdict = evaluate(diagnostics);
+const { failures, mismatches, excluded } = verdict;
+if (!verdict.passed) {
+    if (failures.length) console.error(ts.formatDiagnosticsWithColorAndContext(failures, {
         getCurrentDirectory: () => root, getCanonicalFileName: filename => filename, getNewLine: () => '\n'
     }));
+    for (const { entry, actual } of mismatches) {
+        console.error(`${entry.package} TS${entry.code}: expected ${entry.count} upstream diagnostics, found ${actual}; update or remove the exemption after investigation`);
+    }
     process.exitCode = 1;
+} else if (process.argv.includes('--self-test')) {
+    const plantedArc = evaluate(compile(true));
+    if (plantedArc.passed || !plantedArc.failures.some(d => d.file?.fileName === arcDeclaration &&
+        ts.flattenDiagnosticMessageText(d.messageText, '\n').includes('__ArcDeclarationSelfTestMissingType'))) {
+        throw new Error('Self-test failed: planted Arc declaration error was not caught');
+    }
+    const knownUpstream = diagnostics.find(d => allowedEntry(d));
+    if (!knownUpstream) throw new Error('Self-test failed: no upstream diagnostic to plant');
+    const plantedUpstream = evaluate([...diagnostics, { ...knownUpstream, messageText: 'Planted extra upstream diagnostic' }]);
+    const plantedEntry = allowedEntry(knownUpstream);
+    if (plantedUpstream.passed || plantedUpstream.failures.length || plantedUpstream.mismatches.length !== 1 ||
+        plantedUpstream.mismatches[0].entry !== plantedEntry ||
+        plantedUpstream.mismatches[0].actual !== plantedEntry.count + 1) {
+        throw new Error('Self-test failed: extra upstream diagnostic did not invalidate its exact count');
+    }
+    console.log(`Declaration guard self-test passed: planted Arc declaration error and extra ${plantedEntry.package} TS${plantedEntry.code} diagnostic rejected (${packages.length} packages, ${entries.length} entry points)`);
 } else {
-    console.log(`Strict built-declaration type-check passed: ${packages.length} packages, ${entries.length} entry points (${upstream.length} known upstream diagnostics excluded)`);
+    console.log(`Strict built-declaration type-check passed: ${packages.length} packages, ${entries.length} entry points (${excluded} known upstream diagnostics excluded)`);
 }
