@@ -14,4 +14,16 @@ describe('when configuring the Arc rules', () => {
     it('should enable type information in the type-checked preset', () => {
         (typeChecked.languageOptions?.parserOptions?.projectService === true).should.equal(true);
     });
+
+    it('should enable direct Chronicle append rules in both presets', () => {
+        for (const config of [recommended, typeChecked]) {
+            (config.rules?.['arc-core/arcchr0003'] === 'error').should.equal(true);
+            (config.rules?.['arc-core/arcchr0007'] === 'error').should.equal(true);
+        }
+    });
+
+    it('should enable the Guid response rule only with type information', () => {
+        (recommended.rules?.['arc-core/arcchr0010'] === undefined).should.equal(true);
+        (typeChecked.rules?.['arc-core/arcchr0010'] === 'error').should.equal(true);
+    });
 });

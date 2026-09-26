@@ -1,35 +1,65 @@
 ---
 title: Chronicle code analysis
-description: Which of Arc on .NET's ARCCHR diagnostics for the Chronicle integration apply to TypeScript, which mistakes the runtime catches instead, and which have no check.
+description: Arc on .NET's Chronicle diagnostics mapped to TypeScript lint rules, runtime checks, and inapplicable C# patterns.
 ---
 
-Arc on .NET ships Roslyn analyzers, `ARCCHR0001` to `ARCCHR0010`, that catch Chronicle integration mistakes at build time. `@cratis/eslint-plugin-arc-core` has **no** Chronicle rules. Some of those mistakes cannot happen in the TypeScript API, some are caught when the application builds or runs, and some have no check at all. This page says which is which, so you know what to watch for in review.
-
-The Arc rules that do exist are listed in [Code analysis](../code-analysis/index.md).
+Arc on .NET v22.23.0 ships ten Chronicle analyzers (`ARCCHR0001`–`ARCCHR0010`).
+Three have bounded TypeScript ESLint analogs in `@cratis/eslint-plugin-arc-core`.
+Configure the plugin as described in [Code analysis](../code-analysis/index.md).
+Both presets enable `arcchr0003` and `arcchr0007`.
+`arcchr0010` needs type information and is enabled by `recommended-type-checked`.
+ESLint reports enabled rules as errors, including analogs of .NET warnings.
 
 ## ARCCHR mapping
 
-| .NET diagnostic | TypeScript status | Reason |
+| .NET diagnostic | .NET default | TypeScript status |
 | --- | --- | --- |
-| ARCCHR0001, aggregate handler signature | N/A | Handlers are registered with `this.on(EventClass, handler)`. The compiler checks the callback type, and a second handler for one event type throws. There is no method-name convention to get wrong. |
-| ARCCHR0002, ambiguous command identity | N/A | A command has one key: `getEventSourceId()`, then `getKey()` or the single `@key()` field. Marking a second `@key()` throws when the class is defined. |
-| ARCCHR0003, reactor reaches the event log | Not checked | A reactor that appends through its own SDK client does so outside the side-effect path. Return events instead; see [Reactors](reactors/index.md). |
-| ARCCHR0004, `[EventType]` repeats the type name | N/A | The SDK falls back to the class name, which a bundler may rename. An explicit ID equal to the class name keeps the stored type stable, so it is not redundant here. |
-| ARCCHR0005, Chronicle used but not registered | Partly caught at runtime | A `commandReadModel(Type)` binding with no owner fails `build()`. A returned event without `withChronicle` is not caught: nothing recognizes it, so it becomes the command's ordinary response, and nothing is appended. |
-| ARCCHR0006, manual reactor command without `[OnceOnly]` | Not checked | SDK 6.9.0 and later support `@onceOnly()` and `@replay()`, but Arc has no lint rule requiring them. Mark non-replayable effects `@onceOnly()` and keep commands safe for failed-partition re-delivery; see [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails). |
-| ARCCHR0007, command injects the event log | Not checked | A handler can reach `ChronicleReadModels.getStore().eventLog` and append immediately. Such an append is outside the command's batch; see [Transactional commands](commands/transactional-commands.md#what-is-outside-the-batch). |
-| ARCCHR0008, data annotations `[Key]` | N/A | There is one `@key()`, from `@cratis/arc.core`, and Chronicle reads it. |
-| ARCCHR0009, secret-looking command value | Handled at runtime, no lint rule | Values of fields whose names contain `password`, `secret`, `token`, `credential`, or `apiKey` are never recorded in the causation chain. Mark any other secret with `@notAudited()`; see [Causation and auditing](commands/causation.md). |
-| ARCCHR0010, raw GUID response does not set the event source | Not checked | An ordinary value in a `tuple(...)` is the response, not the event source. Use `tuple(eventSourceIdResponse(id), event)` to set and return it; see [Resolving the event source ID](resolving-event-source-id.md#return-the-id-to-the-caller). |
+| ARCCHR0001, aggregate handler signature | Error | N/A |
+| ARCCHR0002, ambiguous command identity | Warning | N/A / runtime |
+| [ARCCHR0003](../code-analysis/ARCCHR0003.md), reactor reaches default log | Warning | ESLint analog |
+| ARCCHR0004, redundant `[EventType]` id | Warning | N/A |
+| ARCCHR0005, Chronicle used but not configured | Warning | Partly caught at runtime |
+| ARCCHR0006, reactor executes a command without replay decision | Warning | Not checked |
+| [ARCCHR0007](../code-analysis/ARCCHR0007.md), command injects event log | Warning | ESLint analog |
+| ARCCHR0008, data annotations `[Key]` | Warning | N/A |
+| ARCCHR0009, secret-looking command property | Warning | Runtime masking / no lint |
+| [ARCCHR0010](../code-analysis/ARCCHR0010.md), raw GUID response | Warning | Type-checked ESLint analog |
+
+- **ARCCHR0001:** `this.on(EventClass, handler)` registers a typed callback; duplicate handlers throw.
+  No `On` method-signature convention exists.
+- **ARCCHR0002:** `getEventSourceId()`, `getKey()`, or one `@key()` determines the key.
+  A second `@key()` throws when the class is defined.
+- **ARCCHR0003:** The rule finds direct `eventLog.append` or `appendMany` calls through a reactor's own store.
+  It does not follow helper calls or stores obtained from another client. Return events instead.
+- **ARCCHR0004:** An explicit TypeScript SDK ID equal to the class name stabilizes persisted type identity
+  across minification or renaming. Removing it changes guarantees.
+- **ARCCHR0005:** `commandReadModel(Type)` without an owner fails `build()`.
+  A returned event without `withChronicle` becomes an ordinary response and is not caught.
+  A per-file ESLint rule cannot prove registration in a separate host module.
+- **ARCCHR0006:** TypeScript reactors normally return commands instead of calling .NET's `ICommandPipeline.Execute`.
+  A returned command still needs an explicit replay policy. The SDK supports `@onceOnly()` and `@replay()`,
+  but no lint rule proves command side effects across handler return types and replay handlers.
+- **ARCCHR0007:** The rule finds direct `eventLog.append` or `appendMany` calls through a command's own store
+  inside `handle()`, which bypasses returned-event batching. Indirect appends remain a review concern.
+- **ARCCHR0008:** TypeScript has only Arc's `@key()`; there is no competing data-annotations decorator.
+- **ARCCHR0009:** Arc withholds fields named `password`, `secret`, `token`, `credential`, or `apiKey`,
+  and fields marked `@notAudited()` or `@pii()`. Unlike .NET's warning, claiming those names are written
+  to causation would be false. Other sensitive names still need explicit markers.
+- **ARCCHR0010:** A keyless command returning `tuple(Guid.parse(...), new DecoratedEvent())` returns
+  an ordinary response instead of selecting the event source. The rule does not infer plain strings,
+  indirect event factories, or other tuple shapes.
+
+There is no ARCCHR analyzer for nullable event properties or past-tense event names in .NET v22.23.0;
+this mapping does not add either rule.
 
 ## What to check in review
 
-The unchecked rows are the ones a reviewer has to catch:
-
-- a reactor or command that appends through the SDK instead of returning events;
-- a reactor with non-replayable effects that lacks `@onceOnly()` on the class or handler;
-- an application that returns events but never calls `withChronicle`;
-- a command meant to append to an existing entity that returns an ID in a tuple instead of `eventSourceIdResponse`.
+- Appends through helper methods or stores not held directly by a command or reactor can bypass the return-value pipeline.
+- Reactors returning commands need a replay decision; `@onceOnly()` skips replay but does not prevent
+  failed-partition re-delivery. See [Returning commands from a reactor](reactors/command-side-effects.md#when-a-command-fails).
+- An app that returns events must install `withChronicle`; check the host, not just the artifact file.
+- A tuple carrying an ordinary string instead of `eventSourceIdResponse(id)` does not select an event source;
+  see [Resolving the event source ID](resolving-event-source-id.md#return-the-id-to-the-caller).
 
 ## Related
 

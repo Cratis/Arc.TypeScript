@@ -11,6 +11,9 @@ import { arc0012 } from './rules/arc0012.js';
 import { arc0014 } from './rules/arc0014.js';
 import { arc0015 } from './rules/arc0015.js';
 import { arc0019 } from './rules/arc0019.js';
+import { arcchr0003 } from './rules/arcchr0003.js';
+import { arcchr0007 } from './rules/arcchr0007.js';
+import { arcchr0010 } from './rules/arcchr0010.js';
 import { missingField } from './rules/missingField.js';
 import { declaredField } from './rules/declaredField.js';
 import { injectBinding } from './rules/injectBinding.js';
@@ -23,6 +26,7 @@ import { validatorTarget } from './rules/validatorTarget.js';
 /** Arc server diagnostics, including .NET ARC identifiers where semantics overlap. */
 const rules = {
     arc0002, arc0003, arc0004, arc0005, arc0010, arc0012, arc0014, arc0015, arc0019,
+    arcchr0003, arcchr0007, arcchr0010,
     'missing-field': missingField,
     'declared-field': declaredField,
     'inject-binding': injectBinding,
@@ -41,12 +45,13 @@ const recommended: TSESLint.FlatConfig.Config = {
     name: 'arc-core/recommended',
     files: ['**/*.ts', '**/*.tsx'],
     plugins: { 'arc-core': plugin },
-    rules: Object.fromEntries(Object.keys(rules).filter(name => name !== 'query-argument-name').map(name => [`arc-core/${name}`, 'error']))
+    rules: Object.fromEntries(Object.keys(rules).filter(name => name !== 'query-argument-name' && name !== 'arcchr0010').map(name => [`arc-core/${name}`, 'error']))
 };
 const recommendedTypeChecked: TSESLint.FlatConfig.Config = {
     ...recommended,
     name: 'arc-core/recommended-type-checked',
-    languageOptions: { parserOptions: { projectService: true } }
+    languageOptions: { parserOptions: { projectService: true } },
+    rules: { ...recommended.rules, 'arc-core/arcchr0010': 'error' }
 };
 plugin.configs = { recommended, 'recommended-type-checked': recommendedTypeChecked };
 export { rules, recommended, recommendedTypeChecked };
