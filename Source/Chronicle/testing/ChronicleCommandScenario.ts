@@ -3,8 +3,13 @@
 import { CommandScenario, type ScenarioCommandResult } from '@cratis/arc.testing';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import { EventSequenceNumber, type AppendOptions, type AppendResult, type EventForEventSourceId } from '@cratis/chronicle/eventSequences';
-type ClassType<T extends object = object> = new () => T;
+import { getEventTypeMetadata } from '@cratis/chronicle/events';
+import type { ReadModelScenario } from '@cratis/chronicle/testing';
+import { getReducerMetadata } from '@cratis/chronicle/reducers';
+import { ChronicleArtifacts } from '../ChronicleArtifacts.js';
 import '../withChronicle.js';
+
+type ClassType<T extends object = object> = new () => T;
 
 interface Appended { readonly tenant: string; readonly source: string; readonly event: object;
     readonly eventSourceType?: string; readonly eventStreamType?: string; readonly eventStreamId?: string;
@@ -19,10 +24,14 @@ type AppendedEventAssertion = {
 export class ChronicleCommandScenario<T extends object> {
     readonly #scenario: CommandScenario<T>;
     readonly #appended: Appended[] = [];
-    readonly #readModels = new Map<ClassType, Map<string, unknown>>();
+    readonly #readModels = new Map<ClassType, Map<string, Map<string, unknown>>>();
+    readonly #seeded = new Map<string, Map<string, object[]>>();
+    readonly #materialized = new Map<string, Map<ClassType, ReadModelScenario<object>>>();
+    readonly #catalog = new ChronicleArtifacts();
     readonly #types: ClassType[];
     private constructor(type: ClassType<T>, artifacts: ClassType[]) {
         this.#types = artifacts;
+        for (const artifact of artifacts) this.#catalog.register(artifact);
         this.#scenario = CommandScenario.for(type, ...artifacts);
         const stores = new Map<string, IEventStore>();
         const client = { getEventStore: async (_name: string, tenant: string) => {
@@ -43,10 +52,13 @@ export class ChronicleCommandScenario<T extends object> {
                             waitForCompletion: async () => ({ isSuccess: true, failedPartitions: [] }) }) as AppendResult);
                     },
                     getTailSequenceNumber: async (id: string) => new EventSequenceNumber(BigInt(
-                        this.#appended.filter(item => item.tenant === tenant && item.source === id).length))
+                        this.#appended.filter(item => item.tenant === tenant && item.source === id).length)),
+                    getForEventSourceIdAndEventTypes: async (): Promise<never> => {
+                        throw new Error('In-memory Chronicle cannot rehydrate commandAggregate; use ChronicleKernelScenario');
+                    }
                 };
                 store = { eventLog, eventTypes: { all: this.#types },
-                    readModels: { findInstanceById: async (model: ClassType, id: string) => this.#readModels.get(model)?.get(`${tenant}:${id}`) ?? null }
+                    readModels: { findInstanceById: async (model: ClassType, id: string) => this.#findReadModel(model, id, tenant) }
                 } as unknown as IEventStore;
                 stores.set(tenant, store);
             }
@@ -58,25 +70,87 @@ export class ChronicleCommandScenario<T extends object> {
         return new ChronicleCommandScenario(type, artifacts);
     }
     get context() { return this.#scenario.context; }
+    /** Seed event history for a source in the current tenant, or an explicitly named tenant. */
+    get given() {
+        return {
+            /** Select an event source in the current tenant, or specify another tenant. */
+            forEventSource: (sourceId: string, tenant?: string) => ({
+            /** Append events to this source's seeded history without recording them as command output. */
+            events: (...events: object[]): void => {
+                const resolvedTenant = tenant ?? this.context.tenantId ?? 'Default';
+                const history = this.#seeded.get(resolvedTenant) ?? new Map<string, object[]>();
+                const source = history.get(sourceId) ?? [];
+                for (const event of events) {
+                    if (!this.#catalog.eventTypes.includes(event.constructor as ClassType) || !getEventTypeMetadata(event.constructor))
+                        throw new Error(`In-memory Chronicle cannot seed an unregistered event: ${event.constructor.name}`);
+                }
+                source.push(...events);
+                history.set(sourceId, source);
+                this.#seeded.set(resolvedTenant, history);
+                this.#materialized.delete(resolvedTenant);
+            },
+            /** Pin an instance for this source, taking precedence over reducer history. */
+            readModel: <R extends object>(instance: R): void => {
+                this.givenReadModel(instance.constructor as ClassType<R>, sourceId, instance, tenant);
+            }
+        }) };
+    }
     /** Pin a read model to a source and tenant before executing a command. */
-    givenReadModel<R extends object>(type: ClassType<R>, sourceId: string, instance: R, tenant = 'Default'): this {
-        const values = this.#readModels.get(type) ?? new Map<string, unknown>();
-        values.set(`${tenant}:${sourceId}`, instance);
-        this.#readModels.set(type, values);
+    givenReadModel<R extends object>(type: ClassType<R>, sourceId: string, instance: R, tenant?: string): this {
+        tenant ??= this.context.tenantId ?? 'Default';
+        const tenants = this.#readModels.get(type) ?? new Map<string, Map<string, unknown>>();
+        const values = tenants.get(tenant) ?? new Map<string, unknown>();
+        values.set(sourceId, instance);
+        tenants.set(tenant, values);
+        this.#readModels.set(type, tenants);
         return this;
     }
+    async #findReadModel(model: ClassType, id: string, tenant: string): Promise<unknown> {
+        const pinned = this.#readModels.get(model)?.get(tenant)?.get(id);
+        if (pinned !== undefined) return pinned;
+        if (!this.#seeded.get(tenant)?.get(id)?.length) return null;
+        if (!this.#catalog.reducers.some(type => getReducerMetadata(type)?.readModel === model)) {
+            if (this.#catalog.hasProjectionFor(model))
+                throw new Error(`Projection-backed read model '${model.name}' is not supported yet; use a kernel-backed test. Use ChronicleKernelScenario for projections.`);
+            return null;
+        }
+        let byType = this.#materialized.get(tenant);
+        if (!byType) { byType = new Map(); this.#materialized.set(tenant, byType); }
+        let scenario = byType.get(model);
+        if (!scenario) {
+            let Scenario: typeof ReadModelScenario;
+            try { ({ ReadModelScenario: Scenario } = await import('@cratis/chronicle/testing')); }
+            catch (error) {
+                if ((error as NodeJS.ErrnoException).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' ||
+                    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND')
+                    throw new Error('given.forEventSource(...).events requires @cratis/chronicle >= 6.14', { cause: error });
+                throw error;
+            }
+            if (typeof Scenario !== 'function')
+                throw new Error('given.forEventSource(...).events requires @cratis/chronicle >= 6.14');
+            scenario = new Scenario(model, this.#catalog);
+            for (const [sourceId, events] of this.#seeded.get(tenant) ?? []) scenario.given.forEventSource(sourceId).events(...events);
+            byType.set(model, scenario);
+        }
+        return scenario.instanceForEventSourceId(id);
+    }
+    /** Execute the command and assert only events produced by that execution, never seeded history. */
     async execute(command: T | Partial<T>): Promise<ScenarioCommandResult & AppendedEventAssertion> {
         const start = this.#appended.length;
         const result = await this.#scenario.execute(command);
         const appended = this.#appended.slice(start);
-        return Object.assign(result, { appendedEvents: appended, shouldHaveAppendedEvent: <E>(type: new (...args: never[]) => E,
+        return Object.assign(result, { appendedEvents: appended,
+            shouldHaveAppendedEvent: <E>(type: new (...args: never[]) => E,
             eventSourceId?: string, predicate?: (event: E) => boolean): void => {
             const matches = appended.filter(item => item.event instanceof type &&
                 (eventSourceId === undefined || item.source === eventSourceId) &&
                 (predicate === undefined || predicate(item.event as E)));
-            if (!matches.length) throw new Error(`Expected ${type.name} to have been appended${eventSourceId ? ` to ${eventSourceId}` : ''}`);
+            if (!matches.length) throw new Error(
+                `Expected ${type.name} to have been appended${eventSourceId ? ` to ${eventSourceId}` : ''}`);
         } });
     }
+    /** Every event appended by commands, excluding seeded history. */
     get appendedEvents(): readonly Appended[] { return [...this.#appended]; }
+    /** Release the underlying command scenario. */
     dispose(): Promise<void> { return this.#scenario.dispose(); }
 }

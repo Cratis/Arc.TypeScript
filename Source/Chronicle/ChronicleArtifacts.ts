@@ -55,6 +55,11 @@ export class ChronicleArtifacts implements IClientArtifactsProvider {
     }
     get reactors(): Constructor[] { return this.of(DecoratorType.Reactor); }
     get reducers(): Constructor[] { return this.of(DecoratorType.Reducer); }
+    /** Whether a model is populated by a registered declarative or model-bound projection. */
+    hasProjectionFor(model: Constructor): boolean {
+        return hasFromEventMetadata(model) || hasModelBoundMappings(model) ||
+            this.projections.some(type => getProjectionMetadata(type)?.readModelType === model);
+    }
     get seeders(): Constructor[] { return this.of(DecoratorType.Seeder); }
     get constraints(): Constructor[] { return this.of(DecoratorType.Constraint); }
     get projections(): Constructor[] { return this.of(DecoratorType.Projection); }

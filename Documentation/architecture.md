@@ -91,7 +91,7 @@ The full list is in the [capability reference](reference/capabilities.md#deliber
 
 ## Integrations stay outside the core
 
-Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.10.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
+Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, `@cratis/chronicle` 6.14.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
 
 The integration covers the main Chronicle command paths. Events returned by a command and events applied to a keyed [aggregate](chronicle/aggregates/index.md) are staged, together with those of nested commands, and appended in one `appendMany` batch after the outer command succeeds. A Chronicle reactor can return Arc commands, which run through the full command pipeline. An opt-in live-kernel suite exercises returned events, batches, aggregates, reactor commands, and concurrency rejections through Express, Fastify, and Hono.
 

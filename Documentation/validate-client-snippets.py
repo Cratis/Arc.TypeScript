@@ -195,13 +195,13 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/test-a-command/spec": Context(
         siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
     # Command-key model resolution is available for handlers and provide(), not validator parameters.
-    # The in-memory Chronicle scenario pins models but does not materialize projections from seed events.
+    # The in-memory Chronicle scenario materializes reducer-backed models, not projections.
     "scenarios/use-current-state-in-a-command/rename-author": MODULE,
     "scenarios/use-current-state-in-a-command/rename-author-validator": MODULE,
     "scenarios/use-current-state-in-a-command/register-customer-validator": MODULE,
     "scenarios/use-current-state-in-a-command/required-order-state": MODULE,
     "scenarios/use-current-state-in-a-command/chronicle-commands": MODULE,
-    "scenarios/use-current-state-in-a-command/seed-events": None,
+    "scenarios/use-current-state-in-a-command/seed-events": MODULE,
     "scenarios/use-current-state-in-a-command/pin-read-model": MODULE,
     "frontend/index/open-account": MODULE,
     "frontend/react/commands/index/command-payload": MODULE,

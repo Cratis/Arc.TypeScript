@@ -1,13 +1,18 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import sinon from 'sinon';
+import type { WaitForCompletionOptions } from '@cratis/chronicle/eventSequences';
 import { accepted } from '../../for_ChronicleCommand/given/a_command_with_typed_ports.js';
 import { waitForProjectionCompletion } from '../../waitForProjectionCompletion.js';
 
 describe('when waiting for Chronicle projection completion', () => {
     it('should use the last append acknowledgment and configured bound', async () => {
-        const first = sinon.spy(async (timeout?: number) => { void timeout; return { isSuccess: true, failedPartitions: [] }; });
-        const last = sinon.spy(async (timeout?: number) => { void timeout; return { isSuccess: true, failedPartitions: [] }; });
+        const completed = async (timeout?: number | WaitForCompletionOptions) => {
+            void timeout;
+            return { isSuccess: true, failedPartitions: [] };
+        };
+        const first = sinon.spy(completed);
+        const last = sinon.spy(completed);
         await waitForProjectionCompletion([{ ...accepted(), waitForCompletion: first },
             { ...accepted(), waitForCompletion: last }], 2500, new AbortController().signal);
         first.called.should.equal(false);

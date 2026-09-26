@@ -15,7 +15,7 @@
     "@cratis/arc.core": "workspace:^",
     "@cratis/arc.express": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
-    "@cratis/chronicle": "6.10.0",
+    "@cratis/chronicle": "6.14.0",
     "@cratis/fundamentals": "7.19.6",
     "express": "^5.1.0",
     "rxjs": "^7.8.2"
