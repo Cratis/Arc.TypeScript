@@ -10,10 +10,10 @@ import { runtimePost } from '../given/a_runtime_request.js';
 should();
 describe('when handling a command with a warning result with metadata', () => {
     let status: number;
-    let result: { validationResults: { state: unknown; reasonDetail: string; severity: number }[] };
+    let result: { validationResults: { state: unknown; reasonDetail: string; severity: number; members: string[]; reason: string }[] };
     beforeEach(async () => {
         const server = new ArcServer({ commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () =>
-            rejected(ValidationResult.warning('The item changed', { members: ['id'], state: { revision: 2 }, reason: 'concurrencyViolation', reasonDetail: 'Item' })) })] });
+            rejected(ValidationResult.warning('The item changed', { members: ['id'], state: { revision: 2 }, reason: 'staleItem', reasonDetail: 'Item' })) })] });
         const response = (await server.handle(runtimePost('/api/save', {}, { 'X-Allowed-Severity': '0' })))!;
         status = response.status;
         result = await response.json();
@@ -23,4 +23,6 @@ describe('when handling a command with a warning result with metadata', () => {
     it('should include the warning in the HTTP result', () => result.validationResults[0]!.severity.should.equal(2));
     it('should carry the state in the HTTP result', () => (result.validationResults[0]!.state as { revision: number }).should.deep.equal({ revision: 2 }));
     it('should carry the reason detail in the HTTP result', () => result.validationResults[0]!.reasonDetail.should.equal('Item'));
+    it('should carry the reason in the HTTP result', () => result.validationResults[0]!.reason.should.equal('staleItem'));
+    it('should carry the members in the HTTP result', () => result.validationResults[0]!.members.should.deep.equal(['id']));
 });

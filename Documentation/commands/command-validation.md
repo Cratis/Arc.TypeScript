@@ -53,7 +53,7 @@ export const save = defineCommand({
 });
 ```
 
-`state` and `reasonDetail` reach the HTTP validation result for commands and queries when supplied; absent optional fields are omitted. The installed `@cratis/arc` client models these fields and the open-ended string `reason` on its validation results. Treat `state` as application-owned data, not a framework rejection category.
+`state` and `reasonDetail` reach the HTTP validation result for commands and queries when supplied; absent optional fields are omitted. The installed `@cratis/arc` client models these fields and the open-ended string `reason` on its validation results. Treat `state` as application-owned, JSON-serializable data: responses are serialized with `JSON.stringify`, so a `Map`, `Set` or class instance loses its shape and a `bigint` fails serialization.
 
 ## Choose where to reject
 

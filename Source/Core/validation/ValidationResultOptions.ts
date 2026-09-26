@@ -4,7 +4,7 @@
 export interface ValidationResultOptions {
     /** Members to which the result applies. */
     members?: string[];
-    /** Rule-author-owned state carried to the caller. */
+    /** Rule-author-owned state carried to the caller; must be JSON-serializable. */
     state?: unknown;
     /** Machine-readable reason; defaults to `rule`. */
     reason?: string;
