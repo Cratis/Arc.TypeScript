@@ -7,7 +7,7 @@ Arc reports a problem at the earliest point it can see it. A binding mistake sho
 
 ## In the editor: lint rules
 
-`@cratis/eslint-plugin-arc-core` checks model-bound artifacts before you build. Both presets, `recommended` and `recommended-type-checked`, report every rule as an error except `query-argument-name`, which you turn on yourself. Rules that match a .NET analyzer keep its `ARC` code. Setup is in [Code analysis](../code-analysis/index.md).
+`@cratis/eslint-plugin-arc-core` checks model-bound artifacts before you build. Enabled rules report as errors. Both presets include bounded Chronicle checks for reactor and command appends and unmasked secret-looking fields when Chronicle is installed; `recommended-type-checked` also includes the Guid response check. `query-argument-name` is opt-in. Rules that match a .NET analyzer keep its `ARC` or `ARCCHR` code. Setup is in [Code analysis](../code-analysis/index.md).
 
 | Rule | Reports |
 | --- | --- |
@@ -20,6 +20,10 @@ Arc reports a problem at the earliest point it can see it. A binding mistake sho
 | [`arc0014`](../code-analysis/ARC0014.md) | A query with type parameters |
 | [`arc0015`](../code-analysis/ARC0015.md) | An incoming parameter converted to a concept inside the query |
 | [`arc0019`](../code-analysis/ARC0019.md) | `@allowAnonymous()` combined with `@authorize()` or `@roles()` |
+| [`arcchr0003`](../code-analysis/ARCCHR0003.md) | Direct reactor appends to its own default event log |
+| [`arcchr0007`](../code-analysis/ARCCHR0007.md) | Direct default-log appends from a command's `handle()` or `provide()`, including injected Chronicle services and `.transactional` appends |
+| [`arcchr0009`](../code-analysis/ARCCHR0009.md) | Unmasked secret-looking command fields and constructor parameter properties when Chronicle resolves |
+| [`arcchr0010`](../code-analysis/ARCCHR0010.md) | A keyless command returning a type-checked Fundamentals `Guid` value beside a direct decorated event (type-checked preset) |
 | [`missing-field`](../code-analysis/missing-field.md) | A model-bound property without `@field` |
 | [`declared-field`](../code-analysis/declared-field.md) | A decorated field that would not be emitted |
 | [`inject-binding`](../code-analysis/inject-binding.md) | `@inject` tokens that do not match the handler's parameters |
@@ -29,7 +33,7 @@ Arc reports a problem at the earliest point it can see it. A binding mistake sho
 | [`unexported-artifact`](../code-analysis/unexported-artifact.md) | A decorated artifact that discovery cannot see because it is not exported |
 | [`validator-target`](../code-analysis/validator-target.md) | A validator without `@validator(Target)` when no generated metadata names it |
 
-There are no rules for the Chronicle integration; [Chronicle code analysis](../chronicle/code-analysis.md) says what to check in review instead.
+[Chronicle code analysis](../chronicle/code-analysis.md) maps the remaining .NET diagnostics to TypeScript checks or review concerns.
 
 ## At generation: arc-proxygenerator
 
