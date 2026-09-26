@@ -93,7 +93,7 @@ Caching happens in the browser. The published client's identity provider reads t
 - **Details can be stale.** When roles or details change on the server, the UI keeps showing the cached values until the frontend refreshes. See [refresh after a change](frontend.md#refresh-after-a-change).
 - **A forged cookie changes only the display.** Anyone can edit the cookie in their own browser. Every command and query still authorizes against the principal authentication produced, so the edit can show a button but never run the operation behind it.
 
-Arc on .NET differs here. Its `/.cratis/me` endpoint accepts a nonempty identity cookie before it consults the provider, and it has an `IIdentityProvider` service with `ModifyDetails`. Arc for TypeScript has neither. To store a user preference, send a command and keep the value in your own storage; the next refresh returns it through the provider.
+Arc on .NET differs here. Its `/.cratis/me` endpoint accepts a nonempty identity cookie before it consults the provider, and it has an `IIdentityProvider` service with `ModifyDetails`. Arc for TypeScript has neither. To store a user preference, send a command and keep the value in your own storage; the next refresh returns it through the provider. [Identity contracts](contracts.md#principal-first-cookie-never) compares the two trust models.
 
 ## Recap
 
