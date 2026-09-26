@@ -6,6 +6,6 @@ import type { Outcome } from './Outcome.js';
 export interface CommandResponseValueHandler {
     /** Reject an operation journal before any response handlers stage irreversible effects. */
     readonly incompatibleWithOperations?: boolean;
-    canHandle(context: CommandContext, value: unknown): boolean;
+    canHandle(context: CommandContext, value: unknown): boolean | Promise<boolean>;
     handle(context: CommandContext, value: unknown): void | Outcome<unknown> | Promise<void | Outcome<unknown>>;
 }

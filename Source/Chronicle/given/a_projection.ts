@@ -57,7 +57,8 @@ export class a_projection {
     readonly getStore = sinon.stub().callsFake(async (): Promise<IEventStore> =>
         ({ readModels: { release: this.release, findInstanceById: this.find,
             getInstances: this.getInstances, watch: this.watch } }) as unknown as IEventStore);
-    readonly context = { tenantId: 'tenant-a' } as ExecutionContext;
+    readonly context: ExecutionContext = { tenantId: 'tenant-a', correlationId: crypto.randomUUID(), principal: undefined,
+        signal: new AbortController().signal, allowedSeverity: Severity.Warning };
     readonly runtime = { getStore: this.getStore } as unknown as ChronicleRuntime;
     constructor() {
         for (const type of [Created, PrivateView, PublicView, ReducedViewReducer]) this.artifacts.register(type);

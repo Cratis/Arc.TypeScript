@@ -54,7 +54,7 @@ Register `AuditLog` with `builder.services.addSingleton(AuditLog)` and add or di
 3. A value no handler accepts is a candidate client response. **At most one** such value is allowed; two unhandled values fail the command instead of returning an array.
 4. Ordinary arrays are not flattened: an array is one value.
 
-A handler's `handle(context, value)` may return `rejected(...)` or `denied(...)` to fail the command, but it must not return a client response. It runs in the command's service scope and reads the [`CommandContext`](command-context.md): the command, key, values, correlation ID, principal, tenant, allowed severity, and signal. Set `incompatibleWithOperations: true` on a handler whose effects cannot be combined with [command operations](operations/index.md); Arc then rejects the combination before any effect.
+`canHandle` may return a boolean or a promise of one. A handler's `handle(context, value)` may return `rejected(...)` or `denied(...)` to fail the command, but it must not return a client response. It runs in the command's service scope and reads the [`CommandContext`](command-context.md): the command, key, values, correlation ID, principal, tenant, allowed severity, and signal. Set `incompatibleWithOperations: true` on a handler whose effects cannot be combined with [command operations](operations/index.md); Arc then rejects the combination before any effect. Cancellation during handler resolution, classification, or handling waits for the active callback to settle, then stops before starting another handler or operation. Completed handler effects are not rolled back; command scopes still complete, owned services are disposed, and a prepared operation journal remains available for recovery.
 
 ## Register a handler
 

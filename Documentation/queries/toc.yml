@@ -6,6 +6,8 @@
   href: validation.md
 - name: Query pipeline
   href: query-pipeline.md
+- name: Query filters
+  href: query-filters.md
 - name: Using the HTTP QUERY method
   href: using-the-http-query-method.md
 - name: Observable queries

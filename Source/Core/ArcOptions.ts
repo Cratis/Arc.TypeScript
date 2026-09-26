@@ -6,6 +6,8 @@ import type { AuthenticationHandler } from './authentication/AuthenticationHandl
 import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import type { CommandDefinition } from './commands/CommandDefinition.js';
 import type { CommandContext } from './commands/CommandContext.js';
+import type { AuthorizationCommandFilter } from './commands/AuthorizationCommandFilter.js';
+import type { CommandPipelineFilter } from './commands/CommandPipelineFilter.js';
 import type { CommandContextValuesProvider } from './commands/CommandContextValuesProvider.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { CommandKeyResolver } from './commands/CommandKeyResolver.js';
@@ -23,6 +25,8 @@ import type { IdentityDetailsProvider } from './identity/IdentityDetailsProvider
 import type { ObservableQueryOptions } from './queries/ObservableQueryOptions.js';
 import type { QueryDefinition } from './queries/QueryDefinition.js';
 import type { QueryRenderer } from './queries/QueryRenderer.js';
+import type { AuthorizationQueryFilter } from './queries/AuthorizationQueryFilter.js';
+import type { QueryPipelineFilter } from './queries/QueryPipelineFilter.js';
 import type { ReadModelInterceptor } from './queries/ReadModelInterceptor.js';
 import type { ObservableQueryDefinition } from './queries/observable/ObservableQueryDefinition.js';
 import type { DevelopmentTenant } from './tenancy/DevelopmentTenant.js';
@@ -46,6 +50,10 @@ export interface ArcOptions {
     development?: boolean;
     /** Low-level command definitions. */
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
+    /** Ordered authorization filters; always run before ordinary command filters and validator dependencies. */
+    authorizationCommandFilters?: readonly ServiceIdentifier<AuthorizationCommandFilter>[];
+    /** Ordered ordinary result-fragment filters, distinct from per-definition CommandFilter<T> callbacks. */
+    commandPipelineFilters?: readonly ServiceIdentifier<CommandPipelineFilter>[];
     /** Ordered, scoped server-only response value handlers. */
     commandResponseValueHandlers?: readonly ServiceIdentifier<CommandResponseValueHandler>[];
     /** Ordered, scoped command value providers. */
@@ -64,6 +72,10 @@ export interface ArcOptions {
     services?: ServiceRegistry | readonly ServiceRegistration<unknown>[];
     /** Low-level snapshot query definitions. */
     queries?: readonly QueryDefinition<z.ZodType, unknown>[];
+    /** Ordered scoped query admission filters; run before validators and performers. */
+    authorizationQueryFilters?: readonly ServiceIdentifier<AuthorizationQueryFilter>[];
+    /** Ordered scoped ordinary query result-fragment filters. */
+    queryPipelineFilters?: readonly ServiceIdentifier<QueryPipelineFilter>[];
     /** Ordered scoped renderers; the first matching renderer owns the result. */
     queryRenderers?: readonly ServiceIdentifier<QueryRenderer>[];
     /** Ordered scoped interceptors applied to exact model types on every delivery. */

@@ -3,7 +3,7 @@
 import sinon from 'sinon';
 import { z } from 'zod';
 import { ArcServer, Severity } from '@cratis/arc.core';
-import type { ExecutionContext, Outcome } from '@cratis/arc.core';
+import type { ExecutionContext } from '@cratis/arc.core';
 import type { AppendResult, EventForEventSourceId, EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 import type { IChronicleClient, IEventStore } from '@cratis/chronicle';
 import type { IEventTypes } from '@cratis/chronicle/events';
@@ -25,7 +25,7 @@ export class a_command_with_typed_ports {
         result: () => Promise<AppendResult[]>,
         create: () => EventForEventSourceId[] = () => [{ eventSourceId: 'a', event: new Placed('first'), subject: 'person-1', eventStreamType: 'tasks', tags: ['created'] }],
         registered: IEventTypes['all'] = [Placed],
-        producedResponse: string | Outcome<string> = 'done'
+        producedResponse: unknown = 'done'
     ) {
         const appendMany = sinon.stub().callsFake(async (events: object[], options: object) => { void events; void options; return result(); });
         const append = sinon.stub().callsFake(async (sourceId: string, event: object, options: object) => {

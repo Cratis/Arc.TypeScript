@@ -111,7 +111,7 @@ A model-bound query takes the same decorators on its read-model class or on a `@
 
 A role answers "may this caller use the query at all", not "which rows may they see". `@roles('Planner')` on `allTasks` lets every planner read every task. When a read is owner-scoped, make ownership part of the query itself: read the caller's identity with `currentContext()` from `@cratis/arc.core` and put it in the data source's filter, next to the requested ID. When the caller has no identity, deny the query; never drop the owner filter to make it work. [Observable queries](queries/observable-queries.md#authorize-a-live-query) shows an owner-filtered live query.
 
-For a live query, authorization runs once, when the subscription opens. A role removed later does not close a running subscription; use an [emission guard](queries/observable-query-emission-guards.md) when access must be re-checked on every emission.
+For a cross-cutting query rule, use a scoped [authorization query filter](queries/query-filters.md) instead of repeating it on each query. It runs after declared authorization and argument binding, before validators or performer dependencies; `unauthorizedQueryResult(context)` answers 403 without a reason or validation details. Snapshot GET/`QUERY` and direct or hub subscriptions use the same admission pipeline. For a live query, authorization filters run once when the subscription opens. A role removed later does not close a running subscription; use an [emission guard](queries/observable-query-emission-guards.md) when access must be re-checked on every emission.
 
 ## Keep security out of validators
 
