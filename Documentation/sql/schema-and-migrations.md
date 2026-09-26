@@ -93,7 +93,7 @@ Do not run migrations from `databaseFactory`. It runs on requests, concurrently,
 
 ## Order schema and code changes
 
-Because Arc selects only the fields a model declares, you can change the database and the code in separate deployments:
+Because Arc selects only the fields a model declares, plus the primary-key columns, you can change the database and the code in separate deployments:
 
 | Change | Order |
 | --- | --- |

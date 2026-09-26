@@ -24,7 +24,7 @@ Arc adds four parameters to a query that can return a list:
 
 A query "can return a list" when generated metadata declares an array result, or when Arc does not know the result type. A query declared to return one item, such as `taskById`, or nothing, gets no paging parameters. `allTasks` returns `TaskItem[]`, so it lists all four.
 
-When a query has its own argument named `page`, `pageSize`, `sortBy`, or `sortDirection`, compared case-insensitively, Arc keeps your argument and does not add the paging parameter of the same name.
+`page`, `pageSize`, `sortBy`, and `sortDirection` are reserved query-string names, compared case-insensitively: Arc reads them as paging and sorting and removes them before binding the query's arguments, so a query argument with one of these names never receives the value. Name your own arguments differently.
 
 These parameters describe what a client may send. How a query honors them depends on its result; see [Paging](../queries/model-bound/paging.md).
 

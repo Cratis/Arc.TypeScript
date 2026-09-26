@@ -53,7 +53,7 @@ For each request, Arc authenticates the bearer token, then:
 - answers **400** when neither is present, because `required` is set;
 - answers **403** when the selected tenant is not in the token's comma-separated `tenants` claim.
 
-A token for Ada with `"tenants": "acme"` can send `x-cratis-tenant-id: acme`, and gets 403 for `globex`. Both checks run before authorization, validation, and your code.
+A token for Ada with `"tenants": "acme"` and no `tenant_id` claim can send `x-cratis-tenant-id: acme`, and gets 403 for `globex`. When the token carries `tenant_id`, the claim comes first and selects the tenant, whatever the header says. Both checks run before authorization, validation, and your code.
 
 When the rule is more than a claim lookup, write `tenancy.resolve(request, principal)` instead. Its answer is final: Arc does not apply `sources`, `required`, or `membershipClaim` to it, and does not lowercase it. Check membership inside it, derive the tenant from the principal, and return lowercase IDs.
 

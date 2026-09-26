@@ -42,7 +42,7 @@ A concept class needs `static readonly valueType`, because TypeScript erases the
 
 These rules come from the wire schema in `Source/Core/reflection/wireSchema.ts`, the same code that validates incoming requests and serializes results.
 
-Arc on .NET maps `int` and `long` concepts to `integer`. A JavaScript `number` has no integer type, so a numeric concept here is always `number`.
+Arc on .NET maps `int` and `long` concepts to `integer`. A JavaScript `number` has no integer type, so a numeric concept here is `number`. Nonfinite values travel as the strings `"NaN"`, `"Infinity"`, and `"-Infinity"`; see [Wire format](../reference/wire-format.md#enums-and-numbers).
 
 ## Validators are not schema constraints
 
