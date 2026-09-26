@@ -2,6 +2,8 @@
   href: index.md
 - name: How identity details are served
   href: provider-flow.md
+- name: Identity contracts
+  href: contracts.md
 - name: Show identity in a React frontend
   href: frontend.md
 - name: Identity across services
