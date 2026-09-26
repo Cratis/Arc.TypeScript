@@ -89,7 +89,7 @@ export class DrizzleReadModels<T extends object> {
         return this.observeWith(async () => {
             const items = await this.select(filter, undefined, this.maxPageSize + 1);
             if (items.length > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true,
-                `The result exceeds the maximum of ${this.maxPageSize} items; use observePage for paged results`);
+                `The result exceeds the maximum of ${this.maxPageSize} items; narrow the filter, or use observePage through defineObservableQuery for paged results`);
             return items;
         });
     }

@@ -22,7 +22,7 @@ describe('when a SQL observation outgrows its complete-list limit', given(an_obs
     });
     afterEach(async () => { await context.dispose(); });
     it('should fail with the paging error', () => {
-        error.should.equal('The result exceeds the maximum of 2 items; use observePage for paged results');
+        error.should.equal('The result exceeds the maximum of 2 items; narrow the filter, or use observePage through defineObservableQuery for paged results');
     });
     it('should never emit a truncated later list', () => { emitted.should.deep.equal([2]); });
 }));

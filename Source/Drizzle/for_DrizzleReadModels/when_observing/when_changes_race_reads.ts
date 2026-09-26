@@ -59,10 +59,8 @@ describe('when a later observation read fails', given(a_gated_observation, conte
     });
     afterEach(() => context.close());
     it('should deliver the original error', () => { (reported === failure).should.equal(true); });
-    it('should release the listener without reopening', () => {
-        context.listeners.should.equal(0);
-        readsAfterAnotherNotification.should.equal(2);
-    });
+    it('should release the listener', () => { context.listeners.should.equal(0); });
+    it('should not reopen after another notification', () => { readsAfterAnotherNotification.should.equal(2); });
 }));
 
 describe('when the initial read fails before adoption', given(a_gated_observation, context => {
