@@ -17,6 +17,7 @@ describe('when borrowing a scope after its original authority is mutated', () =>
     let getterSignal: AbortSignal | undefined;
     let matchesScope: boolean;
     let originalSignal: AbortSignal;
+    let ordinaryPrincipal: ExecutionContext['principal'];
     beforeEach(async () => {
         const authority = serviceToken<ExecutionContext>('factory authority');
         const fromScope = serviceToken<string>('scope tenant');
@@ -42,6 +43,7 @@ describe('when borrowing a scope after its original authority is mutated', () =>
         principal.scheme = 'Other';
         principal.roles.push('Admin');
         principal.claims.group.name = 'after';
+        ordinaryPrincipal = scope.identity!.principal;
         try {
             observed = await server.runInScope(scope, async () => {
                 matchesScope = currentServices() === scope;
@@ -67,7 +69,8 @@ describe('when borrowing a scope after its original authority is mutated', () =>
         observed!.principal!.scheme!.should.equal('Verified');
         observed!.principal!.roles.should.deep.equal(['Reader']);
         factoryAuthority.principal!.roles.should.deep.equal(['Reader']);
-        factoryAuthority.correlationId.should.equal('initial');
+        (factoryAuthority.principal === ordinaryPrincipal).should.equal(false);
+        factoryAuthority.correlationId.should.equal('e51a25c3-465d-4701-95ca-1f8b84c308d8');
         (observed!.principal!.claims as object).should.deep.equal({ group: { name: 'before' } });
     });
     it('should expose only the invocation correlation and the borrowed services', () => {

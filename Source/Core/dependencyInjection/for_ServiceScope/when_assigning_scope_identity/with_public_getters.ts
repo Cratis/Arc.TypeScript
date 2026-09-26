@@ -35,7 +35,7 @@ describe('when assigning scope identity with public getters', () => {
                 scope.identity?.tenantId === identity.tenantId && scope.identity?.correlationId === identity.correlationId &&
                 scope.identity?.signal === identity.signal && scope.identity?.principal?.id === identity.principal.id &&
                 scope.identity?.principal?.roles[0] === identity.principal.roles[0] &&
-                scope.identity?.principal !== identity.principal && Object.isFrozen(scope.identity);
+                scope.identity?.principal === identity.principal && Object.isFrozen(scope.identity);
         } finally { await registry.dispose(); }
     });
     it('should have no writable own or prototype identity setters', () => {

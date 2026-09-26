@@ -1,18 +1,18 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { beforeEach, describe, it, should } from 'vitest';
-import { ArcServer, currentContext } from '../../ArcServer.js';
+import { ArcServer } from '../../ArcServer.js';
 import { ServiceLifetime } from '../../dependencyInjection/ServiceLifetime.js';
-import { currentServices } from '../../dependencyInjection/ServiceScope.js';
 import { serviceToken } from '../../dependencyInjection/ServiceToken.js';
-import { serviceContext } from '../../dependencyInjection/for_ServiceRegistry/given/a_service_lifecycle.js';
+import { captureFailure, serviceContext } from '../../dependencyInjection/for_ServiceRegistry/given/a_service_lifecycle.js';
 import type { Principal } from '../../identity/Principal.js';
 
 should();
-describe('when borrowing a scope with a plain principal with accessor fields', () => {
-    let snapshot: Principal;
+describe('when a plain principal has accessor fields', () => {
+    let scopePrincipal: Principal;
     let factoryPrincipal: Principal;
     let original: Principal;
+    let failure: unknown;
     beforeEach(async () => {
         const token = serviceToken<Principal>('factory principal');
         const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped,
@@ -24,26 +24,19 @@ describe('when borrowing a scope with a plain principal with accessor fields', (
         });
         original = principal;
         const scope = server.services.createScope({ ...serviceContext('first'), principal });
-        (principal.roles as string[]).push('Admin');
-        (principal.claims as { department: string }).department = 'changed';
         try {
-            snapshot = await server.runInScope(scope, async () => {
-                factoryPrincipal = await currentServices().resolve(token);
-                return currentContext()!.principal!;
-            });
+            scopePrincipal = scope.identity!.principal!;
+            factoryPrincipal = await scope.resolve(token);
+            failure = await captureFailure(server.runInScope(scope, () => 'unexpected'));
         } finally { await scope.dispose(); await server.dispose(); }
     });
-    it('should preserve the required principal fields', () => {
-        snapshot.id.should.equal('user');
-        snapshot.isAuthenticated.should.equal(true);
-        snapshot.roles.should.deep.equal(['Reader']);
+    it('should preserve the original principal for ordinary factories and scope identity', () => {
+        (scopePrincipal === original).should.equal(true);
+        (factoryPrincipal === original).should.equal(true);
+        factoryPrincipal.id.should.equal('user');
+        factoryPrincipal.isAuthenticated.should.equal(true);
     });
-    it('should detach and freeze the plain principal', () => {
-        (snapshot === original).should.equal(false);
-        Object.isFrozen(snapshot).should.equal(true);
-        (snapshot.claims as { department: string }).department.should.equal('original');
-    });
-    it('should give the scoped factory the same principal snapshot', () => {
-        (factoryPrincipal === snapshot).should.equal(true);
+    it('should reject borrowing a principal with accessors', () => {
+        (failure as Error).message.should.contain('unsnapshotable principal');
     });
 });

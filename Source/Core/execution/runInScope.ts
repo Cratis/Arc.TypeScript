@@ -4,7 +4,7 @@ import type { ArtifactMetadata } from '../reflection/ArtifactMetadata.js';
 import type { ClassType } from '../reflection/ClassType.js';
 import type { ServiceRegistry } from '../dependencyInjection/ServiceRegistry.js';
 import type { ServiceScope } from '../dependencyInjection/ServiceScope.js';
-import { borrowedScopeAuthority } from '../dependencyInjection/ServiceScope.js';
+import { borrowedScopeAuthority, withBorrowedServiceAuthority } from '../dependencyInjection/ServiceScope.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
 import { withExecutionBoundary } from './withExecutionBoundary.js';
 import { correlation } from './correlation.js';
@@ -23,9 +23,9 @@ export async function runInScope<T>(services: ServiceRegistry, metadata: Readonl
     const signal = options?.signal ? AbortSignal.any([authority.signal, options.signal]) : authority.signal;
     if (signal.aborted) throw new ServiceDependencyError('Borrowed scope signal is already aborted');
     const context = Object.freeze({ ...authority, correlationId: override === undefined ? authority.correlationId : correlation(override), signal });
-    return withExecutionBoundary(services, metadata, scope, context, async () => {
+    return withBorrowedServiceAuthority(scope, context, () => withExecutionBoundary(services, metadata, scope, context, async () => {
         const result = await callback();
         if (services.singletonFailed) throw new ServiceDependencyError('Service registry is disposed');
         return result;
-    }, true);
+    }, true));
 }

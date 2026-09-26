@@ -8,6 +8,8 @@ should();
 describe('when borrowing a scope with extra principal fields', () => {
     let department: string;
     let frozen: boolean;
+    let mutationFailure: unknown;
+    let nextClaim: string;
     beforeEach(async () => {
         const server = new ArcServer({});
         const principal = { id: 'user', isAuthenticated: true, roles: ['Reader'],
@@ -20,9 +22,17 @@ describe('when borrowing a scope with extra principal fields', () => {
                 department = captured.department.team.name;
                 frozen = Object.isFrozen(captured.department) && Object.isFrozen(captured.department.team) &&
                     Object.isFrozen(captured.claims.group) && Object.isFrozen(captured.roles);
+                try { captured.claims.group.name = 'forged'; } catch (error) { mutationFailure = error; }
+            });
+            await server.runInScope(scope, () => {
+                nextClaim = (currentContext()!.principal as typeof principal).claims.group.name;
             });
         } finally { await scope.dispose(); await server.dispose(); }
     });
     it('should detach nested extra fields from the caller', () => department.should.equal('original'));
     it('should freeze nested extra fields and claims', () => frozen.should.be.true);
+    it('should prevent one borrowed callback from changing the next callback claims', () => {
+        (mutationFailure instanceof TypeError).should.equal(true);
+        nextClaim.should.equal('original');
+    });
 });

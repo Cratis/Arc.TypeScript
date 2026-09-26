@@ -35,11 +35,27 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
             readonly #value = 'nested';
             get value(): string { return this.#value; }
         }
+        const symbolKey = Symbol('claim key');
+        const nonEnumerable = { department: 'research' };
+        Object.defineProperty(nonEnumerable, 'private', { value: 'hidden', enumerable: false });
+        const getterClaim = { department: 'research' };
+        Object.defineProperty(getterClaim, 'department', { get: () => 'research', enumerable: true });
+        const topSymbolPrincipal = { id: 'top symbol', isAuthenticated: true, roles: ['Reader'], [symbolKey]: 'secret' };
+        const hiddenPrincipal = { id: 'hidden', isAuthenticated: true, roles: ['Reader'] };
+        Object.defineProperty(hiddenPrincipal, 'department', { value: 'research', enumerable: false });
         const principals: Principal[] = [
             new LegacyPrincipal(),
+            topSymbolPrincipal,
+            hiddenPrincipal,
             { id: 'nested', isAuthenticated: true, roles: ['Reader'], claims: { legacy: new LegacyClaim() } },
             { id: 'function', isAuthenticated: true, roles: ['Reader'], claims: { call: () => true } },
             { id: 'symbol', isAuthenticated: true, roles: ['Reader'], claims: { value: Symbol('claim') } },
+            { id: 'symbol key', isAuthenticated: true, roles: ['Reader'], claims: { [symbolKey]: 'secret' } },
+            { id: 'nonenumerable', isAuthenticated: true, roles: ['Reader'], claims: nonEnumerable },
+            { id: 'getter', isAuthenticated: true, roles: ['Reader'], claims: getterClaim },
+            { id: 'map', isAuthenticated: true, roles: ['Reader'], claims: { groups: new Map([['a', { role: 'Admin' }]]) } },
+            { id: 'set', isAuthenticated: true, roles: ['Reader'], claims: { groups: new Set([{ role: 'Admin' }]) } },
+            { id: 'date', isAuthenticated: true, roles: ['Reader'], claims: { issued: new Date() } },
             { id: 'deep', isAuthenticated: true, roles: ['Reader'], claims: deep },
             { id: 'roles', isAuthenticated: true, roles: 'Reader' as unknown as string[] }
         ];
@@ -63,10 +79,10 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
         } finally { await server.dispose(); }
     });
     it('should keep ordinary query requests working with their original principal', () => {
-        responses.should.deep.equal(['class', 'nested', 'function', 'symbol', 'deep', 'roles']);
+        responses.should.deep.equal(['class', 'top symbol', 'hidden', 'nested', 'function', 'symbol', 'symbol key', 'nonenumerable', 'getter', 'map', 'set', 'date', 'deep', 'roles']);
     });
     it('should keep the creation-time tenant when the original context changes', () => {
-        tenants.should.deep.equal(['first', 'first', 'first', 'first', 'first', 'first']);
+        tenants.should.deep.equal(Array(14).fill('first'));
     });
     it('should reject borrowed execution before the callback runs', () => {
         callbacks.should.equal(0);

@@ -45,6 +45,11 @@ export function hasLivingServiceDisposal(registry: ServiceRegistry, scope?: Serv
 }
 const resolution = new AsyncLocalStorage<{ owner: ServiceResolutionNode | undefined; chain: readonly ServiceResolutionNode[]; singleton: boolean; identity: ExecutionContext | undefined } | undefined>();
 const current = new AsyncLocalStorage<ServiceScope>();
+const borrowedIdentity = new AsyncLocalStorage<{ scope: ServiceScope; context: ExecutionContext }>();
+/** Scoped factories created during borrowed work receive its detached authority. */
+export function withBorrowedServiceAuthority<T>(scope: ServiceScope, context: ExecutionContext, callback: () => T): T {
+    return borrowedIdentity.run({ scope, context }, callback);
+}
 /** Includes detached factories after their originating request frame has drained. */
 export function hasLivingServiceResolution(registry: ServiceRegistry): boolean {
     return resolution.getStore()?.chain.some(node => serviceScopeRegistry(node.scope) === registry && node.state === ServiceResolutionState.Pending) ?? false;
@@ -73,25 +78,37 @@ export class ServiceScope {
     readonly #singleton: boolean;
     readonly #registry: ServiceRegistry;
     readonly #authority: ExecutionContext | undefined;
+    readonly #borrowedAuthority: ExecutionContext | undefined;
     readonly #borrowable: boolean;
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined);
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined, ...capability: unknown[]) {
         if (capability.length && (capability.length !== 1 || capability[0] !== singletonCapability))
             throw new ServiceDependencyError('Invalid service scope construction');
         this.#registry = registry;
-        let principal = identity?.principal;
+        // Record every declared field through property access, including inherited getters.
+        this.#authority = identity && Object.freeze({
+            correlationId: identity.correlationId,
+            principal: identity.principal,
+            tenantId: identity.tenantId,
+            connectionId: identity.connectionId,
+            remoteAddress: identity.remoteAddress,
+            signal: identity.signal,
+            allowedSeverity: identity.allowedSeverity
+        } satisfies ExecutionContext & Record<keyof ExecutionContext, unknown>);
+        let borrowedPrincipal = this.#authority?.principal;
         let borrowable = true;
-        if (principal) {
-            try { principal = snapshotPrincipal(principal); }
-            catch { borrowable = false; } // Legacy opaque principals still work for ordinary requests.
+        if (borrowedPrincipal) {
+            try { borrowedPrincipal = snapshotPrincipal(borrowedPrincipal); }
+            catch { borrowable = false; } // Opaque principals remain usable in ordinary scopes.
         }
-        this.#authority = identity && Object.freeze({ ...identity, principal });
+        this.#borrowedAuthority = borrowable && this.#authority
+            ? Object.freeze({ ...this.#authority, principal: borrowedPrincipal }) : undefined;
         this.#borrowable = borrowable;
         this.#singleton = capability.length === 1;
         if (this.#singleton) registry.assertLive();
         else registry.admitScope(this);
         internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),
-            authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#authority : undefined,
+            authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#borrowedAuthority : undefined,
             borrowable: () => this.#borrowable });
     }
     get singleton(): boolean { return this.#singleton; }
@@ -113,7 +130,8 @@ export class ServiceScope {
         const chain = active?.chain.filter(node => node.state === ServiceResolutionState.Pending) ?? [];
         const owner = active?.owner;
         const inherit = owner?.state === ServiceResolutionState.Pending && serviceScopeRegistry(owner.scope) === this.#registry;
-        const identity = this.#singleton ? undefined : this.#authority;
+        const borrowed = borrowedIdentity.getStore();
+        const identity = this.#singleton ? undefined : borrowed?.scope === this ? borrowed.context : this.#authority;
         const captive = inherit ? active?.singleton ?? false : false;
         const task = this.resolveInChain(token, identity, chain, captive);
         if (chain.length || current.getStore() === this) return task;

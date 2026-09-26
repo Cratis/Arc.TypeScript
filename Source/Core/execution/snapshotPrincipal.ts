@@ -2,46 +2,35 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { Principal } from '../identity/Principal.js';
 
-/** Detach and freeze the principal's roles, claims, and extra fields for borrowed work. */
+/** Detach and freeze strictly plain principal data for borrowed work. */
 export function snapshotPrincipal(principal: Principal): Principal {
-    const prototype = Object.getPrototypeOf(principal);
-    if (prototype !== Object.prototype && prototype !== null) throw new TypeError('Principal cannot be snapshotted');
-    const { id, isAuthenticated, roles, name, scheme, claims } = principal;
-    if (typeof id !== 'string' || typeof isAuthenticated !== 'boolean' || !Array.isArray(roles) ||
-        !roles.every(role => typeof role === 'string')) throw new TypeError('Invalid principal identity');
-    // Explicit fields also capture non-enumerable getters on plain principals.
-    const source = { ...principal, id, isAuthenticated, roles,
-        ...(name === undefined ? {} : { name }), ...(scheme === undefined ? {} : { scheme }),
-        ...(claims === undefined ? {} : { claims }) };
-    const seen = new WeakSet<object>();
-    const verify = (value: unknown, depth: number): void => {
-        if (!value || typeof value !== 'object' || seen.has(value)) return;
+    const copies = new WeakMap<object, object>();
+    const clone = (value: unknown, depth: number): unknown => {
+        if (typeof value === 'function' || typeof value === 'symbol') throw new TypeError('Principal contains an unsnapshotable value');
+        if (value === null || typeof value !== 'object') return value;
         if (depth > 32) throw new Error('Principal claim graph exceeds maximum depth');
-        const memberPrototype = Object.getPrototypeOf(value);
-        if (memberPrototype !== Object.prototype && memberPrototype !== null && memberPrototype !== Array.prototype &&
-            memberPrototype !== Map.prototype && memberPrototype !== Set.prototype && memberPrototype !== Date.prototype)
+        const prototype = Object.getPrototypeOf(value);
+        const array = Array.isArray(value);
+        if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null)
             throw new TypeError('Principal contains an unsnapshotable value');
-        seen.add(value);
-        if (value instanceof Map) for (const [key, member] of value) {
-            verify(key, depth + 1);
-            verify(member, depth + 1);
+        const existing = copies.get(value);
+        if (existing) return existing;
+        const copy: object = array ? new Array((value as unknown[]).length) : Object.create(prototype) as object;
+        copies.set(value, copy);
+        for (const key of Reflect.ownKeys(value)) {
+            // Array length is the sole intrinsic non-enumerable field allowed.
+            if (array && key === 'length') continue;
+            const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+            if (typeof key !== 'string' || !descriptor.enumerable || !('value' in descriptor))
+                throw new TypeError('Principal contains an unsnapshotable property');
+            Object.defineProperty(copy, key, { value: clone(descriptor.value, depth + 1),
+                enumerable: true, configurable: true, writable: true });
         }
-        if (value instanceof Set) for (const member of value) verify(member, depth + 1);
-        for (const member of Object.values(value)) verify(member, depth + 1);
+        Object.freeze(copy);
+        return copy;
     };
-    verify(source, -1); // Claims start at depth 0, as before principal-level freezing.
-    const copy: Principal = structuredClone(source);
-    if (copy.id !== id || copy.isAuthenticated !== isAuthenticated || !Array.isArray(copy.roles) ||
-        copy.roles.length !== roles.length || copy.roles.some((role, index) => role !== roles[index]))
-        throw new TypeError('Principal snapshot lost identity');
-    const frozen = new WeakSet<object>();
-    const freeze = (value: unknown, depth: number): void => {
-        if (!value || typeof value !== 'object' || frozen.has(value)) return;
-        if (depth > 32) throw new Error('Principal claim graph exceeds maximum depth');
-        frozen.add(value);
-        for (const member of Object.values(value)) freeze(member, depth + 1);
-        Object.freeze(value);
-    };
-    freeze(copy, -1);
+    const copy = clone(principal, 0) as Principal;
+    if (typeof copy.id !== 'string' || typeof copy.isAuthenticated !== 'boolean' || !Array.isArray(copy.roles) ||
+        !copy.roles.every(role => typeof role === 'string')) throw new TypeError('Invalid principal identity');
     return copy;
 }
