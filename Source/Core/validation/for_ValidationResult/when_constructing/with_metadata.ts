@@ -11,7 +11,7 @@ describe('when constructing validation results with metadata', () => {
     const state = { attempted: 3 };
     beforeEach(() => {
         const options = { members: ['name'], state, reason: 'constraintViolation', reasonDetail: 'UniqueName' };
-        results = [ValidationResult.Information('Info', options), ValidationResult.Warning('Warning', options), ValidationResult.Error('Error', options)];
+        results = [ValidationResult.information('Info', options), ValidationResult.warning('Warning', options), ValidationResult.error('Error', options)];
     });
     it('should use the chosen severity', () => results.map(value => value.severity).should.deep.equal([
         Severity.Information, Severity.Warning, Severity.Error

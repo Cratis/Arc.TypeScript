@@ -35,7 +35,7 @@ Here is what happened. Arc bound the body to a `RegisterTask`, ran every validat
 
 ## Construct validation results
 
-Use `ValidationResult.Information`, `ValidationResult.Warning`, or `ValidationResult.Error` when a low-level validator or a command outcome needs a result at a specific severity. The optional second argument carries members and rule-author-owned state; `reason` defaults to `rule`. Use `reasonDetail` to identify a specific rejection without parsing its message. The existing `validation(message, members?, reason?, severity?)` helper remains available.
+Use `ValidationResult.information`, `ValidationResult.warning`, or `ValidationResult.error` when a low-level validator or a command outcome needs a result at a specific severity. The optional second argument carries members and rule-author-owned state; `reason` defaults to `rule`. Use `reasonDetail` to identify a specific rejection without parsing its message. The existing `validation(message, members?, reason?, severity?)` helper remains available.
 
 ```typescript title="validation-results.ts"
 import { defineCommand, ValidationResult } from '@cratis/arc.core';
@@ -45,7 +45,7 @@ export const save = defineCommand({
     name: 'Save',
     schema: z.object({ title: z.string() }),
     validate: ({ title }) => title.trim() ? [] : [
-        ValidationResult.Error('A title is required', {
+        ValidationResult.error('A title is required', {
             members: ['title'], state: { attempted: title }, reasonDetail: 'TitleRequired'
         })
     ],

@@ -11,7 +11,7 @@ describe('when handling a query with a validation result with metadata', () => {
     let result: { validationResults: { state: unknown; reasonDetail: string; severity: number }[] };
     beforeEach(async () => {
         const server = new ArcServer({ queries: [defineQuery({ name: 'List', schema: z.object({}), validate: () => [
-            ValidationResult.Error('The filter is unavailable', { state: { retryable: true }, reason: 'dependencyUnavailable', reasonDetail: 'Filter' })
+            ValidationResult.error('The filter is unavailable', { state: { retryable: true }, reason: 'dependencyUnavailable', reasonDetail: 'Filter' })
         ], perform: () => [] })] });
         const response = (await server.handle(new Request('http://arc.invalid/api/list')))!;
         status = response.status;

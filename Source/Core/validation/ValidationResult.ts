@@ -26,9 +26,9 @@ function result(severity: Severity, message: string, options?: ValidationResultO
 /** Construct validation results at a chosen severity, without positional metadata arguments. */
 export const ValidationResult = {
     /** Create an informational result. */
-    Information: (message: string, options?: ValidationResultOptions): ValidationResult => result(Severity.Information, message, options),
+    information: (message: string, options?: ValidationResultOptions): ValidationResult => result(Severity.Information, message, options),
     /** Create a warning result. */
-    Warning: (message: string, options?: ValidationResultOptions): ValidationResult => result(Severity.Warning, message, options),
+    warning: (message: string, options?: ValidationResultOptions): ValidationResult => result(Severity.Warning, message, options),
     /** Create an error result. */
-    Error: (message: string, options?: ValidationResultOptions): ValidationResult => result(Severity.Error, message, options)
+    error: (message: string, options?: ValidationResultOptions): ValidationResult => result(Severity.Error, message, options)
 };

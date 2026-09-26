@@ -13,7 +13,7 @@ describe('when handling a command with a warning result with metadata', () => {
     let result: { validationResults: { state: unknown; reasonDetail: string; severity: number }[] };
     beforeEach(async () => {
         const server = new ArcServer({ commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () =>
-            rejected(ValidationResult.Warning('The item changed', { members: ['id'], state: { revision: 2 }, reason: 'concurrencyViolation', reasonDetail: 'Item' })) })] });
+            rejected(ValidationResult.warning('The item changed', { members: ['id'], state: { revision: 2 }, reason: 'concurrencyViolation', reasonDetail: 'Item' })) })] });
         const response = (await server.handle(runtimePost('/api/save', {}, { 'X-Allowed-Severity': '0' })))!;
         status = response.status;
         result = await response.json();
