@@ -14,6 +14,6 @@ export function snapshotPrincipal(principal: Principal): Principal {
         for (const member of Object.values(value)) freeze(member, depth + 1);
         Object.freeze(value);
     };
-    freeze(copy, 0);
+    freeze(copy, -1); // Claims start at depth 0, as before principal-level freezing.
     return copy;
 }

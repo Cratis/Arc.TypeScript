@@ -16,6 +16,7 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
     let responses: unknown[];
     let failures: unknown[];
     let callbacks: number;
+    let tenants: (string | undefined)[];
     beforeEach(async () => {
         const token = serviceToken<Principal>('legacy principal');
         const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped,
@@ -33,12 +34,15 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
         responses = [];
         failures = [];
         callbacks = 0;
+        tenants = [];
         try {
             for (const principal of principals) {
                 const identity = { ...serviceContext('first'), principal };
                 const scope = server.services.createScope(identity);
                 try {
                     if (scope.identity?.principal !== principal) throw new Error('Legacy principal changed');
+                    (identity as { tenantId?: string }).tenantId = 'second';
+                    tenants.push(scope.identity?.tenantId);
                     const response = await server.performQuery('Legacy', {}, identity);
                     responses.push(response.data);
                     failures.push(await captureFailure(server.runInScope(scope, () => { callbacks++; })));
@@ -48,6 +52,9 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
     });
     it('should keep ordinary query requests working with their original principal', () => {
         responses.should.deep.equal(['function', 'symbol', 'deep', 'roles']);
+    });
+    it('should keep the creation-time tenant when the original context changes', () => {
+        tenants.should.deep.equal(['first', 'first', 'first', 'first']);
     });
     it('should reject borrowed execution before the callback runs', () => {
         callbacks.should.equal(0);

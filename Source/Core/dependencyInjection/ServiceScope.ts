@@ -85,7 +85,7 @@ export class ServiceScope {
             try { principal = snapshotPrincipal(principal); }
             catch { borrowable = false; } // Legacy opaque principals still work for ordinary requests.
         }
-        this.#authority = identity && (borrowable ? Object.freeze({ ...identity, principal }) : identity);
+        this.#authority = identity && Object.freeze({ ...identity, principal });
         this.#borrowable = borrowable;
         this.#singleton = capability.length === 1;
         if (this.#singleton) registry.assertLive();
