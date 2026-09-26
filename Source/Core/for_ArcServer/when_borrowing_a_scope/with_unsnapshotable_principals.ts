@@ -25,7 +25,19 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
             perform: async () => (await currentServices().resolve(token)).id })] });
         let deep: Record<string, unknown> = { value: 'end' };
         for (let depth = 0; depth < 34; depth++) deep = { child: deep };
+        class LegacyPrincipal implements Principal {
+            readonly #identifier = 'class';
+            readonly isAuthenticated = true;
+            readonly roles = ['Reader'];
+            get id(): string { return this.#identifier; }
+        }
+        class LegacyClaim {
+            readonly #value = 'nested';
+            get value(): string { return this.#value; }
+        }
         const principals: Principal[] = [
+            new LegacyPrincipal(),
+            { id: 'nested', isAuthenticated: true, roles: ['Reader'], claims: { legacy: new LegacyClaim() } },
             { id: 'function', isAuthenticated: true, roles: ['Reader'], claims: { call: () => true } },
             { id: 'symbol', isAuthenticated: true, roles: ['Reader'], claims: { value: Symbol('claim') } },
             { id: 'deep', isAuthenticated: true, roles: ['Reader'], claims: deep },
@@ -51,10 +63,10 @@ describe('when a principal cannot be snapshotted for borrowing', () => {
         } finally { await server.dispose(); }
     });
     it('should keep ordinary query requests working with their original principal', () => {
-        responses.should.deep.equal(['function', 'symbol', 'deep', 'roles']);
+        responses.should.deep.equal(['class', 'nested', 'function', 'symbol', 'deep', 'roles']);
     });
     it('should keep the creation-time tenant when the original context changes', () => {
-        tenants.should.deep.equal(['first', 'first', 'first', 'first']);
+        tenants.should.deep.equal(['first', 'first', 'first', 'first', 'first', 'first']);
     });
     it('should reject borrowed execution before the callback runs', () => {
         callbacks.should.equal(0);
