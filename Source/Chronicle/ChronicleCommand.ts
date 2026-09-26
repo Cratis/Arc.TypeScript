@@ -1,12 +1,17 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { acknowledgeCommandCommit, defineCommand, isOutcome, rejected, validation } from '@cratis/arc.core';
+import { acknowledgeCommandCommit, CommandOperation, CommandOperations, defineCommand, inlineCommitClientResponse, isOutcome, rejected, validation } from '@cratis/arc.core';
+import { hasEventType } from '@cratis/chronicle/events';
 import type { CommandDefinition, ExecutionContext, Outcome, ValidationResult } from '@cratis/arc.core';
 import type { AppendOptions, AppendResult, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
+import type { IEventStore } from '@cratis/chronicle';
 import type { z } from 'zod';
 import type { ChronicleCommandDefinition } from './ChronicleCommandDefinition.js';
 import type { ChronicleProduced } from './ChronicleProduced.js';
 import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
+import { isRoutedEvent } from './eventForEventSourceId.js';
+import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
+import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 
 function memberName(propertyName: string): string {
     if (/^[A-Z]{2}/.test(propertyName)) return propertyName;
@@ -59,11 +64,23 @@ export function checkResults(results: readonly AppendResult[], expected: number)
     return undefined;
 }
 
+function isAppendValue(value: unknown, store: IEventStore): boolean {
+    if (value instanceof CommandOperation || value instanceof CommandOperations ||
+        value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
+    if (Array.isArray(value)) return value.length === 0 || value.some(item => isAppendValue(item, store));
+    if (typeof value !== 'object' || value === null) return false;
+    if (isRoutedEvent(value) ||
+        (typeof Reflect.get(value, 'eventSourceId') === 'string' &&
+            typeof Reflect.get(value, 'event') === 'object' && Reflect.get(value, 'event') !== null)) return true;
+    return hasEventType(value.constructor) || store.eventTypes.all.some(type => type === value.constructor);
+}
+
 export function defineChronicleCommand<S extends z.ZodType, T>(definition: ChronicleCommandDefinition<S, T>): CommandDefinition<S, T | undefined> {
     const { client, eventStore, namespaceForContext, produce, completionTimeoutMs, ...command } = definition;
     if (!eventStore) throw new Error('A Chronicle event store is required');
     return defineCommand<S, T | undefined>({
         ...command,
+        [inlineCommitClientResponse]: true,
         async handle(input, context, provided) {
             const produced = await produce(input, context, provided);
             context.signal.throwIfAborted();
@@ -94,6 +111,10 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
         // The append is acknowledged: a later cancellation cannot undo it or erase its response.
         acknowledgeCommandCommit(context);
         await waitForProjectionCompletion(results, completionTimeoutMs, context.signal);
+        if (isAppendValue(commandResponse, store)) {
+            context.signal.throwIfAborted();
+            throw new Error('A Chronicle command cannot return an event or command operation as its client response');
+        }
         return commandResponse;
     }
 }

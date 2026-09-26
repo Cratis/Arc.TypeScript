@@ -8,7 +8,7 @@ import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import { assertClientOutput } from '../introspection/ClientManifest.js';
 import { isOutcome } from './Outcome.js';
 import { hasAcknowledgedCommandCommit } from './acknowledgeCommandCommit.js';
-import type { CommandDefinition } from './CommandDefinition.js';
+import { inlineCommitClientResponse, type CommandDefinition } from './CommandDefinition.js';
 import type { CommandContext } from './CommandContext.js';
 import { CommandFailureSnapshot } from './CommandFailureSnapshot.js';
 import { CommandCommitDisposition } from './CommandCommitDisposition.js';
@@ -107,11 +107,11 @@ async function handle<S extends z.ZodType, T>(definition: CommandDefinition<S, T
     throwIfCanceled(context, 'Command canceled');
     const handled = await definition.handle(value, context, provided);
     if (context.signal.aborted) {
-        // A handler that acknowledged its own commit returns the client response; classifying it would start a
-        // response-handler stage after cancellation and misreport the committed effect as canceled.
-        const committedInHandler = hasAcknowledgedCommandCommit(context);
+        // Only an inline-commit definition can promise that its validated return value is the client response.
+        // Other acknowledged commits still require response-handler classification, which cancellation forbids.
+        const inlineCommit = definition[inlineCommitClientResponse] === true && hasAcknowledgedCommandCommit(context);
         const response = completedCommandResponse(context, flattenCommandResponse(handled),
-            !committedInHandler && !!options.commandResponseValueHandlers?.length);
+            !inlineCommit && !!options.commandResponseValueHandlers?.length);
         if (response) return { result: response, prepared: true };
     }
     throwIfCanceled(context, 'Command canceled');

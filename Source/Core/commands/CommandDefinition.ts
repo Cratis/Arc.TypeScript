@@ -7,8 +7,12 @@ import type { CommandExecutionScope } from './CommandExecutionScope.js';
 import type { CommandFilter } from './CommandFilter.js';
 import type { DescriptorBase } from '../http/DescriptorBase.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
+/** Internal contract for definitions whose handler commits before returning a client response. */
+export const inlineCommitClientResponse = Symbol('Arc.inlineCommitClientResponse');
 export interface CommandDefinition<S extends z.ZodType, T> extends DescriptorBase {
     schema: S;
+    /** Integration-only: set by an inline-commit adapter that validates its returned response. */
+    readonly [inlineCommitClientResponse]?: true;
     /** Materialize a model-bound command for context and key resolution. */
     commandFactory?: (input: z.output<S>) => unknown;
     /** Preflight without constructing handler services during validation-only requests. */
