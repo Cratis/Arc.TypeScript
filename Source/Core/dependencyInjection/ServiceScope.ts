@@ -17,7 +17,7 @@ import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
 const borrowableCapability = Symbol('borrowable scope');
 const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void>;
-    authority: () => ExecutionContext | undefined; borrowable: () => boolean }>();
+    authority: () => ExecutionContext | undefined; borrowable: () => boolean; createdForBorrowing: boolean }>();
 const disposal = new AsyncLocalStorage<ServiceDisposalFrame>();
 /** Package-private shutdown entry points; never methods on the public scope. */
 export function createSingletonServiceScope(registry: ServiceRegistry): ServiceScope {
@@ -38,6 +38,8 @@ export function serviceScopeRegistry(scope: ServiceScope): ServiceRegistry { ret
 export function borrowedScopeAuthority(scope: ServiceScope, registry: ServiceRegistry): ExecutionContext {
     const internal = internals.get(scope);
     if (!internal || internal.registry !== registry) throw new ServiceDependencyError('Invalid Arc service scope');
+    if (!internal.createdForBorrowing)
+        throw new ServiceDependencyError('Arc service scope was not created by services.createScope and cannot be borrowed');
     if (!internal.borrowable()) throw new ServiceDependencyError('Arc service scope has an unsnapshotable principal');
     const authority = internal.authority();
     if (!authority) throw new ServiceDependencyError('Invalid Arc service scope');
@@ -117,7 +119,7 @@ export class ServiceScope {
         else registry.admitScope(this);
         internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),
             authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#borrowedAuthority : undefined,
-            borrowable: () => this.#borrowable });
+            borrowable: () => this.#borrowable, createdForBorrowing: capability[0] === borrowableCapability });
     }
     get singleton(): boolean { return this.#singleton; }
     get registry(): ServiceRegistry { return this.#registry; }

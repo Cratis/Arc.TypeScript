@@ -33,7 +33,7 @@ describe('when borrowing an Arc-owned query scope', () => {
         } finally { await server.dispose(); }
     });
     it('should reject borrowing before calling back', () => {
-        (failure as Error).message.should.contain('unsnapshotable principal');
+        (failure as Error).message.should.contain('was not created by services.createScope');
         callbacks.should.equal(0);
         succeeded.should.equal(true);
     });
