@@ -87,7 +87,12 @@ __metadata:
   dependencies:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
+    "@cratis/arc.fastify": "workspace:^"
+    "@cratis/arc.hono": "workspace:^"
     express: "npm:^5.1.0"
+    fastify: "npm:^5.6.0"
+    hono: "npm:^4.9.0"
+    ws: "npm:^8.21.3"
     zod: "npm:^4.1.0"
   languageName: unknown
   linkType: soft
@@ -165,7 +170,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/arc.fastify@workspace:*, @cratis/arc.fastify@workspace:Source/Fastify":
+"@cratis/arc.fastify@workspace:*, @cratis/arc.fastify@workspace:Source/Fastify, @cratis/arc.fastify@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.fastify@workspace:Source/Fastify"
   dependencies:
@@ -180,7 +185,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/arc.hono@workspace:*, @cratis/arc.hono@workspace:Source/Hono":
+"@cratis/arc.hono@workspace:*, @cratis/arc.hono@workspace:Source/Hono, @cratis/arc.hono@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.hono@workspace:Source/Hono"
   dependencies:
