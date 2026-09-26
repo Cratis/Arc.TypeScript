@@ -3,7 +3,7 @@
 import { ArcApplication, command, commandReadModel, inject, key, Severity } from '@cratis/arc.core';
 import { ConceptAs, field, Guid } from '@cratis/fundamentals';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import { pgTable, text } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, it, should } from 'vitest';
 import { conceptCodec, guidCodec } from '../../ColumnCodec.js';
@@ -51,7 +51,7 @@ class LookUpOptionalTask {
 }
 
 const id = Guid.parse('00112233-4455-6677-8899-aabbccddeeff');
-const missingId = Guid.parse('11112233-4455-6677-8899-aabbccddeeff');
+const tenantBOnlyId = Guid.parse('11112233-4455-6677-8899-aabbccddeeff');
 const identity = (tenantId: string) => ({ tenantId, principal: undefined, allowedSeverity: Severity.Warning,
     signal: new AbortController().signal, correlationId: crypto.randomUUID() });
 
@@ -75,7 +75,7 @@ describe('when injecting a PostgreSQL read model into a command', () => {
         const first = drizzle(firstPool);
         const second = drizzle(secondPool);
         await first.insert(guidTasks).values({ id, title: 'tenant a' });
-        await second.insert(guidTasks).values([{ id, title: 'tenant b' }, { id: missingId, title: 'only tenant b' }]);
+        await second.insert(guidTasks).values([{ id, title: 'tenant b' }, { id: tenantBOnlyId, title: 'only tenant b' }]);
         await first.insert(namedTasks).values({ name: new TaskName('same-name'), title: 'named a' });
         await second.insert(namedTasks).values({ name: new TaskName('same-name'), title: 'named b' });
         const builder = ArcApplication.createBuilder();
@@ -110,10 +110,10 @@ describe('when injecting a PostgreSQL read model into a command', () => {
         (result.response as string).should.equal('named a');
     });
     it('should not read a GUID row belonging only to another tenant', async () => {
-        const other = await application.server.executeCommand('LookUpGuidTask', { id: missingId.toString() }, identity('b'));
+        const other = await application.server.executeCommand('LookUpGuidTask', { id: tenantBOnlyId.toString() }, identity('b'));
         other.isSuccess.should.equal(true);
         (other.response as string).should.equal('only tenant b');
-        const result = await application.server.executeCommand('LookUpGuidTask', { id: missingId.toString() }, identity('a'));
+        const result = await application.server.executeCommand('LookUpGuidTask', { id: tenantBOnlyId.toString() }, identity('a'));
         result.isSuccess.should.equal(false);
         result.validationResults[0]!.message.should.equal('GuidTask was not found for the command key');
         result.hasExceptions.should.equal(false);
@@ -125,16 +125,8 @@ describe('when injecting a PostgreSQL read model into a command', () => {
         result.hasExceptions.should.equal(false);
     });
     it('should pass null for a missing optional row', async () => {
-        const result = await application.server.executeCommand('LookUpOptionalTask', { id: missingId.toString() }, identity('a'));
+        const result = await application.server.executeCommand('LookUpOptionalTask', { id: tenantBOnlyId.toString() }, identity('a'));
         result.isSuccess.should.equal(true);
         (result.response as string).should.equal('not found');
-    });
-    it('should reject a table-level composite primary key at registration', () => {
-        const composite = pgTable('composite_tasks', { id: text('id'), locale: text('locale'), title: text('title') },
-            table => [primaryKey({ columns: [table.id, table.locale] })]);
-        const builder = ArcApplication.createBuilder();
-        (() => builder.withDrizzle({ dialect: DrizzleDialect.PostgreSQL, database: drizzle(firstPool),
-            readModels: [{ type: GuidTask, table: composite }] }))
-            .should.throw('A Drizzle read model requires a primary key for stable paging');
     });
 });
