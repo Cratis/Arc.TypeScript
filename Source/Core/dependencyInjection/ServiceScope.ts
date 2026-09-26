@@ -15,12 +15,21 @@ import { requestContext, withoutRequestContext } from '../execution/RequestConte
 import type { ServiceDisposalFrame } from './ServiceDisposalFrame.js';
 import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
+const borrowableCapability = Symbol('borrowable scope');
 const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void>;
     authority: () => ExecutionContext | undefined; borrowable: () => boolean }>();
 const disposal = new AsyncLocalStorage<ServiceDisposalFrame>();
 /** Package-private shutdown entry points; never methods on the public scope. */
 export function createSingletonServiceScope(registry: ServiceRegistry): ServiceScope {
     return Reflect.construct(ServiceScope, [registry, undefined, singletonCapability]) as ServiceScope;
+}
+/** @internal Only public registry-created scopes carry borrowing authority. */
+export function createBorrowableServiceScope(registry: ServiceRegistry, identity: ExecutionContext): ServiceScope {
+    return Reflect.construct(ServiceScope, [registry, identity, borrowableCapability]) as ServiceScope;
+}
+/** @internal Arc-owned scopes have no borrowing authority. */
+export function createOwnedServiceScope(registry: ServiceRegistry, identity: ExecutionContext): ServiceScope {
+    return new ServiceScope(registry, identity);
 }
 export function closeServiceScope(scope: ServiceScope): Promise<void> { return internals.get(scope)!.close(); }
 export function disposeCreatedServices(scope: ServiceScope): Promise<void> { return internals.get(scope)!.disposeCreated(); }
@@ -77,7 +86,8 @@ export class ServiceScope {
     readonly #borrowable: boolean;
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined);
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined, ...capability: unknown[]) {
-        if (capability.length && (capability.length !== 1 || capability[0] !== singletonCapability))
+        if (capability.length && (capability.length !== 1 ||
+            capability[0] !== singletonCapability && capability[0] !== borrowableCapability))
             throw new ServiceDependencyError('Invalid service scope construction');
         this.#registry = registry;
         // Record every declared field through property access, including inherited getters.
@@ -90,16 +100,19 @@ export class ServiceScope {
             signal: identity.signal,
             allowedSeverity: identity.allowedSeverity
         } satisfies ExecutionContext & Record<keyof ExecutionContext, unknown>);
-        let borrowedPrincipal = this.#authority?.principal;
-        let borrowable = true;
-        if (borrowedPrincipal) {
-            try { borrowedPrincipal = snapshotPrincipal(borrowedPrincipal); }
-            catch { borrowable = false; } // Opaque principals remain usable in ordinary scopes.
+        let borrowable = capability[0] === borrowableCapability;
+        let borrowedAuthority: ExecutionContext | undefined;
+        if (borrowable && this.#authority) {
+            let borrowedPrincipal = this.#authority.principal;
+            if (borrowedPrincipal) {
+                try { borrowedPrincipal = snapshotPrincipal(borrowedPrincipal); }
+                catch { borrowable = false; } // Opaque principals remain usable in ordinary scopes.
+            }
+            if (borrowable) borrowedAuthority = Object.freeze({ ...this.#authority, principal: borrowedPrincipal });
         }
-        this.#borrowedAuthority = borrowable && this.#authority
-            ? Object.freeze({ ...this.#authority, principal: borrowedPrincipal }) : undefined;
+        this.#borrowedAuthority = borrowedAuthority;
         this.#borrowable = borrowable;
-        this.#singleton = capability.length === 1;
+        this.#singleton = capability[0] === singletonCapability;
         if (this.#singleton) registry.assertLive();
         else registry.admitScope(this);
         internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),

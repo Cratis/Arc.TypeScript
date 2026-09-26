@@ -6,6 +6,7 @@ import type { Artifact } from '../reflection/Artifact.js';
 import type { ClassType } from '../reflection/ClassType.js';
 import { ownMetadata } from '../reflection/ownMetadata.js';
 import type { ServiceIdentifier } from '../dependencyInjection/ServiceIdentifier.js';
+import { createOwnedServiceScope } from '../dependencyInjection/ServiceScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from '../authorization/AuthorizationPolicy.js';
 import { readModelArgument } from '../commands/modelBound/commandReadModel.js';
 import { BaseValidator } from '../validation/BaseValidator.js';
@@ -20,7 +21,7 @@ export async function preflight(server: ArcServer, dependencies: ServiceIdentifi
     server.services.preflight([...dependencies, ...[...policies.values()].filter(
         (policy): policy is (abstract new (...arguments_: never[]) => AuthorizationPolicy) =>
             typeof policy.prototype?.authorize === 'function')]);
-    const scope = server.services.createScope({ correlationId: '', principal: undefined, tenantId: undefined,
+    const scope = createOwnedServiceScope(server.services, { correlationId: '', principal: undefined, tenantId: undefined,
         signal: new AbortController().signal, allowedSeverity: Severity.Error });
     try {
         const resolvers = await Promise.all([...options.readModelForCommandResolvers ?? [], ...readModelResolvers]

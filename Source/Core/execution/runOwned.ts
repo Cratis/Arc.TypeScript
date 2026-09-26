@@ -5,12 +5,13 @@ import { withExecutionBoundary } from './withExecutionBoundary.js';
 import type { ArtifactMetadata } from '../reflection/ArtifactMetadata.js';
 import type { ClassType } from '../reflection/ClassType.js';
 import type { ServiceRegistry } from '../dependencyInjection/ServiceRegistry.js';
+import { createOwnedServiceScope } from '../dependencyInjection/ServiceScope.js';
 
 /** Run an operation and its service cleanup in the same execution boundary. */
 export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<ClassType, ArtifactMetadata> | undefined,
     context: ExecutionContext, callback: () => T | Promise<T>, isSuccess: (value: T) => boolean,
     fail: (error: unknown, previous?: T) => T): Promise<T> {
-    const scope = services.createScope(context);
+    const scope = createOwnedServiceScope(services, context);
     return withExecutionBoundary(services, metadata, scope, context, async () => {
         let result: T;
         try { result = await callback(); }

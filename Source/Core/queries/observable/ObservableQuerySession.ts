@@ -5,7 +5,7 @@ import type { QueryResult } from '../QueryResult.js';
 import { hasFailure, originalFailure } from '../../execution/failureTracking.js';
 import { queryResult } from '../createQueryResult.js';
 import { requestContext } from '../../execution/RequestContextStore.js';
-import { withServices } from '../../dependencyInjection/ServiceScope.js';
+import { createOwnedServiceScope, withServices } from '../../dependencyInjection/ServiceScope.js';
 import type { ObservableSource } from './ObservableSource.js';
 import { toEmissions } from './toEmissions.js';
 import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
@@ -33,7 +33,7 @@ export class ObservableQuerySession {
     private constructor(private readonly config: ObservableSessionConfig) {
         this.#context = Object.freeze({ ...config.context, principal: clonePrincipal(config.context.principal),
             signal: AbortSignal.any([config.context.signal, this.#controller.signal]) });
-        this.#scope = config.services.createScope(this.#context);
+        this.#scope = createOwnedServiceScope(config.services, this.#context);
         this.#subscription = beginSubscription(
             config.operation.fullyQualifiedName, this.#context.correlationId);
     }

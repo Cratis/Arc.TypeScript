@@ -6,7 +6,7 @@ import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
 import type { ServiceToken } from './ServiceToken.js';
 import { normalizeServiceToken, type ServiceIdentifier } from './ServiceIdentifier.js';
-import { ServiceScope, closeServiceScope, createSingletonServiceScope, disposeCreatedServices, hasLivingServiceDisposal, hasLivingServiceResolution, serviceScopeRegistry, withServiceResolutionBoundary } from './ServiceScope.js';
+import { ServiceScope, closeServiceScope, createBorrowableServiceScope, createSingletonServiceScope, disposeCreatedServices, hasLivingServiceDisposal, hasLivingServiceResolution, serviceScopeRegistry, withServiceResolutionBoundary } from './ServiceScope.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
 import type { ServiceExecutionFrame } from './ServiceExecutionFrame.js';
 import { ServiceDependencyError } from './ServiceDependencyError.js';
@@ -155,7 +155,7 @@ export class ServiceRegistry {
     }
     createScope(identity: ExecutionContext): ServiceScope {
         this.assertLive();
-        return new ServiceScope(this, identity);
+        return createBorrowableServiceScope(this, identity);
     }
     singletonScope(): ServiceScope { return this.#singletons; }
     /** Directly constructed scopes participate in admission and shutdown too. */
