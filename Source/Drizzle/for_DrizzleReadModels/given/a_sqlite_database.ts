@@ -9,13 +9,15 @@ import { Guid } from '@cratis/fundamentals';
 import { guidCodec } from '../../ColumnCodec.js';
 import { sqliteColumn } from '../../columns.js';
 
+export const taskTable = sqliteTable('tasks', {
+        id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
+        title: text('title').notNull()
+});
+
 /** An isolated in-memory SQLite database running in WebAssembly (no native binding). */
 export class a_sqlite_database {
     native!: Database;
-    readonly table = sqliteTable('tasks', {
-        id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
-        title: text('title').notNull()
-    });
+    readonly table = taskTable;
     database!: ReturnType<typeof drizzle>;
     async establish() {
         const SQL = await initSqlJs();

@@ -8,6 +8,9 @@ import type { QueryOptions, QueryPage } from '@cratis/arc.core';
 import type { DrizzleDatabase } from './DrizzleDatabase.js';
 import type { DrizzleFilter } from './DrizzleFilter.js';
 import { DrizzleModelCodec } from './DrizzleModelCodec.js';
+import type { DrizzleChangeNotifications } from './DrizzleChangeNotifications.js';
+import { DrizzleObservable } from './DrizzleObservable.js';
+import { DrizzleObservationSession } from './DrizzleObservationSession.js';
 
 // Each Drizzle driver implements these query-builder operations and maps selected columns on execute.
 type SelectQuery = {
@@ -27,14 +30,19 @@ export class DrizzleReadModels<T extends object> {
     private readonly codec: DrizzleModelCodec<T>;
     private readonly keys: Column[];
     private readonly columns: Record<string, Column>;
+    readonly #observations = new Set<DrizzleObservable<unknown>>();
+    #disposed = false;
     constructor(private readonly database: DrizzleDatabase, readonly table: Table, type: new () => T,
-        private readonly maxPageSize = 100, codec?: DrizzleModelCodec<T>) {
+        private readonly maxPageSize = 100, codec?: DrizzleModelCodec<T>,
+        private readonly notifications?: DrizzleChangeNotifications, private readonly tenant?: string,
+        private readonly signal?: AbortSignal) {
         if (!Number.isSafeInteger(maxPageSize) || maxPageSize <= 0 || maxPageSize > 10000)
             throw new RangeError('maxPageSize must be between 1 and 10000');
         this.columns = getTableColumns(table);
         this.keys = Object.values(this.columns).filter(column => column.primary);
         if (!this.keys.length) throw new Error('A Drizzle read model requires a primary key for stable paging');
         this.codec = codec ?? new DrizzleModelCodec(type, this.columns);
+        signal?.addEventListener('abort', this.abort, { once: true });
     }
 
     private get db(): ReadDatabase { return this.database as ReadDatabase; }
@@ -53,6 +61,70 @@ export class DrizzleReadModels<T extends object> {
         const rows = await this.db.select(this.codec.selection).from(this.table).where(filter)
             .orderBy(...order).limit(limit).offset(offset).execute();
         return rows.map(row => this.codec.deserialize(row));
+    }
+
+    private validatePage(options: QueryOptions): { page: number; pageSize: number } {
+        const { page, pageSize } = options.paging ?? { page: 0, pageSize: this.maxPageSize };
+        if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize < 1 ||
+            !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid Drizzle page');
+        if (pageSize > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize);
+        this.order(options.sorting);
+        return { page, pageSize };
+    }
+
+    private observeWith<Value>(read: () => Promise<Value>): DrizzleObservable<Value> {
+        const canStart = (): void => {
+            if (this.#disposed || this.signal?.aborted) throw new Error('Drizzle read models have been disposed');
+            if (!this.notifications || !this.tenant) throw new Error(
+                'Drizzle observation is not enabled; set observation: DrizzleObservation.InProcess in withDrizzle');
+        };
+        const observable = new DrizzleObservable<Value>(onClose => new DrizzleObservationSession(read,
+            changed => this.notifications!.listen(this.tenant!, this.table, changed), this.signal, onClose), canStart,
+        () => this.#observations.add(observable), () => this.#observations.delete(observable));
+        return observable;
+    }
+
+    /** Experimental: observe a complete small result; overflow fails instead of emitting a truncated list. */
+    observe(filter?: DrizzleFilter): DrizzleObservable<T[]> {
+        return this.observeWith(async () => {
+            const items = await this.select(filter, undefined, this.maxPageSize + 1);
+            if (items.length > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true,
+                `The result exceeds the maximum of ${this.maxPageSize} items; use observePage for paged results`);
+            return items;
+        });
+    }
+
+    /** Experimental: observe a fixed SQL-sorted page. Count and rows converge after announced concurrent writes. */
+    observePage(filter: DrizzleFilter, options: QueryOptions): DrizzleObservable<QueryPage<T>> {
+        const { page, pageSize } = this.validatePage(options);
+        return this.observeWith(async () => {
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const total = await this.db.$count(this.table, filter);
+                if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
+                if (!options.paging && total > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
+                const items = await this.select(filter, options.sorting, pageSize, page * pageSize);
+                if (items.length === Math.min(pageSize, Math.max(0, total - page * pageSize)))
+                    return queryPage(items, total, options.sorting);
+            }
+            throw new Error('Drizzle observation could not read a consistent page');
+        });
+    }
+
+    /** Experimental: emit null for a missing or deleted single-key row. */
+    observeById(key: string): DrizzleObservable<T | null> {
+        if (this.keys.length !== 1) throw new Error('Drizzle command read models require a single primary key');
+        return this.observeWith(() => this.findById(key));
+    }
+
+    private readonly abort = (): void => { void this[Symbol.asyncDispose](); };
+
+    /** End and release all observations owned by this read-model scope. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        if (this.#disposed) return;
+        this.#disposed = true;
+        this.signal?.removeEventListener('abort', this.abort);
+        for (const observation of this.#observations) observation.close();
+        this.#observations.clear();
     }
 
     /** Return at most maxPageSize matches, never an unbounded result. */
@@ -80,11 +152,7 @@ export class DrizzleReadModels<T extends object> {
 
     /** Push a typed predicate, count, sort and page into SQL; never load the unbounded result before paging. */
     async queryPage(filter: DrizzleFilter, options: QueryOptions): Promise<QueryPage<T>> {
-        const { page, pageSize } = options.paging ?? { page: 0, pageSize: this.maxPageSize };
-        if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(pageSize) || pageSize < 1 ||
-            !Number.isSafeInteger(page * pageSize)) throw new RangeError('Invalid Drizzle page');
-        if (pageSize > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize);
-        this.order(options.sorting);
+        const { page, pageSize } = this.validatePage(options);
         const total = await this.db.$count(this.table, filter);
         if (!Number.isSafeInteger(total) || total < 0) throw new Error('Invalid Drizzle count');
         if (!options.paging && total > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
