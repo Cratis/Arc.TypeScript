@@ -1,4 +1,14 @@
 - name: OpenAPI
   href: index.md
+- name: Concepts
+  href: concepts.md
+- name: Commands
+  href: commands.md
+- name: Queries
+  href: queries.md
+- name: Enums
+  href: enums.md
+- name: Model-bound and low-level operations
+  href: model-bound.md
 - name: How types appear in the document
   href: schemas.md
