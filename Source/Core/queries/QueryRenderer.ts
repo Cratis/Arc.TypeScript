@@ -6,6 +6,6 @@ import type { QueryPage } from './QueryPage.js';
 
 /** Scoped renderer for a provider-owned result; return a page with its authoritative total and sorting. */
 export interface QueryRenderer {
-    canRender(value: unknown): boolean;
+    canRender(value: unknown): boolean | Promise<boolean>;
     render(value: unknown, context: ExecutionContext, options: QueryOptions): QueryPage<unknown> | unknown | Promise<QueryPage<unknown> | unknown>;
 }

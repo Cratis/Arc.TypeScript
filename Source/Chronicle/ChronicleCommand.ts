@@ -1,12 +1,18 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { defineCommand, isOutcome, rejected, validation } from '@cratis/arc.core';
+import { acknowledgeCommandCommit, inlineCommitClientResponse, isArcTuple, isCommandOperation, isCommandOperations } from '@cratis/arc.core/hosting';
+import { hasEventType } from '@cratis/chronicle/events';
 import type { CommandDefinition, ExecutionContext, Outcome, ValidationResult } from '@cratis/arc.core';
 import type { AppendOptions, AppendResult, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
+import type { IEventStore } from '@cratis/chronicle';
 import type { z } from 'zod';
 import type { ChronicleCommandDefinition } from './ChronicleCommandDefinition.js';
 import type { ChronicleProduced } from './ChronicleProduced.js';
 import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
+import { isRoutedEvent } from './eventForEventSourceId.js';
+import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
+import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 
 function memberName(propertyName: string): string {
     if (/^[A-Z]{2}/.test(propertyName)) return propertyName;
@@ -59,11 +65,28 @@ export function checkResults(results: readonly AppendResult[], expected: number)
     return undefined;
 }
 
+function containsAppendValue(value: unknown, store: IEventStore, seen = new Set<object>()): boolean {
+    if (typeof value !== 'object' || value === null || seen.has(value)) return false;
+    seen.add(value);
+    if (isCommandOperation(value) || isCommandOperations(value) ||
+        value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
+    if (isArcTuple(value)) return value.values.some(item => containsAppendValue(item, store, seen));
+    if (isOutcome(value)) return value.kind === 'response' && containsAppendValue(value.value, store, seen);
+    // ChronicleResponseHandler claims an empty array as an append response, so it is never a client value either.
+    if (Array.isArray(value)) return value.length === 0 || value.some(item => containsAppendValue(item, store, seen));
+    if (isRoutedEvent(value) ||
+        (typeof Reflect.get(value, 'eventSourceId') === 'string' &&
+            typeof Reflect.get(value, 'event') === 'object' && Reflect.get(value, 'event') !== null)) return true;
+    // Ordinary object properties are client data, not values handed to response handlers.
+    return hasEventType(value.constructor) || store.eventTypes.all.some(type => type === value.constructor);
+}
+
 export function defineChronicleCommand<S extends z.ZodType, T>(definition: ChronicleCommandDefinition<S, T>): CommandDefinition<S, T | undefined> {
     const { client, eventStore, namespaceForContext, produce, completionTimeoutMs, ...command } = definition;
     if (!eventStore) throw new Error('A Chronicle event store is required');
     return defineCommand<S, T | undefined>({
         ...command,
+        [inlineCommitClientResponse]: true,
         async handle(input, context, provided) {
             const produced = await produce(input, context, provided);
             context.signal.throwIfAborted();
@@ -91,7 +114,17 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
             : await store.eventLog.appendMany([...events], { correlationId: context.correlationId });
         const failure = checkResults(results, events.length);
         if (failure) return failure;
+        // The append is acknowledged: a later cancellation cannot undo it or erase its response.
+        acknowledgeCommandCommit(context);
         await waitForProjectionCompletion(results, completionTimeoutMs, context.signal);
+        if (containsAppendValue(commandResponse, store)) {
+            context.signal.throwIfAborted();
+            throw new Error('A Chronicle command cannot return an event or command operation as its client response');
+        }
+        if (isArcTuple(commandResponse)) {
+            context.signal.throwIfAborted();
+            throw new Error('A Chronicle command cannot return an Arc tuple as its client response');
+        }
         return commandResponse;
     }
 }

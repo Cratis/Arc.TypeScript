@@ -6,16 +6,18 @@ import type { AppendResult } from '@cratis/chronicle/eventSequences';
 export async function waitForProjectionCompletion(results: readonly AppendResult[], timeoutMs: number | undefined, signal: AbortSignal): Promise<void> {
     if (timeoutMs === undefined || results.length === 0) return;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error('Chronicle completion timeout must be a positive integer in milliseconds');
-    signal.throwIfAborted();
+    if (signal.aborted) return;
     const last = results[results.length - 1]!;
-    // The SDK bounds its RPC with timeoutMs. The Arc signal can cancel the caller's wait as well.
+    // Cancellation stops waiting, not the acknowledged append. An observer failure remains an error.
     let onAbort: () => void = () => {};
-    const abort = new Promise<never>((_, reject) => {
-        onAbort = () => reject(signal.reason);
+    const abort = new Promise<{ canceled: true }>(resolve => {
+        onAbort = () => resolve({ canceled: true });
         signal.addEventListener('abort', onAbort, { once: true });
     });
     try {
-        const completion = await Promise.race([last.waitForCompletion(timeoutMs), abort]);
+        const outcome = await Promise.race([last.waitForCompletion(timeoutMs).then(completion => ({ canceled: false as const, completion })), abort]);
+        if (outcome.canceled) return;
+        const { completion } = outcome;
         if (!completion.isSuccess || completion.failedPartitions.length) {
             throw new Error(`Chronicle append committed, but observer completion failed for ${completion.failedPartitions.length} partition(s)`);
         }

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ArcOptions } from '../ArcOptions.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
+import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import { CommandContextValues } from './CommandContextValues.js';
 import type { CommandContext } from './CommandContext.js';
@@ -10,13 +11,24 @@ import { DefaultKeyForCommandResolver } from './DefaultKeyForCommandResolver.js'
 export async function createCommandContext(command: unknown, execution: ExecutionContext, options: ArcOptions): Promise<CommandContext> {
     const services = currentServices();
     const values = new CommandContextValues();
-    for (const token of options.commandContextValuesProviders ?? []) values.merge(await (await services.resolve(token)).provide(command));
+    for (const token of options.commandContextValuesProviders ?? []) {
+        throwIfCanceled(execution, 'Command canceled');
+        const provider = await services.resolve(token);
+        throwIfCanceled(execution, 'Command canceled');
+        const provided = await provider.provide(command);
+        throwIfCanceled(execution, 'Command canceled');
+        values.merge(provided);
+    }
     if (!values.has('resolvedKey')) {
         let key: string | undefined;
         for (const token of options.commandKeyResolvers ?? []) {
-            key = (await services.resolve(token)).resolve(command);
+            throwIfCanceled(execution, 'Command canceled');
+            const resolver = await services.resolve(token);
+            throwIfCanceled(execution, 'Command canceled');
+            key = resolver.resolve(command);
             if (key) break;
         }
+        throwIfCanceled(execution, 'Command canceled');
         key ??= new DefaultKeyForCommandResolver().resolve(command);
         if (key) values.set('resolvedKey', key);
     }

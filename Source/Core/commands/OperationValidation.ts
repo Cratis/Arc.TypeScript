@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
+import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import type { ValidationResult } from '../validation/ValidationResult.js';
 import { currentServices } from '../dependencyInjection/ServiceScope.js';
 import { ServiceDependencyError } from '../dependencyInjection/ServiceDependencyError.js';
@@ -20,8 +21,11 @@ export function dependencyFailure(error: unknown): ValidationResult[] {
 export async function validate<T>(filters: readonly (((input: T, context: ExecutionContext) => ValidationResult[] | void | Promise<ValidationResult[] | void>) | undefined)[], input: T, context: ExecutionContext): Promise<ValidationResult[]> {
     const issues: ValidationResult[] = [];
     for (const filter of filters) {
+        throwIfCanceled(context, 'Operation canceled');
         if (!filter) continue;
-        issues.push(...(await filter(input, context) ?? []).filter(item => item.severity > context.allowedSeverity));
+        const results = await filter(input, context);
+        throwIfCanceled(context, 'Operation canceled');
+        issues.push(...(results ?? []).filter(item => item.severity > context.allowedSeverity));
     }
     return issues;
 }
