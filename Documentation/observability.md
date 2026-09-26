@@ -26,7 +26,8 @@ const sdk = new NodeSDK({
     traceExporter: new ConsoleSpanExporter(),
     metricReaders: [new PeriodicExportingMetricReader({
         exporter: new ConsoleMetricExporter(), exportIntervalMillis: 1000
-    })]
+    })],
+    logRecordProcessors: []
 });
 sdk.start();
 
@@ -47,6 +48,106 @@ try {
 You see the query result, then spans and a `cratis.arc.operation.duration` histogram from the `Cratis.Arc` source and meter. In a real host, replace the console exporters with exporters configured for your collector.
 
 If the SDK starts after Arc is imported, Arc uses the API's proxy tracer. Initialize the SDK before sending requests so nothing is missed.
+
+## Connect host HTTP spans to Arc
+
+If you need a request trace across host middleware and Arc, start your SDK **before loading** the HTTP server or adapter. The host owns W3C `traceparent` extraction and propagation; Arc emits child spans under the active context. The following Express host uses an in-memory span exporter for inspection (use your own exporter in production). It enables only HTTP and Express instrumentation, and disables metric and log exporting. Express is loaded with CommonJS `require` after SDK startup because the Express instrumentation does not hook ESM imports without an OpenTelemetry loader hook. A pure ESM host registers that hook instead (`node --import` with a module that calls `register('@opentelemetry/instrumentation/hook.mjs', import.meta.url)` before the SDK starts); that path is not covered by the check below. Install `@opentelemetry/instrumentation-http`, `@opentelemetry/instrumentation-express`, `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `express`, and `zod` in the host application.
+
+```typescript title="observability-host.ts"
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { createRequire } from 'node:module';
+import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { SpanKind } from '@opentelemetry/api';
+
+const exporter = new InMemorySpanExporter();
+const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)],
+    metricReaders: [], logRecordProcessors: [],
+    instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()] });
+sdk.start();
+
+const require = createRequire(import.meta.url);
+const { createServer } = require('node:http') as typeof import('node:http');
+const express = require('express') as typeof import('express');
+const { ArcServer, defineCommand } = await import('@cratis/arc.core');
+const { cratisArc } = await import('@cratis/arc.express');
+const { z } = await import('zod');
+const arc = new ArcServer({ commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }),
+    handle: ({ value }) => value })] });
+const host = express();
+host.use(cratisArc(arc));
+const server = createServer(host);
+try {
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw Error('No listening port');
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/echo`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"value":"ok"}'
+    });
+    if (response.status !== 200) throw Error(`HTTP ${response.status}`);
+    await response.text();
+    const spans = exporter.getFinishedSpans();
+    const servers = spans.filter(span => span.kind === SpanKind.SERVER &&
+        (span.attributes['http.method'] ?? span.attributes['http.request.method']) === 'POST' &&
+        (span.attributes['http.target'] ?? span.attributes['url.path']) === '/api/echo');
+    const arcSpans = spans.filter(span => span.name === 'cratis.arc.http.handle');
+    const http = servers[0];
+    const arcHttp = arcSpans[0];
+    if (servers.length !== 1 || arcSpans.length !== 1 || !http || !arcHttp || arcHttp.kind !== SpanKind.INTERNAL) {
+        throw Error('Expected one HTTP SERVER span and one Arc INTERNAL span');
+    }
+    const traceId = http.spanContext().traceId;
+    const byId = new Map(spans.filter(span => span.spanContext().traceId === traceId)
+        .map(span => [span.spanContext().spanId, span]));
+    const ancestors = new Set<string>();
+    let parentId = arcHttp.parentSpanContext?.spanId;
+    while (parentId && parentId !== http.spanContext().spanId) {
+        if (ancestors.has(parentId)) throw Error('Span ancestry has a cycle');
+        ancestors.add(parentId);
+        const parent = byId.get(parentId);
+        if (!parent) throw Error('Missing ancestor span');
+        parentId = parent.parentSpanContext?.spanId;
+    }
+    if (arcHttp.spanContext().traceId !== traceId || parentId !== http.spanContext().spanId) {
+        throw Error('Arc span does not descend from HTTP SERVER span');
+    }
+    if (![...ancestors].some(id => byId.get(id)?.instrumentationScope.name === '@opentelemetry/instrumentation-express')) {
+        throw Error('Missing Express instrumentation span in Arc ancestry');
+    }
+    console.log(http.name, '→', arcHttp.name);
+} finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await arc.dispose();
+    await sdk.shutdown();
+}
+```
+
+The host's Node HTTP span is an ancestor of Arc's INTERNAL `cratis.arc.http.handle` span (with Express middleware spans between them); it is not a second Arc SERVER span. `yarn check:observability-recipes` exercises **real HTTP** with Express (HTTP and Express instrumentation), Fastify (HTTP and `@opentelemetry/instrumentation-fastify`, which is deprecated in favor of the maintained `@fastify/otel`), and Hono on its Node server (HTTP instrumentation; no Hono-specific instrumentation installed). For each host it asserts exactly one HTTP SERVER span is an ancestor of the Arc span for a command; for Express and Fastify it also requires a framework instrumentation span in the ancestry. It also checks the structured-logging recipe below. In-memory export proves local parenting, not remote collector delivery or trace-context propagation through a proxy.
+
+## Log errors without exposing payloads
+
+Arc's `logger(error, correlationId)` callback runs on the server side. Pino can serialize the error under `err` without logging a command or request body. Install `pino` in the host application; do not send this logger's output to the client.
+
+```typescript title="logging.ts"
+import pino from 'pino';
+import { ArcServer, defineCommand } from '@cratis/arc.core';
+import { z } from 'zod';
+
+const log = pino();
+const arc = new ArcServer({ exposeExceptionDetails: false,
+    commands: [defineCommand({ name: 'Fail', schema: z.object({ value: z.string() }),
+        handle: () => { throw Error('private handler failure'); } })],
+    logger: (error, correlationId) => log.error({ err: error, correlationId }, 'Arc request failed')
+});
+try {
+    const response = await arc.handle(new Request('http://localhost/api/fail', { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: '{"value":"secret"}' }));
+    console.log(response?.status, await response?.text());
+} finally { await arc.dispose(); }
+```
+
+The HTTP response is redacted outside development (explicitly set here). `yarn check:observability-recipes` asserts that a failing command logs its correlation ID and error, that the HTTP response does not reveal the error, and that the structured log does not contain the command payload. Control log access and retention according to your application's secrets policy; the serialized `err` can contain sensitive exception details.
 
 ## Span names
 

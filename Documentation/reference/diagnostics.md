@@ -7,7 +7,7 @@ Arc reports a problem at the earliest point it can see it. A binding mistake sho
 
 ## In the editor: lint rules
 
-`@cratis/eslint-plugin-arc-core` checks model-bound artifacts before you build. Enabled rules report as errors. Both presets include bounded Chronicle checks for reactor and command appends and unmasked secret-looking fields when Chronicle is installed; `recommended-type-checked` also includes the Guid response check. `query-argument-name` is opt-in. Rules that match a .NET analyzer keep its `ARC` or `ARCCHR` code. Setup is in [Code analysis](../code-analysis/index.md).
+`@cratis/eslint-plugin-arc-core` checks model-bound artifacts before you build. Enabled rules report as errors. Both presets include bounded Chronicle checks for reactor and command appends and unmasked secret-looking fields when Chronicle is installed; `recommended-type-checked` also includes reactor replay decisions and the Guid response check. `query-argument-name` is opt-in. Rules that match a .NET analyzer keep its `ARC` or `ARCCHR` code. Setup is in [Code analysis](../code-analysis/index.md).
 
 | Rule | Reports |
 | --- | --- |
@@ -21,6 +21,7 @@ Arc reports a problem at the earliest point it can see it. A binding mistake sho
 | [`arc0015`](../code-analysis/ARC0015.md) | An incoming parameter converted to a concept inside the query |
 | [`arc0019`](../code-analysis/ARC0019.md) | `@allowAnonymous()` combined with `@authorize()` or `@roles()` |
 | [`arcchr0003`](../code-analysis/ARCCHR0003.md) | Direct reactor appends to its own default event log |
+| [`arcchr0006`](../code-analysis/ARCCHR0006.md) | Returned Arc commands from live reactor handlers without a replay decision (type-checked preset) |
 | [`arcchr0007`](../code-analysis/ARCCHR0007.md) | Direct default-log appends from a command's `handle()` or `provide()`, including injected Chronicle services and `.transactional` appends |
 | [`arcchr0009`](../code-analysis/ARCCHR0009.md) | Unmasked secret-looking command fields and constructor parameter properties when Chronicle resolves |
 | [`arcchr0010`](../code-analysis/ARCCHR0010.md) | A keyless command returning a type-checked Fundamentals `Guid` value beside a direct decorated event (type-checked preset) |

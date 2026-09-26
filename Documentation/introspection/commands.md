@@ -33,7 +33,7 @@ A tool that fills in a command form, or a test that checks nobody removed a comm
 | `documentationSummary` | A low-level definition's `summary`, or the JSDoc summary of a model-bound command when [generated artifact metadata](../proxy-generation/generated-artifact-metadata.md) is registered; otherwise `""` |
 | `payloadSchema` | JSON Schema 2020-12 of the request body |
 
-A concept field appears as its underlying scalar, here a UUID string. Optional and defaulted fields are left out of `required`, a nullable field is `anyOf` its type and `null`, and an `@enumeration` field is `anyOf` one `const` per enum value. [How types appear in the document](../open-api/schemas.md) covers each case; the same schema is the command's OpenAPI request body.
+A concept field appears as its underlying scalar, here a UUID string. Optional and defaulted fields are left out of `required`, a nullable field is `anyOf` its type and `null`, and an `@enumeration` field is `anyOf` one `const` per enum value. [Concepts in the document](../open-api/concepts.md), [Enums in the document](../open-api/enums.md), and [How types appear in the document](../open-api/schemas.md) cover each case; the same schema is the command's OpenAPI request body.
 
 ## Related
 

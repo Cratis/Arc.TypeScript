@@ -52,7 +52,18 @@ Nothing about this needs setup: the route exists as soon as the application runs
 - **Responses.** The Arc `CommandResult` or `QueryResult` envelope for 200, 400, 403, and 500. When default authentication handlers run (even on anonymous routes), a named scheme is selected, or a native principal is required, command execution, validation, and query GET also describe 401 with an untyped result envelope. The validation-only operation describes an **untyped** command result; it does not execute the handler or return a typed `response`. Observable queries also describe 202, 408, and 503, and a `text/event-stream` response. A paged result carries `paging` with `page`, `size`, `totalItems`, and `totalPages`.
 - **Security.** HTTP bearer security, when the operation authenticates with a `jwtBearer()` handler.
 
-[How types appear in the document](schemas.md) shows how concepts, enums, optional fields, and result types are described.
+## Topics
+
+| Page | What it covers |
+| --- | --- |
+| [Concepts](concepts.md) | Concepts, GUIDs, dates, and models described as the JSON value they carry |
+| [Commands](commands.md) | The POST operation, request body, `CommandResult` envelope, and typed `response` |
+| [Queries](queries.md) | GET parameters, paging and sorting, observable options, and the `QueryResult` envelope |
+| [Enums](enums.md) | `@enumeration` values for numeric and string enums |
+| [Model-bound and low-level operations](model-bound.md) | Where each part of an operation comes from, for decorators and `define*` definitions |
+| [How types appear in the document](schemas.md) | One worked example, plus optional, nullable, defaulted, and derived fields |
+
+Arc on .NET also documents its C#-only `[FromRequest]` binding; Arc for TypeScript binds a command from the JSON body and a query from its arguments, so it has no counterpart.
 
 ## Summaries and result types need generated metadata
 
@@ -106,4 +117,4 @@ Arc cannot infer the protocol of a custom handler, so it never advertises one as
 - Register generated metadata to get summaries and typed results.
 - Set `generatedApis.openApiVersion` to advertise your version.
 
-Next, see [how types appear in the document](schemas.md).
+Next, see [how concepts appear in the document](concepts.md).
