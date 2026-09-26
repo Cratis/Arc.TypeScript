@@ -372,11 +372,11 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             } finally { if (adapter !== 'express') await host.stop(); }
         }
         for (const [name, path, expected] of [
-            ['DTO response', 'outcome-dto', { response: { value: 'created' } }],
-            ['primitive response', 'outcome-primitive', { response: 42 }],
+            ['OneOf DTO response', 'outcome-dto', { response: { value: 'created' } }],
+            ['OneOf primitive response', 'outcome-primitive', { response: 42 }],
             ['Result success DTO', 'outcome-error-case', { response: { value: 'created' } }],
-            ['tuple alternative response', 'outcome-tuple', { response: { value: 'created' } }]
-        ]) await parity(`OneOf ${name}`, 'POST', `/api/${path}`, { fail: false }, { status: 200, body: command(200, expected) });
+            ['OneOf tuple alternative response', 'outcome-tuple', { response: { value: 'created' } }]
+        ]) await parity(name, 'POST', `/api/${path}`, { fail: false }, { status: 200, body: command(200, expected) });
         await parity('OneOf validation branch', 'POST', '/api/outcome-dto', { fail: true }, {
             status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Outcome rejected', members: ['fail'], reason: 'rule' }] })
         });
