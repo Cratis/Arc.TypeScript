@@ -14,8 +14,9 @@ describe('when selecting a command client response with handled values', given(r
     let analysis: ReturnType<typeof analyzeSource>;
     beforeEach(() => { analysis = analyzeSource(context.project, context.artifacts); });
     it('should omit handled values without creating client event models', () => {
-        for (const name of ['JustEvent', 'AsyncEvents', 'JustOperation', 'Operation', 'Routed', 'Scoped', 'Committed', 'EventOrNothing'])
+        for (const name of ['JustEvent', 'AsyncEvents', 'MixedEvents', 'MixedEventsAndOperation', 'JustOperation', 'Operation', 'Routed', 'Scoped', 'Committed', 'EventOrNothing'])
             analysis.operations.find(item => item.name === name)!.result.void.should.equal(true, name);
         analysis.models.map(item => item.name).should.not.include('Registered');
+        analysis.models.map(item => item.name).should.not.include('Removed');
     });
 }));

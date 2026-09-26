@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { field } from '@cratis/fundamentals';
-import { command, CommandOperation, CommandOperations, denied, rejected, response, tuple, validation } from '@cratis/arc.core';
+import { ConceptAs, field } from '@cratis/fundamentals';
+import { command, CommandOperation, CommandOperations, denied, query, readModel, rejected, response, tuple, validation } from '@cratis/arc.core';
 import type { ArcTuple, Outcome } from '@cratis/arc.core';
 import { eventType as chronicleEvent } from '@cratis/chronicle/events';
 import {
@@ -11,10 +11,15 @@ import type { RoutedEvent } from '../../../../../Chronicle/eventForEventSourceId
 
 function eventType() { return (target: unknown, context: ClassDecoratorContext) => { void target; void context; }; }
 @chronicleEvent() class Registered { name = ''; }
+@chronicleEvent() class Removed { name = ''; }
 @eventType() export class Plain { name = ''; }
 class Save extends CommandOperation { execute(): void {} }
 @command() export class JustEvent { handle(): Registered { return new Registered(); } }
 @command() export class AsyncEvents { async handle(): Promise<Registered[]> { return [new Registered()]; } }
+@command() export class MixedEvents { handle(): (Registered | Removed)[] { return [new Registered(), new Removed()]; } }
+@command() export class MixedEventsAndOperation {
+    handle() { return tuple([new Registered(), new Removed()] as (Registered | Removed)[], new Save()); }
+}
 @command() export class JustOperation { handle(): CommandOperations { return new CommandOperations([new Save()]); } }
 @command() export class Operation { handle(): Save { return new Save(); } }
 @command() export class Routed { handle(): RoutedEvent { return eventForEventSourceId({ eventSourceId: 'id', event: new Registered() }); } }
@@ -58,4 +63,51 @@ class Save extends CommandOperation { execute(): void {} }
 }
 @command() export class EventArrayOrRejection {
     handle(): Registered[] | Outcome<never> { return rejected(validation('Invalid')); }
+}
+
+type AliasedOutcome = Outcome<Plain>;
+@command() export class AliasedResponse {
+    @field(Boolean) wrapped = false;
+    handle(): AliasedOutcome | Plain { return this.wrapped ? response(new Plain()) : new Plain(); }
+}
+@command() export class AwaitedAlternative {
+    @field(Boolean) later = false;
+    handle(): Plain | Promise<Plain> { return this.later ? Promise.resolve(new Plain()) : new Plain(); }
+}
+@command() export class TupleAlternatives {
+    @field(Boolean) wrapped = false;
+    handle(): Outcome<ArcTuple<readonly [Registered, Plain]>> | Plain {
+        return this.wrapped ? response(tuple(new Registered(), new Plain())) : new Plain();
+    }
+}
+@command() export class NestedTupleAlternative {
+    handle(): ArcTuple<readonly [Registered, ArcTuple<readonly [Registered, Plain]>]> | Outcome<Plain> {
+        return response(new Plain());
+    }
+}
+@command() export class ArrayAlternatives {
+    @field(Boolean) wrapped = false;
+    handle(): Plain[] | Outcome<Plain[]> { return this.wrapped ? response([new Plain()]) : [new Plain()]; }
+}
+@command() export class SamePrimitivePaths {
+    @field(Boolean) wrapped = false;
+    handle(): Outcome<string> | string { return this.wrapped ? response('visible') : 'visible'; }
+}
+export enum Color { Red = 1, Blue = 2 }
+@command() export class BooleanResult { handle(): boolean { return true; } }
+@command() export class ColorResult { handle(): Color { return Color.Blue; } }
+@command() export class LiteralResult { handle(): 'created' | 'existing' { return 'created'; } }
+@command() export class OptionalBooleanResult { handle(): boolean | undefined { return undefined; } }
+@command() export class VoidBooleanResult { handle(): boolean | void { return undefined; } }
+@command() export class NullableColorResult { handle(): Color | null { return null; } }
+@command() export class OptionalLiteralResult { handle(): 'created' | 'existing' | undefined { return undefined; } }
+@command() export class WrappedBooleanResult { handle(): Outcome<boolean> { return response(true); } }
+export class TaskId extends ConceptAs<string> { static readonly valueType = String; }
+export class UserId extends ConceptAs<string> { static readonly valueType = String; }
+@command() export class DistinctConcepts { handle(): TaskId | UserId { return new TaskId('task'); } }
+@command() export class DistinctConceptArrays { handle(): TaskId[] | UserId[] { return [new TaskId('task')]; } }
+export class Date { @field(String) value = ''; }
+@command() export class NamedDate { handle(): Date { return new Date(); } }
+@readModel() export class LiteralQueries {
+    @query() static exists(): boolean { return true; }
 }

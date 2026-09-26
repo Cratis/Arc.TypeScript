@@ -8,7 +8,7 @@ import { MetadataImports } from './MetadataImports.js';
 import { metadataParameter } from './metadataParameter.js';
 import { metadataResult } from './metadataResult.js';
 import { queryResult } from './queryResult.js';
-import { commandResponseType } from './commandResponseType.js';
+import { describeCommandResponse } from './commandResponseType.js';
 import { isOutcomeType } from './isOutcomeType.js';
 
 const callArguments = (expression: ts.Expression | undefined): readonly ts.Expression[] =>
@@ -100,11 +100,14 @@ export function renderArtifactMetadata(declaration: ts.ClassDeclaration, checker
     const handleSignature = handle && checker.getSignatureFromDeclaration(handle);
     const handleReturn = handleSignature && (checker.getAwaitedType(checker.getReturnTypeOfSignature(handleSignature)) ??
         checker.getReturnTypeOfSignature(handleSignature));
-    const responseType = handleReturn && commandResponseType(handleReturn, checker, handle!);
-    const responseShape = responseType ? metadataResult(responseType, checker, imports, handle!) :
+    const response = handleReturn && describeCommandResponse(handleReturn, checker, handle!);
+    const responseType = response?.response;
+    const responseShape = responseType ? metadataResult(responseType, checker, imports, handle!, false, undefined, true,
+        checker.isArrayType(responseType) ? response.paths.flatMap(path => path.response ? [path.response] : []) : undefined) :
         "{ cardinality: 'void', nullable: false }";
     const valueParts = handleReturn && (handleReturn.isUnion() ? handleReturn.types : [handleReturn])
-        .filter(part => !isOutcomeType(part, checker));
+        .filter(part => !isOutcomeType(part, checker))
+        .map(part => checker.getAwaitedType(part) ?? part);
     const valueShape = handleReturn && (responseType === handleReturn ? responseShape :
         metadataResult(handleReturn, checker, imports, handle!, false, undefined, false, valueParts));
     return `{ type: ${type}, signature: ${JSON.stringify(signature)}, metadata: {` +

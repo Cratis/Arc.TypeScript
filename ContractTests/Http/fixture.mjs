@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ArcApplication, AuthenticationStatus, CurrentValueSubject, currentContext, defineCommand, defineObservableQuery,
     defineQuery, rejected, tuple, validation } from '@cratis/arc.core';
 import { ModelBoundCommand } from './modelBound/dist/ModelBoundCommand.js';
+import { OutcomeDto, OutcomePrimitive, incompatibleOutcomeCommand, OutcomeTuple } from './modelBound/dist/MultiOutcomeCases.js';
 import { FilterParityCommand } from './modelBound/dist/FilterParityCommand.js';
 import { FilterParityCommandValidator } from './modelBound/dist/FilterParityCommandValidator.js';
 import { FilterParityAuthorizationFilter } from './modelBound/dist/FilterParityAuthorizationFilter.js';
@@ -194,6 +195,7 @@ builder.addCommandPipelineFilter(FilterParityOrdinaryCommandFilter)
 builder.add(FilterParityCommand, FilterParityCommandValidator, FilterParityAuthorizationFilter,
     FilterParityQueryAuthorizationFilter,
     ModelBoundCommand, ModelBoundCommandValidator, ModelBoundTitle, ModelBoundLookup,
+    OutcomeDto, OutcomePrimitive, incompatibleOutcomeCommand(), OutcomeTuple,
     ValidationGraphCommand, FixtureRateValidator, GuidCommand, GuidCommandValidator, HttpMetric,
     PolicyItems, RateLookup, AnonymousClassCases, AuthorizationOverride, MethodRoleCases, RoleCases);
 builder.addAuthorizationPolicy('FixtureAdmin', principal => principal.roles.includes('Admin'));

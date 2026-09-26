@@ -21,8 +21,10 @@ export class SourceTypeResolver {
     }
     resolve(type: ts.Type, location: ts.Node, optional = false): SourceType {
         const parts = type.isUnion() ? type.types : [type];
-        const nullable = optional || parts.some(part => !!(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)));
-        const defined = parts.filter(part => !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)));
+        const nullable = optional || parts.some(part => !!(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)) ||
+            parts.length > 1 && !!(part.flags & ts.TypeFlags.Void));
+        const defined = parts.filter(part => !(part.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)) &&
+            !(parts.length > 1 && part.flags & ts.TypeFlags.Void));
         if (defined.length === 1 && defined[0] !== type) return { ...this.resolve(defined[0]!, location), nullable };
         if (defined.length > 1 && defined.every(part => !!(part.flags & ts.TypeFlags.BooleanLiteral)))
             return { ...primitive('boolean', 'Boolean'), nullable };
