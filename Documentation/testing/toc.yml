@@ -6,6 +6,8 @@
   href: command-operations.md
 - name: Commands
   href: commands.md
+- name: node:test
+  href: node-test.md
 - name: Queries
   href: queries.md
 - name: Observable queries
