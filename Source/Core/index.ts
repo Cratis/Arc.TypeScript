@@ -16,6 +16,7 @@ export { ArcApplicationServices } from './dependencyInjection/ArcApplicationServ
 export { key } from './reflection/key.js';
 export { fieldsFor, wireName } from './reflection/wireSchema.js';
 export type { ClassType } from './reflection/ClassType.js';
+export type { GeneratedReturn } from './reflection/GeneratedReturn.js';
 export type { WireField } from './reflection/WireField.js';
 export { optional } from './reflection/optional.js';
 export { nullable } from './reflection/nullable.js';

@@ -26,6 +26,12 @@ describe('when documenting query options', given(an_operation_set, context => {
         const query = { ...context.query, generatedReturn: { cardinality: 'many', element: Number, nullable: false } } as Operation;
         parameters(query).map(item => item.name).should.deep.equal(['filter', 'page', 'pageSize', 'sortBy', 'sortDirection']);
     });
+    it('should describe page and pageSize as bounded int32 values', () => {
+        const query = { ...context.query, generatedReturn: { cardinality: 'many', nullable: false } } as Operation;
+        const options = parameters(query);
+        options.find(item => item.name === 'page')?.schema.should.deep.equal({ type: 'integer', format: 'int32', minimum: 0 });
+        options.find(item => item.name === 'pageSize')?.schema.should.deep.equal({ type: 'integer', format: 'int32', minimum: 1 });
+    });
     it('should describe paging and sorting in the same terms as the .NET OpenAPI integration', () => {
         const descriptions = parameters(context.query).map(item => [item.name, item.description]);
         descriptions.should.deep.equal([['filter', undefined], ['page', 'Page number to show'],

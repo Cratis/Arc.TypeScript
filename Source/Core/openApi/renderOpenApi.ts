@@ -35,14 +35,14 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
         const inputs = Object.entries(operation.inputSchema.properties as Record<string, unknown> ?? {});
         const reserved = new Set(inputs.map(([name]) => name.toLowerCase()));
         const cardinality = operation.generatedReturn?.cardinality;
-        // Only declared arrays and provider pages can accept paging at render time. An unknown return cannot be inferred safely.
+        // Advertise paging only for declared arrays and queryPage results; unknown returns cannot be inferred safely.
         const paging = cardinality === 'many' || cardinality === 'paged';
         const parameters = operation.kind === 'query' ? [
             ...inputs.map(([name, schema]) =>
                 ({ name, in: 'query', required: (operation.inputSchema.required as string[] ?? []).includes(name), schema })),
             ...[
                 ...(paging ? [
-                    ['page', { type: 'integer', minimum: 0 }], ['pageSize', { type: 'integer', minimum: 1 }],
+                    ['page', { type: 'integer', format: 'int32', minimum: 0 }], ['pageSize', { type: 'integer', format: 'int32', minimum: 1 }],
                     ['sortBy', { type: 'string' }],
                     ['sortDirection', { type: 'string',
                         enum: [SortDirection.Ascending, 'ascending', SortDirection.Descending, 'descending'] }]
@@ -56,6 +56,10 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
         paths[operation.route] ??= {};
         const tags = [operation.routeNamespace ?? operation.namespace ?? operation.name];
         const securityRequirements = security.length ? { security: security.map(name => ({ [name]: [] })) } : {};
+        // Named handlers only run on routes that select them; default handlers run even on anonymous routes.
+        const canAuthenticate = !!(options.authentication?.length || explicit.length || (options.nativePrincipal && protectedRoute));
+        const unauthenticated = canAuthenticate ? { '401': { description: 'Unauthenticated',
+            content: { 'application/json': { schema: resultSchema(operation, false) } } } } : {};
         const requestBody = { required: true, content: { 'application/json': { schema: operation.inputSchema } } };
         paths[operation.route]![method] = {
             operationId, tags,
@@ -67,20 +71,21 @@ export function renderOpenApi(commands: readonly Operation[], queries: readonly 
                     '408': { description: 'First-result wait timed out', content: { 'application/json': { schema: resultSchema(operation, false) } } },
                     '503': { description: 'Subscription limit reached', content: { 'application/json': { schema: resultSchema(operation, false) } } } } : {}),
                 '400': { description: 'Invalid request', content: { 'application/json': { schema: resultSchema(operation, false) } } },
+                ...unauthenticated,
                 '403': { description: 'Not authorized', content: { 'application/json': { schema: resultSchema(operation, false) } } },
                 '500': { description: 'Server error', content: { 'application/json': { schema: resultSchema(operation, false) } } } }
         };
         if (operation.kind === 'command') {
-            paths[operation.route + '/validate'] = { post: {
+            (paths[operation.route + '/validate'] ??= {}).post = {
                 operationId: `${operationId}:validate`, tags,
                 summary: `Validate ${operation.name} without executing it`,
                 ...securityRequirements, requestBody,
-                responses: Object.fromEntries(['200', '400', '401', '403', '500'].map(code => [code, {
+                responses: Object.fromEntries(['200', '400', ...(canAuthenticate ? ['401'] : []), '403', '500'].map(code => [code, {
                     description: code === '200' ? 'Result' : code === '400' ? 'Invalid request' :
                         code === '401' ? 'Unauthenticated' : code === '403' ? 'Not authorized' : 'Server error',
                     content: { 'application/json': { schema: resultSchema(operation, false) } }
                 }]))
-            } };
+            };
         }
     }
     return { openapi: '3.1.0', info: { title: 'Arc', version: options.generatedApis?.openApiVersion ?? '0.1.0' },

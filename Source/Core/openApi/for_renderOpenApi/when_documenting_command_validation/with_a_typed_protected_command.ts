@@ -26,9 +26,14 @@ describe('when documenting command validation with a typed protected command', g
         (validate.security as object).should.deep.equal(execute.security);
         (validate.tags as string[]).should.deep.equal(execute.tags);
     });
-    it('should document the actual validation status codes without a typed response', () => {
+    it('should document 401 on both execution and validation', () => {
+        const executionResponses = execute.responses as Record<string, unknown>;
+        const validationResponses = validate.responses as Record<string, unknown>;
+        Object.keys(executionResponses).should.deep.equal(['200', '400', '401', '403', '500']);
+        Object.keys(validationResponses).should.deep.equal(Object.keys(executionResponses));
+    });
+    it('should describe the untyped validation result for every status', () => {
         const responses = validate.responses as Record<string, { content: { 'application/json': { schema: { properties: object } } } }>;
-        Object.keys(responses).should.deep.equal(['200', '400', '401', '403', '500']);
         for (const response of Object.values(responses)) {
             Object.hasOwn(response.content['application/json'].schema.properties, 'response').should.equal(false);
         }
