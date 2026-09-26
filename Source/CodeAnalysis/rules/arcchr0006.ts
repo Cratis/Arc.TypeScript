@@ -8,9 +8,9 @@ import { imported, tsImported } from './syntax.js';
 /** Warn when a reactor returns an Arc command without deciding what replay should do. */
 export const arcchr0006 = ESLintUtils.RuleCreator.withoutDocs({
     meta: { type: 'problem', docs: { description: 'Reactor returning commands needs a replay decision' },
-        messages: { replay: 'Reactor handler {{handlers}} returns an Arc command, which replay will execute again. ' +
-            'Mark the class or handler @onceOnly() to skip replay (not ordinary re-delivery), or declare an @replay() handler for the same event. ' +
-            'Choose carefully: once-only skips replay and may not be appropriate for recurring events.' }, schema: [] },
+        messages: { replay: 'Reactor {{handlerLabel}} {{handlers}} {{action}} an Arc command, which replay will execute again. ' +
+            'Use @onceOnly() on the class or handler unless replay must rebuild the effect; then declare an @replay() handler for the same event. ' +
+            '@onceOnly() does not prevent ordinary re-delivery.' }, schema: [] },
     defaultOptions: [],
     create(context) {
         const types = typesFor(context);
@@ -22,18 +22,33 @@ export const arcchr0006 = ESLintUtils.RuleCreator.withoutDocs({
                 return imported(context, expression, '@cratis/chronicle/reactors', name) ||
                     imported(context, expression, '@cratis/chronicle', name);
             });
-        const decoratedCommand = (value: ts.Type): boolean => {
-            if (value.isUnion()) return value.types.some(decoratedCommand);
-            const awaited = checker.getAwaitedType(value);
-            if (awaited && awaited !== value) return decoratedCommand(awaited);
-            if (checker.isArrayType(value) || checker.isTupleType(value)) {
+        const decoratedCommand = (value: ts.Type, mayAwait = true, mayContainArray = true): boolean => {
+            if (value.isUnion()) return value.types.some(part => decoratedCommand(part, mayAwait, mayContainArray));
+            if (mayAwait) {
+                const awaited = checker.getAwaitedType(value);
+                if (awaited && awaited !== value) return decoratedCommand(awaited, false, mayContainArray);
+            }
+            if (mayContainArray && (checker.isArrayType(value) || checker.isTupleType(value))) {
                 const element = checker.getIndexTypeOfType(value, ts.IndexKind.Number);
-                return !!element && decoratedCommand(element);
+                return !!element && decoratedCommand(element, false, false);
             }
             return value.getSymbol()?.declarations?.some(declaration => ts.isClassDeclaration(declaration) &&
                 ts.canHaveDecorators(declaration) && ts.getDecorators(declaration)?.some(decorator =>
                     ts.isCallExpression(decorator.expression) &&
                     tsImported(checker, decorator.expression.expression, '@cratis/arc.core', 'command'))) ?? false;
+        };
+        // Only the top-level result is awaited; an array is executed as one level of commands.
+        const returnParts = (expression: ts.Expression, mayAwait = true, mayContainArray = true):
+            { expression: ts.Expression; mayAwait: boolean; mayContainArray: boolean }[] => {
+            if (ts.isAwaitExpression(expression)) return returnParts(expression.expression, mayAwait, mayContainArray);
+            if (ts.isConditionalExpression(expression)) return [
+                ...returnParts(expression.whenTrue, mayAwait, mayContainArray),
+                ...returnParts(expression.whenFalse, mayAwait, mayContainArray)
+            ];
+            if (mayContainArray && ts.isArrayLiteralExpression(expression)) return expression.elements.flatMap(element =>
+                ts.isSpreadElement(element) ? [{ expression: element.expression, mayAwait: false, mayContainArray: true }] :
+                    returnParts(element, false, false));
+            return [{ expression, mayAwait, mayContainArray }];
         };
         const eventSymbol = (method: TSESTree.MethodDefinition): ts.Symbol | undefined => {
             const parameter = method.value.params[0];
@@ -63,8 +78,8 @@ export const arcchr0006 = ESLintUtils.RuleCreator.withoutDocs({
             const name = method.key.type === AST_NODE_TYPES.Identifier ? method.key.name : '';
             return name.startsWith('replay') ? events.get(name.slice('replay'.length)) : undefined;
         };
-        return { ClassDeclaration(node) {
-            if (!node.id || !chronicleDecorator(node, 'reactor') || chronicleDecorator(node, 'onceOnly')) return;
+        const analyze = (node: TSESTree.ClassDeclaration | TSESTree.ClassExpression): void => {
+            if (!chronicleDecorator(node, 'reactor') || chronicleDecorator(node, 'onceOnly')) return;
             const methods = node.body.body.filter((member): member is TSESTree.MethodDefinition =>
                 member.type === AST_NODE_TYPES.MethodDefinition && !member.static && member.key.type === AST_NODE_TYPES.Identifier);
             const events = new Map<string, ts.Symbol>();
@@ -91,20 +106,25 @@ export const arcchr0006 = ESLintUtils.RuleCreator.withoutDocs({
                 const reached = new Set<ts.MethodDeclaration>();
                 const visit = (part: ts.Node): void => {
                     if (part !== declaration.body && (ts.isClassLike(part) || ts.isFunctionLike(part))) return;
-                    if (ts.isReturnStatement(part) && part.expression && decoratedCommand(checker.getTypeAtLocation(part.expression))) {
-                        const expression = ts.isAwaitExpression(part.expression) ? part.expression.expression : part.expression;
-                        const callee = ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression) &&
-                            expression.expression.expression.kind === ts.SyntaxKind.ThisKeyword ?
-                            checker.getSymbolAtLocation(expression.expression.name) : undefined;
-                        // The callee's return is reported at its own site, once for every reaching handler.
-                        if (!callee?.declarations?.some(candidate => ts.isMethodDeclaration(candidate) && candidate.parent === owner)) returns.push(part);
-                    }
-                    if (ts.isCallExpression(part) && ts.isPropertyAccessExpression(part.expression) &&
-                        part.expression.expression.kind === ts.SyntaxKind.ThisKeyword) {
-                        const symbol = checker.getSymbolAtLocation(part.expression.name);
-                        for (const candidate of symbol?.declarations ?? []) {
-                            if (ts.isMethodDeclaration(candidate) && candidate.parent === owner) reached.add(candidate);
+                    if (ts.isReturnStatement(part) && part.expression) {
+                        const returned = returnParts(part.expression).filter(candidate =>
+                            decoratedCommand(checker.getTypeAtLocation(candidate.expression), candidate.mayAwait, candidate.mayContainArray));
+                        const helpers = new Set<ts.MethodDeclaration>();
+                        let direct = false;
+                        for (const candidate of returned) {
+                            const expression = candidate.expression;
+                            const symbol = ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression) &&
+                                expression.expression.expression.kind === ts.SyntaxKind.ThisKeyword ?
+                                checker.getSymbolAtLocation(expression.expression.name) : undefined;
+                            const targets = symbol?.declarations?.filter((target): target is ts.MethodDeclaration =>
+                                ts.isMethodDeclaration(target) && target.parent === owner) ?? [];
+                            if (targets.length) targets.forEach(target => helpers.add(target));
+                            else direct = true;
                         }
+                        if (direct) returns.push(part);
+                        // Report the enclosing return when it also supplies a command directly;
+                        // otherwise trace returned helper values to their own return site.
+                        if (!direct) helpers.forEach(helper => reached.add(helper));
                     }
                     ts.forEachChild(part, visit);
                 };
@@ -128,9 +148,11 @@ export const arcchr0006 = ESLintUtils.RuleCreator.withoutDocs({
                 const formatted = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
                 for (const statement of returns) {
                     const location = types.estree(statement.expression!);
-                    if (location) context.report({ node: location, messageId: 'replay', data: { handlers: formatted } });
+                    if (location) context.report({ node: location, messageId: 'replay', data: { handlers: formatted,
+                        handlerLabel: names.length === 1 ? 'handler' : 'handlers', action: names.length === 1 ? 'returns' : 'return' } });
                 }
             }
-        } };
+        };
+        return { ClassDeclaration: analyze, ClassExpression: analyze };
     }
 });

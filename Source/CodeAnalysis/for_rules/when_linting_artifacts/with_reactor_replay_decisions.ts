@@ -20,7 +20,9 @@ import { command } from '@cratis/arc.core';
 @command() class DecreaseStock { constructor(public isbn = '') {} handle() {} }
 `;
 const fixture = (members: string, prefix = '@reactor()'): string => `${imports}${prefix} class StockKeeping { ${members} }`;
-const invalid = (code: string, handlers = "'bookReserved'") => ({ code, errors: [{ messageId: 'replay' as const, data: { handlers } }] });
+const invalid = (code: string, handlers = "'bookReserved'", line?: number) => ({ code, errors: [{ messageId: 'replay' as const,
+    data: { handlers, handlerLabel: handlers.includes(' and ') ? 'handlers' : 'handler',
+        action: handlers.includes(' and ') ? 'return' : 'returns' }, ...line && { line } }] });
 
 tester.run('arcchr0006 when a reactor returns commands', arcchr0006, {
     valid: [
@@ -47,13 +49,18 @@ tester.run('arcchr0006 when a reactor returns commands', arcchr0006, {
             '\nclass UnknownEvent { isbn = ""; }',
         fixture('bookReserved(event: BookReserved) { return new Other(); } classMethod() {}') + '\nclass Other {}',
         fixture('bookReserved(event: BookReserved) {} private unrelated(event: BookReserved) { return new DecreaseStock(event.isbn); }'),
+        fixture(`bookReserved(event: BookReserved) { this.adjust(event.isbn); }
+            private adjust(isbn: string) { return new DecreaseStock(isbn); }`),
+        fixture('bookReserved(event: BookReserved) { return [Promise.resolve(new DecreaseStock(event.isbn))]; }'),
+        fixture('bookReserved(event: BookReserved) { return [[new DecreaseStock(event.isbn)]]; }'),
+        `${imports}const StockKeeping = @onceOnly() @reactor() class {
+            bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }
+        };`,
         `${imports}class NotAReactor { bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); } }`,
         `import { reactor } from 'other'; ${imports}@reactor() class OtherReactor {
             bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); } }`,
         fixture('bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }',
-            "@reactor() @onceOnly()"),
-        fixture(`bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }
-            @replay(BookReturned) replayOther(event: BookReturned) {}`.replace('return new DecreaseStock(event.isbn);', 'return event;'))
+            '@reactor() @onceOnly()')
     ],
     invalid: [
         invalid(fixture('bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }')),
@@ -68,12 +75,25 @@ tester.run('arcchr0006 when a reactor returns commands', arcchr0006, {
         invalid(fixture('private bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }')),
         invalid(fixture('bookReserved(event: BookReserved) { return [new DecreaseStock(event.isbn)]; }')),
         invalid(fixture('async bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }')),
+        invalid(fixture('bookReserved(event: BookReserved) { return Promise.resolve([new DecreaseStock(event.isbn)]); }')),
+        invalid(fixture('bookReserved(event: BookReserved) { return [this.adjust(event.isbn)]; } private adjust(isbn: string) { return new DecreaseStock(isbn); }')),
+        invalid(fixture('bookReserved(event: BookReserved) { return [...this.adjust(event.isbn)]; } private adjust(isbn: string) { return [new DecreaseStock(isbn)]; }')),
+        invalid(fixture(`bookReserved(event: BookReserved) { return this.ready ? this.adjust(event.isbn) : new DecreaseStock(event.isbn); }
+            ready = true; private adjust(isbn: string) { return new DecreaseStock(isbn); }`), "'bookReserved'", 7),
+        invalid(fixture(`async bookReserved(event: BookReserved) { return await this.adjust(event.isbn); }
+            private async adjust(isbn: string) { return new DecreaseStock(isbn); }`)),
+        invalid(`${imports}const StockKeeping = @reactor() class {
+            bookReserved(event: BookReserved) { return new DecreaseStock(event.isbn); }
+        };`),
         invalid(fixture(`bookReserved(event: BookReserved) {
             const create = () => new DecreaseStock(event.isbn); return create(); }`)),
         invalid(fixture(`bookReserved(event: BookReserved) { return this.adjust(event.isbn); }
             private adjust(isbn: string) { return new DecreaseStock(isbn); }`)),
         invalid(fixture(`bookReserved(event: BookReserved) { return this.first(event.isbn); }
             private first(isbn: string) { return this.second(isbn); }
+            private second(isbn: string) { return new DecreaseStock(isbn); }`)),
+        invalid(fixture(`bookReserved(event: BookReserved) { return this.ready ? this.first(event.isbn) : this.second(event.isbn); }
+            ready = true; private first(isbn: string) { return this.second(isbn); }
             private second(isbn: string) { return new DecreaseStock(isbn); }`)),
         invalid(fixture(`bookReserved(event: BookReserved) { return this.adjust(event.isbn); }
             bookReturned(event: BookReturned) { return this.adjust(event.isbn); }
