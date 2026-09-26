@@ -24,9 +24,11 @@ export async function runInScope<T>(services: ServiceRegistry, metadata: Readonl
     const signal = options?.signal ? AbortSignal.any([authority.signal, options.signal]) : authority.signal;
     if (signal.aborted) throw new ServiceDependencyError('Borrowed scope signal is already aborted');
     const context = Object.freeze({ ...authority, correlationId: override === undefined ? authority.correlationId : correlation(override), signal });
-    return withExecutionBoundary(services, metadata, scope, context, async () => {
-        const result = await callback();
+    const result = await withExecutionBoundary(services, metadata, scope, context, async () => {
+        const value = await callback();
         if (services.singletonFailed) throw new ServiceDependencyError('Service registry is disposed');
-        return result;
+        return value;
     }, true);
+    if (services.singletonFailed) throw new ServiceDependencyError('Service registry is disposed');
+    return result;
 }
