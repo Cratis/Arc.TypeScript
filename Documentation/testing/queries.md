@@ -105,7 +105,7 @@ await scenario.dispose();
 
 `QueryScenario.perform()` rejects decorated `@query({ observable: true })` methods instead of returning a current snapshot as `ArcServer.performQuery()` does. For non-Chronicle observable queries, use [ObservableQueryScenario](observable-queries.md). `ChronicleQueryScenario.perform()` also rejects declared observable queries and directs you to `ChronicleKernelScenario` for observation.
 
-A method declared as a snapshot that unexpectedly returns a subscribable or async iterable is rejected by the core query pipeline without touching the returned source. `QueryScenario` alone attempts bounded, cancellation-aware cleanup of that source before returning the snapshot boundary failure; production callers never unsubscribe, dispose, or create an iterator on a shared source.
+A method declared as a snapshot that unexpectedly returns a subscribable or async iterable is rejected by the core query pipeline without touching the returned source. Sources returned from a query in a scenario are treated as scenario-owned and may be closed. `QueryScenario` attempts bounded, cancellation-aware cleanup of the rejected source before returning the snapshot boundary failure; production callers never unsubscribe, dispose, or create an iterator on a shared source. Custom scenario harnesses can use `snapshotStreamSource(result)` from `@cratis/arc.core` to obtain the source only when the query result carries the original snapshot boundary failure.
 
 ## Related
 
