@@ -86,21 +86,24 @@ describe('when snapshot producer cleanup never completes', () => {
 
 describe('when snapshot cleanup is canceled', () => {
     let scenario: QueryScenario;
-    let result: Awaited<ReturnType<typeof scenario.perform>>;
-    let elapsed: number;
-    beforeEach(async () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
         slowDispose.mockClear();
         const controller = new AbortController();
         onDispose = () => controller.abort();
         scenario = QueryScenario.for(SnapshotStream, 'slow').withContext({ signal: controller.signal });
-        const started = Date.now();
-        result = await scenario.perform();
-        elapsed = Date.now() - started;
     });
-    afterEach(async () => { await scenario.dispose(); });
-    it('should stop waiting on cleanup after cancellation', () => {
+    afterEach(async () => {
+        vi.useRealTimers();
+        await scenario.dispose();
+    });
+    it('should stop waiting on cleanup after cancellation', async () => {
+        let settled = false;
+        const performing = scenario.perform().then(result => { settled = true; return result; });
+        await vi.advanceTimersByTimeAsync(0);
         slowDispose.mock.calls.should.have.lengthOf(1);
-        elapsed.should.be.lessThan(3_000);
+        settled.should.equal(true);
+        const result = await performing;
         result.exceptionMessages.join(' ').should.contain('returned an observable');
     });
 });
