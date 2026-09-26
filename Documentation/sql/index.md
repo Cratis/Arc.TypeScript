@@ -6,7 +6,7 @@ description: Serve model-bound queries from application-owned Drizzle databases 
 Your read models live in SQL tables. Every query needs the right database for the tenant, a page and a total count computed in SQL rather than in memory, sorting that a client cannot turn into SQL injection, and conversions for GUIDs, concepts, and dates. `@cratis/arc.drizzle` does that on top of [Drizzle](https://orm.drizzle.team), while your application keeps its schema, its migrations, and its connections.
 
 :::caution[Source preview]
-`@cratis/arc.drizzle` is not published to npm. SQLite runs in-process; PostgreSQL 16 and MySQL 8.4 are exercised against disposable live Docker databases. MySQL coverage includes tenant routing, codecs, paging, limits, sort rejection, and command read-model lookup. This does not establish full parity with Arc on .NET. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the status and the checks behind it.
+`@cratis/arc.drizzle` is not published to npm. SQLite runs in-process; PostgreSQL 16 and MySQL 8.4 are exercised against disposable live Docker databases. MySQL coverage includes tenant routing, codecs, paging, limits, sort rejection, and command read-model lookup. PostgreSQL command lookup is checked with node-postgres, including tenant routing, typed keys, and missing rows. This does not establish full parity with Arc on .NET. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the status and the checks behind it.
 :::
 
 ## What it provides
