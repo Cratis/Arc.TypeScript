@@ -72,7 +72,8 @@ function containsAppendValue(value: unknown, store: IEventStore, seen = new Set<
         value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
     if (isArcTuple(value)) return value.values.some(item => containsAppendValue(item, store, seen));
     if (isOutcome(value)) return value.kind === 'response' && containsAppendValue(value.value, store, seen);
-    if (Array.isArray(value)) return value.some(item => containsAppendValue(item, store, seen));
+    // ChronicleResponseHandler claims an empty array as an append response, so it is never a client value either.
+    if (Array.isArray(value)) return value.length === 0 || value.some(item => containsAppendValue(item, store, seen));
     if (isRoutedEvent(value) ||
         (typeof Reflect.get(value, 'eventSourceId') === 'string' &&
             typeof Reflect.get(value, 'event') === 'object' && Reflect.get(value, 'event') !== null)) return true;
