@@ -23,6 +23,7 @@ describe('when performing a declared streaming query as a snapshot', () => {
     it('should reject before invoking the producer', () => { invoked.mock.calls.should.have.lengthOf(0); });
     it('should direct the caller to an observable scenario', () => {
         (failure instanceof StreamingQueryNotSupportedError).should.equal(true);
+        (failure as Error).name.should.equal('StreamingQueryNotSupportedError');
         (failure as Error).message.should.contain('ObservableQueryScenario');
     });
 });

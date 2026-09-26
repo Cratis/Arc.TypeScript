@@ -8,6 +8,7 @@ export class SnapshotStreamError extends Error {
     readonly source: object;
     constructor(message: string, source: object) {
         super(message);
+        this.name = 'SnapshotStreamError';
         this.source = source;
         Object.defineProperty(this, 'source', { enumerable: false });
     }

@@ -5,5 +5,6 @@
 export class StreamingQueryNotSupportedError extends Error {
     constructor(readonly queryName: string) {
         super(`Streaming query ${queryName} is not supported by QueryScenario; use ObservableQueryScenario`);
+        this.name = 'StreamingQueryNotSupportedError';
     }
 }
