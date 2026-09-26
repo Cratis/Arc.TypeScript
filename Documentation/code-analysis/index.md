@@ -17,7 +17,7 @@ export default tseslint.config(
 );
 ```
 
-Run `eslint src`. Both presets enable the mapped diagnostics and TypeScript-only rules below, except the opt-in name rule. `recommended` works without type information: type-dependent comparisons are skipped, while syntax checks still run. `recommended-type-checked` enables `parserOptions.projectService` to check parameter and token types; files without an applicable tsconfig must be excluded or added to the project service. Both presets require a TypeScript parser. Arc decorators must resolve to imports from `@cratis/arc.core`, and `@field` must come from `@cratis/fundamentals` (including aliases and namespace imports); custom wrappers are not recognized. Runtime and proxy-generator checks remain authoritative.
+Run `eslint src`. Both presets enable the mapped ARC diagnostics, three Chronicle rules, and TypeScript-only rules below, except the opt-in name rule. `recommended` works without type information: type-dependent comparisons are skipped, while syntax checks still run. `recommended-type-checked` enables `parserOptions.projectService` to check parameter and token types and adds `arcchr0010`; files without an applicable tsconfig must be excluded or added to the project service. Both presets require a TypeScript parser. Arc decorators must resolve to imports from `@cratis/arc.core`, and `@field` must come from `@cratis/fundamentals` (including aliases and namespace imports); custom wrappers are not recognized. Runtime and proxy-generator checks remain authoritative.
 
 ## ARC diagnostic mapping
 
@@ -41,5 +41,7 @@ The .NET IDs are retained only when the same mistake can happen in the TypeScrip
 | ARC0016–ARC0018 | N/A | TypeScript operations are explicit returned `CommandOperation` objects, not C# annotated methods or generated invokers. |
 | [ARC0019](ARC0019.md) | Analog | `@allowAnonymous()` conflicts with `@authorize()` or `@roles()` on one declaration. |
 | ARC0020–ARC0021 | N/A | ASP.NET Core attributes and authentication schemes do not exist in this Node host. |
+
+Chronicle analogs: [ARCCHR0003](ARCCHR0003.md), [ARCCHR0007](ARCCHR0007.md), [ARCCHR0009](ARCCHR0009.md), and type-checked [ARCCHR0010](ARCCHR0010.md). See [Chronicle code analysis](../chronicle/code-analysis.md) for the complete .NET ARCCHR mapping, including diagnostics without TypeScript equivalents.
 
 TypeScript-only rules: [missing-field](missing-field.md), [declared-field](declared-field.md), [inject-binding](inject-binding.md), [query-binding](query-binding.md), [query-argument-name](query-argument-name.md) (opt-in), [misplaced-decorator](misplaced-decorator.md), [unexported-artifact](unexported-artifact.md), and [validator-target](validator-target.md). No automatic fix is offered: .NET's `Task` unwrap fix changes async rejection semantics in JavaScript; its `nameof` fix has no TypeScript equivalent. Manual fixes are shown on each page.
