@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.mongodb",
-  "version": "0.33.0",
+  "version": "0.35.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -29,7 +29,7 @@
     "README.md"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.33.0",
+    "@cratis/arc.core": "^0.35.0",
     "@cratis/fundamentals": "^7.19.6",
     "@opentelemetry/api": "^1.9.0",
     "mongodb": "^6.21.0",
