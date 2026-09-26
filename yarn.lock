@@ -148,11 +148,13 @@ __metadata:
     mysql2: "npm:^3.24.4"
     pg: "npm:^8.0.0"
     postgres: "npm:^3.4.9"
+    rxjs: "npm:^7.8.2"
     sql.js: "npm:^1.14.2"
   peerDependencies:
     "@cratis/arc.core": ^0.38.0
     "@cratis/fundamentals": ^7.19.6
     drizzle-orm: ^0.45.0
+    rxjs: ^7.8.2
   languageName: unknown
   linkType: soft
 
