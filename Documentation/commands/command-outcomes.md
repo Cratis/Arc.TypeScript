@@ -29,9 +29,38 @@ Results passed to `rejected(...)` go through the same [severity filter](validati
 - from `provide()`, `handle()` runs and receives `undefined` as the provided value;
 - from `handle()`, the command succeeds without a `response`.
 
+## Model several business outcomes
+
+When a caller needs to distinguish, for example, a created task from one that already existed, return **one response DTO** with an application-owned status field. Both cases then have the same generated client type and decoder:
+
+```typescript title="Features/Tasks/RegisterTask.ts"
+import { field } from '@cratis/fundamentals';
+import { command, response, type Outcome } from '@cratis/arc.core';
+
+class RegistrationReply {
+    @field(String) status!: string;
+    constructor(status: string) { this.status = status; }
+}
+
+@command({ namespace: 'Tasks' })
+export class RegisterTask {
+    @field(String) taskId!: string;
+
+    handle(): Outcome<RegistrationReply> {
+        return response(new RegistrationReply(this.taskId === 'existing' ? 'alreadyExists' : 'created'));
+    }
+}
+```
+
+This illustration uses a fixture-like condition to select the status; replace it with your actual business decision. The HTTP envelope has a `response` such as `{ "status": "alreadyExists" }` and status 200 in either case. The status is your application data, not an Arc branch tag.
+
+You can also return the DTO directly instead of calling `response()`. `Outcome<T>` lets you choose `response(value)`, `rejected(...)`, or `denied(...)` on different paths; it is **not** serialized as a discriminated union. A rejection produces a 400 validation envelope without a response, and a denial produces a 403 authorization envelope without a response. A business error DTO passed to `response()` is an ordinary **200 success response**, not a rejection. No branch index, `kind`, or other discriminator is added to the wire format.
+
+The proxy generator accepts alternative paths through aliases, promises, and outcomes only if each has the same client-visible representation. It filters out values consumed by server-side handlers. It rejects different DTO constructors or cardinalities instead of choosing an arbitrary decoder; the diagnostic recommends one response DTO with an application-owned status field. This intentionally differs from Arc on .NET 22.23.0: .NET executes `OneOf<...>` and `Result<TSuccess, TError>` by unwrapping the selected value, but its generator picks a single response type and may misdecode another business branch. Do not rely on a client-visible union unless the client and generator both support its discriminant.
+
 ## Return more than one value
 
-`tuple(first, second, ...)` returns several values from `handle()`. At most one of them may be the client response; every other value must be consumed on the server by a [response value handler](response-value-handlers.md), or the command fails. Ordinary arrays stay ordinary response values. A returned [command operation](operations/index.md) is one such server-side value.
+`tuple(first, second, ...)` returns several **simultaneous** values from `handle()`; it does not express alternative outcomes. At most one of them may be the client response; every other value must be consumed on the server by a [response value handler](response-value-handlers.md), or the command fails. Ordinary arrays stay ordinary response values. A returned [command operation](operations/index.md) is one such server-side value. Each alternative path is checked independently: a tuple path may contain server-handled values and one response.
 
 ## Related
 
