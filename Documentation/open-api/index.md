@@ -47,9 +47,9 @@ Nothing about this needs setup: the route exists as soon as the application runs
 
 ## What each operation contains
 
-- **Identity.** A namespace-qualified `operationId`, such as `Tasks.Registration.RegisterTask`, a tag for the namespace, and a summary. Route paths follow [endpoint mapping](../core/endpoint-mapping.md).
-- **Input.** A command's JSON request body schema, or a query's arguments as GET parameters, with `required` taken from the input schema. Queries that can return a list, or whose result type is unknown, also accept `page`, `pageSize`, `sortBy`, and `sortDirection`. Observable queries add `waitForFirstResult` and `waitForFirstResultTimeout`.
-- **Responses.** The Arc `CommandResult` or `QueryResult` envelope for 200, 400, 403, and 500. Observable queries also describe 202, 408, and 503, and a `text/event-stream` response. A paged result carries `paging` with `page`, `size`, `totalItems`, and `totalPages`.
+- **Identity.** A namespace-qualified `operationId`, such as `Tasks.Registration.RegisterTask`, a tag for the namespace, and a summary. Route paths follow [endpoint mapping](../core/endpoint-mapping.md). Every command also has a `POST <route>/validate` operation, with `:validate` appended to its execute operationId (for example, `Tasks.Registration.RegisterTask:validate`), even if the command itself is named `Validate`.
+- **Input.** Execute and validate share the same required JSON request body and security requirements. Queries expose their arguments as GET parameters, with `required` taken from the input schema. Queries with declared array or provider-page results also advertise `page`, `pageSize`, `sortBy`, and `sortDirection`. Observable queries add `waitForFirstResult` and `waitForFirstResultTimeout`.
+- **Responses.** The Arc `CommandResult` or `QueryResult` envelope for 200, 400, 403, and 500. The validation-only operation describes its **untyped** command result for 200, 400, 401, 403, and 500; it does not execute the handler or return a typed `response`. Observable queries also describe 202, 408, and 503, and a `text/event-stream` response. A paged result carries `paging` with `page`, `size`, `totalItems`, and `totalPages`.
 - **Security.** HTTP bearer security, when the operation authenticates with a `jwtBearer()` handler.
 
 [How types appear in the document](schemas.md) shows how concepts, enums, optional fields, and result types are described.
@@ -61,7 +61,7 @@ Arc reads your source only through the metadata it has at runtime. Two parts of 
 - **Summaries.** JSDoc on a command class or query method becomes the operation summary. Without metadata the summary is empty. A low-level definition sets `summary` directly.
 - **Result types.** The 200 envelope includes a typed `response` or `data` only when the metadata declares the return type. Without it, the document **omits** `response` or `data` rather than guess from the input schema or run the handler. The runtime result is the same; only its description is missing.
 
-The Tasks sample registers its metadata, so its `registerTask` response is described as a UUID string and `allTasks` as an array of `TaskItem`.
+The Tasks sample registers its metadata, so its `registerTask` response is described as a UUID string and `allTasks` as an array of `TaskItem`. Without declared return cardinality, Arc cannot determine before execution whether a query will return an array, provider page, or scalar. The runtime still accepts paging and sorting on array or provider-page results, but the document conservatively omits those parameters for unknown results. Declare generated return metadata to advertise them. The four standard parameters use the same names and descriptions as the .NET OpenAPI integration. TypeScript additionally documents nonnegative `page`, positive `pageSize`, and the `ascending`/`descending` aliases accepted by its HTTP binder; .NET lists only `asc`/`desc` and uses `int32` schemas without these bounds.
 
 ## Set the advertised version
 
@@ -80,7 +80,7 @@ Arc cannot infer the protocol of a custom handler, so it never advertises one as
 ## What the document leaves out
 
 - **HTTP `QUERY`.** OpenAPI path items cannot represent it, so queries appear as GET only.
-- **Command `/validate` routes** and the `/.cratis` endpoints. [Introspection](../introspection/index.md) describes those.
+- **The `/.cratis` endpoints.** [Introspection](../introspection/index.md) describes those.
 - **`pathBase`.** Paths are not rewritten for a standalone host `pathBase`.
 - **Every status the runtime can return.** A request can also answer 401, for example, which the operation does not list.
 
