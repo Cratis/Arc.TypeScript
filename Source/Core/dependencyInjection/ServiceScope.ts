@@ -3,6 +3,7 @@
 import { ServiceLifetime } from './ServiceLifetime.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
+import { snapshotPrincipal } from '../execution/snapshotPrincipal.js';
 import type { ServiceToken } from './ServiceToken.js';
 import { normalizeServiceToken, type ServiceIdentifier } from './ServiceIdentifier.js';
 import type { ServiceRegistry } from './ServiceRegistry.js';
@@ -10,19 +11,40 @@ import { ServiceDependencyError } from './ServiceDependencyError.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
 import { ServiceResolutionState } from './ServiceResolutionState.js';
 import { ServiceScopeState } from './ServiceScopeState.js';
-import { withoutRequestContext } from '../execution/RequestContextStore.js';
+import { requestContext, withoutRequestContext } from '../execution/RequestContextStore.js';
 import type { ServiceDisposalFrame } from './ServiceDisposalFrame.js';
 import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
-const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void> }>();
+const borrowableCapability = Symbol('borrowable scope');
+const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void>;
+    authority: () => ExecutionContext | undefined; borrowable: () => boolean; createdForBorrowing: boolean }>();
 const disposal = new AsyncLocalStorage<ServiceDisposalFrame>();
 /** Package-private shutdown entry points; never methods on the public scope. */
 export function createSingletonServiceScope(registry: ServiceRegistry): ServiceScope {
     return Reflect.construct(ServiceScope, [registry, undefined, singletonCapability]) as ServiceScope;
 }
+/** @internal Only public registry-created scopes carry borrowing authority. */
+export function createBorrowableServiceScope(registry: ServiceRegistry, identity: ExecutionContext): ServiceScope {
+    return Reflect.construct(ServiceScope, [registry, identity, borrowableCapability]) as ServiceScope;
+}
+/** @internal Arc-owned scopes have no borrowing authority. */
+export function createOwnedServiceScope(registry: ServiceRegistry, identity: ExecutionContext): ServiceScope {
+    return new ServiceScope(registry, identity);
+}
 export function closeServiceScope(scope: ServiceScope): Promise<void> { return internals.get(scope)!.close(); }
 export function disposeCreatedServices(scope: ServiceScope): Promise<void> { return internals.get(scope)!.disposeCreated(); }
 export function serviceScopeRegistry(scope: ServiceScope): ServiceRegistry { return internals.get(scope)!.registry; }
+/** Check unshadowable scope state before borrowing an admitted scope. */
+export function borrowedScopeAuthority(scope: ServiceScope, registry: ServiceRegistry): ExecutionContext {
+    const internal = internals.get(scope);
+    if (!internal || internal.registry !== registry) throw new ServiceDependencyError('Invalid Arc service scope');
+    if (!internal.createdForBorrowing)
+        throw new ServiceDependencyError('Arc service scope was not created by services.createScope and cannot be borrowed');
+    if (!internal.borrowable()) throw new ServiceDependencyError('Arc service scope has an unsnapshotable principal');
+    const authority = internal.authority();
+    if (!authority) throw new ServiceDependencyError('Invalid Arc service scope');
+    return authority;
+}
 /** A live disposer cannot join registry shutdown, including through nested disposal. */
 export function hasLivingServiceDisposal(registry: ServiceRegistry, scope?: ServiceScope): boolean {
     let frame = disposal.getStore();
@@ -61,21 +83,47 @@ export class ServiceScope {
     #closing: Promise<void> | undefined;
     readonly #singleton: boolean;
     readonly #registry: ServiceRegistry;
-    readonly #identity: ExecutionContext | undefined;
+    readonly #authority: ExecutionContext | undefined;
+    readonly #borrowedAuthority: ExecutionContext | undefined;
+    readonly #borrowable: boolean;
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined);
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined, ...capability: unknown[]) {
-        if (capability.length && (capability.length !== 1 || capability[0] !== singletonCapability))
+        if (capability.length && (capability.length !== 1 ||
+            capability[0] !== singletonCapability && capability[0] !== borrowableCapability))
             throw new ServiceDependencyError('Invalid service scope construction');
         this.#registry = registry;
-        this.#identity = identity;
-        this.#singleton = capability.length === 1;
+        // Record every declared field through property access, including inherited getters.
+        this.#authority = identity && Object.freeze({
+            correlationId: identity.correlationId,
+            principal: identity.principal,
+            tenantId: identity.tenantId,
+            connectionId: identity.connectionId,
+            remoteAddress: identity.remoteAddress,
+            signal: identity.signal,
+            allowedSeverity: identity.allowedSeverity
+        } satisfies ExecutionContext & Record<keyof ExecutionContext, unknown>);
+        let borrowable = capability[0] === borrowableCapability;
+        let borrowedAuthority: ExecutionContext | undefined;
+        if (borrowable && this.#authority) {
+            let borrowedPrincipal = this.#authority.principal;
+            if (borrowedPrincipal) {
+                try { borrowedPrincipal = snapshotPrincipal(borrowedPrincipal); }
+                catch { borrowable = false; } // Opaque principals remain usable in ordinary scopes.
+            }
+            if (borrowable) borrowedAuthority = Object.freeze({ ...this.#authority, principal: borrowedPrincipal });
+        }
+        this.#borrowedAuthority = borrowedAuthority;
+        this.#borrowable = borrowable;
+        this.#singleton = capability[0] === singletonCapability;
         if (this.#singleton) registry.assertLive();
         else registry.admitScope(this);
-        internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated() });
+        internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),
+            authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#borrowedAuthority : undefined,
+            borrowable: () => this.#borrowable, createdForBorrowing: capability[0] === borrowableCapability });
     }
     get singleton(): boolean { return this.#singleton; }
     get registry(): ServiceRegistry { return this.#registry; }
-    get identity(): ExecutionContext | undefined { return this.#identity; }
+    get identity(): ExecutionContext | undefined { return this.#authority; }
     get disposed(): boolean { return this.#state !== ServiceScopeState.Open; }
     /** Closing scopes only accept dependencies from their own still-live factory attempts. */
     canResolve(): boolean {
@@ -92,7 +140,7 @@ export class ServiceScope {
         const chain = active?.chain.filter(node => node.state === ServiceResolutionState.Pending) ?? [];
         const owner = active?.owner;
         const inherit = owner?.state === ServiceResolutionState.Pending && serviceScopeRegistry(owner.scope) === this.#registry;
-        const identity = this.#singleton ? undefined : this.#identity;
+        const identity = this.#singleton ? undefined : this.#authority;
         const captive = inherit ? active?.singleton ?? false : false;
         const task = this.resolveInChain(token, identity, chain, captive);
         if (chain.length || current.getStore() === this) return task;
@@ -127,7 +175,7 @@ export class ServiceScope {
             registration.lifetime === ServiceLifetime.Singleton, identity }, () =>
             Promise.resolve().then(() => withServices(this, () => registration.lifetime === ServiceLifetime.Singleton
                 ? withoutRequestContext(() => this.construct(token, () => registration.factory?.(this, this.#registry.singletonContext) as T | Promise<T> | undefined, registration.instance as T | undefined))
-                : this.construct(token, () => identity && registration.factory?.(this, identity) as T | Promise<T> | undefined))));
+                : requestContext.run(identity, () => this.construct(token, () => identity && registration.factory?.(this, identity) as T | Promise<T> | undefined)))));
 
         this.#pending.add(task);
         void task.then(() => { node.state = ServiceResolutionState.Settled; this.#pending.delete(task); }, () => {
