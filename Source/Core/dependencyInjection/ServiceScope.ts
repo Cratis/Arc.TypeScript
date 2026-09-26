@@ -11,7 +11,7 @@ import { ServiceDependencyError } from './ServiceDependencyError.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
 import { ServiceResolutionState } from './ServiceResolutionState.js';
 import { ServiceScopeState } from './ServiceScopeState.js';
-import { withoutRequestContext } from '../execution/RequestContextStore.js';
+import { requestContext, withoutRequestContext } from '../execution/RequestContextStore.js';
 import type { ServiceDisposalFrame } from './ServiceDisposalFrame.js';
 import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
@@ -160,7 +160,7 @@ export class ServiceScope {
             registration.lifetime === ServiceLifetime.Singleton, identity }, () =>
             Promise.resolve().then(() => withServices(this, () => registration.lifetime === ServiceLifetime.Singleton
                 ? withoutRequestContext(() => this.construct(token, () => registration.factory?.(this, this.#registry.singletonContext) as T | Promise<T> | undefined, registration.instance as T | undefined))
-                : this.construct(token, () => identity && registration.factory?.(this, identity) as T | Promise<T> | undefined))));
+                : requestContext.run(identity, () => this.construct(token, () => identity && registration.factory?.(this, identity) as T | Promise<T> | undefined)))));
 
         this.#pending.add(task);
         void task.then(() => { node.state = ServiceResolutionState.Settled; this.#pending.delete(task); }, () => {
