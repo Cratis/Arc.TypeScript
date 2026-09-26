@@ -3,8 +3,8 @@
 export { Severity } from './Severity.js';
 export { ApplyConditionTo } from './ApplyConditionTo.js';
 export type { RuleBuilder } from './RuleBuilder.js';
-export { validation } from './ValidationResult.js';
-export type { ValidationResult } from './ValidationResult.js';
+export { validation, ValidationResult } from './ValidationResult.js';
+export type { ValidationResultOptions } from './ValidationResultOptions.js';
 export { validator } from './validator.js';
 export { BaseValidator } from './BaseValidator.js';
 export { CommandValidator } from './CommandValidator.js';
