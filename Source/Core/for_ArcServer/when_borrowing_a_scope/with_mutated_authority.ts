@@ -13,12 +13,19 @@ describe('when borrowing a scope after its original authority is mutated', () =>
     let observed: ReturnType<typeof currentContext>;
     let factoryContext: ReturnType<typeof currentContext>;
     let factoryAuthority: ExecutionContext;
+    let getterTenant: string | undefined;
+    let getterSignal: AbortSignal | undefined;
     let matchesScope: boolean;
     let originalSignal: AbortSignal;
     beforeEach(async () => {
         const authority = serviceToken<ExecutionContext>('factory authority');
+        const fromScope = serviceToken<string>('scope tenant');
         const server = new ArcServer({ services: [
-            { token: authority, lifetime: ServiceLifetime.Scoped, factory: (_scope, execution) => execution }
+            { token: authority, lifetime: ServiceLifetime.Scoped, factory: (_scope, execution) => execution },
+            { token: fromScope, lifetime: ServiceLifetime.Scoped, factory: scope => {
+                getterSignal = scope.identity!.signal;
+                return scope.identity!.tenantId!;
+            } }
         ] });
         const principal = { id: 'original', roles: ['Reader'], isAuthenticated: true, scheme: 'Verified',
             claims: { group: { name: 'before' } } };
@@ -41,8 +48,9 @@ describe('when borrowing a scope after its original authority is mutated', () =>
                 await Promise.resolve();
                 factoryContext = currentContext();
                 factoryAuthority = await currentServices().resolve(authority);
+                getterTenant = await scope.resolve(fromScope);
                 return currentContext();
-            }, { correlationId: 'invocation' });
+            }, { correlationId: 'E51A25C3-465D-4701-95CA-1F8B84C308D8' });
         } finally { await scope.dispose(); await server.dispose(); }
     });
     it('should retain the scope tenant and transport authority', () => {
@@ -51,6 +59,8 @@ describe('when borrowing a scope after its original authority is mutated', () =>
         observed!.remoteAddress!.should.equal('local');
         observed!.allowedSeverity.should.equal(Severity.Warning);
         observed!.signal.should.equal(originalSignal);
+        getterTenant!.should.equal('first');
+        getterSignal!.should.equal(originalSignal);
     });
     it('should retain the principal identity roles and claims', () => {
         observed!.principal!.id.should.equal('original');
@@ -61,7 +71,7 @@ describe('when borrowing a scope after its original authority is mutated', () =>
         (observed!.principal!.claims as object).should.deep.equal({ group: { name: 'before' } });
     });
     it('should expose only the invocation correlation and the borrowed services', () => {
-        observed!.correlationId.should.equal('invocation');
+        observed!.correlationId.should.equal('e51a25c3-465d-4701-95ca-1f8b84c308d8');
         (factoryContext === observed).should.equal(true);
         matchesScope.should.equal(true);
     });

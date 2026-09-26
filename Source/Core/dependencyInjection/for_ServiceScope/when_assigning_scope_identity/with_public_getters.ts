@@ -11,7 +11,7 @@ describe('when assigning scope identity with public getters', () => {
     let identitiesPreserved: boolean;
     beforeEach(async () => {
         const registry = new ServiceRegistry();
-        const identity = serviceContext('original');
+        const identity = { ...serviceContext('original'), principal: { id: 'user', roles: ['Reader'], isAuthenticated: true } };
         const scope = registry.createScope(identity);
         const readOnlyAssignments = (target: ServiceScope): void => {
             // @ts-expect-error singleton has no public setter
@@ -31,12 +31,16 @@ describe('when assigning scope identity with public getters', () => {
                     own: Object.hasOwn(scope, name), changed: Reflect.set(scope, name, replacement), throws,
                     preserved: Reflect.get(scope, name) === original };
             });
-            identitiesPreserved = !scope.singleton && scope.registry === registry && scope.identity === identity;
+            identitiesPreserved = !scope.singleton && scope.registry === registry && scope.identity !== identity &&
+                scope.identity?.tenantId === identity.tenantId && scope.identity?.correlationId === identity.correlationId &&
+                scope.identity?.signal === identity.signal && scope.identity?.principal?.id === identity.principal.id &&
+                scope.identity?.principal?.roles[0] === identity.principal.roles[0] &&
+                scope.identity?.principal !== identity.principal && Object.isFrozen(scope.identity);
         } finally { await registry.dispose(); }
     });
     it('should have no writable own or prototype identity setters', () => {
         results.map(result => [result.setter, result.own, result.changed, result.throws, result.preserved])
             .should.deep.equal(Array(3).fill(undefined).map(() => [undefined, false, false, true, true]));
     });
-    it('should retain the original identity', () => identitiesPreserved.should.be.true);
+    it('should retain the creation-time identity in a frozen non-replaceable getter', () => identitiesPreserved.should.be.true);
 });

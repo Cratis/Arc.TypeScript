@@ -16,7 +16,7 @@ import type { ServiceDisposalFrame } from './ServiceDisposalFrame.js';
 import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
 const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void>;
-    authority: () => ExecutionContext | undefined }>();
+    authority: () => ExecutionContext | undefined; borrowable: () => boolean }>();
 const disposal = new AsyncLocalStorage<ServiceDisposalFrame>();
 /** Package-private shutdown entry points; never methods on the public scope. */
 export function createSingletonServiceScope(registry: ServiceRegistry): ServiceScope {
@@ -28,9 +28,11 @@ export function serviceScopeRegistry(scope: ServiceScope): ServiceRegistry { ret
 /** Check unshadowable scope state before borrowing an admitted scope. */
 export function borrowedScopeAuthority(scope: ServiceScope, registry: ServiceRegistry): ExecutionContext {
     const internal = internals.get(scope);
-    if (!internal || internal.registry !== registry || !internal.authority())
-        throw new ServiceDependencyError('Invalid Arc service scope');
-    return internal.authority()!;
+    if (!internal || internal.registry !== registry) throw new ServiceDependencyError('Invalid Arc service scope');
+    if (!internal.borrowable()) throw new ServiceDependencyError('Arc service scope has an unsnapshotable principal');
+    const authority = internal.authority();
+    if (!authority) throw new ServiceDependencyError('Invalid Arc service scope');
+    return authority;
 }
 /** A live disposer cannot join registry shutdown, including through nested disposal. */
 export function hasLivingServiceDisposal(registry: ServiceRegistry, scope?: ServiceScope): boolean {
@@ -70,25 +72,31 @@ export class ServiceScope {
     #closing: Promise<void> | undefined;
     readonly #singleton: boolean;
     readonly #registry: ServiceRegistry;
-    readonly #identity: ExecutionContext | undefined;
     readonly #authority: ExecutionContext | undefined;
+    readonly #borrowable: boolean;
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined);
     constructor(registry: ServiceRegistry, identity: ExecutionContext | undefined, ...capability: unknown[]) {
         if (capability.length && (capability.length !== 1 || capability[0] !== singletonCapability))
             throw new ServiceDependencyError('Invalid service scope construction');
         this.#registry = registry;
-        this.#identity = identity;
-        this.#authority = identity && Object.freeze({ ...identity,
-            principal: identity.principal ? snapshotPrincipal(identity.principal) : undefined });
+        let principal = identity?.principal;
+        let borrowable = true;
+        if (principal) {
+            try { principal = snapshotPrincipal(principal); }
+            catch { borrowable = false; } // Legacy opaque principals still work for ordinary requests.
+        }
+        this.#authority = identity && (borrowable ? Object.freeze({ ...identity, principal }) : identity);
+        this.#borrowable = borrowable;
         this.#singleton = capability.length === 1;
         if (this.#singleton) registry.assertLive();
         else registry.admitScope(this);
         internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),
-            authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#authority : undefined });
+            authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#authority : undefined,
+            borrowable: () => this.#borrowable });
     }
     get singleton(): boolean { return this.#singleton; }
     get registry(): ServiceRegistry { return this.#registry; }
-    get identity(): ExecutionContext | undefined { return this.#identity; }
+    get identity(): ExecutionContext | undefined { return this.#authority; }
     get disposed(): boolean { return this.#state !== ServiceScopeState.Open; }
     /** Closing scopes only accept dependencies from their own still-live factory attempts. */
     canResolve(): boolean {

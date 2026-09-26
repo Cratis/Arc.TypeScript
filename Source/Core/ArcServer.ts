@@ -25,6 +25,7 @@ import { isObservableOperation } from './queries/observable/ObservableOperation.
 import { CommandOperationBoundary } from './commands/CommandOperationBoundary.js';
 import { runOwned } from './execution/runOwned.js';
 import { runInScope } from './execution/runInScope.js';
+import type { RunInScopeOptions } from './execution/RunInScopeOptions.js';
 import type { ServiceScope } from './dependencyInjection/ServiceScope.js';
 import { runProvider } from './execution/runProvider.js';
 import { disposeObservableServer } from './queries/observable/disposeObservableServer.js';
@@ -94,7 +95,7 @@ export class ArcServer {
      * This is not an authorization mechanism. The caller must dispose the scope when work ends.
      */
     runInScope<T>(scope: ServiceScope, callback: () => T | Promise<T>,
-        options?: { correlationId?: string; signal?: AbortSignal }): Promise<T> {
+        options?: RunInScopeOptions): Promise<T> {
         return runInScope(this.services, this.#generatedMetadata, scope, callback, options);
     }
 

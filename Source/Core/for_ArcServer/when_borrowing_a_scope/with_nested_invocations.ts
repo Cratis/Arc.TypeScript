@@ -30,15 +30,15 @@ describe('when borrowing a scope with nested and rejected invocations', () => {
                     await server.runInScope(scope, async () => {
                         await Promise.resolve();
                         correlations.push(currentContext()?.correlationId);
-                    }, { correlationId: 'nested' });
+                    }, { correlationId: 'a0f0a604-be5b-4713-b7e5-850570f11275' });
                     correlations.push(currentContext()?.correlationId);
                     failure = await captureFailure(server.runInScope(scope, async () => {
                         correlations.push(currentContext()?.correlationId);
                         throw new Error('callback rejected');
-                    }, { correlationId: 'rejected' }));
+                    }, { correlationId: 'b0f0a604-be5b-4713-b7e5-850570f11275' }));
                     correlations.push(currentContext()?.correlationId);
                     restoredServices = currentServices() === scope;
-                }, { correlationId: 'outer', signal: extra.signal });
+                }, { correlationId: 'c0f0a604-be5b-4713-b7e5-850570f11275', signal: extra.signal });
                 correlations.push(currentContext()?.correlationId);
             });
             correlations.push(currentContext()?.correlationId);
@@ -46,7 +46,9 @@ describe('when borrowing a scope with nested and rejected invocations', () => {
         } finally { await scope.dispose(); await server.dispose(); }
     });
     it('should restore context on return and rejection', () => {
-        correlations.should.deep.equal(['outside', 'outer', 'nested', 'outer', 'rejected', 'outer', 'outside', undefined]);
+        correlations.should.deep.equal(['outside', 'c0f0a604-be5b-4713-b7e5-850570f11275',
+            'a0f0a604-be5b-4713-b7e5-850570f11275', 'c0f0a604-be5b-4713-b7e5-850570f11275',
+            'b0f0a604-be5b-4713-b7e5-850570f11275', 'c0f0a604-be5b-4713-b7e5-850570f11275', 'outside', undefined]);
         restoredServices.should.equal(true);
         (failure as Error).message.should.equal('callback rejected');
     });
