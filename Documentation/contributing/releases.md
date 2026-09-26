@@ -1,9 +1,9 @@
 ---
-title: Preview a TypeScript release
-description: Validate a minor or patch release candidate without tagging, publishing, or creating a GitHub release.
+title: Prepare and publish a TypeScript release
+description: Prepare a minor or patch source-preview version, check it, and publish it as a GitHub pre-release. Nothing is published to npm.
 ---
 
-You can prepare consistent source-preview versions locally and check a proposed release without publishing anything. This repository supports **release previews only**: automated version writes, npm publication, Git tags, and GitHub releases are not configured.
+You prepare a source-preview version in the release pull request, and a maintainer publishes it as a GitHub pre-release after the merge. Nothing is automated: no workflow writes versions, tags, creates releases, or publishes to npm, and **npm publication is disabled**.
 
 ## Prepare a source-preview version
 
@@ -63,6 +63,21 @@ gh workflow run release-preview.yml --ref main \
 The `-F` flag reads the file contents, including newlines, as a single workflow input; `-f` would pass the `@` text literally. This command **starts a hosted workflow**: run it only when you intend to spend a CI run. An optional `-F expected_current_version=1.2.3` (without the `v`) makes the preview fail if the latest stable tag disagrees. The workflow runs the release guard specifications and `yarn ci` before printing its plan. It checks that the dispatch commit is still the default-branch head, reads existing `vMAJOR.MINOR.PATCH` tags, and computes the next tag. With no tags, it starts from `0.0.0`. Other tag shapes, placeholder or empty notes, a stale branch head, and any attempt to enable npm publishing fail closed.
 
 The workflow is **manual only**, not triggered by pushes or pull requests. The preview uses read-only permissions and prints a plan; it does not update package manifests, apply labels, tag, create a release, or publish to npm. The displayed version is derived from Git tags alone. The separate `yarn set-version --check` gate verifies local manifest and documentation consistency, but the preview does **not** establish that its proposed tag matches the manifest version or that any package is ready to publish. Do not describe a preview as a completed release.
+
+## Publish the GitHub pre-release
+
+A minor or patch release is a pull request that carries its `yarn set-version` commit, a `minor` or `patch` label, and user-facing release notes as its description. After hosted CI passes and the pull request is merged with a merge commit:
+
+```bash
+merge=$(gh pr view <number> --json mergeCommit -q .mergeCommit.oid)
+git fetch origin
+git merge-base --is-ancestor "$merge" origin/main
+gh pr view <number> --json body -q .body > .ai-work/keep/release-notes.md
+gh release create v<version> --prerelease --target "$merge" --title v<version> \
+  --notes-file .ai-work/keep/release-notes.md
+```
+
+Create the release only after `git merge-base` confirms that the merge commit is on `main`, and target that commit, not the moving branch. `gh release create` also creates the `v<version>` tag, which the release preview workflow reads. The pre-release publishes source only; npm packages stay unpublished. Merge release pull requests in version order, because each carries its own `yarn set-version` change.
 
 ## Before enabling publication
 

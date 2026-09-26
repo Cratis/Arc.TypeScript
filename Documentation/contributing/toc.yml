@@ -1,4 +1,4 @@
 - name: Change a sample
   href: samples.md
-- name: Preview a release
+- name: Prepare and publish a release
   href: releases.md
