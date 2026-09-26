@@ -5,17 +5,17 @@ import parser from '@typescript-eslint/parser';
 import { afterAll, describe, it } from 'vitest';
 import { arcchr0003 } from '../../rules/arcchr0003.js';
 import { arcchr0007 } from '../../rules/arcchr0007.js';
-import { arcchr0009 } from '../../rules/arcchr0009.js';
+import { arcchr0009, createArcchr0009 } from '../../rules/arcchr0009.js';
 import { arcchr0010 } from '../../rules/arcchr0010.js';
 
 RuleTester.afterAll = afterAll;
 RuleTester.describe = describe;
 RuleTester.it = it;
-const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecmaVersion: 2022 } } });
+const filename = `${process.cwd()}/lint-fixture.ts`;
+const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecmaVersion: 2022 } }, defaultFilenames: { ts: filename, tsx: `${process.cwd()}/lint-fixture.tsx` } });
 const typed = new RuleTester({ languageOptions: { parser, parserOptions: {
     projectService: { allowDefaultProject: ['lint-fixture.ts'] }, tsconfigRootDir: process.cwd()
 } } });
-const filename = `${process.cwd()}/lint-fixture.ts`;
 const reactor = "import { reactor } from '@cratis/chronicle/reactors';\n";
 const command = "import { command } from '@cratis/arc.core';\n";
 const chronicle = `import { eventType } from '@cratis/chronicle/events';
@@ -93,14 +93,37 @@ tester.run('arcchr0009', arcchr0009, {
             @command() class C { @notAudited() passphrase = ''; }`,
         `import { command } from '@cratis/arc.core'; import { pii } from '@cratis/chronicle/compliance';
             @command() class C { @pii() accessKey = ''; }`,
-        `class C { passphrase = ''; }`
+        `class C { passphrase = ''; }`,
+        `${command}@command() class C { pin: number; otp: boolean; cvv: Date; cvc: Guid;
+            securityCode: DateOnly; accessKey: TimeOnly; privateKey: TimeSpan; }`,
+        `${command}@command() class C { constructor(public pin: number, readonly cvv: Date) {} }`,
+        `import { command } from '@cratis/arc.core'; import { notAudited } from '@cratis/arc.chronicle';
+            @command() class C { constructor(@notAudited() public passphrase: string) {} }`
     ],
     invalid: [
         { code: `${command}@command() class C { passphrase = ''; privateKey = ''; accessKey = ''; }`,
             errors: [{ messageId: 'secret' }, { messageId: 'secret' }, { messageId: 'secret' }] },
         { code: `${command}@command() class C { pin = ''; otp = ''; cvv = ''; cvc = ''; securityCode = ''; authorizationHeader = ''; }`,
-            errors: Array.from({ length: 6 }, () => ({ messageId: 'secret' as const })) }
+            errors: Array.from({ length: 6 }, () => ({ messageId: 'secret' as const })) },
+        { code: `${command}@command() class C { constructor(public passphrase: string, readonly privateKey: string) {} }`,
+            errors: [{ messageId: 'secret' }, { messageId: 'secret' }] }
     ]
+});
+
+tester.run('arcchr0009 when Chronicle cannot resolve from the file', arcchr0009, {
+    valid: [{ filename: '/tmp/arc-chronicle-uninstalled/lint-fixture.ts',
+        code: `${command}@command() class C { passphrase = ''; constructor(public privateKey: string) {} }` }],
+    invalid: []
+});
+
+tester.run('arcchr0009 without Chronicle installed', createArcchr0009(() => false), {
+    valid: [`${command}@command() class C { passphrase = ''; constructor(public privateKey: string) {} }`],
+    invalid: []
+});
+
+tester.run('arcchr0009 with Chronicle installed', createArcchr0009(() => true), {
+    valid: [],
+    invalid: [{ code: `${command}@command() class C { passphrase = ''; }`, errors: [{ messageId: 'secret' }] }]
 });
 
 typed.run('arcchr0010', arcchr0010, {
@@ -115,6 +138,9 @@ typed.run('arcchr0010', arcchr0010, {
             @command() class C { handle() { return tuple(${guid}, new Other()); } }` },
         { filename, code: `${chronicle}@eventType() class Created {}
             @command() class C { handle() { return tuple('ordinary response', new Created()); } }` },
+        { filename, code: `import { eventType } from '@cratis/chronicle'; import { command, tuple } from '@cratis/arc.core';
+            class Guid { static create() { return new Guid(); } }
+            @eventType() class Created {} @command() class C { handle() { return tuple(Guid.create(), new Created()); } }` },
         { filename, code: `${chronicle}@eventType() class Created {}
             class Base { @key() id = ''; } @command() class C extends Base {
                 handle() { return tuple(${guid}, new Created()); }
@@ -127,6 +153,10 @@ typed.run('arcchr0010', arcchr0010, {
             @command() class C { handle() { return tuple(Guid.create(), new Created()); } }`, errors: [{ messageId: 'guid' }] },
         { filename, code: `${chronicle}@eventType() class Created {}
             @command() class C { handle() { const id = Guid.create(); return tuple(id, new Created()); } }`, errors: [{ messageId: 'guid' }] },
+        { filename, code: `import { eventType, Guid } from '@cratis/chronicle';
+            import { command, tuple } from '@cratis/arc.core';
+            @eventType() class Created {} @command() class C { handle() { return tuple(Guid.create(), new Created()); } }`,
+            errors: [{ messageId: 'guid' }] },
         { filename, code: `import { eventType } from '@cratis/chronicle';
             import { Guid } from '@cratis/fundamentals'; import { command, tuple } from '@cratis/arc.core';
             @eventType() class Created {} @command() class C { handle() { return tuple(Guid.create(), new Created()); } }`,

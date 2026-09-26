@@ -6,12 +6,13 @@ import * as ts from 'typescript';
 /** Obtain a compiler checker for rules which must prove a mismatch. */
 export function typesFor(context: TSESLint.RuleContext<string, readonly unknown[]>): {
     checker: ts.TypeChecker;
+    program: ts.Program;
     node: (node: TSESTree.Node) => ts.Node;
     estree: (node: ts.Node) => TSESTree.Node | undefined;
 } | undefined {
     const services = ESLintUtils.getParserServices(context, true);
     if (!services.program) return undefined;
-    return { checker: services.program.getTypeChecker(), node: value => services.esTreeNodeToTSNodeMap.get(value), estree: value => services.tsNodeToESTreeNodeMap.get(value) };
+    return { checker: services.program.getTypeChecker(), program: services.program, node: value => services.esTreeNodeToTSNodeMap.get(value), estree: value => services.tsNodeToESTreeNodeMap.get(value) };
 }
 
 /** Compare the instance represented by a constructor token with the parameter's type. */

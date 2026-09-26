@@ -31,24 +31,12 @@ export const arcchr0010 = ESLintUtils.RuleCreator.withoutDocs({
             const expression = types.node(node);
             const symbol = types.checker.getTypeAtLocation(expression).getSymbol();
             if (!symbol) return false;
-            const source = expression.getSourceFile();
-            return source.statements.some(statement => {
-                if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
-                    statement.moduleSpecifier.text !== '@cratis/fundamentals') return false;
-                const bindings = statement.importClause?.namedBindings;
-                if (bindings && ts.isNamedImports(bindings)) return bindings.elements.some(specifier => {
-                    const imported = types.checker.getSymbolAtLocation(specifier.name);
-                    return (specifier.propertyName?.text ?? specifier.name.text) === 'Guid' &&
-                        !!imported && types.checker.getAliasedSymbol(imported) === symbol;
-                });
-                if (bindings && ts.isNamespaceImport(bindings)) {
-                    const imported = types.checker.getSymbolAtLocation(bindings.name);
-                    return !!imported && types.checker.getExportsOfModule(types.checker.getAliasedSymbol(imported))
-                        .some(candidate => candidate.name === 'Guid' &&
-                            (candidate.flags & ts.SymbolFlags.Alias ? types.checker.getAliasedSymbol(candidate) : candidate) === symbol);
-                }
-                return false;
-            });
+            const resolved = ts.resolveModuleName('@cratis/fundamentals', expression.getSourceFile().fileName,
+                types.program.getCompilerOptions(), ts.sys, undefined, undefined, ts.ModuleKind.ESNext).resolvedModule;
+            const module = resolved && types.program.getSourceFile(resolved.resolvedFileName);
+            const exports = module && types.checker.getSymbolAtLocation(module);
+            const guid = exports && types.checker.getExportsOfModule(exports).find(candidate => candidate.name === 'Guid');
+            return !!guid && (guid.flags & ts.SymbolFlags.Alias ? types.checker.getAliasedSymbol(guid) : guid) === symbol;
         };
         return { ClassDeclaration(node) {
             if (!node.id || !decorated(context, node, 'command') || node.superClass ||
