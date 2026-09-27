@@ -9,8 +9,9 @@ function externalFiles(configuration: SourceGeneratorOptions, root: string, outp
     const metadata = configuration.metadata && resolve(configuration.metadata);
     return sourceProgram(configuration.project).getSourceFiles()
         .filter(file => !file.isDeclarationFile && !file.fileName.includes(`${sep}node_modules${sep}`))
-        .map(file => resolve(file.fileName)).filter(file => file !== metadata &&
-            !file.startsWith(root + sep) && !file.startsWith(outputRoot + sep));
+        .map(file => resolve(file.fileName)).filter(file => file !== metadata && !file.endsWith('.proxy.ts') &&
+            !file.startsWith(root + sep) && !(outputRoot !== root && !root.startsWith(outputRoot + sep) &&
+                file.startsWith(outputRoot + sep)));
 }
 
 /** Regenerate on changes in artifacts or in external source dependencies. */
@@ -19,6 +20,7 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
     const metadata = configuration.metadata && resolve(configuration.metadata);
     const outputRoot = resolve(configuration.output);
     const watched = new Set(externalFiles(configuration, root, outputRoot));
+    const separateOutput = outputRoot !== root && !root.startsWith(outputRoot + sep);
     let timer: NodeJS.Timeout | undefined, pending: Promise<void> = Promise.resolve();
     const schedule = () => {
         if (timer) clearTimeout(timer);
@@ -31,8 +33,8 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
     const watchers = [watch(root, { recursive: true }, (_, filename) => {
         if (!filename) return schedule();
         const file = resolve(root, filename);
-        if (file !== metadata && !file.startsWith(outputRoot + sep) && file.endsWith('.ts') && !file.endsWith('.d.ts') &&
-            file.startsWith(root + sep)) schedule();
+        if (file !== metadata && !file.endsWith('.proxy.ts') && !(separateOutput && file.startsWith(outputRoot + sep)) &&
+            file.endsWith('.ts') && !file.endsWith('.d.ts') && file.startsWith(root + sep)) schedule();
     }), ...[...new Set([...watched].map(dirname))].map(directory => watch(directory, (_, filename) => {
         if (filename && watched.has(resolve(directory, filename))) schedule();
     }))];

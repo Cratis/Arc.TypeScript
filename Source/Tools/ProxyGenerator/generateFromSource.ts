@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { lstat, realpath } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { isAbsolute, resolve, sep } from 'node:path';
 import { analyzeSource } from './analyzeSource.js';
 import { sourceProgram } from './sourceProgram.js';
 import type { SourceRenderOptions } from './renderSource.js';
@@ -36,13 +36,18 @@ export async function generateFromSource(options: SourceGeneratorOptions): Promi
     const output = await realpath(requested);
     const artifacts = await realpath(options.artifacts);
     if (!(await lstat(artifacts)).isDirectory()) throw new Error('Artifacts must be a directory');
+    const inside = (parent: string, child: string) => child === parent || child.startsWith(parent + sep);
+    const colocated = inside(artifacts, output) || inside(output, artifacts);
+    if (colocated && !options.useProxyFileSuffix)
+        throw new Error('Output overlaps artifacts; --use-proxy-file-suffix is required to keep generated files distinct from backend modules');
     if (options.metadata) await preflightGeneratedMetadata(options.metadata);
     const program = sourceProgram(options.project);
     const collector = options.metadata ? metadataCollector(program, options.metadata) : undefined;
     const analysis = analyzeSource(options.project, artifacts, options.rootNamespace,
         !!collector || options.generatedMetadata === true, program, collector?.visit);
     const metadata = collector?.render(options.project, artifacts);
-    const files = buildSourceFiles(analysis, options);
-    const existing = await preflightSourceFiles(output, files, options);
+    // An artifacts tree must not gain index barrels: discovery and backend compilers also read that tree.
+    const files = buildSourceFiles(analysis, { ...options, skipIndexGeneration: colocated || options.skipIndexGeneration });
+    const existing = await preflightSourceFiles(output, files, options, colocated);
     return publishSourceFiles(output, files, existing, options.skipOutputDeletion, options.metadata, metadata);
 }
