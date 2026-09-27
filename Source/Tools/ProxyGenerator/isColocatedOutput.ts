@@ -4,7 +4,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { sep } from 'node:path';
 import { discoveryFiles } from '@cratis/arc.core';
 import type ts from 'typescript';
-import { metadataOwned, owned } from './generatedSourceOwnership.js';
+import { marker, metadataHeader } from './generatedSourceOwnership.js';
 
 /** Co-located output contains the artifact root or a discoverable, handwritten artifact source. */
 export async function isColocatedOutput(artifacts: string, output: string, program: ts.Program): Promise<boolean> {
@@ -16,7 +16,7 @@ export async function isColocatedOutput(artifacts: string, output: string, progr
         const file = program.getSourceFile(path);
         if (!file || file.isDeclarationFile) continue;
         const text = await readFile(path, 'utf8');
-        if (!owned(text) && !metadataOwned(text)) return true;
+        if (!text.startsWith(marker) && !text.startsWith(`${metadataHeader} Hash: `)) return true;
     }
     return false;
 }

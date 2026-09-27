@@ -121,6 +121,20 @@ test('nested dedicated output keeps barrels and optional suffix; equal and ances
     }
 });
 
+test('nested dedicated output refuses an edited generated file before requiring a suffix', async () => {
+    const { artifacts, options } = await project();
+    const nested = join(artifacts, 'client');
+    await mkdir(nested);
+    const dedicated = { ...options, output: nested, useProxyFileSuffix: false };
+    await generateFromSource(dedicated);
+    const proxy = join(nested, 'Save.ts');
+    const edited = `${await readFile(proxy, 'utf8')} // edited\n`;
+    await writeFile(proxy, edited);
+    await assert.rejects(generateFromSource(dedicated), /Refusing to overwrite handwritten or edited file: Save.ts/);
+    assert.equal(await readFile(proxy, 'utf8'), edited);
+    assert.deepEqual((await readdir(nested)).sort(), ['Save.ts', 'index.ts']);
+});
+
 test('metadata check skips owned nested dedicated output excluded from the project', async () => {
     const { src, artifacts, configuration, options } = await project();
     const nested = join(artifacts, 'client');
