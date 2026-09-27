@@ -6,7 +6,7 @@ import { defineConfig, searchForWorkspaceRoot } from 'vite';
 const slices = fileURLToPath(new URL('../Features/', import.meta.url));
 
 export default defineConfig({
-    resolve: { dedupe: ['react', 'react-dom', '@cratis/arc', '@cratis/arc.react'] },
+    resolve: { dedupe: ['react', 'react-dom', '@cratis/arc', '@cratis/arc.react', '@cratis/components'] },
     server: { port: 5173, strictPort: true, fs: { allow: [searchForWorkspaceRoot(process.cwd()), slices] }, proxy: {
         '/api': { target: 'http://127.0.0.1:3000' },
         '/.cratis': { target: 'http://127.0.0.1:3000', ws: true }

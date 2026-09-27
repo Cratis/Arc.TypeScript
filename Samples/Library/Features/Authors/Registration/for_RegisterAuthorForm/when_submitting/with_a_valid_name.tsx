@@ -1,34 +1,45 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useDialog } from '@cratis/arc.react/dialogs';
+import { CratisComponentsProvider } from '@cratis/components';
 import sinon from 'sinon';
 import { afterEach, beforeEach, describe, it } from 'vitest';
 import { RegisterAuthor } from '../../RegisterAuthor.proxy';
 import { RegisterAuthorForm } from '../../RegisterAuthorForm';
 
-describe('when submitting the author registration form with a valid name', () => {
-    const execute = sinon.stub();
-    const setValues = sinon.stub();
+function Registration() {
+    const [Dialog, show] = useDialog(RegisterAuthorForm);
+    return <CratisComponentsProvider value={{ locale: 'en-US' }}>
+        <button onClick={() => { void show(); }}>Add author</button><Dialog />
+    </CratisComponentsProvider>;
+}
 
-    beforeEach(() => {
-        execute.resolves({ isSuccess: true, validationResults: [] });
-        sinon.stub(RegisterAuthor, 'use').returns([
-            { execute } as unknown as RegisterAuthor, setValues, sinon.stub()
-        ] as unknown as ReturnType<typeof RegisterAuthor.use>);
-        render(<RegisterAuthorForm />);
-        fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Octavia Butler  ' } });
-        fireEvent.submit(screen.getByRole('button', { name: 'Register author' }).closest('form')!);
+describe('when submitting the author registration dialog with a valid name', () => {
+    let execute: sinon.SinonStub;
+
+    beforeEach(async () => {
+        execute = sinon.stub(RegisterAuthor.prototype, 'execute');
+        execute.resolves({ isSuccess: true, validationResults: [] } as never);
+        render(<Registration />);
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Add author' })); });
+        await act(async () => { fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Octavia Butler  ' } }); });
     });
 
-    afterEach(() => { cleanup(); sinon.restore(); execute.reset(); setValues.reset(); });
+    afterEach(() => { cleanup(); sinon.restore(); });
 
-    it('should send the trimmed name through the generated command', async () => {
-        await waitFor(() => execute.calledOnce.should.be.true);
-        setValues.calledOnce.should.equal(true);
-        (setValues.firstCall.args[0] as { name: string }).name.should.equal('Octavia Butler');
+    it('should execute the generated command with an id and trimmed name', async () => {
+        await waitFor(() => (screen.getByRole('button', { name: 'Register author' }) as HTMLButtonElement).disabled.should.equal(false));
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Register author' })); });
+        await waitFor(() => execute.callCount.should.equal(1));
+        const command = execute.firstCall.thisValue as RegisterAuthor;
+        command.name.should.equal('Octavia Butler');
+        String(command.id).length.should.be.greaterThan(0);
     });
 
-    it('should show the successful registration', async () => {
-        await waitFor(() => screen.getByRole('status').textContent!.should.equal('Author registered.'));
+    it('should close the dialog after successful execution', async () => {
+        await waitFor(() => (screen.getByRole('button', { name: 'Register author' }) as HTMLButtonElement).disabled.should.equal(false));
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Register author' })); });
+        await waitFor(() => { (screen.queryByRole('dialog', { name: 'Register an author' }) === null).should.equal(true); });
     });
 });

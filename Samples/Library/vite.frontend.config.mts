@@ -6,6 +6,7 @@ import { createConfig } from '../../vite.base.js';
 const base = createConfig();
 export default defineConfig({
     ...base,
-    resolve: { ...base.resolve, dedupe: ['react', 'react-dom', '@cratis/arc', '@cratis/arc.react'] },
-    test: { ...base.test, name: 'library-frontend', environment: 'jsdom', include: ['Features/**/for_*/when_*/*.tsx'] }
+    resolve: { ...base.resolve, dedupe: ['react', 'react-dom', '@cratis/arc', '@cratis/arc.react', '@cratis/components'] },
+    test: { ...base.test, name: 'library-frontend', environment: 'jsdom', include: ['Features/**/for_*/when_*/*.tsx'],
+        server: { deps: { inline: ['@cratis/components'] } } }
 });

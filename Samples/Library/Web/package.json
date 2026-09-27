@@ -9,6 +9,7 @@
   "dependencies": {
     "@cratis/arc": "22.19.1",
     "@cratis/arc.react": "22.19.1",
+    "@cratis/components": "4.6.0",
     "@cratis/fundamentals": "7.19.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
