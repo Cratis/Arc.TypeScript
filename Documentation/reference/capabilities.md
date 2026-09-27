@@ -210,7 +210,7 @@ The generated proxies compile against `@cratis/arc` and `@cratis/arc.react` 22.1
 
 ## Shared Arc page examples
 
-The shared Arc pages show a TypeScript tab beside C#, Kotlin, and Java. Its snippets live in `Documentation/client-snippets/`, and `yarn docs:snippets` compiles each one against this repository's packages with strict settings and standard decorators. Some tabs state that TypeScript does not support their full workflow yet, such as event seeding with projection materialization and validator-parameter read-model injection in the in-memory scenario. A compiled snippet shows that the API exists with that shape; it is not a parity claim for the page around it.
+The shared Arc pages show a TypeScript tab beside C#, Kotlin, and Java. Its snippets live in `Documentation/client-snippets/`, and `yarn docs:snippets` compiles each one against this repository's packages with strict settings and standard decorators. Every shared snippet is a real TypeScript example. The in-memory `ChronicleCommandScenario` builds reducer-backed read models from seeded events and rejects projection-backed models with seeded history; test those with `ChronicleKernelScenario`. The shared validator examples inject an application-owned repository. Arc for TypeScript validators do not take read models as constructor parameters; read one inside an async rule with `readModelForValidation`. A compiled snippet shows that the API exists with that shape; it is not a parity claim for the page around it.
 
 ## How parity is checked
 
