@@ -9,13 +9,13 @@ This page describes the generated files so you can read them, import from them, 
 
 | Backend artifact | Generated file |
 | --- | --- |
-| `@command()` class `RegisterAuthor` in namespace `Authors.Registration` | `Authors/Registration/RegisterAuthor.proxy.ts` |
-| `@readModel()` class `Author` in `Authors.Listing` | `Authors/Listing/Author.proxy.ts`, the model |
-| `@query()` method `allAuthors` on `Author` | `Authors/Listing/AllAuthors.proxy.ts`, named after the method in PascalCase |
+| `@command()` class `RegisterAuthor` in `Features/Authors/Registration/Registration.ts` | `Features/Authors/Registration/RegisterAuthor.proxy.ts` |
+| `@readModel()` class `Author` in `Features/Authors/Listing/Listing.ts` | `Features/Authors/Listing/Author.proxy.ts`, the model |
+| `@query()` method `allAuthors` on `Author` | `Features/Authors/Listing/AllAuthors.proxy.ts`, named after the method in PascalCase |
 | A `@field` model used by a command, query, or identity provider | A model file in its own namespace folder |
-| Every folder | `index.ts`, exporting the folder's files |
+| Separate output folder only | `index.ts`, exporting generated files; no barrels are emitted in co-located mode |
 
-The `.proxy.ts` suffix appears with `--use-proxy-file-suffix`; without it the files end in `.ts`. Namespaces come from the discovery folder, or from an explicit `namespace` option, prefixed with `--root-namespace` when you set one.
+Use `--artifacts Features --output Features --use-proxy-file-suffix` (absolute paths in a script) for the co-located layout. The suffix is required when output and artifacts overlap; when using a separate folder it is optional and files can end in `.ts`. Namespaces come from the discovery folder, or from an explicit `namespace` option, prefixed with `--root-namespace` when you set one. If the namespace or skipped segments change the generated path, check where it lands before importing it.
 
 ## Commands
 

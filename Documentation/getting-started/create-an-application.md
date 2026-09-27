@@ -102,7 +102,8 @@ Create `tsconfig.json`:
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["main.ts", "Features/**/*.ts"]
+  "include": ["main.ts", "Features/**/*.ts"],
+  "exclude": ["Features/**/*.proxy.ts", "Features/**/*.tsx"]
 }
 ```
 
@@ -111,7 +112,7 @@ Create `tsconfig.json`:
 | No `experimentalDecorators` | Compiles Arc's decorators as standard TC39 decorators, as the samples do. `ESNext.Decorators` in `lib` declares the `Symbol.metadata` they use. Legacy decorators also work; see [Decorator modes](../dependency-injection.md#decorator-modes) |
 | `NodeNext` | Node runs the emitted ES modules directly. Write relative imports with a `.js` extension. The samples use `ESNext` with `Bundler`, which also works; see [NodeNext or Bundler?](../troubleshooting.md#nodenext-or-bundler) |
 | `verbatimModuleSyntax` | Keeps imports as written; use `import type` for an import that is only a type |
-| `include` | Compiles the entry point and the artifacts, and leaves the generated client proxies out |
+| `include` / `exclude` | Compiles the entry point and backend artifacts; excludes co-located browser proxies and React components from the server build |
 
 ## Write a command and a query
 
@@ -237,21 +238,20 @@ await app.run({ port: Number(process.env.PORT ?? 3000) });
 
 ## Generate the metadata
 
-`arc-proxygenerator` reads your artifacts with the TypeScript compiler and writes the metadata module. It also writes client proxies, for a frontend you may add later. The CLI takes absolute paths and needs an existing output folder, so run it from a small script, as the samples do:
+`arc-proxygenerator` reads your artifacts with the TypeScript compiler and writes the metadata module. It also writes client proxies, for a frontend you may add later. The CLI takes absolute paths and needs an existing output folder. Use `Features` as both artifacts and output, as the samples do; `.proxy.ts` keeps browser files distinct from backend modules:
 
 ```javascript title="generate.mjs"
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const path = relative => fileURLToPath(new URL(relative, import.meta.url));
 const cli = fileURLToPath(new URL('./cli.js', import.meta.resolve('@cratis/arc.proxygenerator')));
-mkdirSync(path('./generated'), { recursive: true });
 const result = spawnSync(process.execPath, [cli,
     '--project', path('./tsconfig.json'),
     '--artifacts', path('./Features'),
-    '--output', path('./generated'),
+    '--output', path('./Features'),
+    '--use-proxy-file-suffix',
     '--metadata', path('./Features/generatedMetadata.ts'),
     ...process.argv.slice(2)], { stdio: 'inherit' });
 process.exitCode = result.status ?? 1;
@@ -263,7 +263,7 @@ Run it:
 npm run generate
 ```
 
-It prints `Generated 6 changed file(s)`: `Features/generatedMetadata.ts` and five proxy files under `generated/`. Commit the metadata module with your source, and never edit it by hand. Arc rejects metadata that no longer matches the classes when the server starts, so regenerate after every change to a command, read model, or validator. In CI, `npm run generate -- --check-metadata` fails when the committed module is stale. [Generate artifact metadata](../proxy-generation/generated-artifact-metadata.md) covers what the module records.
+It reports the number of files changed: `Features/generatedMetadata.ts` and proxies beside `Writing.ts` and `Listing.ts` (including a model proxy). No `index.ts` barrels are added to the backend tree. Commit the metadata and proxies with your source, and never edit them by hand. Arc rejects metadata that no longer matches the classes when the server starts, so regenerate after every change to a command, read model, or validator. In CI, `npm run generate -- --check-metadata` fails when the committed module is stale. [Generate artifact metadata](../proxy-generation/generated-artifact-metadata.md) covers what the module records.
 
 ## Run the development loop
 
@@ -324,7 +324,7 @@ npm run build
 npm start
 ```
 
-`npm run build` regenerates the metadata before it compiles, so the build never ships stale metadata. Add `node_modules/` and `dist/` to `.gitignore`. Whether you also commit `generated/` depends on your frontend; see [Set up proxy generation](../proxy-generation/getting-started.md).
+`npm run build` regenerates the metadata before it compiles, so the build never ships stale metadata. Add `node_modules/` and `dist/` to `.gitignore`. The generated `*.proxy.ts` files remain beside the backend slices; include those files and the React `.tsx` components in your web tsconfig, not the backend one. See [Set up proxy generation](../proxy-generation/getting-started.md) for the frontend configuration and a separate-output alternative.
 
 ## Choose a host
 

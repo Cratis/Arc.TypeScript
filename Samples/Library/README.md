@@ -23,8 +23,8 @@ The backend assigns a fixed `Librarian` principal inside the loopback-only Expre
 
 - `Features/Authors/Registration/Registration.ts` holds `RegisterAuthor`, `AuthorRegistered`, and `UniqueAuthorName`. `handle()` returns the event, and `@key()` identifies its event source. Chronicle enforces name uniqueness across author streams at append time. `AuthorName.ts` keeps the concept and its validator together.
 - `Features/Authors/Listing/Listing.ts` maps the event to a projected `Author`. Its Arc queries load the Chronicle read models and subscribe to changes for the observable list. The book registration and listing slices follow the same pattern under `Features/Books/`.
-- `Features/generatedMetadata.ts` and `Web/src/generated/` are produced by `arc-proxygenerator`. Change the decorated source, then regenerate; never edit generated files.
-- `Web/src/Features/` uses generated `.use()` hooks. The author list is observable, the page controls request five authors at a time, and the book query follows the selected author's shelf.
+- `Features/generatedMetadata.ts` and each slice's `*.proxy.ts` files are produced by `arc-proxygenerator` and committed beside their backend modules, as in Arc for .NET. Change the decorated source, then run `yarn workspace @cratis/arc.sample.library generate-proxies`; never edit generated files. The generator uses `--use-proxy-file-suffix`, writes no barrels in `Features`, and removes only stale owned files.
+- `Features/Authors/Registration/RegisterAuthorForm.tsx` imports `./RegisterAuthor.proxy`; the other components live beside their listing and registration slices as well. The author list is observable, the page controls request five authors at a time, and the book query follows the selected author's shelf. `Web/src` contains only `App.tsx`, `main.tsx`, and `style.css`. The backend tsconfig excludes browser files, the web tsconfig includes them, and Vite serves the slices outside `Web`. Name components for what they render rather than reusing a backend `.ts` basename.
 
 ## Check it
 

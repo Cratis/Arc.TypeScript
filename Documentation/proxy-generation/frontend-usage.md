@@ -5,14 +5,14 @@ description: Execute generated commands, show snapshot and live queries, page an
 
 The Library sample's frontend registers authors, lists them live, pages through them five at a time, and shows each author's books. None of it contains a URL, a `fetch` call, or a hand-written response type. Every component talks to the backend through a proxy from [Set up proxy generation](getting-started.md).
 
-This page walks through those components. The excerpts come from [`Samples/Library/Web/src`](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Library/Web/src) with the license header removed, and use `@cratis/arc` and `@cratis/arc.react` 22.19.1.
+This page walks through those components. The excerpts come from the [Library sample](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Library), where React components sit beside backend slices under `Features/` and `Web/src` contains only the app shell. They omit the license header and use `@cratis/arc` and `@cratis/arc.react` 22.19.1.
 
 ## Wrap the application in Arc
 
 ```tsx title="Web/src/App.tsx"
 import { Arc } from '@cratis/arc.react';
-import { RegisterAuthorForm } from './Features/Authors/Registration/RegisterAuthorForm';
-import { AuthorCatalog } from './Features/Authors/Listing/AuthorCatalog';
+import { RegisterAuthorForm } from '../../Features/Authors/Registration/RegisterAuthorForm';
+import { AuthorCatalog } from '../../Features/Authors/Listing/AuthorCatalog';
 
 export function App() {
     return <Arc><main>
@@ -28,10 +28,10 @@ export function App() {
 
 ## Execute a command
 
-```tsx title="Web/src/Features/Authors/Registration/RegisterAuthorForm.tsx"
+```tsx title="Features/Authors/Registration/RegisterAuthorForm.tsx"
 import { useState, type FormEvent } from 'react';
 import { Guid } from '@cratis/fundamentals';
-import { RegisterAuthor } from '../../../generated/Authors/Registration/RegisterAuthor.proxy';
+import { RegisterAuthor } from './RegisterAuthor.proxy';
 
 export function RegisterAuthorForm() {
     const [command, setValues] = RegisterAuthor.use();
@@ -57,7 +57,7 @@ Before any request leaves the browser, `execute()` runs the client-side rules th
 
 ## Show a live list
 
-```tsx title="Web/src/Features/Authors/Listing/AuthorCatalog.tsx (excerpt)"
+```tsx title="Features/Authors/Listing/AuthorCatalog.tsx (excerpt)"
 const [live] = AllAuthors.use();
 ```
 
@@ -67,7 +67,7 @@ The client keeps one connection to the server's observable query hub and multipl
 
 ## Page and sort a snapshot
 
-```tsx title="Web/src/Features/Authors/Listing/AuthorCatalog.tsx (excerpt)"
+```tsx title="Features/Authors/Listing/AuthorCatalog.tsx (excerpt)"
 const [page, performPage, , setPage] = AuthorsPage.useWithPaging(5, AuthorsPage.sortBy.name.ascending);
 useEffect(() => { void performPage(); }, [live.data.length]);
 ```
@@ -84,7 +84,7 @@ A snapshot does not update by itself. The effect re-runs `performPage` whenever 
 
 ## Pass query arguments
 
-```tsx title="Web/src/Features/Books/Listing/AuthorBooks.tsx (excerpt)"
+```tsx title="Features/Books/Listing/AuthorBooks.tsx (excerpt)"
 export function AuthorBooks({ authorId }: { authorId: Guid }) {
     const [books] = BooksForAuthor.use({ authorId });
 ```
