@@ -76,21 +76,28 @@ Do not give a `.tsx` component the same basename as a `.ts` backend file. Name i
 
 ## Install the frontend packages
 
-The generated files import the published client packages directly. In the frontend project, install:
+The generated files and React components live in `Features/`, not `Web/`. Install their client dependencies in the package that owns `Features/` (or a common ancestor/workspace root that resolves imports from `Features/`):
 
 ```sh
+cd path/to/package-containing-Features
 npm install @cratis/arc@22.19.1 @cratis/arc.react@22.19.1 @cratis/fundamentals react react-dom reflect-metadata
+# If your slices use Cratis Components:
+npm install @cratis/components@4.6.0
 ```
 
-Generated commands and queries import both `@cratis/arc` and the React hooks from `@cratis/arc.react`, even when you only use the classes. Models use `@field` from `@cratis/fundamentals`. `@cratis/arc.react` accepts React 18 or 19.
+Also declare the dependencies imported by the web app in its own package. Installing packages only in a sibling `Web/node_modules` does **not** make them resolvable from `Features/`; including the slices in `Web/tsconfig.json` does not change that. The Library sample declares these dependencies in [`Samples/Library/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/package.json) for its slices and in [`Web/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/Web/package.json) for its app shell. Generated commands and queries import both `@cratis/arc` and the React hooks from `@cratis/arc.react`, even when you only use the classes. Models use `@field` from `@cratis/fundamentals`. `@cratis/arc.react` accepts React 18 or 19.
 
-Import `reflect-metadata` once, before anything else, in the frontend's entry point, as the Library sample's `main.tsx` does. Compile the frontend in `Bundler` module resolution with `experimentalDecorators: true`. The backend tsconfig excludes `**/*.proxy.ts` and `**/*.tsx`; the web tsconfig includes them under `../Features`, without including the backend `.ts` modules. Library's Vite config allows the slice folder outside `Web` and deduplicates React from that location. Vite 8's Oxc transform reads the nearest tsconfig **per file**: a proxy in `Features/` does not inherit `Web/tsconfig.json`'s `experimentalDecorators`. Configure Vite explicitly for the proxies' legacy decorator mode:
+Import `reflect-metadata` once, before anything else, in the frontend's entry point, as the Library sample's `main.tsx` does. Compile the frontend in `Bundler` module resolution with `experimentalDecorators: true`. The backend tsconfig excludes `**/*.proxy.ts` and `**/*.tsx`; the web tsconfig includes them under `../Features`, without including the backend `.ts` modules. Allow Vite to read the slice folder outside `Web/` and deduplicate packages imported from both locations. Vite 8's Oxc transform reads the nearest tsconfig **per file**: a proxy in `Features/` does not inherit `Web/tsconfig.json`'s `experimentalDecorators`. Configure Vite explicitly for the proxies' legacy decorator mode, as in the Library sample's [`vite.config.ts`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/Web/vite.config.ts):
 
 ```typescript title="Web/vite.config.ts (excerpt)"
 export default defineConfig({
-    oxc: { decorator: { legacy: true } }
+    oxc: { decorator: { legacy: true } },
+    resolve: { dedupe: ['react', 'react-dom', '@cratis/arc', '@cratis/arc.react', '@cratis/fundamentals', '@cratis/components'] },
+    server: { fs: { allow: [searchForWorkspaceRoot(process.cwd()), slices] } }
 });
 ```
+
+Here `slices` is the absolute path to `Features/` (see the linked config); omit `@cratis/components` from the dedupe list if your slices do not use it.
 
 Other bundlers reading slices outside the web project likewise need a legacy decorator transform; checking only the web tsconfig does not ensure the browser can parse the bundle.
 

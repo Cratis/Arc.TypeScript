@@ -23,7 +23,7 @@ flowchart LR
 
 The generator reads source through the TypeScript compiler API. It never imports or runs your application, and it never talks to a running server. That makes it safe to run in CI and in watch mode, and it means everything it knows comes from your declarations: decorators, `@field` types, return types, and validator rules.
 
-It walks the artifacts folder with the same rules as `builder.discover()`, so `for_*` and `given` folders and `index.ts` files are skipped there too. Route options such as `--api-prefix` and `--segments-to-skip` must match the server's [endpoint mapping](../core/endpoint-mapping.md), because the generator cannot ask the server which routes it chose.
+It walks the artifacts folder with the same rules as `builder.discover()`, so `for_*` and `given` folders, `index.ts`, and `*.proxy.ts` files are skipped there too. Route options such as `--api-prefix` and `--segments-to-skip` must match the server's [endpoint mapping](../core/endpoint-mapping.md), because the generator cannot ask the server which routes it chose.
 
 ## What you receive
 
@@ -31,7 +31,7 @@ It walks the artifacts folder with the same rules as `builder.discover()`, so `f
 - **Queries**: a class per query method, snapshot or observable, with a parameters interface when the query takes arguments, sort helpers, and React hooks including paging.
 - **Models**: classes with `@field` metadata, so the client can turn JSON into `Guid` values, dates, and nested models. A concept arrives as its underlying type.
 - **Identity details**: the `detailsType` of an [identity details provider](../identity/provider-flow.md), ready for `useIdentity`.
-- **Barrels**: an `index.ts` per folder, unless you turn them off.
+- **Barrels for separate output**: an `index.ts` per folder by default when proxies go to a dedicated output folder. Co-located output skips generated barrels.
 - **Server metadata**, optionally: with `--metadata`, a module the server registers with `useGeneratedMetadata` to infer service and argument bindings. See [Generated artifact metadata](generated-artifact-metadata.md).
 
 [What the generator writes](generated-code.md) shows each of these for the Library sample.
@@ -52,7 +52,7 @@ The output does not reproduce the .NET generator's templates byte for byte: the 
 
 ## Choose your next step
 
-1. [Set up proxy generation](getting-started.md) for your backend and a dedicated frontend folder.
+1. [Set up proxy generation](getting-started.md) with proxies beside your backend slices; a separate frontend output folder remains an option.
 2. [Use the proxies in React](frontend-usage.md): commands, queries, paging, and live updates.
 3. Look up [what the generator writes](generated-code.md), [type mapping](type-mapping.md), and [validation rules](validation.md).
 4. Adjust [configuration](configuration.md) when your routes or folder layout differ from the defaults.
