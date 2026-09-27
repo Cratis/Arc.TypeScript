@@ -28,11 +28,19 @@ export class DrizzleObservationSession<T> {
             return;
         }
         signal?.addEventListener('abort', this.abort, { once: true });
-        const lease = listen(() => {
-            if (this.#closed) return;
-            this.#dirty = true;
-            if (this.#subscriber) this.schedule();
-        }, error => this.fail(error));
+        let lease: DrizzleObservationLease | (() => void);
+        try {
+            lease = listen(() => {
+                if (this.#closed) return;
+                this.#dirty = true;
+                if (this.#subscriber) this.schedule();
+            }, error => this.fail(error));
+        } catch (error) {
+            // The session never started, so its owner has nothing to release.
+            signal?.removeEventListener('abort', this.abort);
+            this.#closed = true;
+            throw error;
+        }
         this.#release = typeof lease === 'function' ? lease : () => lease.release();
         if (this.#closed) this.#release();
         const initialRead = typeof lease === 'function' ? this.read() : lease.ready.then(() => {
