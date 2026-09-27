@@ -27,7 +27,8 @@ export async function resolvePostgreSQLTable(database: DrizzleDatabase, table: T
     try {
         result = await (database as { execute(query: ReturnType<typeof sql>): Promise<unknown> }).execute(sql`
             SELECT c.oid::text AS oid, pg_catalog.format('%I.%I', n.nspname, c.relname) AS key,
-                   current_database() AS database, c.relkind AS kind, n.nspname AS schema
+                   current_database() AS database, c.relkind AS kind, n.nspname AS schema,
+                   c.relispartition OR EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid) AS inherited
             FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE c.oid = pg_catalog.to_regclass(${name})`);
     } catch (error) {
@@ -36,5 +37,8 @@ export async function resolvePostgreSQLTable(database: DrizzleDatabase, table: T
     const row = postgresqlRows(result)[0];
     if (!row || !['r'].includes(String(row.kind)) || String(row.schema).startsWith('pg_temp_'))
         throw new Error(`PostgreSQL observation could not resolve table '${config.name}' for tenant '${tenant}'; check the reader search_path`);
+    // Writes through a parent table fire only the parent's statement triggers, so a child would miss them.
+    if (row.inherited === true || row.inherited === 't')
+        throw new Error(`PostgreSQL observation does not support partitions or inheritance children; table '${config.name}' for tenant '${tenant}' inherits from another table`);
     return { key: String(row.key), oid: String(row.oid), database: String(row.database), schema: String(row.schema) };
 }

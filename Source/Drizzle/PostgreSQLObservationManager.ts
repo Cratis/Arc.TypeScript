@@ -102,7 +102,7 @@ export class PostgreSQLObservationManager {
         entry.connection = connection;
         connection.onDisconnect(error => {
             if (!entry.dead && generation === entry.generation)
-                this.terminate(entry, new Error(`PostgreSQL change listener lost: ${error?.name === 'Error' ? 'connection failure' : 'connection closed'}`));
+                this.terminate(entry, new Error(`PostgreSQL change listener lost: ${error ? 'connection failure' : 'connection closed'}`));
         });
         connection.onNotification((channel, payload) => {
             if (entry.dead || channel !== 'arc_changes' || !payload) return;

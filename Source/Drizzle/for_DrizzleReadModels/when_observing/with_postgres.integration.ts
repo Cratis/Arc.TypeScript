@@ -177,6 +177,23 @@ describe('when observing PostgreSQL changes across processes', () => {
             stream.values.should.have.lengthOf(0);
         } finally { stream.subscription.unsubscribe(); await model[Symbol.asyncDispose](); }
     });
+    it('should reject a partition whose writes go through its parent', async () => {
+        const partition = pgTable('tasks_partition', { id: text('id').primaryKey(), title: text('title').notNull() });
+        await admin.query(`CREATE TABLE "${schemaA}".partitioned_tasks (id text NOT NULL, title text NOT NULL) PARTITION BY LIST (id)`);
+        await admin.query(`CREATE TABLE "${schemaA}".tasks_partition PARTITION OF "${schemaA}".partitioned_tasks DEFAULT`);
+        await admin.query(postgresqlChangeTrigger(partition, { schema: schemaA }));
+        const model = new DrizzleReadModels(drizzle(first), partition, Task, 100, undefined,
+            { tenant: 'partition', notifications, postgresql: manager });
+        const stream = collect(model);
+        try {
+            await waitFor(() => stream.errors.length === 1);
+            stream.errors[0]!.message.should.include('partitions or inheritance children');
+            stream.values.should.have.lengthOf(0);
+        } finally {
+            stream.subscription.unsubscribe(); await model[Symbol.asyncDispose]();
+            await admin.query(`DROP TABLE "${schemaA}".partitioned_tasks CASCADE`);
+        }
+    });
     it('should route a dotted table identifier using PostgreSQL-quoted payloads', async () => {
         const dotted = pgTable('odd.tasks', { id: text('id').primaryKey(), title: text('title').notNull() });
         await admin.query(`CREATE TABLE "${schemaA}"."odd.tasks" (id text PRIMARY KEY, title text NOT NULL)`);
