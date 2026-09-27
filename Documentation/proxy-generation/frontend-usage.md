@@ -7,6 +7,19 @@ The Library sample's frontend registers authors, lists them live, pages through 
 
 This page walks through those components. The excerpts come from the [Library sample](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Library), where React components sit beside backend slices under `Features/` and `Web/src` contains only the app shell. They omit the license header and use `@cratis/arc` and `@cratis/arc.react` 22.19.1.
 
+A slice keeps its backend, its backend and frontend specifications, the generated proxy, and the component together:
+
+```text
+Features/Authors/Registration/
+├── Registration.ts
+├── for_RegisterAuthor/when_registering/with_librarian_role.ts
+├── RegisterAuthor.proxy.ts
+├── RegisterAuthorForm.tsx
+└── for_RegisterAuthorForm/when_submitting/with_a_valid_name.tsx
+```
+
+`yarn test` runs backend `.ts` specifications in Node (`Samples/Library/vite.config.mts`) and frontend `.tsx` specifications in jsdom (`Samples/Library/vite.frontend.config.mts`). The web tsconfig type-checks both components and their specs; backend compilation and artifact discovery ignore frontend specs and generated proxies. The frontend specs use Vitest `describe`/`it`, Sinon-stubbed generated hooks, Chai `.should`, and Testing Library for DOM interactions. The web Vite configuration deduplicates React, React DOM, `@cratis/arc`, and `@cratis/arc.react` across the app shell and the slice folder. To introduce `@cratis/components` controls, declare it in the Library workspace so imports from `Features/` resolve, and provide the component context from `Web/src/App.tsx` as needed; the sample currently uses native controls.
+
 ## Wrap the application in Arc
 
 ```tsx title="Web/src/App.tsx"
