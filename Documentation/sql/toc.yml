@@ -10,5 +10,7 @@
   href: paging.md
 - name: Observe tables in process
   href: observing-tables.md
+- name: Observe PostgreSQL across processes
+  href: observing-postgresql.md
 - name: Tenancy
   href: tenancy.md

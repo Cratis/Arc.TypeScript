@@ -8,7 +8,7 @@ import type { Table } from 'drizzle-orm';
 export class DrizzleHandle<T extends DrizzleDatabase = DrizzleDatabase> {
     constructor(readonly native: T, private readonly notifications?: DrizzleChangeNotifications, private readonly tenant?: string) {}
 
-    /** Announce writes to registered tables or read-model types. Call after a host-owned transaction commits. */
+    /** Validate registered targets; announce after commit in InProcess mode. PostgreSQL triggers announce writes in PostgreSQL mode. */
     notifyChanged(...targets: (Table | (new () => object))[]): void {
         if (!this.notifications || !this.tenant) throw new Error('Drizzle change notification requires withDrizzle');
         this.notifications.notify(this.tenant, targets);

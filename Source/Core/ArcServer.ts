@@ -17,7 +17,7 @@ import { renderOpenApi } from './openApi/renderOpenApi.js';
 import type { Operation } from './http/Operation.js';
 import { commandResult } from './commands/createCommandResult.js';
 import { queryResult } from './queries/createQueryResult.js';
-import { recordFailure } from './execution/failureTracking.js';
+import { recordFailure, withLateFailureReporter } from './execution/failureTracking.js';
 import { Severity } from './validation/Severity.js';
 import { ServiceRegistry } from './dependencyInjection/ServiceRegistry.js';
 import { requestContext } from './execution/RequestContextStore.js';
@@ -130,7 +130,11 @@ export class ArcServer {
         const qualified = operation.fullyQualifiedName;
         const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
         const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
-        return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
+        const execute = () => withLateFailureReporter(error => {
+            try { Promise.resolve(this.options.logger?.(error, context.correlationId)).catch(() => {}); }
+            catch { /* A failing logger must not cause an unhandled late cleanup failure. */ }
+        }, traced);
+        return operation.kind === 'command' ? CommandOperationBoundary.command(this, execute) : execute();
     }
 
     /** Close observable sessions and owned services. */

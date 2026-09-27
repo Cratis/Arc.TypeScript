@@ -15,6 +15,12 @@ import { ServiceExecutionState } from './ServiceExecutionState.js';
 import { ServiceRegistryState } from './ServiceRegistryState.js';
 import type { SingletonServiceContext } from './SingletonServiceContext.js';
 
+const serviceInstances = new WeakMap<ServiceRegistry, WeakSet<object>>();
+/** @internal Only the container owns instances supplied by registration or claimed by a factory. */
+export function isServiceInstance(registry: ServiceRegistry, value: object): boolean {
+    return serviceInstances.get(registry)?.has(value) ?? false;
+}
+
 /** Owns registrations and singleton instances. Dispose when the host shuts down. */
 export class ServiceRegistry {
     readonly #registrations = new Map<symbol, ServiceRegistration<unknown>>();
@@ -31,6 +37,8 @@ export class ServiceRegistry {
     #closing: Promise<void> | undefined;
 
     constructor(registrations: readonly ServiceRegistration<unknown>[] = []) {
+        const instances = new WeakSet<object>();
+        serviceInstances.set(this, instances);
         for (const entry of registrations) {
             const token = normalizeServiceToken(entry.token);
             const registration = { ...entry, token, dependencies: entry.dependencies?.map(normalizeServiceToken) };
@@ -43,8 +51,10 @@ export class ServiceRegistry {
                 throw new ServiceDependencyError(`Invalid service registration: ${registration.token.name}`);
             if (Object.hasOwn(registration, 'instance') && registration.lifetime !== ServiceLifetime.Singleton)
                 throw new ServiceDependencyError(`Instance must be singleton: ${registration.token.name}`);
-            if (Object.hasOwn(registration, 'instance') && (typeof registration.instance === 'object' || typeof registration.instance === 'function'))
+            if (Object.hasOwn(registration, 'instance') && (typeof registration.instance === 'object' || typeof registration.instance === 'function')) {
                 this.#owners.set(registration.instance as object, null);
+                instances.add(registration.instance as object);
+            }
             this.#registrations.set(registration.token.key, registration);
         }
         this.#singletons = createSingletonServiceScope(this);
@@ -104,6 +114,7 @@ export class ServiceRegistry {
             return false;
         }
         this.#owners.set(object, scope);
+        serviceInstances.get(this)!.add(object);
         return true;
     }
     /** Keep the pipeline alive until its result and scope cleanup have completed. */

@@ -5,6 +5,7 @@ import type { ExecutionContext } from '@cratis/arc.core';
 import type { Table } from 'drizzle-orm';
 import type { DrizzleDatabase } from './DrizzleDatabase.js';
 import type { DrizzleObservation } from './DrizzleObservation.js';
+import type { PostgreSQLObservationOptions } from './PostgreSQLObservationOptions.js';
 
 /** Storage location is selected for each Arc execution, never from a caller-supplied query argument. */
 export interface DrizzleOptions {
@@ -15,6 +16,6 @@ export interface DrizzleOptions {
     databaseFactory?: (tenant: string, context: ExecutionContext) => DrizzleDatabase | Promise<DrizzleDatabase>;
     readModels?: readonly { type: new () => object; table: Table }[];
     maxPageSize?: number;
-    /** Experimental: receive only changes explicitly announced in this process. */
-    observation?: DrizzleObservation;
+    /** Experimental: opt into in-process announcements or application-owned PostgreSQL triggers. */
+    observation?: DrizzleObservation | PostgreSQLObservationOptions;
 }
