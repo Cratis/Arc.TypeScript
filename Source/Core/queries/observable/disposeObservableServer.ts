@@ -37,7 +37,17 @@ export async function disposeObservableServer(hub: ObservableQueryHub, sessions:
     try { await transport; } catch { /* Keep collecting registry disposal failures. */ }
     if (ownsServices) {
         try { await services.dispose(); }
-        catch (error) { failures.push(error); }
+        catch (error) {
+            // Registry shutdown may have joined this same transport teardown. Keep each
+            // original failure once, even when it is nested in the registry aggregate.
+            const collect = (failure: unknown): void => {
+                if (failure instanceof AggregateError) {
+                    for (const nested of failure.errors) collect(nested);
+                } else if (!failures.includes(failure)) failures.push(failure);
+            };
+            if (failures.length) collect(error);
+            else failures.push(error);
+        }
     }
     if (failures.length === 1) throw failures[0];
     if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');

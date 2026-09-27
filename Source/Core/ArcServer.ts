@@ -152,6 +152,9 @@ export class ArcServer {
     /** Close observable sessions and owned services. */
     async dispose(): Promise<void> {
         if (!this.#ownsServices) return this.disposeObservables();
+        // Reject before transport teardown or a cached shutdown can make owned work join itself.
+        // A rejected attempt must not prevent a later external caller from disposing the registry.
+        this.services.assertCanDispose();
         if (this.services.hasShutdownParticipants && !this.#closingWithoutParticipants) return this.services.dispose();
         if (!this.#closingWithoutParticipants) {
             const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;

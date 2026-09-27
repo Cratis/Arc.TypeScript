@@ -33,6 +33,6 @@ describe('when disposing a server after registry shutdown starts', () => {
         } finally { await captureFailure(server.dispose()); }
     });
     it('should close sessions and websockets exactly once after direct registry disposal', () => {
-        events.should.deep.equal(['stop', 'drain', 'websockets closed', 'session closed']);
+        events.should.deep.equal(['websockets closed', 'session closed', 'stop', 'drain']);
     });
 });

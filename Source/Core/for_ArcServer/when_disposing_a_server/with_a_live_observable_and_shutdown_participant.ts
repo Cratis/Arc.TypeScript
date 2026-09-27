@@ -34,8 +34,8 @@ describe('when disposing a server with a live observable and shutdown participan
             await beforeDeadline(closing, 'observable shutdown');
         } finally { release.release(); await server.dispose(); }
     });
-    it('should keep the observable scope until after the participant drains', () => {
-        beforeRelease.should.deep.equal(['stop']);
-        events.should.deep.equal(['stop', 'drained', 'scope disposed']);
+    it('should close the observable scope before stopping participants', () => {
+        beforeRelease.should.deep.equal(['scope disposed', 'stop']);
+        events.should.deep.equal(['scope disposed', 'stop', 'drained']);
     });
 });

@@ -35,7 +35,6 @@ export class ServiceRegistry {
     #singletonFailed = false;
     #shutdownHasParticipants = false;
     #closing: Promise<void> | undefined;
-    #participantDrain: Promise<void> | undefined;
 
     constructor(registrations: readonly ServiceRegistration<unknown>[] = []) {
         for (const entry of registrations) {
@@ -58,7 +57,7 @@ export class ServiceRegistry {
     }
     get disposed(): boolean { return this.#state !== ServiceRegistryState.Running; }
     get singletonFailed(): boolean { return this.#singletonFailed; }
-    /** @internal Whether server shutdown needs to drain participants before observable sessions close. */
+    /** @internal Whether shutdown has participants whose work may depend on an admitted operation. */
     get hasShutdownParticipants(): boolean { return this.#participants.size > 0 || this.#shutdownHasParticipants; }
     /**
      * Register a shutdown participant while admission is open. Its stop runs before any drain;
@@ -77,8 +76,6 @@ export class ServiceRegistry {
         this.assertLive();
         this.#shutdownCleanups.add({ stop, cleanup });
     }
-    /** @internal Keep canceled subscription scopes alive through participant drain. */
-    waitForParticipantDrain(): Promise<void> { return this.#participantDrain ?? Promise.resolve(); }
     /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
     /** @internal Poison the registry after a singleton factory failure. */
@@ -190,10 +187,15 @@ export class ServiceRegistry {
     admitScope(scope: ServiceScope): void { this.assertLive(); this.#scopes.add(scope); }
     release(scope: ServiceScope): void { this.#scopes.delete(scope); }
     assertLive(): void { if (this.#state !== ServiceRegistryState.Running || this.#singletonFailed) throw new ServiceDependencyError('Service registry is disposed'); }
-    dispose(): Promise<void> {
+    /** @internal Reject self-joins before a server begins or joins its own teardown. */
+    assertCanDispose(): void {
         if (this.hasLivingExecution() || hasLivingServiceResolution(this) || hasLivingServiceDisposal(this) ||
             this.#activeParticipant.getStore()?.state === ServiceExecutionState.Running)
-            return Promise.reject(new ServiceDependencyError('Cannot await service registry disposal from owned work'));
+            throw new ServiceDependencyError('Cannot await service registry disposal from owned work');
+    }
+    dispose(): Promise<void> {
+        try { this.assertCanDispose(); }
+        catch (error) { return Promise.reject(error); }
         return this.beginShutdown();
     }
     private beginShutdown(): Promise<void> {
@@ -203,16 +205,19 @@ export class ServiceRegistry {
         const scopes = [...this.#scopes];
         const participants = [...this.#participants];
         this.#shutdownHasParticipants = participants.length > 0;
-        const cleanups = participants.length ? [...this.#shutdownCleanups] : [];
-        let releaseDrain!: () => void;
-        if (participants.length) this.#participantDrain = new Promise(resolve => { releaseDrain = resolve; });
+        const cleanups = [...this.#shutdownCleanups];
         const completion = Promise.resolve().then(async () => {
             const errors: unknown[] = [];
             try {
+                // Close observable admission and finish transport/session teardown before stopping
+                // participants. Neither a session close nor a participant may join the other.
+                for (const hook of cleanups) {
+                    try { hook.stop(); } catch (error) { errors.push(error); }
+                }
+                for (const hook of cleanups) {
+                    try { await hook.cleanup(); } catch (error) { errors.push(error); }
+                }
                 if (participants.length) {
-                    for (const hook of cleanups) {
-                        try { hook.stop(); } catch (error) { errors.push(error); }
-                    }
                     // A stop continuation inherits its participant frame. Keep it live through drain.
                     const frames = participants.map((): ShutdownParticipantFrame => ({ state: ServiceExecutionState.Running }));
                     const stops: Promise<unknown>[] = [];
@@ -230,12 +235,6 @@ export class ServiceRegistry {
                         this.#activeParticipant.run(frames[index]!, () => Promise.resolve().then(() => participant.drain()))));
                     for (const outcome of drains) if (outcome.status === 'rejected') errors.push(outcome.reason);
                     for (const frame of frames) frame.state = ServiceExecutionState.Drained;
-                    releaseDrain();
-                }
-                // Cancellation runs before stop; transport teardown follows drain but precedes
-                // tracked execution and scope destruction. Errors never skip later cleanup.
-                for (const hook of cleanups) {
-                    try { await hook.cleanup(); } catch (error) { errors.push(error); }
                 }
                 await Promise.allSettled(executions);
                 for (const scope of scopes) {
@@ -249,7 +248,7 @@ export class ServiceRegistry {
                 this.#state = ServiceRegistryState.Closed;
                 this.#waits.clear();
             }
-            if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
+            if (errors.length) throw new AggregateError([...new Set(errors)], 'Service registry disposal failed');
         });
         this.#closing = completion;
         return completion;

@@ -27,6 +27,7 @@ export class ObservableQuerySession {
     #firstEmissionDelivered = false;
     #closed: Promise<void> | undefined;
     #scopeClosed: Promise<void> | undefined;
+    readonly #operations = new Set<Promise<unknown>>();
     #terminalFailure: unknown;
     #released = false;
 
@@ -85,7 +86,7 @@ export class ObservableQuerySession {
         return this.guarded(result);
     }
 
-    /** Stop emissions without destroying the scope while participants still drain. */
+    /** Stop emissions before closing the session and its scope. */
     cancel(): void { this.#controller.abort(); }
 
     /** Cancel the producer, release its iterator, and dispose the scope exactly once. */
@@ -147,10 +148,7 @@ export class ObservableQuerySession {
             yield queryResult(this.#context, { exceptionMessages: [this.config.exposeExceptionDetails
                 ? String(error) : 'An unexpected error occurred'] });
         } finally {
-            // A canceled stream can finish while participant drain is awaiting its result.
-            // Keep its scope registered for server cleanup after drain, without joining drain here.
-            if (this.config.services.disposed && this.config.services.hasShutdownParticipants) this.releaseAdmission();
-            else await this.closeScope();
+            await this.closeScope();
         }
     }
 
@@ -164,7 +162,9 @@ export class ObservableQuerySession {
         if (this.#scopeClosed) return this.#scopeClosed;
         this.releaseAdmission();
         this.#scopeClosed = (async () => {
-            if (this.config.services.disposed) await this.config.services.waitForParticipantDrain();
+            // current() has no iterator for close() to join. Keep its scoped guards alive
+            // until every already-admitted session operation has settled.
+            await Promise.allSettled([...this.#operations]);
             await this.#scope.dispose();
         })().finally(() => {
             try { this.#subscription.end(); }
@@ -216,7 +216,10 @@ export class ObservableQuerySession {
     }
 
     private run<T>(callback: () => Promise<T>): Promise<T> {
-        return this.config.services.runExecution(() => requestContext.run(this.#context,
+        const operation = this.config.services.runExecution(() => requestContext.run(this.#context,
             () => withServices(this.#scope, () => this.#subscription.run(callback))));
+        this.#operations.add(operation);
+        void operation.then(() => { this.#operations.delete(operation); }, () => { this.#operations.delete(operation); });
+        return operation;
     }
 }
