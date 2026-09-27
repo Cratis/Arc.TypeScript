@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { lstat, realpath } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { isAbsolute, resolve, sep } from 'node:path';
 import { analyzeSource } from './analyzeSource.js';
 import { sourceProgram } from './sourceProgram.js';
 import type { SourceRenderOptions } from './renderSource.js';
@@ -10,7 +10,6 @@ import { preflightGeneratedMetadata } from './publishGeneratedMetadata.js';
 import { buildSourceFiles } from './buildSourceFiles.js';
 import { preflightSourceFiles } from './preflightSourceFiles.js';
 import { publishSourceFiles } from './publishSourceFiles.js';
-import { pathsOverlap } from './pathsOverlap.js';
 
 /** Options for generating browser clients from TypeScript source. */
 export interface SourceGeneratorOptions extends SourceRenderOptions {
@@ -37,7 +36,8 @@ export async function generateFromSource(options: SourceGeneratorOptions): Promi
     const output = await realpath(requested);
     const artifacts = await realpath(options.artifacts);
     if (!(await lstat(artifacts)).isDirectory()) throw new Error('Artifacts must be a directory');
-    const colocated = pathsOverlap(artifacts, output);
+    // A dedicated output directory inside artifacts does not contain handwritten source.
+    const colocated = artifacts === output || artifacts.startsWith(output + sep);
     if (colocated && !options.useProxyFileSuffix)
         throw new Error('Output overlaps artifacts; --use-proxy-file-suffix is required to keep generated files distinct from backend modules');
     if (options.metadata) await preflightGeneratedMetadata(options.metadata);

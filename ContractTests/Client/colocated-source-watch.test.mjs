@@ -10,15 +10,15 @@ import { clientTest as test, scratch } from './scratch.mjs';
 const root = resolve(import.meta.dirname, '../..');
 const cli = join(root, 'Source/Tools/ProxyGenerator/dist/cli.js');
 
-test('watch regenerates for handwritten backend changes inside a nested output folder', async () => {
+test('watch regenerates for handwritten backend changes when output contains artifacts', async () => {
     const directory = await scratch();
-    const artifacts = join(directory, 'src');
-    const output = join(artifacts, 'Features');
-    await mkdir(output, { recursive: true });
+    const output = join(directory, 'src');
+    const artifacts = join(output, 'Features');
+    await mkdir(artifacts, { recursive: true });
     const configuration = join(directory, 'tsconfig.json');
     await writeFile(configuration, JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'ESNext',
         moduleResolution: 'Bundler', skipLibCheck: true }, include: ['src/**/*.ts'] }));
-    const backend = join(output, 'Save.ts');
+    const backend = join(artifacts, 'Save.ts');
     await writeFile(backend, "import { command } from '@cratis/arc.core';\n@command() export class Save { handle(): void {} }\n");
     const child = spawn(process.execPath, [cli, '--project', configuration, '--artifacts', artifacts,
         '--output', output, '--use-proxy-file-suffix', '--watch'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });

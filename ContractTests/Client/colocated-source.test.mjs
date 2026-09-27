@@ -94,15 +94,54 @@ import { command } from '@cratis/arc.core';
     assert.ok((await readdir(artifacts)).includes('Old.ts'));
 });
 
-test('nested and ancestor output paths also enforce the co-located suffix', async () => {
+test('nested dedicated output keeps barrels and optional suffix; equal and ancestor output require co-location safeguards', async () => {
     const { src, artifacts, options } = await project();
     const nested = join(artifacts, 'client');
     await mkdir(nested);
-    for (const output of [nested, src]) {
+    await generateFromSource({ ...options, output: nested, useProxyFileSuffix: false });
+    assert.deepEqual((await readdir(nested)).sort(), ['Save.ts', 'index.ts']);
+    assert.deepEqual(analyzeSource(options.project, artifacts).operations.map(item => item.name), ['Save']);
+    await generateFromSource({ ...options, output: nested });
+    assert.deepEqual((await readdir(nested)).sort(), ['Save.proxy.ts', 'index.ts']);
+    assert.deepEqual(analyzeSource(options.project, artifacts).operations.map(item => item.name), ['Save']);
+    for (const output of [artifacts, src]) {
         await assert.rejects(generateFromSource({ ...options, output, useProxyFileSuffix: false }), /--use-proxy-file-suffix is required/);
         await generateFromSource({ ...options, output });
         assert.ok(!(await readdir(output)).includes('index.ts'));
     }
+});
+
+test('nested output watch ignores generated files and barrels but regenerates on backend edits', async () => {
+    const { artifacts, configuration } = await project();
+    const nested = join(artifacts, 'client');
+    await mkdir(nested);
+    const child = spawn(process.execPath, [cli, '--project', configuration, '--artifacts', artifacts,
+        '--output', nested, '--watch'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = ''; let errors = '';
+    const closed = new Promise(resolve => child.once('close', resolve));
+    child.stdout.on('data', chunk => { output += chunk.toString(); });
+    child.stderr.on('data', chunk => { errors += chunk.toString(); });
+    async function until(predicate) {
+        for (let attempt = 0; attempt < 400 && !predicate(); attempt++) {
+            assert.equal(child.exitCode, null, `Watch exited: ${errors}`);
+            await setTimeout(50);
+        }
+        assert.ok(predicate(), `Watch timed out: ${output} ${errors}`);
+    }
+    try {
+        await until(() => output.includes('Watch ready\n'));
+        assert.deepEqual((await readdir(nested)).sort(), ['Save.ts', 'index.ts']);
+        await writeFile(join(nested, 'index.ts'), "export * from './Save';\n// changed barrel\n");
+        await setTimeout(450);
+        assert.equal((output.match(/Watch change detected/g) ?? []).length, 0, output);
+        await writeFile(join(artifacts, 'Save.ts'), `import { command } from '@cratis/arc.core';
+@command() export class Save { handle(): void {} } // updated
+`);
+        await until(() => (output.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= 2);
+        await setTimeout(450);
+        assert.equal((output.match(/Watch change detected/g) ?? []).length, 1, output);
+        assert.equal(errors, '');
+    } finally { child.kill('SIGTERM'); await closed; }
 });
 
 test('co-located CLI watch ignores its writes but regenerates on backend edits', async () => {

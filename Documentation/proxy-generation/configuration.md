@@ -31,17 +31,17 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `--use-proxy-file-suffix` | Off for separate output; required when output and artifacts overlap | Name files `*.proxy.ts` instead of `*.ts` |
+| `--use-proxy-file-suffix` | Off for a dedicated output folder; required when output equals or contains artifacts | Name files `*.proxy.ts` instead of `*.ts` |
 | `--js-import-specifiers` | Off | Use `.js` extensions in local imports, for native Node ESM; extensionless imports suit Vite and other bundlers |
 | `--emit-interfaces` | Off | Emit undecorated interfaces instead of model classes; model constructors in proxies become `Object`, so choose this only when you do not need decorated model hydration |
-| `--skip-index-generation` | Off for separate output; automatic when output and artifacts overlap | Do not write `index.ts` barrels |
+| `--skip-index-generation` | Off for a dedicated output folder; automatic when output equals or contains artifacts | Do not write `index.ts` barrels |
 | `--skip-output-deletion` | Off | Keep stale generated files instead of removing them |
 | `--metadata <file>` | Off | Generate server artifact metadata at the given absolute path and infer undecorated bindings |
 | `--use-generated-metadata` | Off | Infer the same bindings for client-only generation without publishing a metadata module |
 | `--check-metadata` | Off | Read-only check that a module passed with `--metadata` matches current source |
-| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; ignores co-located `*.proxy.ts` writes and the generated metadata module. Stdout reports `Watch ready` after the initial generation and watcher registration, then `Watch change detected` when an edit schedules regeneration; referenced external files are also polled to recover missed directory notifications |
+| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; ignores co-located `*.proxy.ts` writes, a dedicated nested output folder, and the generated metadata module. Stdout reports `Watch ready` after the initial generation and watcher registration, then `Watch change detected` when an edit schedules regeneration; referenced external files are also polled to recover missed directory notifications |
 
-Output that equals, contains, or is contained by the artifacts root uses co-located safeguards: `--use-proxy-file-suffix` is required (generation fails without it), and no generated barrels are written. A handwritten `*.proxy.ts` collision fails before any files are published. Stale deletion affects only generator-owned files, not backend modules or components. Runtime discovery ignores the proxy suffix and `.tsx` components. To use a separate generated folder with barrels, point `--output` outside the artifacts tree.
+Output that equals or contains the artifacts root uses co-located safeguards: `--use-proxy-file-suffix` is required (generation fails without it), and no generated barrels are written. A handwritten `*.proxy.ts` collision fails before any files are published. Stale deletion affects only generator-owned files, not backend modules or components. Runtime discovery ignores the proxy suffix and `.tsx` components. A dedicated output folder nested inside the artifacts root (for example, `--artifacts src --output src/generated`) retains the separate-output behavior: barrels are written by default and the suffix is optional. Generated files there are excluded from artifact analysis and watch regeneration.
 
 ## Programmatic use
 
