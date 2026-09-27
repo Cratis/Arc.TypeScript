@@ -17,5 +17,5 @@ export interface DrizzleOptions {
     readModels?: readonly { type: new () => object; table: Table }[];
     maxPageSize?: number;
     /** Experimental: opt into in-process announcements or application-owned PostgreSQL triggers. */
-    observation?: DrizzleObservation.InProcess | PostgreSQLObservationOptions;
+    observation?: DrizzleObservation | PostgreSQLObservationOptions;
 }

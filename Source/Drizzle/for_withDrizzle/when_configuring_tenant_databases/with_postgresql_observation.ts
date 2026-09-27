@@ -3,6 +3,7 @@
 import { ArcApplication } from '@cratis/arc.core';
 import { DrizzleDialect } from '../../DrizzleDialect.js';
 import { DrizzleObservation } from '../../DrizzleObservation.js';
+import type { DrizzleOptions } from '../../DrizzleOptions.js';
 import '../../index.js';
 
 describe('when configuring PostgreSQL observation', () => {
@@ -14,8 +15,14 @@ describe('when configuring PostgreSQL observation', () => {
                 observation: { mode: DrizzleObservation.PostgreSQLNotify, listener } }))
                 .should.throw('PostgreSQL observation requires DrizzleDialect.PostgreSQL');
     });
+    it('should accept an enum-typed observation option without narrowing the public API', () => {
+        const configure = (observation: DrizzleObservation): DrizzleOptions =>
+            ({ dialect: DrizzleDialect.PostgreSQL, database: {}, observation });
+        const options = configure(DrizzleObservation.InProcess);
+        (options.observation as DrizzleObservation).should.equal(DrizzleObservation.InProcess);
+    });
     it('should reject PostgreSQL mode in string form', () =>
         (() => ArcApplication.createBuilder().withDrizzle({ dialect: DrizzleDialect.PostgreSQL, database: {},
-            observation: DrizzleObservation.PostgreSQLNotify as DrizzleObservation.InProcess }))
+            observation: DrizzleObservation.PostgreSQLNotify }))
             .should.throw('Unsupported Drizzle observation mode'));
 });
