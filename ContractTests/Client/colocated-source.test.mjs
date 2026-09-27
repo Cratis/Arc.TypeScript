@@ -94,6 +94,16 @@ import { command } from '@cratis/arc.core';
     assert.ok((await readdir(artifacts)).includes('Old.ts'));
 });
 
+test('nested output with backend sources requires a suffix and never writes barrels', async () => {
+    const { src, artifacts, options } = await project();
+    const nestedOptions = { ...options, artifacts: src, output: artifacts, segmentsToSkip: 1 };
+    await assert.rejects(generateFromSource({ ...nestedOptions, useProxyFileSuffix: false }), /--use-proxy-file-suffix is required/);
+    assert.deepEqual((await readdir(artifacts)).sort(), ['Save.ts', 'SaveForm.tsx']);
+    await generateFromSource(nestedOptions);
+    assert.deepEqual((await readdir(artifacts)).sort(), ['Save.proxy.ts', 'Save.ts', 'SaveForm.tsx']);
+    assert.deepEqual(await generateFromSource(nestedOptions), []);
+});
+
 test('nested dedicated output keeps barrels and optional suffix; equal and ancestor output require co-location safeguards', async () => {
     const { src, artifacts, options } = await project();
     const nested = join(artifacts, 'client');
@@ -109,6 +119,24 @@ test('nested dedicated output keeps barrels and optional suffix; equal and ances
         await generateFromSource({ ...options, output });
         assert.ok(!(await readdir(output)).includes('index.ts'));
     }
+});
+
+test('metadata check skips owned nested dedicated output excluded from the project', async () => {
+    const { src, artifacts, configuration, options } = await project();
+    const nested = join(artifacts, 'client');
+    const metadata = join(src, 'generatedMetadata.ts');
+    await mkdir(nested);
+    await writeFile(configuration, JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'ESNext',
+        moduleResolution: 'Bundler', strict: true, skipLibCheck: true }, include: ['Features/**/*.ts'],
+    exclude: ['Features/client'] }));
+    await generateFromSource({ ...options, output: nested, useProxyFileSuffix: false, metadata });
+    assert.deepEqual((await readdir(nested)).sort(), ['Save.ts', 'index.ts']);
+    const checked = spawnSync(process.execPath, [cli, '--project', configuration, '--artifacts', artifacts,
+        '--output', nested, '--metadata', metadata, '--check-metadata'], { cwd: root, encoding: 'utf8' });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /Generated artifact metadata is current/);
+    await writeFile(join(nested, 'Edited.ts'), 'export const edited = true;\n');
+    assert.throws(() => renderGeneratedMetadata(configuration, artifacts, metadata), /not included in/);
 });
 
 test('nested output watch ignores generated files and barrels but regenerates on backend edits', async () => {
@@ -138,6 +166,40 @@ test('nested output watch ignores generated files and barrels but regenerates on
 @command() export class Save { handle(): void {} } // updated
 `);
         await until(() => (output.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= 2);
+        await setTimeout(450);
+        assert.equal((output.match(/Watch change detected/g) ?? []).length, 1, output);
+        assert.equal(errors, '');
+    } finally { child.kill('SIGTERM'); await closed; }
+});
+
+test('nested co-located CLI watch ignores its writes and regenerates on edits inside output', async () => {
+    const { src, artifacts, configuration } = await project();
+    const child = spawn(process.execPath, [cli, '--project', configuration, '--artifacts', src,
+        '--output', artifacts, '--segments-to-skip', '1', '--use-proxy-file-suffix', '--watch'],
+    { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = ''; let errors = '';
+    const closed = new Promise(resolve => child.once('close', resolve));
+    child.stdout.on('data', chunk => { output += chunk.toString(); });
+    child.stderr.on('data', chunk => { errors += chunk.toString(); });
+    async function until(predicate) {
+        for (let attempt = 0; attempt < 400 && !predicate(); attempt++) {
+            assert.equal(child.exitCode, null, `Watch exited: ${errors}`);
+            await setTimeout(50);
+        }
+        assert.ok(predicate(), `Watch timed out: ${output} ${errors}`);
+    }
+    try {
+        await until(() => output.includes('Watch ready\n'));
+        assert.deepEqual((await readdir(artifacts)).sort(), ['Save.proxy.ts', 'Save.ts', 'SaveForm.tsx']);
+        await setTimeout(450);
+        assert.equal((output.match(/Watch change detected/g) ?? []).length, 0, output);
+        await writeFile(join(artifacts, 'Save.ts'), `import { command } from '@cratis/arc.core';
+@command() export class Save { handle(): void {} }
+@command() export class Delete { handle(): void {} }
+`);
+        await until(() => (output.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= 2);
+        assert.ok((await readdir(artifacts)).includes('Delete.proxy.ts'));
+        assert.ok(!(await readdir(artifacts)).includes('index.ts'));
         await setTimeout(450);
         assert.equal((output.match(/Watch change detected/g) ?? []).length, 1, output);
         assert.equal(errors, '');

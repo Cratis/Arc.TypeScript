@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
 import { discoveryFiles } from '@cratis/arc.core';
@@ -37,7 +38,11 @@ export function renderGeneratedMetadata(project: string, artifacts: string, outp
     const collector = metadataCollector(program, output);
     for (const path of discoveryFiles(resolve(artifacts))) {
         const file = program.getSourceFile(path);
-        if (!file) throw new Error(`${path}: not included in ${project}; regenerate artifact metadata with the correct project`);
+        if (!file) {
+            const text = readFileSync(path, 'utf8');
+            if (owned(text) || metadataOwned(text)) continue;
+            throw new Error(`${path}: not included in ${project}; regenerate artifact metadata with the correct project`);
+        }
         if (owned(file.text) || metadataOwned(file.text)) continue;
         const module = checker.getSymbolAtLocation(file);
         const exported = new Set(module ? checker.getExportsOfModule(module).map(symbol =>
