@@ -4,6 +4,7 @@ import { query, readModel } from '@cratis/arc.core';
 import { QueryScenario } from '../../QueryScenario.js';
 
 const unsubscribe = vi.fn();
+const subscriptionClosed = vi.fn();
 const iteratorCreated = vi.fn();
 const iteratorReturned = vi.fn();
 let onDispose = () => {};
@@ -12,6 +13,7 @@ const failingDispose = vi.fn(() => { throw new Error('cleanup failed'); });
 @readModel()
 class SnapshotStream {
     @query() static subscribable() { return { subscribe: () => ({}), unsubscribe }; }
+    @query() static subscription() { return { subscribe: () => ({ unsubscribe: subscriptionClosed }) }; }
     @query() static iterable() { return { [Symbol.asyncIterator]: iteratorCreated }; }
     @query() static slow() { return { subscribe: () => ({}), [Symbol.asyncDispose]: slowDispose }; }
     @query() static failing() { return { subscribe: () => ({}), [Symbol.dispose]: failingDispose }; }
@@ -28,6 +30,21 @@ describe('when a snapshot query returns a subscribable in a scenario', () => {
     afterEach(async () => { await scenario.dispose(); });
     it('should unsubscribe before reporting the boundary failure', () => {
         unsubscribe.mock.calls.should.have.lengthOf(1);
+        result.exceptionMessages.join(' ').should.contain('returned an observable');
+    });
+});
+
+describe('when a snapshot query returns a subscription in a scenario', () => {
+    let scenario: QueryScenario;
+    let result: Awaited<ReturnType<typeof scenario.perform>>;
+    beforeEach(async () => {
+        subscriptionClosed.mockClear();
+        scenario = QueryScenario.for(SnapshotStream, 'subscription');
+        result = await scenario.perform();
+    });
+    afterEach(async () => { await scenario.dispose(); });
+    it('should close the returned subscription exactly once', () => {
+        subscriptionClosed.mock.calls.should.have.lengthOf(1);
         result.exceptionMessages.join(' ').should.contain('returned an observable');
     });
 });
@@ -58,9 +75,10 @@ describe('when snapshot producer cleanup fails in a scenario', () => {
         result = await scenario.perform();
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should preserve the snapshot rejection after attempting cleanup', () => {
+    it('should preserve the snapshot rejection and report the cleanup failure', () => {
         failingDispose.mock.calls.should.have.lengthOf(1);
         result.exceptionMessages.join(' ').should.contain('returned an observable');
+        result.exceptionMessages.join(' ').should.contain('cleanup failed');
     });
 });
 
