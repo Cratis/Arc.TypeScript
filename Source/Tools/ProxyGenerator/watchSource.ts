@@ -5,6 +5,7 @@ import { realpath } from 'node:fs/promises';
 import { basename, dirname, resolve, sep } from 'node:path';
 import type ts from 'typescript';
 import { sourceProgram } from './sourceProgram.js';
+import { analyzeSource } from './analyzeSource.js';
 import { isColocatedOutput } from './isColocatedOutput.js';
 import type { SourceGeneratorOptions } from './generateFromSource.js';
 
@@ -32,7 +33,9 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
     const metadata = configuration.metadata && await canonicalPath(configuration.metadata);
     const outputRoot = await realpath(configuration.output);
     const program = sourceProgram(configuration.project);
-    const separateOutput = !(await isColocatedOutput(root, outputRoot, program));
+    const analysis = analyzeSource(configuration.project, root, configuration.rootNamespace,
+        !!configuration.metadata || configuration.generatedMetadata === true, program);
+    const separateOutput = !(await isColocatedOutput(root, outputRoot, analysis));
     const watched = new Set(await externalFiles(root, outputRoot, metadata, separateOutput, program));
     let timer: NodeJS.Timeout | undefined, pending: Promise<void> = Promise.resolve();
     const schedule = () => {

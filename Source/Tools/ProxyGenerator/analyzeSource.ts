@@ -20,7 +20,7 @@ import { metadataOwned, owned } from './generatedSourceOwnership.js';
 type Collection = {
     checker: ts.TypeChecker; program: ts.Program; root: string; rootNamespace: string; hasMetadata: boolean;
     resolver: SourceTypeResolver; diagnostics: string[]; operations: SourceOperation[]; validators: ValidatorRules[];
-    targets: Map<string, ts.Symbol>; concepts: Map<string, { name: string; symbol: ts.Symbol }[]>;
+    artifactFiles: Set<string>; targets: Map<string, ts.Symbol>; concepts: Map<string, { name: string; symbol: ts.Symbol }[]>;
 };
 
 function collectCommand(declaration: ts.ClassDeclaration, path: string, namespace: string, routeOverride: string | undefined,
@@ -65,6 +65,7 @@ function collectDeclaration(declaration: ts.ClassDeclaration, path: string, stat
     const isCommand = !!annotation(checker, declaration, 'command');
     const isModel = !!annotation(checker, declaration, 'readModel');
     if (!isCommand && !isModel) return;
+    state.artifactFiles.add(path);
     const namespace = stringArgument(annotation(checker, declaration, isCommand ? 'command' : 'readModel'), 'namespace') ??
         [rootNamespace, ...relative(root, dirname(path)).split(sep).filter(value => value && value !== '.')].filter(Boolean).join('.');
     const owner = declaration.name!.text;
@@ -94,17 +95,17 @@ function discoverClasses(state: Collection, visit?: (declaration: ts.ClassDeclar
 
 /** Analyze commands, queries, models, and client-safe validation rules beneath an artifacts root. */
 export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
-    program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void): SourceAnalysis {
+    program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void): SourceAnalysis & { readonly artifactFiles: readonly string[] } {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
     const state: Collection = {
         checker, program, root, rootNamespace, hasMetadata: generatedMetadata,
         resolver: new SourceTypeResolver(checker, root, generatedMetadata, rootNamespace),
-        diagnostics: [], operations: [], validators: [], targets: new Map(), concepts: new Map()
+        diagnostics: [], operations: [], validators: [], artifactFiles: new Set(), targets: new Map(), concepts: new Map()
     };
     discoverClasses(state, visit);
     if (!state.operations.length) throw new Error(`No @command or @readModel queries below ${root} in ${project}`);
     const recordedRules = collectSourceRules(state.targets, state.concepts, state.validators, state.operations, state.diagnostics);
-    return { operations: state.operations, models: [...state.resolver.models.values()], recordedRules,
+    return { operations: state.operations, models: [...state.resolver.models.values()], artifactFiles: [...state.artifactFiles], recordedRules,
         diagnostics: [...new Set(state.diagnostics)] };
 }

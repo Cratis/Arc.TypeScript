@@ -121,6 +121,22 @@ test('nested dedicated output keeps barrels and optional suffix; equal and ances
     }
 });
 
+test('nested dedicated output with a handwritten non-artifact helper retains its barrels', async () => {
+    const { artifacts, options } = await project();
+    const nested = join(artifacts, 'client');
+    await mkdir(nested);
+    const helper = join(nested, 'helpers.ts');
+    await writeFile(helper, 'export const helper = true;\n');
+    const dedicated = { ...options, output: nested };
+    await generateFromSource(dedicated);
+    assert.deepEqual((await readdir(nested)).sort(), ['Save.proxy.ts', 'helpers.ts', 'index.ts']);
+    const barrel = await readFile(join(nested, 'index.ts'), 'utf8');
+    assert.match(barrel, /Save\.proxy/);
+    assert.deepEqual(await generateFromSource(dedicated), []);
+    assert.equal(await readFile(join(nested, 'index.ts'), 'utf8'), barrel);
+    assert.equal(await readFile(helper, 'utf8'), 'export const helper = true;\n');
+});
+
 test('nested dedicated output refuses an edited generated file before requiring a suffix', async () => {
     const { artifacts, options } = await project();
     const nested = join(artifacts, 'client');
@@ -157,6 +173,7 @@ test('nested output watch ignores generated files and barrels but regenerates on
     const { artifacts, configuration } = await project();
     const nested = join(artifacts, 'client');
     await mkdir(nested);
+    await writeFile(join(nested, 'helpers.ts'), 'export const helper = true;\n');
     const child = spawn(process.execPath, [cli, '--project', configuration, '--artifacts', artifacts,
         '--output', nested, '--watch'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = ''; let errors = '';
@@ -172,7 +189,7 @@ test('nested output watch ignores generated files and barrels but regenerates on
     }
     try {
         await until(() => output.includes('Watch ready\n'));
-        assert.deepEqual((await readdir(nested)).sort(), ['Save.ts', 'index.ts']);
+        assert.deepEqual((await readdir(nested)).sort(), ['Save.ts', 'helpers.ts', 'index.ts']);
         await writeFile(join(nested, 'index.ts'), "export * from './Save';\n// changed barrel\n");
         await setTimeout(450);
         assert.equal((output.match(/Watch change detected/g) ?? []).length, 0, output);
