@@ -26,31 +26,30 @@ export function snapshotStreamSource(result: QueryResult): object | undefined {
 }
 
 /** Release only resources owned by the rejected object; never start a subscription or iterator to clean up. */
-export async function releaseSnapshotStream(source: object, signal: AbortSignal): Promise<void> {
+export async function releaseSnapshotStream(source: object): Promise<void> {
     const disposable = source as { [Symbol.asyncDispose]?: () => PromiseLike<void>; [Symbol.dispose]?: () => void;
-        close?: () => void | PromiseLike<void> };
+        dispose?: () => void | PromiseLike<void>; close?: () => void | PromiseLike<void>;
+        unsubscribe?: () => void | PromiseLike<void>; next?: () => unknown; return?: () => unknown };
     let release: () => unknown;
     if (typeof disposable[Symbol.asyncDispose] === 'function') release = () => disposable[Symbol.asyncDispose]!();
     else if (typeof disposable[Symbol.dispose] === 'function') release = () => disposable[Symbol.dispose]!();
+    else if (typeof disposable.dispose === 'function') release = () => disposable.dispose!();
     else if (typeof disposable.close === 'function') release = () => disposable.close!();
+    else if (typeof disposable.unsubscribe === 'function') release = () => disposable.unsubscribe!();
+    else if (typeof disposable.next === 'function' && typeof disposable.return === 'function')
+        release = () => disposable.return!();
     else return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let cancel: (() => void) | undefined;
     try {
+        // Cancellation must not turn a failed release into a successful one; the independent deadline bounds the request.
         await Promise.race([
             Promise.resolve().then(release),
             new Promise<never>((_, reject) => {
                 timer = setTimeout(() => reject(new Error('Snapshot stream did not respond to cleanup')), 1_000);
-            }),
-            new Promise<void>(resolve => {
-                cancel = resolve;
-                signal.addEventListener('abort', cancel, { once: true });
-                if (signal.aborted) resolve();
             })
         ]);
     } finally {
         if (timer) clearTimeout(timer);
-        if (cancel) signal.removeEventListener('abort', cancel);
     }
 }

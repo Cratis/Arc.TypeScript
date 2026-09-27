@@ -5,9 +5,13 @@ import { Observable, Subject } from 'rxjs';
 import { QueryScenario } from '../../QueryScenario.js';
 
 const started = vi.fn();
-const shared = new Subject<number>();
+let subject: Subject<number>;
 let generatorStarted = 0;
-async function* values() { generatorStarted++; yield 1; }
+let generatorFinalized = 0;
+let generator: AsyncGenerator<number>;
+let generatorReturnCalls = 0;
+const iteratorReturned = vi.fn(async () => ({ done: true, value: undefined }));
+async function* values() { generatorStarted++; try { yield 1; } finally { generatorFinalized++; } }
 let onDispose = () => {};
 const slowDispose = vi.fn(() => { onDispose(); return new Promise<void>(() => {}); });
 const failingDispose = vi.fn(() => { throw new Error('cleanup failed'); });
@@ -20,8 +24,11 @@ class FailingObservable extends Observable<number> {
 @readModel()
 class SnapshotStream {
     @query() static cold() { return new Observable<number>(() => { started(); }); }
-    @query() static subject() { return shared; }
+    @query() static subject() { return subject; }
     @query() static iterable() { return { [Symbol.asyncIterator]: values }; }
+    @query() static generator() { return generator; }
+    @query() static iterator() { return { next: async () => ({ done: true, value: undefined }), return: iteratorReturned,
+        [Symbol.asyncIterator]() { return this; } }; }
     @query() static slow() { return new OwnedObservable(); }
     @query() static failing() { return new FailingObservable(); }
 }
@@ -39,20 +46,19 @@ describe('when a snapshot query returns a cold observable in a scenario', () => 
     it('should report the boundary failure', () => { result.exceptionMessages.join(' ').should.contain('returned an observable'); });
 });
 
-describe('when a snapshot query returns a shared Subject in a scenario', () => {
+describe('when a snapshot query returns a Subject in a scenario', () => {
     let scenario: QueryScenario;
     let result: Awaited<ReturnType<typeof scenario.perform>>;
-    let received: number[];
     beforeEach(async () => {
-        received = [];
-        const subscription = shared.subscribe(value => received.push(value));
+        subject = new Subject<number>();
         scenario = QueryScenario.for(SnapshotStream, 'subject');
-        try { result = await scenario.perform(); shared.next(42); }
-        finally { subscription.unsubscribe(); }
+        result = await scenario.perform();
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should leave existing subscribers alone', () => { received.should.deep.equal([42]); });
-    it('should report the boundary failure', () => { result.exceptionMessages.join(' ').should.contain('returned an observable'); });
+    it('should unsubscribe before reporting the boundary failure', () => {
+        subject.closed.should.equal(true);
+        result.exceptionMessages.join(' ').should.contain('returned an observable');
+    });
 });
 
 describe('when a snapshot query returns an async iterable in a scenario', () => {
@@ -66,6 +72,46 @@ describe('when a snapshot query returns an async iterable in a scenario', () => 
     afterEach(async () => { await scenario.dispose(); });
     it('should not start an iterator', () => { generatorStarted.should.equal(0); });
     it('should report the boundary failure', () => { result.exceptionMessages.join(' ').should.contain('returned an observable'); });
+});
+
+describe('when a snapshot query returns an async generator object in a scenario', () => {
+    let scenario: QueryScenario;
+    let result: Awaited<ReturnType<typeof scenario.perform>>;
+    beforeEach(async () => {
+        generatorStarted = 0;
+        generatorFinalized = 0;
+        generatorReturnCalls = 0;
+        generator = values();
+        await generator.next();
+        const originalReturn = generator.return.bind(generator);
+        generator.return = (...args) => { generatorReturnCalls++; return originalReturn(...args); };
+        // Node 22 generators have no native async disposal; exercise return() regardless of host version.
+        Object.defineProperty(generator, Symbol.asyncDispose, { value: undefined });
+        scenario = QueryScenario.for(SnapshotStream, 'generator');
+        result = await scenario.perform();
+    });
+    afterEach(async () => { await scenario.dispose(); });
+    it('should run the generator finally block by returning the generator', () => {
+        generatorStarted.should.equal(1);
+        generatorReturnCalls.should.equal(1);
+        generatorFinalized.should.equal(1);
+        result.exceptionMessages.join(' ').should.contain('returned an observable');
+    });
+});
+
+describe('when a snapshot query returns an iterator in a scenario', () => {
+    let scenario: QueryScenario;
+    let result: Awaited<ReturnType<typeof scenario.perform>>;
+    beforeEach(async () => {
+        iteratorReturned.mockClear();
+        scenario = QueryScenario.for(SnapshotStream, 'iterator');
+        result = await scenario.perform();
+    });
+    afterEach(async () => { await scenario.dispose(); });
+    it('should return the already-created iterator before reporting the boundary failure', () => {
+        iteratorReturned.mock.calls.should.have.lengthOf(1);
+        result.exceptionMessages.join(' ').should.contain('returned an observable');
+    });
 });
 
 describe('when snapshot producer cleanup fails in a scenario', () => {
@@ -117,13 +163,15 @@ describe('when snapshot cleanup is canceled', () => {
         vi.useRealTimers();
         await scenario.dispose();
     });
-    it('should stop waiting on cleanup after cancellation', async () => {
+    it('should report a bounded cleanup timeout despite cancellation', async () => {
         let settled = false;
         const performing = scenario.perform().then(result => { settled = true; return result; });
         await vi.advanceTimersByTimeAsync(0);
         slowDispose.mock.calls.should.have.lengthOf(1);
-        settled.should.equal(true);
+        settled.should.equal(false);
+        await vi.advanceTimersByTimeAsync(1_000);
         const result = await performing;
         result.exceptionMessages.join(' ').should.contain('returned an observable');
+        result.exceptionMessages.join(' ').should.contain('did not respond to cleanup');
     });
 });

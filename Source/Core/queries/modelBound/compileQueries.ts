@@ -126,7 +126,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
                 (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function' ||
                     'subscribe' in value && typeof value.subscribe === 'function')) {
                 const rejection = new SnapshotStreamError(`Snapshot query ${type.name}.${name} returned an observable`, value);
-                try { await releaseSnapshotStream(value, context.signal); }
+                try { await releaseSnapshotStream(value); }
                 catch (error) {
                     throw new AggregateError([rejection, error], `${rejection.message}; stream cleanup failed: ${String(error)}`, { cause: error });
                 }
