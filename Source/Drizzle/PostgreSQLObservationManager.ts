@@ -232,6 +232,9 @@ export class PostgreSQLObservationManager {
         this.#disposed = true;
         for (const entry of [...this.#entries.values()]) this.shutdown(entry);
         this.#disposal = this.drainCloses();
+        // Disposal may be initiated without awaiting it. Keep the rejection available to an awaiting
+        // caller, but do not let a close failure become an unhandled rejection in that case.
+        void this.#disposal.catch(() => {});
         return this.#disposal;
     }
 

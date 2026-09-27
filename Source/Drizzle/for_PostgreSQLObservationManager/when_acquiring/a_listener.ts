@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { pgTable, text } from 'drizzle-orm/pg-core';
+import { vi } from 'vitest';
 import { DrizzleObservation } from '../../DrizzleObservation.js';
 import { PostgreSQLObservationManager } from '../../PostgreSQLObservationManager.js';
 import type { PostgreSQLListenerConnection } from '../../PostgreSQLListenerConnection.js';
@@ -67,25 +68,29 @@ describe('when acquiring shared PostgreSQL observation leases', () => {
         };
         manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify,
             listener: () => client }, 1, 100);
-        const lease = manager.acquire('tenant', database, table, () => {}, error => failures.push(error));
-        await lease.ready;
-        const deadline = Date.now() + 1000;
-        while (!failures.length && Date.now() < deadline)
-            await new Promise<void>(resolve => setTimeout(resolve, 2));
-        failures.should.have.lengthOf(1);
-        failures[0]!.message.should.equal('PostgreSQL change listener lost: heartbeat failure');
-        lease.release();
+        vi.useFakeTimers();
+        try {
+            const lease = manager.acquire('tenant', database, table, () => {}, error => failures.push(error));
+            await lease.ready;
+            await vi.advanceTimersByTimeAsync(1);
+            failures.should.have.lengthOf(1);
+            failures[0]!.message.should.equal('PostgreSQL change listener lost: heartbeat failure');
+            lease.release();
+        } finally { vi.useRealTimers(); }
     });
     it('should cancel acquisition on last release and end a late factory result', async () => {
         let provide!: (connection: FakeListener) => void;
         const pending = new Promise<FakeListener>(resolve => { provide = resolve; });
+        let closed!: () => void;
+        const closing = new Promise<void>(resolve => { closed = resolve; });
+        client.close = async () => { client.closeCount++; closed(); };
         manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify, listener: () => pending });
         const lease = manager.acquire('tenant', database, table, () => {}, error => failures.push(error));
         lease.release();
         const result = await lease.ready.then(() => 'ready', () => 'canceled');
         result.should.equal('canceled');
         provide(client);
-        await new Promise<void>(resolve => setImmediate(resolve));
+        await closing;
         client.closeCount.should.equal(1);
         client.connected.should.equal(0);
     });
