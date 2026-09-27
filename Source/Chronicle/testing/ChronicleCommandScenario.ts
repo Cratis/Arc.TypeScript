@@ -75,6 +75,7 @@ export class ChronicleCommandScenario<T extends object> {
     async execute(command: T | Partial<T>): Promise<ScenarioCommandResult & AppendedEventAssertion> {
         const start = this.#appended.length;
         const result = await this.#scenario.execute(command);
+        this.#readModels.rethrowUnsupportedProjection();
         const appended = this.#appended.slice(start);
         return Object.assign(result, { appendedEvents: appended,
             shouldHaveAppendedEvent: <E>(type: new (...args: never[]) => E,

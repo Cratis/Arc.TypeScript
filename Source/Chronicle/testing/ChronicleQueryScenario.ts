@@ -46,7 +46,11 @@ export class ChronicleQueryScenario<T = unknown> {
         return this;
     }
     async perform(arguments_: Record<string, unknown> = {}, options?: QueryOptions): Promise<QueryResult<T>> {
-        try { return await this.#scenario.perform(arguments_, options); }
+        try {
+            const result = await this.#scenario.perform(arguments_, options);
+            this.#readModels.rethrowUnsupportedProjection();
+            return result;
+        }
         catch (error) {
             if (error instanceof StreamingQueryNotSupportedError && error.queryName === `${this.#model.name}.${this.#method}`)
                 throw new Error(`Streaming query ${this.#model.name}.${this.#method} requires ChronicleKernelScenario for observation`, { cause: error });

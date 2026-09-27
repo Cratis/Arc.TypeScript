@@ -3,7 +3,7 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { reducer } from '@cratis/chronicle/reducers';
-import { fromEvent } from '@cratis/chronicle/projections';
+import { fromEvent, increment } from '@cratis/chronicle/projections';
 import { readModel } from '@cratis/chronicle/readModels';
 import { command, commandReadModel, CommandValidator, inject, key, readModelForValidation, validator } from '@cratis/arc.core';
 import { ChronicleCommandScenario } from '../../ChronicleCommandScenario.js';
@@ -16,7 +16,8 @@ import { AggregateRoot, commandAggregate } from '../../../index.js';
 class ItemReducer {
     itemAdded(event: ItemAdded, current?: ItemState): ItemState { return { count: (current?.count ?? 0) + event.amount }; }
 }
-@fromEvent(ItemAdded) class ProjectedState { @field(Number) amount = 0; }
+@fromEvent(ItemAdded) class ProjectedState { @field(String) id = ''; @field(Number) amount = 0; }
+@fromEvent(ItemAdded) class UnsupportedState { @field(String) id = ''; @field(Number) @increment(ItemAdded) count = 0; }
 @readModel() class UnreducedState { @field(Number) amount = 0; }
 @command() class CheckItem {
     @field(String) @key() id = '';
@@ -37,6 +38,11 @@ class ItemReducer {
     @field(String) @key() id = '';
     @inject(commandReadModel(ProjectedState, { optional: true }))
     handle(state: ProjectedState | null): boolean { return state === null; }
+}
+@command() class CheckUnsupportedItem {
+    @field(String) @key() id = '';
+    @inject(commandReadModel(UnsupportedState))
+    handle(state: UnsupportedState): number { return state.count; }
 }
 @command() class CheckUnreducedItem {
     @field(String) @key() id = '';
@@ -82,12 +88,13 @@ export class a_reduced_command {
     readonly optional = CheckOptionalItem;
     readonly projected = CheckProjectedItem;
     readonly optionalProjected = CheckOptionalProjectedItem;
+    readonly unsupported = CheckUnsupportedItem;
     readonly unreduced = CheckUnreducedItem;
     readonly validate = ValidateItem;
     readonly validated = CheckValidatedItem;
     readonly aggregate = CheckAggregate;
     create<T extends object>(commandType: new () => T): ChronicleCommandScenario<T> {
         return ChronicleCommandScenario.for(commandType, ItemAdded, ItemChecked, ItemState, ItemReducer,
-            ProjectedState, UnreducedState, CheckValidatedItemValidator);
+            ProjectedState, UnsupportedState, UnreducedState, CheckValidatedItemValidator);
     }
 }
