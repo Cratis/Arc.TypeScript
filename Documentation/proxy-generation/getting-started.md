@@ -47,7 +47,7 @@ The CLI rejects relative paths, so the script builds every path from its own loc
 | `--artifacts` | The same folder the backend passes to `builder.discover(...)` |
 | `--output` | The existing `Features` folder: generated proxies sit beside the backend modules |
 | `--metadata` | Also writes the server metadata module that `main.ts` registers with `useGeneratedMetadata`. Use `--use-generated-metadata` instead when you only want client output |
-| `--use-proxy-file-suffix` | Required when the output overlaps the artifacts: prevents generated names from colliding with backend modules |
+| `--use-proxy-file-suffix` | Required when the output is co-located with backend artifacts (the artifacts folder, an ancestor of it, or a nested folder containing artifacts; see [Configuration](configuration.md)): prevents generated names from colliding with backend modules |
 
 Run it with `yarn workspace @cratis/arc.sample.library generate-proxies`. Each run reports how many files it changed. A run with nothing to change prints `Generated 0 changed file(s)` and leaves every file untouched, timestamps included.
 

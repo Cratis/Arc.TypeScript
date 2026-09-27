@@ -45,7 +45,7 @@ export async function generateFromSource(options: SourceGeneratorOptions): Promi
         !!collector || options.generatedMetadata === true, program, collector?.visit, contributingFiles);
     const colocated = await isColocatedOutput(artifacts, output, analysis);
     if (colocated && !options.useProxyFileSuffix)
-        throw new Error('Output overlaps artifacts; --use-proxy-file-suffix is required to keep generated files distinct from backend modules');
+        throw new Error('Output is co-located with backend artifacts; --use-proxy-file-suffix is required to keep generated files distinct from backend modules');
     const metadata = collector?.render(options.project, artifacts);
     // An artifacts tree must not gain index barrels: discovery and backend compilers also read that tree.
     const files = buildSourceFiles(analysis, { ...options, skipIndexGeneration: colocated || options.skipIndexGeneration });

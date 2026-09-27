@@ -15,7 +15,7 @@ This page describes the generated files so you can read them, import from them, 
 | A `@field` model used by a command, query, or identity provider | A model file in its own namespace folder |
 | Separate output folder only | `index.ts`, exporting generated files; no barrels are emitted in co-located mode |
 
-Use `--artifacts Features --output Features --use-proxy-file-suffix` (absolute paths in a script) for the co-located layout. The suffix is required when output and artifacts overlap; when using a separate folder it is optional and files can end in `.ts`. Namespaces come from the discovery folder, or from an explicit `namespace` option, prefixed with `--root-namespace` when you set one. If the namespace or skipped segments change the generated path, check where it lands before importing it.
+Use `--artifacts Features --output Features --use-proxy-file-suffix` (absolute paths in a script) for the co-located layout. The suffix is required when the output is the artifacts folder or one of its ancestors, or a nested folder that contains backend artifacts (see [Configuration](configuration.md)); with a dedicated output folder it is optional and files can end in `.ts`. Namespaces come from the discovery folder, or from an explicit `namespace` option, prefixed with `--root-namespace` when you set one. If the namespace or skipped segments change the generated path, check where it lands before importing it.
 
 ## Commands
 
