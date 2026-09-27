@@ -16,8 +16,11 @@ type Entry = { tenant: string; controller: AbortController; leases: Set<Lease>; 
 export class PostgreSQLObservationManager {
     readonly #entries = new Map<string, Entry>();
     readonly #closing = new Set<Promise<void>>();
+    readonly #pendingFactories = new Set<Promise<void>>();
     readonly #tenantCloses = new Map<string, Promise<void>>();
     readonly #closeFailures: unknown[] = [];
+    #discardedCloseFailures = 0;
+    #disposal?: Promise<void>;
     #disposed = false;
     constructor(private readonly options: PostgreSQLObservationOptions,
         private readonly heartbeatIntervalMs = 30_000, private readonly operationTimeoutMs = 5_000) {}
@@ -64,7 +67,7 @@ export class PostgreSQLObservationManager {
                 await this.validate(owner, identity);
                 if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
                 const existing = owner.identities.get(table);
-                if (existing && (existing.key !== identity.key || existing.database !== identity.database || existing.oid !== identity.oid))
+                if (existing && (existing.key !== identity.key || existing.database !== identity.database))
                     throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${tenant}'`);
                 owner.identities.set(table, identity);
                 lease.key = identity.key;
@@ -85,7 +88,7 @@ export class PostgreSQLObservationManager {
         if (entry.dead) throw new Error('Drizzle observation was closed');
         const generation = ++entry.generation;
         const connection = await this.bounded(entry, () => Promise.resolve(this.options.listener(entry.tenant, { signal: entry.controller.signal })),
-            late => { void this.scheduleClose(entry, late, false).catch(() => {}); });
+            late => { void this.scheduleClose(entry, late, false).catch(() => {}); }, true, true);
         if (entry.dead) { await this.scheduleClose(entry, connection, false); throw new Error('Drizzle observation was closed'); }
         if (!connection || typeof connection.connect !== 'function' || typeof connection.query !== 'function' ||
             typeof connection.close !== 'function' || typeof connection.onNotification !== 'function' ||
@@ -120,7 +123,10 @@ export class PostgreSQLObservationManager {
             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
             JOIN pg_catalog.pg_language l ON l.oid = p.prolang
             WHERE t.tgrelid = $1::oid AND t.tgname = 'arc_changes_v1'`, [identity.oid])); }
-        catch (error) { throw new Error(`PostgreSQL observation cannot inspect triggers for '${identity.key}'; check catalog permissions`, { cause: error }); }
+        catch (error) {
+            const hint = (error as { code?: unknown })?.code === '42501' ? '; check catalog permissions' : '';
+            throw new Error(`PostgreSQL observation cannot inspect triggers for '${identity.key}'${hint}`, { cause: error });
+        }
         const row = result.rows[0];
         let reason = 'missing';
         if (row) {
@@ -145,7 +151,8 @@ export class PostgreSQLObservationManager {
         entry.timer.unref?.();
     }
 
-    private bounded<T>(entry: Entry, operation: () => Promise<T>, late?: (value: T) => void, listenerOperation = true): Promise<T> {
+    private bounded<T>(entry: Entry, operation: () => Promise<T>, late?: (value: T) => void,
+        listenerOperation = true, trackFactory = false): Promise<T> {
         return new Promise<T>((resolve, reject) => {
             let settled = false;
             const timer = setTimeout(() => {
@@ -157,7 +164,7 @@ export class PostgreSQLObservationManager {
             }, this.operationTimeoutMs);
             const abort = (): void => { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('Drizzle observation was closed')); } };
             entry.controller.signal.addEventListener('abort', abort, { once: true });
-            void Promise.resolve().then(operation).then(value => {
+            const completion = Promise.resolve().then(operation).then(value => {
                 clearTimeout(timer); entry.controller.signal.removeEventListener('abort', abort);
                 if (settled) { late?.(value); return; }
                 settled = true; resolve(value);
@@ -165,6 +172,11 @@ export class PostgreSQLObservationManager {
                 clearTimeout(timer); entry.controller.signal.removeEventListener('abort', abort);
                 if (!settled) { settled = true; reject(error); }
             });
+            if (trackFactory) {
+                const pending = completion.then(() => {}, () => {});
+                this.#pendingFactories.add(pending);
+                void pending.then(() => this.#pendingFactories.delete(pending));
+            }
         });
     }
 
@@ -205,18 +217,43 @@ export class PostgreSQLObservationManager {
         const closing = Promise.race([ending, deadline]).finally(() => clearTimeout(timer));
         this.#closing.add(closing);
         void closing.then(() => { this.#closing.delete(closing); },
-            error => { this.#closing.delete(closing); this.#closeFailures.push(error); });
+            error => {
+                this.#closing.delete(closing);
+                if (this.#closeFailures.length < 32) this.#closeFailures.push(error);
+                else this.#discardedCloseFailures++;
+            });
         return closing;
     }
 
     /** Dispose all Arc-owned sockets, including shutdowns already scheduled by RxJS teardown. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        if (!this.#disposed) {
-            this.#disposed = true;
-            for (const entry of [...this.#entries.values()]) this.shutdown(entry);
-        }
-        const results = await Promise.allSettled([...this.#closing]);
-        const failures = [...this.#closeFailures, ...results.filter(result => result.status === 'rejected').map(result => result.reason)];
-        if (failures.length) throw new AggregateError(failures, 'PostgreSQL listener shutdown failed');
+    [Symbol.asyncDispose](): Promise<void> {
+        if (this.#disposal) return this.#disposal;
+        this.#disposed = true;
+        for (const entry of [...this.#entries.values()]) this.shutdown(entry);
+        this.#disposal = this.drainCloses();
+        return this.#disposal;
+    }
+
+    private async drainCloses(): Promise<void> {
+        // A factory that ignores abort cannot block disposal indefinitely. Its eventual result is still closed.
+        let factoryDeadlineExpired = false;
+        let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+        const factoryDeadline = new Promise<void>(resolve => {
+            deadlineTimer = setTimeout(() => { factoryDeadlineExpired = true; resolve(); }, this.operationTimeoutMs);
+        });
+        try {
+            while (this.#closing.size || (this.#pendingFactories.size && !factoryDeadlineExpired)) {
+                await Promise.allSettled([
+                    ...this.#closing,
+                    ...(!factoryDeadlineExpired ? [...this.#pendingFactories].map(factory => Promise.race([factory, factoryDeadline])) : [])
+                ]);
+            }
+            const failures = this.#closeFailures.splice(0);
+            if (this.#discardedCloseFailures) {
+                failures.push(new Error(`${this.#discardedCloseFailures} additional PostgreSQL listener close failures`));
+                this.#discardedCloseFailures = 0;
+            }
+            if (failures.length) throw new AggregateError(failures, 'PostgreSQL listener shutdown failed');
+        } finally { clearTimeout(deadlineTimer); }
     }
 }

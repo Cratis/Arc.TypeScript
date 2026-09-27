@@ -16,12 +16,12 @@ describe('when concurrent scopes resolve one table differently', () => {
         const manager = managerFor(() => client);
         const reader = (identity: typeof row) => ({ execute: async () => [identity] }) as DrizzleDatabase;
         const first = manager.acquire('tenant', reader(row), table, () => {}, () => {});
-        const conflicting = manager.acquire('tenant', reader({ ...row, oid: '13' }), table, () => {}, () => {});
+        const conflicting = manager.acquire('tenant', reader({ ...row, key: 'other.tasks' }), table, () => {}, () => {});
         await conflicting.ready;
         validation.resolve();
         const error = await first.ready.then(() => undefined, cause => cause as Error);
         error!.message.should.include('mapping differs');
-        const matching = manager.acquire('tenant', reader({ ...row, oid: '13' }), table, () => {}, () => {});
+        const matching = manager.acquire('tenant', reader({ ...row, key: 'other.tasks' }), table, () => {}, () => {});
         await matching.ready;
         first.release(); conflicting.release(); matching.release();
         await manager[Symbol.asyncDispose]();
