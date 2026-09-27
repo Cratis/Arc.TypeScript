@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { useEffect, useState } from 'react';
-import { AllAuthors } from '../../../generated/Authors/Listing/AllAuthors.proxy';
-import { AuthorsPage } from '../../../generated/Authors/Listing/AuthorsPage.proxy';
+import { AllAuthors } from './AllAuthors.proxy';
+import { AuthorsPage } from './AuthorsPage.proxy';
 import { AuthorBooks } from '../../Books/Listing/AuthorBooks';
 
 export function AuthorCatalog() {

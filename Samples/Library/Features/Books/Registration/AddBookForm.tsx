@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { useState, type FormEvent } from 'react';
 import { Guid } from '@cratis/fundamentals';
-import { AddBook } from '../../../generated/Books/Registration/AddBook.proxy';
+import { AddBook } from './AddBook.proxy';
 
 export function AddBookForm({ authorId }: { authorId: Guid }) {
     const [command, setValues] = AddBook.use();

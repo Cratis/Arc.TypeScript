@@ -3,5 +3,5 @@
     "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "strict": true,
     "skipLibCheck": false, "noEmit": true, "experimentalDecorators": true, "types": ["node"]
   },
-  "include": ["dist/proxies/**/*.ts"]
+  "include": ["Features/**/*.proxy.ts"]
 }

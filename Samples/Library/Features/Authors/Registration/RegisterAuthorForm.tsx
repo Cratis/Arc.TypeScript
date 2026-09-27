@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { useState, type FormEvent } from 'react';
 import { Guid } from '@cratis/fundamentals';
-import { RegisterAuthor } from '../../../generated/Authors/Registration/RegisterAuthor.proxy';
+import { RegisterAuthor } from './RegisterAuthor.proxy';
 
 export function RegisterAuthorForm() {
     const [command, setValues] = RegisterAuthor.use();

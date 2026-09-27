@@ -32,7 +32,7 @@
     "clean": "node scripts/clean.mjs",
     "ci:clean": "yarn clean && yarn ci",
     "ci:linux": "bash scripts/ci-linux.sh",
-    "check:metadata": "node Samples/Tasks/check-metadata.mjs && node Source/Tools/ProxyGenerator/dist/cli.js --project Samples/Library/tsconfig.json --artifacts Samples/Library/Features --output Samples/Library/Web/src/generated --metadata Samples/Library/Features/generatedMetadata.ts --check-metadata",
+    "check:metadata": "node Samples/Tasks/check-metadata.mjs && node Source/Tools/ProxyGenerator/dist/cli.js --project Samples/Library/tsconfig.json --artifacts Samples/Library/Features --output Samples/Library/Features --metadata Samples/Library/Features/generatedMetadata.ts --check-metadata",
     "check:consumers": "node scripts/check-consumers.mjs",
     "check:declarations": "node scripts/check-declarations.mjs",
     "check:declarations:self-test": "node scripts/check-declarations.mjs --self-test",
