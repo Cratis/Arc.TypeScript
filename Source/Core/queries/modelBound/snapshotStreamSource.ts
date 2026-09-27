@@ -16,13 +16,20 @@ export class SnapshotStreamError extends Error {
 
 /** Return the rejected source of a snapshot query only when its original pipeline failure is a snapshot stream rejection. Arc releases it first if it owns a disposal hook. */
 export function snapshotStreamSource(result: QueryResult): object | undefined {
-    const failure = originalFailure(result);
-    if (failure instanceof SnapshotStreamError) return failure.source;
-    if (failure instanceof AggregateError) {
-        const snapshot = failure.errors.find((error: unknown) => error instanceof SnapshotStreamError);
-        return snapshot instanceof SnapshotStreamError ? snapshot.source : undefined;
-    }
-    return undefined;
+    const seen = new Set<object>();
+    const find = (failure: unknown, depth: number): SnapshotStreamError | undefined => {
+        if (failure instanceof SnapshotStreamError) return failure;
+        if (depth >= 32 || !failure || typeof failure !== 'object' || seen.has(failure)) return undefined;
+        seen.add(failure);
+        if (failure instanceof AggregateError) {
+            for (const error of failure.errors) {
+                const snapshot = find(error, depth + 1);
+                if (snapshot) return snapshot;
+            }
+        }
+        return failure instanceof Error ? find(failure.cause, depth + 1) : undefined;
+    };
+    return find(originalFailure(result), 0)?.source;
 }
 
 /** Release only resources owned by the rejected object; never start a subscription or iterator to clean up. */
