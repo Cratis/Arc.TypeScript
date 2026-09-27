@@ -12,6 +12,7 @@ describe('when disposing after a listener close failed', () => {
         await lease.ready;
         lease.release();
         await closeStarted.promise;
+        await new Promise<void>(resolve => setImmediate(resolve));
         const dispose = manager[Symbol.asyncDispose]();
         const again = manager[Symbol.asyncDispose]();
         (dispose === again).should.equal(true);

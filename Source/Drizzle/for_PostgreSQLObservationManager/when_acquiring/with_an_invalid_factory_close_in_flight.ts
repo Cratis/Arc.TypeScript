@@ -14,6 +14,7 @@ describe('when disposing with a rejected factory result still closing', () => {
         let disposed = false;
         const disposal = manager[Symbol.asyncDispose]().then(() => { disposed = true; });
         await closeStarted.promise;
+        await new Promise<void>(resolve => setImmediate(resolve));
         disposed.should.equal(false);
         client.closeCount.should.equal(1);
         ending.resolve();
