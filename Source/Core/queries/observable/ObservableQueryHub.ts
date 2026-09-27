@@ -31,13 +31,14 @@ export class ObservableQueryHub {
     readonly #healthChanged = new CurrentValueSubject(0);
     #healthVersion = 0;
     #disposed = false;
+    #stopping = false;
 
     constructor(readonly server: ArcServer) {}
 
     get connections(): readonly HubConnection[] { return [...this.#connections.values()]; }
 
     canAdmit(context: ExecutionContext): boolean {
-        if (this.#disposed || this.#connections.size >= this.server.observableLimits.hubConnections) return false;
+        if (this.#disposed || this.#stopping || this.#connections.size >= this.server.observableLimits.hubConnections) return false;
         const key = observableCallerKey(context);
         return this.connections.filter(connection => connection.ownerKey === key).length <
             this.server.observableLimits.hubConnectionsPerCaller;
@@ -93,6 +94,9 @@ export class ObservableQueryHub {
         if (path === subscribePath || path === unsubscribePath) return this.control(request, path, native);
         return new Response(null, { status: 404 });
     }
+
+    /** Reject new connections before participant drain; existing connections close during cleanup. */
+    stopAdmission(): void { this.#stopping = true; }
 
     async dispose(): Promise<void> {
         if (this.#disposed) return;

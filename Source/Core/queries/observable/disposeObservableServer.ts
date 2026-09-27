@@ -6,27 +6,35 @@ import type { ObservableSessions } from './ObservableSessions.js';
 
 /** Drain observable connections before disposing server-owned services. */
 export async function disposeObservableServer(hub: ObservableQueryHub, sessions: ObservableSessions,
-    closeWebSockets: (() => Promise<void>) | undefined, services: ServiceRegistry, ownsServices: boolean): Promise<void> {
+    closeWebSockets: (() => Promise<void>) | undefined, services: ServiceRegistry, ownsServices: boolean,
+    onTransportClosing?: (closing: Promise<void>) => void): Promise<void> {
     sessions.markDisposed();
     const activeHubConnections = hub.connections.length;
     const hubClosing = hub.dispose();
     const closing = closeWebSockets?.();
     const open = sessions.sessions;
     if (!open.length && !closing && !activeHubConnections) {
+        onTransportClosing?.(Promise.resolve());
         if (ownsServices) await services.dispose();
         return;
     }
     const failures: unknown[] = [];
-    if (activeHubConnections) {
-        try { await hubClosing; }
-        catch (error) { failures.push(error); }
-    }
-    if (closing) {
-        try { await closing; }
-        catch (error) { failures.push(error); }
-    }
-    const outcomes = await Promise.allSettled(open.map(session => session.close()));
-    failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown));
+    const transport = (async () => {
+        if (activeHubConnections) {
+            try { await hubClosing; }
+            catch (error) { failures.push(error); }
+        }
+        if (closing) {
+            try { await closing; }
+            catch (error) { failures.push(error); }
+        }
+        const outcomes = await Promise.allSettled(open.map(session => session.close()));
+        failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason as unknown));
+        if (failures.length === 1) throw failures[0];
+        if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
+    })();
+    onTransportClosing?.(transport);
+    try { await transport; } catch { /* Keep collecting registry disposal failures. */ }
     if (ownsServices) {
         try { await services.dispose(); }
         catch (error) { failures.push(error); }

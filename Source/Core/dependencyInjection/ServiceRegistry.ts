@@ -25,6 +25,7 @@ export class ServiceRegistry {
     readonly #activeExecution = new AsyncLocalStorage<ServiceExecutionFrame>();
     readonly #activeParticipant = new AsyncLocalStorage<ShutdownParticipantFrame>();
     readonly #participants = new Set<ShutdownParticipant>();
+    readonly #shutdownCleanups = new Set<{ stop: () => void; cleanup: () => Promise<void> }>();
     readonly #waits = new Map<ServiceResolutionNode, Map<ServiceResolutionNode, number>>();
     readonly #owners = new WeakMap<object, ServiceScope | null>();
     readonly #singletons: ServiceScope;
@@ -34,6 +35,7 @@ export class ServiceRegistry {
     #singletonFailed = false;
     #shutdownHasParticipants = false;
     #closing: Promise<void> | undefined;
+    #participantDrain: Promise<void> | undefined;
 
     constructor(registrations: readonly ServiceRegistration<unknown>[] = []) {
         for (const entry of registrations) {
@@ -70,6 +72,13 @@ export class ServiceRegistry {
         this.#participants.add(participant);
         return () => { this.#participants.delete(participant); };
     }
+    /** @internal Server-owned transport cancellation and cleanup, registered before shutdown can start. */
+    addShutdownCleanup(stop: () => void, cleanup: () => Promise<void>): void {
+        this.assertLive();
+        this.#shutdownCleanups.add({ stop, cleanup });
+    }
+    /** @internal Keep canceled subscription scopes alive through participant drain. */
+    waitForParticipantDrain(): Promise<void> { return this.#participantDrain ?? Promise.resolve(); }
     /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
     /** @internal Poison the registry after a singleton factory failure. */
@@ -187,43 +196,48 @@ export class ServiceRegistry {
             return Promise.reject(new ServiceDependencyError('Cannot await service registry disposal from owned work'));
         return this.beginShutdown();
     }
-    /** @internal Keep server-owned observable cleanup after participant drain without changing the no-participant path. */
-    disposeAfterParticipants(cleanup: () => Promise<void>): Promise<void> {
-        if (this.hasLivingExecution() || hasLivingServiceResolution(this) || hasLivingServiceDisposal(this) ||
-            this.#activeParticipant.getStore()?.state === ServiceExecutionState.Running)
-            return Promise.reject(new ServiceDependencyError('Cannot await service registry disposal from owned work'));
-        return this.beginShutdown(cleanup);
-    }
-    private beginShutdown(cleanup?: () => Promise<void>): Promise<void> {
+    private beginShutdown(): Promise<void> {
         if (this.#closing) return this.#closing;
         this.#state = ServiceRegistryState.Draining;
         const executions = [...this.#executions];
         const scopes = [...this.#scopes];
         const participants = [...this.#participants];
         this.#shutdownHasParticipants = participants.length > 0;
+        const cleanups = participants.length ? [...this.#shutdownCleanups] : [];
+        let releaseDrain!: () => void;
+        if (participants.length) this.#participantDrain = new Promise(resolve => { releaseDrain = resolve; });
         const completion = Promise.resolve().then(async () => {
             const errors: unknown[] = [];
             try {
                 if (participants.length) {
-                    for (const participant of participants) {
-                        const frame: ShutdownParticipantFrame = { state: ServiceExecutionState.Running };
-                        try { this.#activeParticipant.run(frame, () => participant.stop()); }
-                        catch (error) { errors.push(error); }
-                        finally { frame.state = ServiceExecutionState.Drained; }
+                    for (const hook of cleanups) {
+                        try { hook.stop(); } catch (error) { errors.push(error); }
                     }
-                    const drains = await Promise.allSettled(participants.map(participant => {
-                        const frame: ShutdownParticipantFrame = { state: ServiceExecutionState.Running };
-                        return this.#activeParticipant.run(frame, async () => {
-                            try { await participant.drain(); }
-                            finally { frame.state = ServiceExecutionState.Drained; }
-                        });
-                    }));
+                    // A stop continuation inherits its participant frame. Keep it live through drain.
+                    const frames = participants.map((): ShutdownParticipantFrame => ({ state: ServiceExecutionState.Running }));
+                    const stops: Promise<unknown>[] = [];
+                    for (const [index, participant] of participants.entries()) {
+                        try {
+                            const returned: unknown = this.#activeParticipant.run(frames[index]!, () => participant.stop());
+                            if (returned && (typeof returned === 'object' || typeof returned === 'function') &&
+                                typeof (returned as PromiseLike<unknown>).then === 'function')
+                                stops.push(Promise.resolve(returned));
+                        } catch (error) { errors.push(error); }
+                    }
+                    const stopped = await Promise.allSettled(stops);
+                    for (const outcome of stopped) if (outcome.status === 'rejected') errors.push(outcome.reason);
+                    const drains = await Promise.allSettled(participants.map((participant, index) =>
+                        this.#activeParticipant.run(frames[index]!, () => Promise.resolve().then(() => participant.drain()))));
                     for (const outcome of drains) if (outcome.status === 'rejected') errors.push(outcome.reason);
+                    for (const frame of frames) frame.state = ServiceExecutionState.Drained;
+                    releaseDrain();
+                }
+                // Cancellation runs before stop; transport teardown follows drain but precedes
+                // tracked execution and scope destruction. Errors never skip later cleanup.
+                for (const hook of cleanups) {
+                    try { await hook.cleanup(); } catch (error) { errors.push(error); }
                 }
                 await Promise.allSettled(executions);
-                if (cleanup) {
-                    try { await cleanup(); } catch (error) { errors.push(error); }
-                }
                 for (const scope of scopes) {
                     try { await closeServiceScope(scope); } catch (error) { errors.push(error); }
                 }

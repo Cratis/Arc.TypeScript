@@ -65,6 +65,8 @@ export class ArcServer {
     readonly #hub: ObservableQueryHub;
     readonly #sessions: ObservableSessions;
     readonly #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
+    #observableClosing: Promise<void> | undefined;
+    #closingWithoutParticipants: Promise<void> | undefined;
 
     /** Initialize the server and its command, query, and observable pipelines. */
     constructor(options: ArcOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
@@ -87,6 +89,13 @@ export class ArcServer {
         this.#hub = new ObservableQueryHub(this);
         this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
         registerObservableCleanup(this, this.#sessions);
+        if (this.#ownsServices) this.services.addShutdownCleanup(
+            () => {
+                this.#sessions.markDisposed();
+                this.#hub.stopAdmission();
+                for (const session of this.#sessions.sessions) session.cancel();
+            },
+            () => this.disposeObservables());
     }
 
     /**
@@ -133,13 +142,23 @@ export class ArcServer {
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
     }
 
+    private disposeObservables(): Promise<void> {
+        if (!this.#observableClosing) {
+            const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;
+            this.#observableClosing = disposeObservableServer(this.#hub, this.#sessions, closeWebSockets, this.services, false);
+        }
+        return this.#observableClosing;
+    }
     /** Close observable sessions and owned services. */
     async dispose(): Promise<void> {
-        const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;
-        if (this.#ownsServices && this.services.hasShutdownParticipants)
-            return this.services.disposeAfterParticipants(() =>
-                disposeObservableServer(this.#hub, this.#sessions, closeWebSockets, this.services, false));
-        return disposeObservableServer(this.#hub, this.#sessions, closeWebSockets, this.services, this.#ownsServices);
+        if (!this.#ownsServices) return this.disposeObservables();
+        if (this.services.hasShutdownParticipants && !this.#closingWithoutParticipants) return this.services.dispose();
+        if (!this.#closingWithoutParticipants) {
+            const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;
+            this.#closingWithoutParticipants = disposeObservableServer(this.#hub, this.#sessions,
+                closeWebSockets, this.services, true, closing => { this.#observableClosing = closing; });
+        }
+        return this.#closingWithoutParticipants;
     }
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */
     queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }

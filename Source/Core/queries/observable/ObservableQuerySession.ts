@@ -85,6 +85,9 @@ export class ObservableQuerySession {
         return this.guarded(result);
     }
 
+    /** Stop emissions without destroying the scope while participants still drain. */
+    cancel(): void { this.#controller.abort(); }
+
     /** Cancel the producer, release its iterator, and dispose the scope exactly once. */
     close(): Promise<void> {
         if (this.#closed) return this.#closed;
@@ -121,11 +124,13 @@ export class ObservableQuerySession {
             if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions)) {
+                if (this.#context.signal.aborted) return;
                 const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
                     { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
                         this.#context, this.config.options, value), undefined, result => result.hasExceptions));
                 await this.reportResult(result);
                 const guarded = await this.guarded(result);
+                if (this.#context.signal.aborted) return;
                 if (!guarded) continue;
                 yield this.redact(guarded);
                 if (guarded.isSuccess) this.#firstEmissionDelivered = true;
@@ -133,14 +138,20 @@ export class ObservableQuerySession {
             }
         } catch (error) {
             if (this.#context.signal.aborted) {
-                if (error instanceof DOMException && error.name === 'AbortError') return;
+                if (error instanceof DOMException && error.name === 'AbortError' ||
+                    this.config.services.disposed && error instanceof Error && error.message === 'Service registry is disposed') return;
                 this.#terminalFailure = error;
                 throw error;
             }
             await this.config.reportFailure(error);
             yield queryResult(this.#context, { exceptionMessages: [this.config.exposeExceptionDetails
                 ? String(error) : 'An unexpected error occurred'] });
-        } finally { await this.closeScope(); }
+        } finally {
+            // A canceled stream can finish while participant drain is awaiting its result.
+            // Keep its scope registered for server cleanup after drain, without joining drain here.
+            if (this.config.services.disposed && this.config.services.hasShutdownParticipants) this.releaseAdmission();
+            else await this.closeScope();
+        }
     }
 
     private releaseAdmission(): void {
@@ -152,7 +163,10 @@ export class ObservableQuerySession {
     private closeScope(): Promise<void> {
         if (this.#scopeClosed) return this.#scopeClosed;
         this.releaseAdmission();
-        this.#scopeClosed = this.#scope.dispose().finally(() => {
+        this.#scopeClosed = (async () => {
+            if (this.config.services.disposed) await this.config.services.waitForParticipantDrain();
+            await this.#scope.dispose();
+        })().finally(() => {
             try { this.#subscription.end(); }
             finally { this.config.onClose(); }
         });
@@ -194,7 +208,10 @@ export class ObservableQuerySession {
             if (decision === ObservableEmissionDecision.Allow) return result;
             if (decision === ObservableEmissionDecision.Suppress) return undefined;
             await this.config.reportFailure(new Error('Observable emission denied by policy'));
-        } catch (error) { await this.config.reportFailure(error); }
+        } catch (error) {
+            if (this.#context.signal.aborted && this.config.services.disposed) return undefined;
+            await this.config.reportFailure(error);
+        }
         return queryResult(this.#context, { isAuthorized: false });
     }
 
