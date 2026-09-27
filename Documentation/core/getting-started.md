@@ -43,7 +43,7 @@ Before a listener opens, `build()` checks the declared graph: missing service re
 `discover(folderUrl, { rootNamespace? })` imports every exported decorated class below the folder, in deterministic path order.
 
 - It accepts emitted `.js` files or loader-backed `.ts` files, not a mix of both.
-- It skips `dist`, `node_modules`, `given`, `for_*`, `index.*`, declaration files, and symbolic links.
+- It skips `dist`, `node_modules`, `given`, `for_*`, `index.*`, declaration files, symbolic links, co-located `*.proxy.ts` / `*.proxy.js` files, and React `.tsx` files.
 - It refuses a folder that contains the entry point, or an imported bootstrap that is itself calling discovery. Keep artifacts in a dedicated folder.
 - It derives each artifact's namespace from its path below the folder, and reports a class discovered under two different namespaces.
 
