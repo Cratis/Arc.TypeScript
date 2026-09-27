@@ -187,11 +187,28 @@ describe('when observing PostgreSQL changes across processes', () => {
         const stream = collect(model);
         try {
             await waitFor(() => stream.errors.length === 1);
-            stream.errors[0]!.message.should.include('partitions or inheritance children');
+            stream.errors[0]!.message.should.include('partitions or inheritance');
             stream.values.should.have.lengthOf(0);
         } finally {
             stream.subscription.unsubscribe(); await model[Symbol.asyncDispose]();
             await admin.query(`DROP TABLE "${schemaA}".partitioned_tasks CASCADE`);
+        }
+    });
+    it('should reject an inheritance parent whose reads include a child table', async () => {
+        const parent = pgTable('parent_tasks', { id: text('id').primaryKey(), title: text('title').notNull() });
+        await admin.query(`CREATE TABLE "${schemaA}".parent_tasks (id text PRIMARY KEY, title text NOT NULL)`);
+        await admin.query(`CREATE TABLE "${schemaA}".child_tasks () INHERITS ("${schemaA}".parent_tasks)`);
+        await admin.query(postgresqlChangeTrigger(parent, { schema: schemaA }));
+        const model = new DrizzleReadModels(drizzle(first), parent, Task, 100, undefined,
+            { tenant: 'inheritance', notifications, postgresql: manager });
+        const stream = collect(model);
+        try {
+            await waitFor(() => stream.errors.length === 1);
+            stream.errors[0]!.message.should.include('partitions or inheritance');
+            stream.values.should.have.lengthOf(0);
+        } finally {
+            stream.subscription.unsubscribe(); await model[Symbol.asyncDispose]();
+            await admin.query(`DROP TABLE "${schemaA}".parent_tasks CASCADE`);
         }
     });
     it('should route a dotted table identifier using PostgreSQL-quoted payloads', async () => {
