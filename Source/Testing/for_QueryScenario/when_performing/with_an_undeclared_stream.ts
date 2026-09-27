@@ -49,16 +49,23 @@ describe('when a snapshot query returns a cold observable in a scenario', () => 
 describe('when a snapshot query returns a Subject in a scenario', () => {
     let scenario: QueryScenario;
     let result: Awaited<ReturnType<typeof scenario.perform>>;
+    let received: number[];
     beforeEach(async () => {
         subject = new Subject<number>();
+        received = [];
+        const subscription = subject.subscribe(value => received.push(value));
         scenario = QueryScenario.for(SnapshotStream, 'subject');
-        result = await scenario.perform();
+        try {
+            result = await scenario.perform();
+            subject.next(42);
+        } finally { subscription.unsubscribe(); }
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should unsubscribe before reporting the boundary failure', () => {
-        subject.closed.should.equal(true);
+    it('should reject without closing the shared Subject', () => {
+        subject.closed.should.equal(false);
         result.exceptionMessages.join(' ').should.contain('returned an observable');
     });
+    it('should keep delivering to existing subscribers', () => { received.should.deep.equal([42]); });
 });
 
 describe('when a snapshot query returns an async iterable in a scenario', () => {

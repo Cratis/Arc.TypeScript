@@ -5,6 +5,7 @@ import type { CompiledQuery } from './CompiledQuery.js';
 import type { ServiceIdentifier } from '../../dependencyInjection/ServiceIdentifier.js';
 import { reflectedParameters } from '../../reflection/reflectedParameters.js';
 import { currentServices } from '../../dependencyInjection/ServiceScope.js';
+import { isServiceInstance } from '../../dependencyInjection/ServiceRegistry.js';
 import { ownMetadata } from '../../reflection/ownMetadata.js';
 import { validateGeneratedReturn } from '../../reflection/validateGeneratedReturn.js';
 import type { ClassType } from '../../reflection/ClassType.js';
@@ -126,7 +127,7 @@ function compileQuery(type: ClassType, namespace: string, name: string, declarat
                 (typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function' ||
                     'subscribe' in value && typeof value.subscribe === 'function')) {
                 const rejection = new SnapshotStreamError(`Snapshot query ${type.name}.${name} returned an observable`, value);
-                try { await releaseSnapshotStream(value); }
+                try { if (!isServiceInstance(currentServices().registry, value)) await releaseSnapshotStream(value); }
                 catch (error) {
                     throw new AggregateError([rejection, error], `${rejection.message}; stream cleanup failed: ${String(error)}`, { cause: error });
                 }

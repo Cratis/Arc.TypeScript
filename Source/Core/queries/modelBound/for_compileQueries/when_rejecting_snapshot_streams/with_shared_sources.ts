@@ -143,7 +143,7 @@ describe('when a snapshot has named disposal and lower-priority hooks', () => {
         Object.values(lowerPriority).forEach(hook => hook.mockClear());
         await rejection('namedPriority');
     });
-    it('should prefer dispose over close, unsubscribe, and iterator return', () => {
+    it('should prefer dispose over close and iterator return', () => {
         lowerPriority.dispose.mock.calls.should.have.lengthOf(1);
         lowerPriority.close.mock.calls.should.have.lengthOf(0);
         lowerPriority.unsubscribe.mock.calls.should.have.lengthOf(0);
@@ -151,7 +151,7 @@ describe('when a snapshot has named disposal and lower-priority hooks', () => {
     });
 });
 
-describe('when a snapshot has both close and unsubscribe', () => {
+describe('when a snapshot has close and unsubscribe', () => {
     beforeEach(async () => {
         closePriority.close.mockClear(); closePriority.unsubscribe.mockClear();
         await rejection('closePriority');
@@ -180,11 +180,11 @@ describe('when snapshot stream disposal throws', () => {
     });
 });
 
-describe('when a snapshot returns a subscribable with its own unsubscribe hook', () => {
+describe('when a snapshot returns a subscribable with an unsubscribe method', () => {
     let error: unknown;
     beforeEach(async () => { unsubscribe.mockClear(); error = await rejection('subscribable'); });
-    it('should unsubscribe exactly once before rejecting the snapshot', () => {
-        unsubscribe.mock.calls.should.have.lengthOf(1);
+    it('should leave the source untouched before rejecting the snapshot', () => {
+        unsubscribe.mock.calls.should.have.lengthOf(0);
         (error instanceof SnapshotStreamError).should.equal(true);
     });
 });
@@ -242,10 +242,12 @@ describe('when a snapshot returns a Subject', () => {
         shared = new Subject<number>();
         received = [];
         const subscription = shared.subscribe(value => received.push(value));
-        try { error = await rejection('sharedSubject'); }
-        finally { subscription.unsubscribe(); }
+        try {
+            error = await rejection('sharedSubject');
+            shared.next(42);
+        } finally { subscription.unsubscribe(); }
     });
     it('should reject the snapshot stream', () => { (error instanceof SnapshotStreamError).should.equal(true); });
-    it('should close the Subject through its own unsubscribe hook', () => { shared.closed.should.equal(true); });
-    it('should stop existing subscribers', () => { received.should.deep.equal([]); });
+    it('should leave the Subject open for its producer', () => { shared.closed.should.equal(false); });
+    it('should continue delivering to existing subscribers', () => { received.should.deep.equal([42]); });
 });

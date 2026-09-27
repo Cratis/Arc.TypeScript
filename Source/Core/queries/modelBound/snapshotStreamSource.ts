@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { originalFailure } from '../../execution/failureTracking.js';
+import { currentLateFailureReporter, originalFailure } from '../../execution/failureTracking.js';
 import type { QueryResult } from '../QueryResult.js';
 
 /** Carries a rejected snapshot source through the query pipeline for diagnostics. */
@@ -29,24 +29,31 @@ export function snapshotStreamSource(result: QueryResult): object | undefined {
 export async function releaseSnapshotStream(source: object): Promise<void> {
     const disposable = source as { [Symbol.asyncDispose]?: () => PromiseLike<void>; [Symbol.dispose]?: () => void;
         dispose?: () => void | PromiseLike<void>; close?: () => void | PromiseLike<void>;
-        unsubscribe?: () => void | PromiseLike<void>; next?: () => unknown; return?: () => unknown };
+        next?: () => unknown; return?: () => unknown };
     let release: () => unknown;
     if (typeof disposable[Symbol.asyncDispose] === 'function') release = () => disposable[Symbol.asyncDispose]!();
     else if (typeof disposable[Symbol.dispose] === 'function') release = () => disposable[Symbol.dispose]!();
     else if (typeof disposable.dispose === 'function') release = () => disposable.dispose!();
     else if (typeof disposable.close === 'function') release = () => disposable.close!();
-    else if (typeof disposable.unsubscribe === 'function') release = () => disposable.unsubscribe!();
     else if (typeof disposable.next === 'function' && typeof disposable.return === 'function')
         release = () => disposable.return!();
     else return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let expired = false;
+    const reportLateFailure = currentLateFailureReporter();
+    const attempt = Promise.resolve().then(release);
+    // The race handles an on-time rejection; after the deadline, report the eventual failure too.
+    void attempt.catch(error => { if (expired) reportLateFailure(error); });
     try {
         // Cancellation must not turn a failed release into a successful one; the independent deadline bounds the request.
         await Promise.race([
-            Promise.resolve().then(release),
+            attempt,
             new Promise<never>((_, reject) => {
-                timer = setTimeout(() => reject(new Error('Snapshot stream did not respond to cleanup')), 1_000);
+                timer = setTimeout(() => {
+                    expired = true;
+                    reject(new Error('Snapshot stream did not respond to cleanup'));
+                }, 1_000);
             })
         ]);
     } finally {
