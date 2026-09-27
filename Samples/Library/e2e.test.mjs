@@ -10,10 +10,10 @@ import { once } from 'node:events';
 import { after, test } from 'node:test';
 import { Guid } from '@cratis/fundamentals';
 import { Globals } from '@cratis/arc';
-import { RegisterAuthor } from './Web/src/generated/Authors/Registration/RegisterAuthor.proxy.js';
-import { AuthorsPage } from './Web/src/generated/Authors/Listing/AuthorsPage.proxy.js';
-import { AllAuthors } from './Web/src/generated/Authors/Listing/AllAuthors.proxy.js';
-import { AddBook } from './Web/src/generated/Books/Registration/AddBook.proxy.js';
+import { RegisterAuthor } from './Features/Authors/Registration/RegisterAuthor.proxy.js';
+import { AuthorsPage } from './Features/Authors/Listing/AuthorsPage.proxy.js';
+import { AllAuthors } from './Features/Authors/Listing/AllAuthors.proxy.js';
+import { AddBook } from './Features/Books/Registration/AddBook.proxy.js';
 
 const socket = createServer();
 socket.listen(0, '127.0.0.1');

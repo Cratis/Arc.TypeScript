@@ -1,24 +1,42 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { watch, watchFile, unwatchFile } from 'node:fs';
-import { dirname, resolve, sep } from 'node:path';
+import { realpath } from 'node:fs/promises';
+import { basename, dirname, resolve, sep } from 'node:path';
+import type ts from 'typescript';
 import { sourceProgram } from './sourceProgram.js';
+import { analyzeSource } from './analyzeSource.js';
+import { isColocatedOutput } from './isColocatedOutput.js';
 import type { SourceGeneratorOptions } from './generateFromSource.js';
 
-function externalFiles(configuration: SourceGeneratorOptions, root: string, outputRoot: string): string[] {
-    const metadata = configuration.metadata && resolve(configuration.metadata);
-    return sourceProgram(configuration.project).getSourceFiles()
+async function canonicalPath(path: string): Promise<string> {
+    const absolute = resolve(path);
+    try { return await realpath(absolute); }
+    catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        return resolve(await realpath(dirname(absolute)), basename(absolute));
+    }
+}
+
+async function externalFiles(root: string, outputRoot: string, metadata: string | undefined,
+    separateOutput: boolean, program: ts.Program): Promise<string[]> {
+    const files = await Promise.all(program.getSourceFiles()
         .filter(file => !file.isDeclarationFile && !file.fileName.includes(`${sep}node_modules${sep}`))
-        .map(file => resolve(file.fileName)).filter(file => file !== metadata &&
-            !file.startsWith(root + sep) && !file.startsWith(outputRoot + sep));
+        .map(file => canonicalPath(file.fileName)));
+    return files.filter(file => file !== metadata && !file.endsWith('.proxy.ts') &&
+        !file.startsWith(root + sep) && !(separateOutput && file.startsWith(outputRoot + sep)));
 }
 
 /** Regenerate on changes in artifacts or in external source dependencies. */
 export async function watchSource(configuration: SourceGeneratorOptions, generate: () => Promise<void>): Promise<void> {
-    const root = resolve(configuration.artifacts);
-    const metadata = configuration.metadata && resolve(configuration.metadata);
-    const outputRoot = resolve(configuration.output);
-    const watched = new Set(externalFiles(configuration, root, outputRoot));
+    const root = await realpath(configuration.artifacts);
+    const metadata = configuration.metadata && await canonicalPath(configuration.metadata);
+    const outputRoot = await realpath(configuration.output);
+    const program = sourceProgram(configuration.project);
+    const analysis = analyzeSource(configuration.project, root, configuration.rootNamespace,
+        !!configuration.metadata || configuration.generatedMetadata === true, program);
+    const separateOutput = !(await isColocatedOutput(root, outputRoot, analysis));
+    const watched = new Set(await externalFiles(root, outputRoot, metadata, separateOutput, program));
     let timer: NodeJS.Timeout | undefined, pending: Promise<void> = Promise.resolve();
     const schedule = () => {
         if (timer) clearTimeout(timer);
@@ -31,8 +49,8 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
     const watchers = [watch(root, { recursive: true }, (_, filename) => {
         if (!filename) return schedule();
         const file = resolve(root, filename);
-        if (file !== metadata && !file.startsWith(outputRoot + sep) && file.endsWith('.ts') && !file.endsWith('.d.ts') &&
-            file.startsWith(root + sep)) schedule();
+        if (file !== metadata && !file.endsWith('.proxy.ts') && !(separateOutput && file.startsWith(outputRoot + sep)) &&
+            file.endsWith('.ts') && !file.endsWith('.d.ts') && file.startsWith(root + sep)) schedule();
     }), ...[...new Set([...watched].map(dirname))].map(directory => watch(directory, (_, filename) => {
         if (filename && watched.has(resolve(directory, filename))) schedule();
     }))];

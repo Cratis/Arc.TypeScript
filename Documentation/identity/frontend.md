@@ -9,9 +9,9 @@ This page uses `@cratis/arc` and `@cratis/arc.react` 22.19.1, the client version
 
 ## Give the client your details type
 
-Generate proxies from the backend that holds your identity provider. The generator emits the provider's `detailsType` as a frontend class with the same `@field` declarations:
+Generate proxies from the backend that holds your identity provider. In a co-located layout with `src/` beside `Features/`, the generator emits the provider's `detailsType` beside its slice as a frontend class with the same `@field` declarations. For a [separate output folder](../proxy-generation/getting-started.md#separate-output-folders), adjust the imports to that folder instead:
 
-```typescript title="src/generated/Identity/UserDetails.proxy.ts (generated excerpt)"
+```typescript title="Features/Identity/UserDetails.proxy.ts (generated excerpt)"
 import { field } from '@cratis/fundamentals';
 
 export class UserDetails {
@@ -24,7 +24,7 @@ Pass it to the `Arc` component at the root of your application:
 
 ```tsx title="src/App.tsx"
 import { Arc } from '@cratis/arc.react';
-import { UserDetails } from './generated/Identity/UserDetails.proxy';
+import { UserDetails } from '../Features/Identity/UserDetails.proxy';
 import { Header } from './Header';
 
 export function App() {
@@ -40,7 +40,7 @@ export function App() {
 
 ```tsx title="src/Header.tsx"
 import { useIdentity } from '@cratis/arc.react/identity';
-import { UserDetails } from './generated/Identity/UserDetails.proxy';
+import { UserDetails } from '../Features/Identity/UserDetails.proxy';
 
 export function Header() {
     const identity = useIdentity(UserDetails);
@@ -74,7 +74,7 @@ The client keeps using the cookie until something replaces it. After an action t
 
 ```tsx
 import { useIdentity } from '@cratis/arc.react/identity';
-import { UserDetails } from './generated/Identity/UserDetails.proxy';
+import { UserDetails } from '../Features/Identity/UserDetails.proxy';
 
 export function SwitchTenant({ tenant }: { tenant: string }) {
     const identity = useIdentity(UserDetails);
