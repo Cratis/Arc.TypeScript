@@ -195,7 +195,7 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/test-a-command/spec": Context(
         siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
     # Command-key model resolution is available for handlers and provide(), not validator parameters.
-    # The in-memory Chronicle scenario materializes reducer-backed models, not projections.
+    # The in-memory Chronicle scenario materializes reducer-backed and supported flat projection-backed models.
     "scenarios/use-current-state-in-a-command/rename-author": MODULE,
     "scenarios/use-current-state-in-a-command/rename-author-validator": MODULE,
     "scenarios/use-current-state-in-a-command/register-customer-validator": MODULE,
