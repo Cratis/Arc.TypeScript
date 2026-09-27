@@ -14,7 +14,7 @@ export class SnapshotStreamError extends Error {
     }
 }
 
-/** Return the rejected source of a snapshot query only when its original pipeline failure is a snapshot stream rejection. Arc closes this source before reporting the failure. */
+/** Return the rejected source of a snapshot query only when its original pipeline failure is a snapshot stream rejection. Arc releases it first if it owns a disposal hook. */
 export function snapshotStreamSource(result: QueryResult): object | undefined {
     const failure = originalFailure(result);
     if (failure instanceof SnapshotStreamError) return failure.source;
@@ -25,24 +25,14 @@ export function snapshotStreamSource(result: QueryResult): object | undefined {
     return undefined;
 }
 
-/** Close a rejected snapshot stream without closing other subscribers of a shared source. */
+/** Release only resources owned by the rejected object; never start a subscription or iterator to clean up. */
 export async function releaseSnapshotStream(source: object, signal: AbortSignal): Promise<void> {
     const disposable = source as { [Symbol.asyncDispose]?: () => PromiseLike<void>; [Symbol.dispose]?: () => void;
-        unsubscribe?: () => void | PromiseLike<void>; dispose?: () => void | PromiseLike<void>;
-        [Symbol.asyncIterator]?: () => AsyncIterator<unknown>;
-        subscribe?: (observer: { next(value: unknown): void; error(error: unknown): void; complete(): void }) =>
-            { unsubscribe(): void | PromiseLike<void> } | (() => void | PromiseLike<void>) };
+        close?: () => void | PromiseLike<void> };
     let release: () => unknown;
-    if (typeof disposable[Symbol.asyncIterator] === 'function') release = () => disposable[Symbol.asyncIterator]!().return?.();
-    else if (typeof disposable[Symbol.asyncDispose] === 'function') release = () => disposable[Symbol.asyncDispose]!();
+    if (typeof disposable[Symbol.asyncDispose] === 'function') release = () => disposable[Symbol.asyncDispose]!();
     else if (typeof disposable[Symbol.dispose] === 'function') release = () => disposable[Symbol.dispose]!();
-    else if (typeof disposable.subscribe === 'function') release = () => {
-        const subscription = disposable.subscribe!({ next() {}, error() {}, complete() {} });
-        if (typeof subscription === 'function') return subscription();
-        if (subscription && typeof subscription.unsubscribe === 'function') return subscription.unsubscribe();
-        if (typeof disposable.unsubscribe === 'function') return disposable.unsubscribe();
-        return disposable.dispose?.();
-    };
+    else if (typeof disposable.close === 'function') release = () => disposable.close!();
     else return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;

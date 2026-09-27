@@ -1,69 +1,71 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { query, readModel } from '@cratis/arc.core';
+import { Observable, Subject } from 'rxjs';
 import { QueryScenario } from '../../QueryScenario.js';
 
-const unsubscribe = vi.fn();
-const subscriptionClosed = vi.fn();
-const iteratorCreated = vi.fn();
-const iteratorReturned = vi.fn();
+const started = vi.fn();
+const shared = new Subject<number>();
+let generatorStarted = 0;
+async function* values() { generatorStarted++; yield 1; }
 let onDispose = () => {};
 const slowDispose = vi.fn(() => { onDispose(); return new Promise<void>(() => {}); });
 const failingDispose = vi.fn(() => { throw new Error('cleanup failed'); });
+class OwnedObservable extends Observable<number> {
+    [Symbol.asyncDispose](): Promise<void> { return slowDispose(); }
+}
+class FailingObservable extends Observable<number> {
+    [Symbol.dispose](): void { failingDispose(); }
+}
 @readModel()
 class SnapshotStream {
-    @query() static subscribable() { return { subscribe: () => ({}), unsubscribe }; }
-    @query() static subscription() { return { subscribe: () => ({ unsubscribe: subscriptionClosed }) }; }
-    @query() static iterable() { return { [Symbol.asyncIterator]: iteratorCreated }; }
-    @query() static slow() { return { subscribe: () => ({}), [Symbol.asyncDispose]: slowDispose }; }
-    @query() static failing() { return { subscribe: () => ({}), [Symbol.dispose]: failingDispose }; }
+    @query() static cold() { return new Observable<number>(() => { started(); }); }
+    @query() static subject() { return shared; }
+    @query() static iterable() { return { [Symbol.asyncIterator]: values }; }
+    @query() static slow() { return new OwnedObservable(); }
+    @query() static failing() { return new FailingObservable(); }
 }
 
-describe('when a snapshot query returns a subscribable in a scenario', () => {
+describe('when a snapshot query returns a cold observable in a scenario', () => {
     let scenario: QueryScenario;
     let result: Awaited<ReturnType<typeof scenario.perform>>;
     beforeEach(async () => {
-        unsubscribe.mockClear();
-        scenario = QueryScenario.for(SnapshotStream, 'subscribable');
+        started.mockClear();
+        scenario = QueryScenario.for(SnapshotStream, 'cold');
         result = await scenario.perform();
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should unsubscribe before reporting the boundary failure', () => {
-        unsubscribe.mock.calls.should.have.lengthOf(1);
-        result.exceptionMessages.join(' ').should.contain('returned an observable');
-    });
+    it('should not start the producer', () => { started.mock.calls.should.have.lengthOf(0); });
+    it('should report the boundary failure', () => { result.exceptionMessages.join(' ').should.contain('returned an observable'); });
 });
 
-describe('when a snapshot query returns a subscription in a scenario', () => {
+describe('when a snapshot query returns a shared Subject in a scenario', () => {
     let scenario: QueryScenario;
     let result: Awaited<ReturnType<typeof scenario.perform>>;
+    let received: number[];
     beforeEach(async () => {
-        subscriptionClosed.mockClear();
-        scenario = QueryScenario.for(SnapshotStream, 'subscription');
-        result = await scenario.perform();
+        received = [];
+        const subscription = shared.subscribe(value => received.push(value));
+        scenario = QueryScenario.for(SnapshotStream, 'subject');
+        try { result = await scenario.perform(); shared.next(42); }
+        finally { subscription.unsubscribe(); }
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should close the returned subscription exactly once', () => {
-        subscriptionClosed.mock.calls.should.have.lengthOf(1);
-        result.exceptionMessages.join(' ').should.contain('returned an observable');
-    });
+    it('should leave existing subscribers alone', () => { received.should.deep.equal([42]); });
+    it('should report the boundary failure', () => { result.exceptionMessages.join(' ').should.contain('returned an observable'); });
 });
 
 describe('when a snapshot query returns an async iterable in a scenario', () => {
     let scenario: QueryScenario;
     let result: Awaited<ReturnType<typeof scenario.perform>>;
     beforeEach(async () => {
-        iteratorReturned.mockClear();
-        iteratorCreated.mockClear().mockReturnValue({ return: iteratorReturned.mockResolvedValue({ done: true, value: undefined }) });
+        generatorStarted = 0;
         scenario = QueryScenario.for(SnapshotStream, 'iterable');
         result = await scenario.perform();
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should return the scenario-created iterator before reporting the boundary failure', () => {
-        iteratorCreated.mock.calls.should.have.lengthOf(1);
-        iteratorReturned.mock.calls.should.have.lengthOf(1);
-        result.exceptionMessages.join(' ').should.contain('returned an observable');
-    });
+    it('should not start an iterator', () => { generatorStarted.should.equal(0); });
+    it('should report the boundary failure', () => { result.exceptionMessages.join(' ').should.contain('returned an observable'); });
 });
 
 describe('when snapshot producer cleanup fails in a scenario', () => {
@@ -90,9 +92,9 @@ describe('when snapshot producer cleanup never completes', () => {
         slowDispose.mockClear();
         onDispose = () => {};
         scenario = QueryScenario.for(SnapshotStream, 'slow');
-        const started = Date.now();
+        const startedAt = Date.now();
         result = await scenario.perform();
-        elapsed = Date.now() - started;
+        elapsed = Date.now() - startedAt;
     });
     afterEach(async () => { await scenario.dispose(); });
     it('should stop waiting and retain the boundary failure', () => {
