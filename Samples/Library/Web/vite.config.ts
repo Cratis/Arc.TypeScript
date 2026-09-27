@@ -12,5 +12,19 @@ export default defineConfig({
         '/api': { target: 'http://127.0.0.1:3000' },
         '/.cratis': { target: 'http://127.0.0.1:3000', ws: true }
     } },
-    build: { outDir: 'dist' }
+    build: {
+        outDir: 'dist',
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    // Components' shared UI and form modules need their own chunks to stay below Vite's 500 kB warning threshold.
+                    if (id.includes('/node_modules/@cratis/components/dist/esm/Common/')) return 'component-common';
+                    if (id.includes('/node_modules/@cratis/components/dist/esm/CommandForm/')) return 'component-forms';
+                    if (id.includes('/node_modules/@cratis/components/')) return 'components';
+                    if (id.includes('/node_modules/allotment/')) return 'allotment';
+                    if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/') || id.includes('/node_modules/scheduler/')) return 'react';
+                }
+            }
+        }
+    }
 });
