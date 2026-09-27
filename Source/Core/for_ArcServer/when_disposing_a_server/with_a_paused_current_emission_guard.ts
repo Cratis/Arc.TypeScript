@@ -15,6 +15,7 @@ import { observableExecution } from '../given/an_observable_execution.js';
 should();
 describe('when disposing a registry during a current-value emission guard', () => {
     let disposedDuringCheck: boolean;
+    let disposedBeforeRelease: boolean;
     let disposed: boolean;
     beforeEach(async () => {
         disposed = false;
@@ -30,17 +31,24 @@ describe('when disposing a registry during a current-value emission guard', () =
         observableQueries: [defineObservableQuery({ name: 'Live', schema: z.object({}),
             observe: () => CurrentValueSubject.of(1) })] });
         const session = await server.openObservableQuery('Live', {}, observableExecution());
+        const closeEntered = gate();
+        const originalClose = session.close.bind(session);
+        session.close = () => { const closing = originalClose(); closeEntered.release(); return closing; };
         const current = session.current();
         try {
             await beforeDeadline(entered.promise, 'current emission guard entry');
             server.services.addShutdownParticipant({ stop: () => {}, drain: async () => {} });
             const closing = server.services.dispose();
+            await beforeDeadline(closeEntered.promise, 'observable session close entry');
+            await Promise.resolve();
+            disposedBeforeRelease = disposed;
             release.release();
             await beforeDeadline(current, 'current emission guard completion');
             await beforeDeadline(closing, 'registry shutdown during current emission');
         } finally { release.release(); await session.close(); await server.dispose(); }
     });
     it('should keep the scoped dependency alive through the guard', () => {
+        disposedBeforeRelease.should.equal(false);
         disposedDuringCheck.should.equal(false);
         disposed.should.equal(true);
     });
