@@ -59,7 +59,7 @@ EXEMPT: dict[str, dict[str, str]] = {
     },
     'proxy-generation/frontend-usage.md': {
         'Web/src/App.tsx': 'React app needs generated proxies and a separate frontend toolchain.',
-        'Web/src/Features/Authors/Registration/RegisterAuthorForm.tsx': 'React form needs generated proxies and a separate frontend toolchain.'
+        'Features/Authors/Registration/RegisterAuthorForm.tsx': 'React form needs generated proxies and a separate frontend toolchain.'
     },
     'identity/provider-flow.md': {'Features/Identity/DirectoryDetails.ts': 'Depends on an application-owned Directory service not defined here.'},
 }
@@ -125,7 +125,7 @@ def sample_fixtures(destination: Path, source_root: str, prefix: str, excluded: 
     for source in sorted(sample.rglob('*.ts')):
         path = source.relative_to(sample)
         # Build output and generated client proxies are not sample source; `yarn ci` writes them before this gate runs.
-        if any(part.startswith('for_') or part in ('given', 'dist', 'node_modules') for part in path.parts):
+        if source.name.endswith('.proxy.ts') or any(part.startswith('for_') or part in ('given', 'dist', 'node_modules') for part in path.parts):
             continue
         if path.as_posix() in excluded:
             continue

@@ -36,7 +36,7 @@ function expectedFile(path) {
     const file = basename(path);
     if (path.includes(`${sep}src${sep}node_modules${sep}@cratis${sep}arc.core${sep}`))
         return /^[A-Za-z][A-Za-z0-9_.-]*\.(?:js|ts|map|json)$/.test(file);
-    if (path.includes(`${sep}src${sep}`)) return /^[A-Za-z][A-Za-z0-9_]*(?:\.proxy)?\.ts$/.test(file) || ['incorrect.ts', 'wrong.ts', 'tsconfig.json'].includes(file);
+    if (path.includes(`${sep}src${sep}`)) return /^[A-Za-z][A-Za-z0-9_]*(?:\.proxy)?\.(?:tsx?|js)$/.test(file) || ['incorrect.ts', 'wrong.ts', 'tsconfig.json'].includes(file);
     if (path.includes(`${sep}dist${sep}`)) return /^[A-Za-z][A-Za-z0-9_]*(?:\.proxy)?\.js$/.test(file);
     return ['tsconfig.json', 'manifest.json', 'malicious.json', 'oversized.json', 'startup.mjs'].includes(file);
 }

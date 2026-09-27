@@ -67,7 +67,7 @@ test('source analyzer resolves imported decorator symbols, types, routes and sta
 
 test('Library command proxies omit event responses consumed by Chronicle', async () => {
     for (const [area, name] of [['Authors', 'RegisterAuthor'], ['Books', 'AddBook']]) {
-        const proxy = await readFile(join(root, `Samples/Library/Web/src/generated/${area}/Registration/${name}.proxy.ts`), 'utf8');
+        const proxy = await readFile(join(root, `Samples/Library/Features/${area}/Registration/${name}.proxy.ts`), 'utf8');
         assert.match(proxy, new RegExp(`class ${name} extends Command<I${name}>`));
         assert.match(proxy, /super\(Object, false\)/);
         assert.doesNotMatch(proxy, /import \{ (AuthorRegistered|BookAdded) \}/);

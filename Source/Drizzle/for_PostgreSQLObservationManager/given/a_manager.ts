@@ -15,7 +15,6 @@ export const deferred = <T>() => {
     const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
     return { promise, resolve, reject };
 };
-export const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
 export class Listener implements PostgreSQLListenerConnection {
     notification?: (channel: string, payload?: string) => void;
