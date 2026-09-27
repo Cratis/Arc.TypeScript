@@ -24,22 +24,20 @@ describe('when submitting the author registration dialog with a valid name', () 
         render(<Registration />);
         await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Add author' })); });
         await act(async () => { fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Octavia Butler  ' } }); });
+        await waitFor(() => (screen.getByRole('button', { name: 'Register author' }) as HTMLButtonElement).disabled.should.equal(false));
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Register author' })); });
+        await waitFor(() => execute.callCount.should.equal(1));
     });
 
     afterEach(() => { cleanup(); sinon.restore(); });
 
-    it('should execute the generated command with an id and trimmed name', async () => {
-        await waitFor(() => (screen.getByRole('button', { name: 'Register author' }) as HTMLButtonElement).disabled.should.equal(false));
-        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Register author' })); });
-        await waitFor(() => execute.callCount.should.equal(1));
+    it('should execute the generated command with an id and trimmed name', () => {
         const command = execute.firstCall.thisValue as RegisterAuthor;
         command.name.should.equal('Octavia Butler');
         String(command.id).length.should.be.greaterThan(0);
     });
 
-    it('should close the dialog after successful execution', async () => {
-        await waitFor(() => (screen.getByRole('button', { name: 'Register author' }) as HTMLButtonElement).disabled.should.equal(false));
-        await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Register author' })); });
-        await waitFor(() => { (screen.queryByRole('dialog', { name: 'Register an author' }) === null).should.equal(true); });
+    it('should close the dialog after successful execution', () => {
+        (screen.queryByRole('dialog', { name: 'Register an author' }) === null).should.equal(true);
     });
 });
