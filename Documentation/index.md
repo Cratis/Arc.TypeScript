@@ -67,7 +67,8 @@ The shared Arc pages, such as the [tutorial](/arc/tutorial/first-slice/) and the
 - Repositories and catalogs in the snippets, such as `AuthorRepository`, are application-owned abstract classes that you implement and register with `builder.services`. An abstract class serves as its own service token; an interface does not exist at runtime.
 - An observable query declares `@query({ observable: true }, ...)` in addition to returning an observable source.
 - In the snippets, `provide()` takes no parameters: it resolves services with `currentServices()` and reads the request's cancellation signal from `currentContext()`. You can also declare its parameters with `@inject(...)`, as [Model-bound commands](commands/model-bound/index.md#prepare-data-in-provide) shows.
-- Where a page covers something Arc for TypeScript does not do yet, such as injecting read models into validators or seeding Chronicle events in a scenario, the tab says so instead of showing code.
+- A Chronicle command scenario builds reducer-backed read models from seeded events, but the in-memory scenario rejects projection-backed models with seeded history. Test those with a [kernel scenario](testing/chronicle-kernel.md).
+- The shared validator examples inject an application-owned repository. Arc for TypeScript validators do not take read models as constructor parameters; read one inside an async rule with `readModelForValidation`.
 - Proxy generation on those pages describes the C# and JVM generators. Arc for TypeScript generates the same kind of proxies from TypeScript source; [Proxy generation](proxy-generation/index.md) lists what differs.
 
 ## Releases
