@@ -39,9 +39,10 @@ export async function generateFromSource(options: SourceGeneratorOptions): Promi
     if (!(await lstat(artifacts)).isDirectory()) throw new Error('Artifacts must be a directory');
     const program = sourceProgram(options.project);
     if (options.metadata) await preflightGeneratedMetadata(options.metadata);
-    const collector = options.metadata ? metadataCollector(program, options.metadata) : undefined;
+    const contributingFiles = new Set<string>();
+    const collector = options.metadata ? metadataCollector(program, options.metadata, contributingFiles) : undefined;
     const analysis = analyzeSource(options.project, artifacts, options.rootNamespace,
-        !!collector || options.generatedMetadata === true, program, collector?.visit);
+        !!collector || options.generatedMetadata === true, program, collector?.visit, contributingFiles);
     const colocated = await isColocatedOutput(artifacts, output, analysis);
     if (colocated && !options.useProxyFileSuffix)
         throw new Error('Output overlaps artifacts; --use-proxy-file-suffix is required to keep generated files distinct from backend modules');

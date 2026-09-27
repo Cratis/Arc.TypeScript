@@ -10,7 +10,7 @@ import { sourceProgram } from './sourceProgram.js';
 import { metadataHeader, metadataOwned, owned } from './generatedSourceOwnership.js';
 
 /** Collect metadata during the same artifact walk used for client proxy analysis. */
-export function metadataCollector(program: ts.Program, output: string): {
+export function metadataCollector(program: ts.Program, output: string, contributingFiles = new Set<string>()): {
     visit: (declaration: ts.ClassDeclaration) => void;
     render: (project: string, artifacts: string) => string;
 } {
@@ -20,7 +20,10 @@ export function metadataCollector(program: ts.Program, output: string): {
     return {
         visit(declaration) {
             const rendered = renderArtifactMetadata(declaration, checker, imports);
-            if (rendered) entries.push(rendered);
+            if (rendered) {
+                entries.push(rendered);
+                contributingFiles.add(resolve(declaration.getSourceFile().fileName));
+            }
         },
         render(project, artifacts) {
             if (!entries.length) throw new Error(`No Arc artifacts below ${artifacts} in ${project}`);

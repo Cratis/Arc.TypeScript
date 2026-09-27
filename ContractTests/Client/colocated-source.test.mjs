@@ -121,6 +121,77 @@ test('nested dedicated output keeps barrels and optional suffix; equal and ances
     }
 });
 
+test('nested output with only a validator requires a suffix and regenerates validation on edit', async () => {
+    const { artifacts, configuration, options } = await project();
+    await writeFile(join(artifacts, 'Save.ts'), `import { command } from '@cratis/arc.core';
+import { field } from '@cratis/fundamentals';
+@command() export class Save { @field(String) title = ''; handle(): void {} }
+`);
+    const nested = join(artifacts, 'client');
+    await mkdir(nested);
+    const validator = join(nested, 'SaveValidator.ts');
+    const rule = kind => `import { CommandValidator, validator } from '@cratis/arc.core';
+import { Save } from '../Save.js';
+@validator(Save) export class SaveValidator extends CommandValidator<Save> {
+    constructor() { super(); this.ruleFor(command => command.title).${kind}(); }
+}
+`;
+    await writeFile(validator, rule('notEmpty'));
+    const colocated = { ...options, output: nested };
+    assert.ok(analyzeSource(configuration, artifacts).contributingFiles.includes(validator));
+    await assert.rejects(generateFromSource({ ...colocated, useProxyFileSuffix: false }), /--use-proxy-file-suffix is required/);
+    assert.deepEqual(await readdir(nested), ['SaveValidator.ts']);
+    await generateFromSource(colocated);
+    assert.deepEqual((await readdir(nested)).sort(), ['Save.proxy.ts', 'SaveValidator.ts']);
+    assert.match(await readFile(join(nested, 'Save.proxy.ts'), 'utf8'), /notEmpty/);
+
+    const child = spawn(process.execPath, [cli, '--project', configuration, '--artifacts', artifacts,
+        '--output', nested, '--use-proxy-file-suffix', '--watch'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = ''; let errors = '';
+    const closed = new Promise(resolve => child.once('close', resolve));
+    child.stdout.on('data', chunk => { output += chunk.toString(); });
+    child.stderr.on('data', chunk => { errors += chunk.toString(); });
+    async function until(predicate) {
+        for (let attempt = 0; attempt < 400 && !predicate(); attempt++) {
+            assert.equal(child.exitCode, null, `Watch exited: ${errors}`);
+            await setTimeout(50);
+        }
+        assert.ok(predicate(), `Watch timed out: ${output} ${errors}`);
+    }
+    try {
+        await until(() => output.includes('Watch ready\n'));
+        await setTimeout(450);
+        assert.equal((output.match(/Watch change detected/g) ?? []).length, 0, output);
+        await writeFile(validator, rule('notNull'));
+        await until(() => (output.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= 2);
+        assert.match(await readFile(join(nested, 'Save.proxy.ts'), 'utf8'), /notNull/);
+        assert.doesNotMatch(await readFile(join(nested, 'Save.proxy.ts'), 'utf8'), /notEmpty/);
+        assert.ok(!(await readdir(nested)).includes('index.ts'));
+        await setTimeout(450);
+        assert.equal((output.match(/Watch change detected/g) ?? []).length, 1, output);
+        assert.equal(errors, '');
+    } finally { child.kill('SIGTERM'); await closed; }
+});
+
+test('nested output with only a concept referenced by a command is co-located', async () => {
+    const { artifacts, configuration, options } = await project();
+    const nested = join(artifacts, 'client');
+    await mkdir(nested);
+    const concept = join(nested, 'Title.ts');
+    await writeFile(concept, `import { ConceptAs } from '@cratis/fundamentals';
+export class Title extends ConceptAs<string> { static readonly valueType = String; }
+`);
+    await writeFile(join(artifacts, 'Save.ts'), `import { command } from '@cratis/arc.core';
+import { field } from '@cratis/fundamentals';
+import { Title } from './client/Title.js';
+@command() export class Save { @field(Title) title!: Title; handle(): void {} }
+`);
+    assert.ok(analyzeSource(configuration, artifacts).contributingFiles.includes(concept));
+    await assert.rejects(generateFromSource({ ...options, output: nested, useProxyFileSuffix: false }), /--use-proxy-file-suffix is required/);
+    await generateFromSource({ ...options, output: nested });
+    assert.ok(!(await readdir(nested)).includes('index.ts'));
+});
+
 test('nested dedicated output with a handwritten non-artifact helper retains its barrels', async () => {
     const { artifacts, options } = await project();
     const nested = join(artifacts, 'client');
