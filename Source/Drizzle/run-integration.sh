@@ -2,6 +2,11 @@
 # Copyright (c) Cratis. All rights reserved.
 # Licensed under the MIT license. See LICENSE file in the project root for full license information.
 set -euo pipefail
+mode="${1:-all}"
+if [[ "$mode" != 'all' && "$mode" != 'postgresql' ]]; then
+    printf '%s\n' 'Usage: run-integration.sh [postgresql]' >&2
+    exit 2
+fi
 cd "$(dirname "$0")/../.."
 if ! docker info >/dev/null; then
     printf '%s\n' 'Docker unavailable: PostgreSQL and MySQL integrations were not run' >&2
@@ -43,6 +48,9 @@ if [ "$postgres_ready" -ne 1 ]; then
     docker logs "$postgres_id" >&2
     exit 2
 fi
+postgres_port=$(docker port "$postgres_id" 5432/tcp)
+postgres_port=${postgres_port##*:}
+if [[ "$mode" == 'all' ]]; then
 if ! mysql_id=$(docker run --rm -d --name "arc-drizzle-mysql-$$" -e MYSQL_ROOT_PASSWORD=arc_test \
     -e MYSQL_DATABASE=arc_test -p 127.0.0.1::3306 mysql:8.4); then
     printf '%s\n' 'Could not start MySQL integration container' >&2
@@ -61,10 +69,14 @@ if [ "$mysql_ready" -ne 1 ]; then
     docker logs "$mysql_id" >&2
     exit 2
 fi
-postgres_port=$(docker port "$postgres_id" 5432/tcp)
-postgres_port=${postgres_port##*:}
 mysql_port=$(docker port "$mysql_id" 3306/tcp)
 mysql_port=${mysql_port##*:}
-ARC_POSTGRES_TEST_URI="postgres://postgres:arc_test@127.0.0.1:$postgres_port/arc_test" \
-ARC_MYSQL_TEST_URI="mysql://root:arc_test@127.0.0.1:$mysql_port/arc_test" \
-    yarn vitest run --config Source/Drizzle/vitest.integration.config.ts
+fi
+if [[ "$mode" == 'postgresql' ]]; then
+    ARC_POSTGRES_TEST_URI="postgres://postgres:arc_test@127.0.0.1:$postgres_port/arc_test" \
+        yarn vitest run --config Source/Drizzle/vitest.integration.config.ts --exclude 'Source/Drizzle/**/with_mysql.integration.ts'
+else
+    ARC_POSTGRES_TEST_URI="postgres://postgres:arc_test@127.0.0.1:$postgres_port/arc_test" \
+    ARC_MYSQL_TEST_URI="mysql://root:arc_test@127.0.0.1:$mysql_port/arc_test" \
+        yarn vitest run --config Source/Drizzle/vitest.integration.config.ts
+fi
