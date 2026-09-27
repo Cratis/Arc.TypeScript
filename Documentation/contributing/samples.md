@@ -14,6 +14,7 @@ Run these from the repository root. The `generate-proxies` scripts run the proxy
 | `yarn workspace @cratis/arc.core.sample.tasks generate-proxies` | Regenerates `Samples/Tasks/Features/generatedMetadata.ts`, writes proxies beside its backend slices, and type-checks the proxies |
 | `yarn workspace @cratis/arc.sample.library generate-proxies` | Regenerates `Samples/Library/Features/generatedMetadata.ts` and proxies beside its backend slices |
 | `yarn check:metadata` | Fails when either sample's committed metadata differs from its source |
+| `yarn check:proxies` | Fails when either sample's committed proxies differ from regenerated output, or new proxies are untracked; run after both `generate-proxies` commands |
 | `yarn lint:tasks:arc` | Runs the Arc ESLint rules over `Samples/Tasks/Features` with type information |
 | `yarn test:client-generation` | Builds, regenerates the Tasks proxies, compiles the client fixtures, and runs the generated proxies against Express, Fastify, and Hono |
 
