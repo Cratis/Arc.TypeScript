@@ -4,14 +4,15 @@ import { watch, watchFile, unwatchFile } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 import { sourceProgram } from './sourceProgram.js';
 import type { SourceGeneratorOptions } from './generateFromSource.js';
+import { pathsOverlap } from './pathsOverlap.js';
 
 function externalFiles(configuration: SourceGeneratorOptions, root: string, outputRoot: string): string[] {
     const metadata = configuration.metadata && resolve(configuration.metadata);
+    const separateOutput = !pathsOverlap(root, outputRoot);
     return sourceProgram(configuration.project).getSourceFiles()
         .filter(file => !file.isDeclarationFile && !file.fileName.includes(`${sep}node_modules${sep}`))
         .map(file => resolve(file.fileName)).filter(file => file !== metadata && !file.endsWith('.proxy.ts') &&
-            !file.startsWith(root + sep) && !(outputRoot !== root && !root.startsWith(outputRoot + sep) &&
-                file.startsWith(outputRoot + sep)));
+            !file.startsWith(root + sep) && !(separateOutput && file.startsWith(outputRoot + sep)));
 }
 
 /** Regenerate on changes in artifacts or in external source dependencies. */
@@ -20,7 +21,7 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
     const metadata = configuration.metadata && resolve(configuration.metadata);
     const outputRoot = resolve(configuration.output);
     const watched = new Set(externalFiles(configuration, root, outputRoot));
-    const separateOutput = outputRoot !== root && !root.startsWith(outputRoot + sep);
+    const separateOutput = !pathsOverlap(root, outputRoot);
     let timer: NodeJS.Timeout | undefined, pending: Promise<void> = Promise.resolve();
     const schedule = () => {
         if (timer) clearTimeout(timer);

@@ -1,0 +1,46 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
+import { clientTest as test, scratch } from './scratch.mjs';
+
+const root = resolve(import.meta.dirname, '../..');
+const cli = join(root, 'Source/Tools/ProxyGenerator/dist/cli.js');
+
+test('watch regenerates for handwritten backend changes inside a nested output folder', async () => {
+    const directory = await scratch();
+    const artifacts = join(directory, 'src');
+    const output = join(artifacts, 'Features');
+    await mkdir(output, { recursive: true });
+    const configuration = join(directory, 'tsconfig.json');
+    await writeFile(configuration, JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'ESNext',
+        moduleResolution: 'Bundler', skipLibCheck: true }, include: ['src/**/*.ts'] }));
+    const backend = join(output, 'Save.ts');
+    await writeFile(backend, "import { command } from '@cratis/arc.core';\n@command() export class Save { handle(): void {} }\n");
+    const child = spawn(process.execPath, [cli, '--project', configuration, '--artifacts', artifacts,
+        '--output', output, '--use-proxy-file-suffix', '--watch'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    let text = ''; let errors = '';
+    const closed = new Promise(resolve => child.once('close', resolve));
+    child.stdout.on('data', chunk => { text += chunk.toString(); });
+    child.stderr.on('data', chunk => { errors += chunk.toString(); });
+    async function until(predicate) {
+        for (let attempt = 0; attempt < 400 && !predicate(); attempt++) {
+            assert.equal(child.exitCode, null, `Watch exited: ${errors}`);
+            await setTimeout(50);
+        }
+        assert.ok(predicate(), `Watch timed out: ${text} ${errors}`);
+    }
+    try {
+        await until(() => text.includes('Watch ready\n'));
+        await setTimeout(450);
+        assert.equal((text.match(/Watch change detected/g) ?? []).length, 0, text);
+        await writeFile(backend, "import { command } from '@cratis/arc.core';\n@command() export class Save { handle(): void {} } // changed\n");
+        await until(() => (text.match(/Generated \d+ changed file\(s\)/g) ?? []).length >= 2);
+        await setTimeout(450);
+        assert.equal((text.match(/Watch change detected/g) ?? []).length, 1, text);
+        assert.equal(errors, '');
+    } finally { child.kill('SIGTERM'); await closed; }
+});

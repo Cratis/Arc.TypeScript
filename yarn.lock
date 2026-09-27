@@ -334,11 +334,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@cratis/arc.sample.library@workspace:Samples/Library"
   dependencies:
+    "@cratis/arc": "npm:22.19.1"
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
+    "@cratis/arc.react": "npm:22.19.1"
     "@cratis/arc.testing": "workspace:^"
     "@cratis/chronicle": "npm:6.14.0"
+    "@cratis/components": "npm:4.6.0"
     "@cratis/fundamentals": "npm:7.19.6"
     "@testing-library/dom": "npm:^10.4.2"
     "@testing-library/react": "npm:^16.3.3"
@@ -349,8 +352,10 @@ __metadata:
     jsdom: "npm:^30.1.1"
     react: "npm:^19.2.0"
     react-dom: "npm:^19.2.0"
+    reflect-metadata: "npm:0.2.2"
     rxjs: "npm:^7.8.2"
     tsx: "npm:^4.20.0"
+    tsyringe: "npm:^4.10.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft

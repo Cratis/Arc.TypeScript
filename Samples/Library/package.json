@@ -21,6 +21,9 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@cratis/arc": "22.19.1",
+    "@cratis/arc.react": "22.19.1",
+    "@cratis/components": "4.6.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/jsdom": "^30",
@@ -29,7 +32,9 @@
     "jsdom": "^30.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "reflect-metadata": "0.2.2",
     "tsx": "^4.20.0",
+    "tsyringe": "^4.10.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }

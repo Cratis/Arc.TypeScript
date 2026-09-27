@@ -14,7 +14,7 @@ Features/Authors/Registration/
 └── for_RegisterAuthorForm/when_submitting/with_a_valid_name.tsx
 ```
 
-`yarn test` runs backend `.ts` specs in Node and frontend `.tsx` specs in jsdom. The web tsconfig includes both the components and their specs; backend compilation and artifact discovery ignore frontend files and generated proxies. `Web/package.json` declares Components, so slice imports resolve it from the Library workspace. The web and frontend-test Vite configs deduplicate React, React DOM, Arc, Arc React, and Components across `Web/src` and `Features/`. Components 4's built-in renderer does **not** require PrimeReact.
+`yarn test` runs backend `.ts` specs in Node and frontend `.tsx` specs in jsdom. The web tsconfig includes both the components and their specs; backend compilation and artifact discovery ignore frontend files and generated proxies. `Samples/Library/package.json` declares the frontend packages imported by the slices (`@cratis/components`, `@cratis/arc`, and `@cratis/arc.react`); `Web/package.json` declares its own app-shell dependencies. Vite 8 reads the nearest tsconfig for each proxy in `Features/`, not the web tsconfig, so `Web/vite.config.ts` sets `oxc: { decorator: { legacy: true } }`. Other bundlers reading slices outside the web project also need a legacy decorator transform. The web and frontend-test Vite configs deduplicate React, React DOM, Arc, Arc React, and Components across `Web/src` and `Features/`. Components 4's built-in renderer does **not** require PrimeReact.
 
 ## Mount the providers and styles once
 

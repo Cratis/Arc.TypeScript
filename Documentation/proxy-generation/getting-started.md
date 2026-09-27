@@ -84,7 +84,15 @@ npm install @cratis/arc@22.19.1 @cratis/arc.react@22.19.1 @cratis/fundamentals r
 
 Generated commands and queries import both `@cratis/arc` and the React hooks from `@cratis/arc.react`, even when you only use the classes. Models use `@field` from `@cratis/fundamentals`. `@cratis/arc.react` accepts React 18 or 19.
 
-Import `reflect-metadata` once, before anything else, in the frontend's entry point, as the Library sample's `main.tsx` does. Compile the frontend in `Bundler` module resolution with `experimentalDecorators: true`. The backend tsconfig excludes `**/*.proxy.ts` and `**/*.tsx`; the web tsconfig includes them under `../Features`, without including the backend `.ts` modules. Library's Vite config allows the slice folder outside `Web` and deduplicates React from that location.
+Import `reflect-metadata` once, before anything else, in the frontend's entry point, as the Library sample's `main.tsx` does. Compile the frontend in `Bundler` module resolution with `experimentalDecorators: true`. The backend tsconfig excludes `**/*.proxy.ts` and `**/*.tsx`; the web tsconfig includes them under `../Features`, without including the backend `.ts` modules. Library's Vite config allows the slice folder outside `Web` and deduplicates React from that location. Vite 8's Oxc transform reads the nearest tsconfig **per file**: a proxy in `Features/` does not inherit `Web/tsconfig.json`'s `experimentalDecorators`. Configure Vite explicitly for the proxies' legacy decorator mode:
+
+```typescript title="Web/vite.config.ts (excerpt)"
+export default defineConfig({
+    oxc: { decorator: { legacy: true } }
+});
+```
+
+Other bundlers reading slices outside the web project likewise need a legacy decorator transform; checking only the web tsconfig does not ensure the browser can parse the bundle.
 
 ## Check it compiles
 
@@ -94,7 +102,7 @@ Compile the frontend with its own type check. For the Library sample:
 yarn workspace @cratis/arc.sample.library.web build
 ```
 
-This second checkpoint catches a missing package, a decorator setting, or an import path that does not match the generated folders. A type error that points into a generated file almost always means a package version or compiler setting differs from the ones above, since generated files are never edited by hand.
+The Library build also checks that the production JavaScript parses and the Vite dev transform lowers decorators in a co-located proxy. This second checkpoint catches a missing package, a decorator setting, or an import path that does not match the generated folders. A type error that points into a generated file almost always means a package version or compiler setting differs from the ones above, since generated files are never edited by hand.
 
 ## Keep generation repeatable
 
