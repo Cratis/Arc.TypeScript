@@ -22,8 +22,10 @@ describe('when paging across tenants', given(a_sqlite_database, context => {
         const app = await builder.build();
         const identity = (tenantId: string) => ({ tenantId, principal: undefined, allowedSeverity: Severity.Warning,
             signal: new AbortController().signal, correlationId: crypto.randomUUID() });
-        const a = app.server.services.createScope(identity('a'));
+        const original = identity('a');
+        const a = app.server.services.createScope(original);
         const b = app.server.services.createScope(identity('b'));
+        original.tenantId = 'b';
         try {
             const first = await a.resolve(drizzleReadModel(TaskRecord));
             const second = await b.resolve(drizzleReadModel(TaskRecord));

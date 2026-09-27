@@ -1,20 +1,18 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ExecutionContext } from './ExecutionContext.js';
-import { requestContext } from './RequestContextStore.js';
-import { withGeneratedMetadata } from '../reflection/registerGeneratedMetadata.js';
+import { withExecutionBoundary } from './withExecutionBoundary.js';
 import type { ArtifactMetadata } from '../reflection/ArtifactMetadata.js';
 import type { ClassType } from '../reflection/ClassType.js';
 import type { ServiceRegistry } from '../dependencyInjection/ServiceRegistry.js';
-import { withServices } from '../dependencyInjection/ServiceScope.js';
+import { createOwnedServiceScope } from '../dependencyInjection/ServiceScope.js';
 
 /** Run an operation and its service cleanup in the same execution boundary. */
 export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<ClassType, ArtifactMetadata> | undefined,
     context: ExecutionContext, callback: () => T | Promise<T>, isSuccess: (value: T) => boolean,
     fail: (error: unknown, previous?: T) => T): Promise<T> {
-    const scope = services.createScope(context);
-    return withGeneratedMetadata(metadata, () => services.runExecution(() =>
-        requestContext.run(context, () => withServices(scope, async () => {
+    const scope = createOwnedServiceScope(services, context);
+    return withExecutionBoundary(services, metadata, scope, context, async () => {
         let result: T;
         try { result = await callback(); }
         catch (error) { result = fail(error); }
@@ -23,7 +21,7 @@ export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<Cla
         if (isSuccess(result) && services.singletonFailed)
             result = fail(new Error('Service registry is disposed'), result);
         return result;
-        })), async (initial, hasLivingAncestor) => {
+    }, false, async (initial, hasLivingAncestor) => {
         let result = initial;
         const checkAvailability = (): void => {
             if (isSuccess(result) && services.singletonFailed)
@@ -36,5 +34,5 @@ export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<Cla
         }
         checkAvailability();
         return result;
-    }));
+    });
 }

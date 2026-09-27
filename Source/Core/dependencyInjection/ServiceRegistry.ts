@@ -6,7 +6,7 @@ import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
 import type { ServiceToken } from './ServiceToken.js';
 import { normalizeServiceToken, type ServiceIdentifier } from './ServiceIdentifier.js';
-import { ServiceScope, closeServiceScope, createSingletonServiceScope, disposeCreatedServices, hasLivingServiceDisposal, hasLivingServiceResolution, serviceScopeRegistry, withServiceResolutionBoundary } from './ServiceScope.js';
+import { ServiceScope, closeServiceScope, createBorrowableServiceScope, createSingletonServiceScope, disposeCreatedServices, hasLivingServiceDisposal, hasLivingServiceResolution, serviceScopeRegistry, withServiceResolutionBoundary } from './ServiceScope.js';
 import type { ServiceResolutionNode } from './ServiceResolutionNode.js';
 import type { ServiceExecutionFrame } from './ServiceExecutionFrame.js';
 import { ServiceDependencyError } from './ServiceDependencyError.js';
@@ -107,14 +107,21 @@ export class ServiceRegistry {
         return true;
     }
     /** Keep the pipeline alive until its result and scope cleanup have completed. */
-    async runExecution<T>(callback: () => Promise<T>, completed?: (result: T, hasLivingAncestor: boolean) => Promise<T>): Promise<T> {
+    runExecution<T>(callback: () => Promise<T>, completed?: (result: T, hasLivingAncestor: boolean) => Promise<T>): Promise<T> {
+        return this.trackExecution(() => withServiceResolutionBoundary(callback), completed);
+    }
+    /** @internal Borrowed callbacks preserve the active singleton captive-dependency guard. */
+    runBorrowedExecution<T>(callback: () => Promise<T>): Promise<T> {
+        return this.trackExecution(callback);
+    }
+    private async trackExecution<T>(callback: () => Promise<T>, completed?: (result: T, hasLivingAncestor: boolean) => Promise<T>): Promise<T> {
         this.assertLive();
         let finish!: () => void;
         const completion = new Promise<void>(resolve => { finish = resolve; });
         const frame: ServiceExecutionFrame = { completion, parent: this.#activeExecution.getStore(), state: ServiceExecutionState.Running };
         this.#executions.add(completion);
         let result: T;
-        try { result = await this.#activeExecution.run(frame, () => withServiceResolutionBoundary(callback)); }
+        try { result = await this.#activeExecution.run(frame, callback); }
         finally { frame.state = ServiceExecutionState.Drained; this.#executions.delete(completion); finish(); }
         return completed ? completed(result, this.hasLivingExecution() || hasLivingServiceResolution(this)) : result;
     }
@@ -148,7 +155,7 @@ export class ServiceRegistry {
     }
     createScope(identity: ExecutionContext): ServiceScope {
         this.assertLive();
-        return new ServiceScope(this, identity);
+        return createBorrowableServiceScope(this, identity);
     }
     singletonScope(): ServiceScope { return this.#singletons; }
     /** Directly constructed scopes participate in admission and shutdown too. */

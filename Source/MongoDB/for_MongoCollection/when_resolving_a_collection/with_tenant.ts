@@ -15,7 +15,9 @@ describe('when resolving a collection with a tenant', given(a_tenant_collection,
         const builder = ArcApplication.createBuilder();
         builder.withMongoDB({ client: context.client, database: 'tasks', readModels: [TaskRecord] });
         const application = await builder.build();
-        const scope = application.server.services.createScope(executionContext('acme'));
+        const identity = { ...executionContext('acme') };
+        const scope = application.server.services.createScope(identity);
+        identity.tenantId = 'other';
         try {
             const collection = await scope.resolve(mongoCollection(TaskRecord));
             collectionMatches = Object.is(collection.native, context.collection);
