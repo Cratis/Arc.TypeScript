@@ -79,8 +79,9 @@ export class PostgreSQLObservationManager {
 
     private async start(entry: Entry): Promise<void> {
         const previousClose = this.#tenantCloses.get(entry.tenant);
-        // A failed close is reported on disposal, not inherited by the next lease.
-        if (previousClose) await previousClose.catch(() => {});
+        // A failed close is reported on disposal, not inherited by the next lease. The socket-close barrier stays
+        // in place, but waiting for it is bounded and abortable so a close that never settles cannot hang acquisitions.
+        if (previousClose) await this.bounded(entry, () => previousClose.catch(() => {}));
         if (entry.dead) throw new Error('Drizzle observation was closed');
         const generation = ++entry.generation;
         const connection = await this.bounded(entry, () => Promise.resolve(this.options.listener(entry.tenant, { signal: entry.controller.signal })),

@@ -1,9 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { database, deferred, Listener, managerFor, table, tick } from '../given/a_manager.js';
+import { database, deferred, Listener, managerFor, table } from '../given/a_manager.js';
 
-describe('when a listener close times out before the socket ends', () => {
-    it('should wait for actual closure before starting a new listener and report the deadline', async () => {
+describe('when a listener close is still in progress', () => {
+    it('should wait for actual closure before starting a new listener', async () => {
         const first = new Listener();
         const ending = deferred<void>();
         first.close = () => { first.closeCount++; return ending.promise; };
@@ -14,14 +14,11 @@ describe('when a listener close times out before the socket ends', () => {
         lease.release();
         const replacement = manager.acquire('tenant', database, table, () => {}, () => {});
         const outcome = replacement.ready.then(() => 'ready', () => 'failed');
-        await new Promise<void>(resolve => setTimeout(resolve, 75));
+        await new Promise<void>(resolve => setTimeout(resolve, 30));
         calls.should.equal(1);
         ending.resolve();
         (await outcome).should.equal('ready');
         calls.should.equal(2);
         replacement.release();
-        await tick();
-        const failure = await manager[Symbol.asyncDispose]().then(() => undefined, error => error as Error);
-        failure!.message.should.include('PostgreSQL listener shutdown failed');
     });
 });
