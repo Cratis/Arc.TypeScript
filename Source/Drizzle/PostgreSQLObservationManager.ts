@@ -61,7 +61,8 @@ export class PostgreSQLObservationManager {
                 if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
                 const identity = await this.bounded(owner, () => resolvePostgreSQLTable(database, table, tenant), undefined, false);
                 if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
-                const listenerDatabase = await this.bounded(owner, () => owner.connection!.query('SELECT current_database() AS database'));
+                const listenerDatabase = await this.bounded(owner, () => owner.connection!.query('SELECT current_database() AS database')
+                    .catch(error => { throw new Error(`PostgreSQL observation could not verify the listener database for tenant '${tenant}'`, { cause: error }); }));
                 if (listenerDatabase.rows[0]?.database !== identity.database)
                     throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${tenant}'`);
                 await this.validate(owner, identity);
