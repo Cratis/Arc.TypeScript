@@ -17,6 +17,6 @@ export default defineConfig({
         }
     }],
     resolve: { ...base.resolve, dedupe: ['react', 'react-dom', '@cratis/arc', '@cratis/arc.react', '@cratis/components'] },
-    test: { ...base.test, name: 'library-frontend', environment: 'jsdom', include: ['Features/**/for_*/when_*/*.tsx'],
+    test: { ...base.test, name: 'library-frontend', environment: 'jsdom', include: ['Features/**/for_*/when_*/**/*.tsx', 'Features/**/for_*/**/when_*.tsx'],
         server: { deps: { inline: ['@cratis/components'] } } }
 });
