@@ -8,7 +8,7 @@ describe('when disposing with a rejected factory result still closing', () => {
         const ending = deferred<void>();
         const closeStarted = deferred<void>();
         client.close = () => { client.closeCount++; closeStarted.resolve(); return ending.promise; };
-        const manager = managerFor(() => client, 100);
+        const manager = managerFor(() => client, 60_000); // The close deadline is not under test here.
         const lease = manager.acquire('tenant', database, table, () => {}, () => {});
         await lease.ready.then(() => {}, () => {});
         let disposed = false;
