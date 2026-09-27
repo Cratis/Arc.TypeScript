@@ -5,7 +5,7 @@ import { Client, Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { drizzle as postgresDrizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { pgTable, text } from 'drizzle-orm/pg-core';
+import { alias, pgTable, text } from 'drizzle-orm/pg-core';
 import type { Table } from 'drizzle-orm';
 import { ArcApplication, Severity } from '@cratis/arc.core';
 import { drizzleReadModel } from '../../drizzleToken.js';
@@ -165,6 +165,17 @@ describe('when observing PostgreSQL changes across processes', () => {
             await isolated[Symbol.asyncDispose](); await other.end();
             await admin.query(`DROP DATABASE "${name}"`);
         }
+    });
+    it('should reject an alias even when its name belongs to another existing triggered table', async () => {
+        const aliased = alias(table, 'other_tasks');
+        const model = new DrizzleReadModels(drizzle(first), aliased, Task, 100, undefined,
+            { tenant: 'alias', notifications, postgresql: manager });
+        const stream = collect(model);
+        try {
+            await waitFor(() => stream.errors.length === 1);
+            stream.errors[0]!.message.should.include('aliased');
+            stream.values.should.have.lengthOf(0);
+        } finally { stream.subscription.unsubscribe(); await model[Symbol.asyncDispose](); }
     });
     it('should route a dotted table identifier using PostgreSQL-quoted payloads', async () => {
         const dotted = pgTable('odd.tasks', { id: text('id').primaryKey(), title: text('title').notNull() });

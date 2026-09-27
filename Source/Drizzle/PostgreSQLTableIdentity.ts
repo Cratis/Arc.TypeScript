@@ -18,6 +18,8 @@ export function postgresqlRows(result: unknown): Record<string, unknown>[] {
 /** Resolve through the reader's own Drizzle connection and search_path. */
 export async function resolvePostgreSQLTable(database: DrizzleDatabase, table: Table, tenant: string): Promise<PostgreSQLTableIdentity> {
     if (!is(table, PgTable)) throw new Error('PostgreSQL observation requires a PostgreSQL table');
+    if ((table as unknown as { [key: symbol]: unknown })[Symbol.for('drizzle:IsAlias')])
+        throw new Error('PostgreSQL observation does not support aliased tables; register the base table');
     const config = getTableConfig(table as PgTable);
     const quote = (name: string): string => `"${name.replaceAll('"', '""')}"`;
     const name = config.schema ? `${quote(config.schema)}.${quote(config.name)}` : quote(config.name);

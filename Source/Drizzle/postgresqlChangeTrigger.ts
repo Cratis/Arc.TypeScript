@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { is } from 'drizzle-orm';
 import type { Table } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
-import { is } from 'drizzle-orm';
 
 /** Experimental PostgreSQL migration helper options; the schema is mandatory for schema-less tables. */
 export interface PostgreSQLChangeTriggerOptions { schema?: string; }
@@ -16,6 +16,8 @@ function identifier(value: string): string {
 /** Experimental: return application-owned migration SQL; does not connect or install a trigger. */
 export function postgresqlChangeTrigger(table: Table, options: PostgreSQLChangeTriggerOptions = {}): string {
     if (!is(table, PgTable)) throw new Error('PostgreSQL change trigger requires a PostgreSQL base table');
+    if ((table as unknown as { [key: symbol]: unknown })[Symbol.for('drizzle:IsAlias')])
+        throw new Error('PostgreSQL change trigger does not support aliased tables; use the base table');
     const config = getTableConfig(table as PgTable);
     if (config.schema && options.schema && config.schema !== options.schema)
         throw new Error('PostgreSQL change trigger schema conflicts with the declared table schema');
