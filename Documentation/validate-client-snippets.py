@@ -174,6 +174,7 @@ SNIPPETS: dict[str, Context | None] = {
     "tutorial/books-and-relationships/relational-books-for-author": MODULE,
     "tutorial/books-and-relationships/relational-add-book": MODULE,
     "tutorial/first-slice/relational-author-slice": MODULE,
+    "tutorial/first-slice/typed-command": MODULE,
     "tutorial/first-slice/author-slice": MODULE,
     "tutorial/validation/author-name-rule": MODULE,
     "tutorial/validation/duplicate-name-rule": MODULE,
