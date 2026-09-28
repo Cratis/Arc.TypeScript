@@ -1,5 +1,5 @@
 ```typescript
-// tuple(...) supports several values; keep RiskBand typed here because provided(String) infers boxed String.
+// One typed object keeps RiskBand as its enum; provide() can also return tuple(score, band) for provided(...) handle parameters.
 async provide(): Promise<CreditProfile> {
     const bureau = await currentServices().resolve(CreditBureau);
     const risk = await currentServices().resolve(RiskModel);
