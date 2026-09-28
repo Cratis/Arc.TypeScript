@@ -6,9 +6,8 @@ import type { Subscribable } from './Subscribable.js';
 const cancellationTimeoutMs = 1000;
 const aborted = (): DOMException => new DOMException('Observable query subscription was canceled', 'AbortError');
 
-async function releaseIterator<T>(iterator: AsyncIterator<T>, coordinated: boolean): Promise<void> {
+async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
     if (!iterator.return) return;
-    if (coordinated) { await iterator.return(); return; }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         await Promise.race([
@@ -23,12 +22,12 @@ async function releaseIterator<T>(iterator: AsyncIterator<T>, coordinated: boole
 
 /** Convert a structural observable or async iterable into a cancellable, bounded stream. */
 export async function* toEmissions<T>(source: ObservableSource<T>, signal: AbortSignal,
-    maximumPending = 256, onProducer?: (release: (coordinated: boolean) => Promise<void>) => void): AsyncGenerator<T> {
+    maximumPending = 256, onProducer?: (release: () => Promise<void>) => void): AsyncGenerator<T> {
     if (signal.aborted) return;
     if (Symbol.asyncIterator in source) {
         const iterator = (source as AsyncIterable<T>)[Symbol.asyncIterator]();
         let closing: Promise<void> | undefined;
-        const release = (coordinated: boolean): Promise<void> => closing ??= releaseIterator(iterator, coordinated);
+        const release = (): Promise<void> => closing ??= releaseIterator(iterator);
         onProducer?.(release);
         try {
             while (!signal.aborted) {
@@ -40,7 +39,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
                 if (next.done) return;
                 yield next.value;
             }
-        } finally { await release(false); }
+        } finally { await release(); }
         return;
     }
     const pending: T[] = [];

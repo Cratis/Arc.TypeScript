@@ -60,6 +60,7 @@ export class ArcServer {
     /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
     readonly #ownsServices: boolean;
+    readonly #removeShutdownResource: () => void;
     /** @internal Optional Node WebSocket bridge shutdown. */
     closeWebSockets?: () => Promise<void>;
     /** @internal Register Node WebSocket transport and delivery with the shutdown owner. */
@@ -94,7 +95,7 @@ export class ArcServer {
         this.#hub = new ObservableQueryHub(this);
         this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
         registerObservableCleanup(this, this.#sessions);
-        this.services.addShutdownResource(transaction => {
+        this.#removeShutdownResource = this.services.addShutdownResource(transaction => {
             this.#transaction = transaction;
             this.#sessions.coordinateShutdown(transaction);
             this.#hub.coordinateShutdown(transaction);
@@ -158,7 +159,8 @@ export class ArcServer {
             catch (error) { return Promise.reject(error); }
         }
         if (this.#closing) return this.#closing;
-        const participants = this.services.freezeShutdownParticipants();
+        // Only an owned registry's shutdown starts here; a borrowed registry stays open for its owner.
+        const participants = this.#ownsServices && this.services.freezeShutdownParticipants();
         if (this.#transaction && !this.#ownsServices) {
             if (!this.services.inShutdownParticipant) return this.#closing = this.services.dispose();
             const failures: unknown[] = [];
@@ -176,9 +178,12 @@ export class ArcServer {
         if (this.#transaction || this.#ownsServices && participants)
             return this.#closing = this.services.dispose();
         // With no participants, preserve main's transport-first admission and failure timing.
-        return this.#closing = disposeObservableServer(this.#hub, this.#sessions,
+        const local = disposeObservableServer(this.#hub, this.#sessions,
             this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined,
             this.services, this.#ownsServices);
+        if (this.#ownsServices) return this.#closing = local;
+        // A locally disposed server no longer participates in its borrowed registry's shutdown.
+        return this.#closing = local.finally(this.#removeShutdownResource);
     }
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */
     queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }

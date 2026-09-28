@@ -89,10 +89,11 @@ export class ServiceRegistry {
         this.#participants.add(participant);
         return () => { if (!this.#frozenParticipants) this.#participants.delete(participant); };
     }
-    /** @internal Register resources with the registry-owned shutdown transaction. */
-    addShutdownResource(register: (transaction: ShutdownTransaction) => void): void {
-        this.assertLive();
+    /** @internal Register resources with the registry-owned shutdown transaction; a started shutdown ignores them. */
+    addShutdownResource(register: (transaction: ShutdownTransaction) => void): () => void {
+        if (this.#closing) return () => {};
         this.#shutdownResources.add(register);
+        return () => { this.#shutdownResources.delete(register); };
     }
     /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
@@ -236,7 +237,8 @@ export class ServiceRegistry {
         }
         const completion = Promise.resolve().then(async () => {
             const reported = new Set<unknown>();
-            const record = (error: unknown): void => {
+            // Without participants, keep the original per-failure aggregation.
+            const record = !participants.length ? (error: unknown): void => { errors.push(error); } : (error: unknown): void => {
                 let repeated = false;
                 const leaves = (value: unknown): unknown[] => {
                     const reference = value !== null && (typeof value === 'object' || typeof value === 'function');

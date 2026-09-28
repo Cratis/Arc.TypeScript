@@ -29,6 +29,7 @@ export class HubConnection {
     #closing: Promise<void> | undefined;
     #transportClosing: Promise<void> | undefined;
     #delivery: Promise<void> | undefined;
+    #released = false;
     #closingSubscriptions: readonly HubSubscription[] = [];
 
     constructor(
@@ -176,10 +177,17 @@ export class HubConnection {
                 const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
                 if (failures.length === 1) throw failures[0];
                 if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
-            } finally { this.onClose(); this.onChange(); }
+            } finally { this.releaseConnection(); }
         })();
         void this.#delivery.catch(() => {});
         return this.#delivery;
+    }
+
+    private releaseConnection(): void {
+        if (this.#released) return;
+        this.#released = true;
+        this.onClose();
+        this.onChange();
     }
 
     close(): Promise<void> {
@@ -195,7 +203,11 @@ export class HubConnection {
             });
             let outcomes: PromiseSettledResult<void>[];
             try { outcomes = await Promise.race([Promise.allSettled([transport, delivery]), deadline]); }
-            finally { if (timer) clearTimeout(timer); }
+            finally {
+                if (timer) clearTimeout(timer);
+                // Release the hub admission slot once the deadline settles, even when delivery is still pending.
+                this.releaseConnection();
+            }
             const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
             if (failures.length === 1) throw failures[0];
             if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');

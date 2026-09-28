@@ -32,7 +32,7 @@ export class ObservableQuerySession {
     #terminalFailure: unknown;
     #released = false;
     #transaction: ShutdownTransaction | undefined;
-    #producer: ((coordinated: boolean) => Promise<void>) | undefined;
+    #producer: (() => Promise<void>) | undefined;
     #producerClosing: Promise<void> | undefined;
     readonly #transports: { release: () => Promise<void>; join: () => Promise<void> }[] = [];
 
@@ -98,7 +98,8 @@ export class ObservableQuerySession {
         if (this.#transaction) return;
         this.#transaction = transaction;
         this.cancel();
-        transaction.release(this.releaseProducer());
+        // Release is bounded; a source that has not returned by then is reported when the work phase closes the session.
+        transaction.release(this.releaseProducer().catch(() => {}));
         transaction.work(() => this.joinWork());
         transaction.scope(() => this.finishScope());
         for (const transport of this.#transports) {
@@ -119,7 +120,7 @@ export class ObservableQuerySession {
     /** @internal Abort and return the source cursor independently of the consumer's guard. */
     releaseProducer(): Promise<void> {
         this.cancel();
-        return this.#producerClosing ??= this.#producer?.(!!this.#transaction) ?? Promise.resolve();
+        return this.#producerClosing ??= this.#producer?.() ?? Promise.resolve();
     }
 
     /** @internal Join an admitted stream and its guards only after participants drain. */
