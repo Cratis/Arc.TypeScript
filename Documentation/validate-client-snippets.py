@@ -208,7 +208,6 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/use-current-state-in-a-command/register-customer-validator": MODULE,
     "scenarios/use-current-state-in-a-command/required-order-state": MODULE,
     "scenarios/use-current-state-in-a-command/chronicle-commands": MODULE,
-    "scenarios/use-current-state-in-a-command/seed-events": MODULE,
     "scenarios/use-current-state-in-a-command/pin-read-model": MODULE,
     "frontend/index/open-account": MODULE,
     "frontend/react/commands/index/command-payload": MODULE,
