@@ -26,6 +26,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+python3 "$repo/Documentation/tutorial-e2e/assemble.py" --self-test
 python3 "$repo/Documentation/tutorial-e2e/assemble.py" "$scratch/app" --arc-documentation "$arc_docs"
 mkdir -p "$scratch/arc-packages"
 for package in core mongodb proxygenerator; do

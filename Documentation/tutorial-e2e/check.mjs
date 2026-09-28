@@ -80,19 +80,47 @@ console.log('PASS add books and filtered catalogs');
 const stream = await fetch(base + all, { headers: { ...librarian, accept: 'text/event-stream' } });
 assert.equal(stream.status, 200);
 const readerStream = stream.body.getReader();
-try {
-    // Keep the stream open until after the next write; its subsequent event must
-    // include the newly registered name. A timeout is a failure, not a pass.
-    const fresh = 'N. K. Jemisin';
-    ok(await write(register, { id: randomUUID(), name: fresh }));
-    let text = '';
-    const deadline = Date.now() + 12000;
-    while (!text.includes(fresh) && Date.now() < deadline) {
-        const { value, done } = await Promise.race([readerStream.read(), pause(3000).then(() => { throw Error('Observable query stalled'); })]);
-        if (done) throw Error('Observable query closed without update');
-        text += new TextDecoder().decode(value);
+const decoder = new TextDecoder();
+let pendingFrames = '';
+async function nextDataFrame(deadline, failure) {
+    while (true) {
+        const end = /\r?\n\r?\n/.exec(pendingFrames);
+        if (end) {
+            const frame = pendingFrames.slice(0, end.index);
+            pendingFrames = pendingFrames.slice(end.index + end[0].length);
+            const payload = frame.split(/\r?\n/).filter(line => line.startsWith('data:'))
+                .map(line => line.slice(5).trimStart()).join('\n');
+            if (!payload) continue; // Ignore keepalives, not the first data snapshot.
+            try { return JSON.parse(payload); }
+            catch { throw Error(`Observable query sent invalid JSON data frame: ${payload}`); }
+        }
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw Error(failure);
+        const timer = new AbortController();
+        let chunk;
+        try {
+            chunk = await Promise.race([
+                readerStream.read(),
+                pause(remaining, undefined, { signal: timer.signal }).then(() => { throw Error(failure); })
+            ]);
+        } finally { timer.abort(); }
+        if (chunk.done) throw Error(`Observable query closed: ${failure}`);
+        pendingFrames += decoder.decode(chunk.value, { stream: true });
     }
-    assert.match(text, /N\. K\. Jemisin/, text);
+}
+try {
+    // A keepalive can precede the snapshot. Only write after a complete data frame.
+    const fresh = 'N. K. Jemisin';
+    const initial = await nextDataFrame(Date.now() + 30000, 'Observable query did not send an initial snapshot');
+    assert.equal(initial.isSuccess, true, JSON.stringify(initial));
+    assert.ok(Array.isArray(initial.data), `Invalid initial author snapshot: ${JSON.stringify(initial)}`);
+    assert.ok(!initial.data.some(item => item.name === fresh), 'Fresh author already present in initial snapshot');
+    ok(await write(register, { id: randomUUID(), name: fresh }));
+    const deadline = Date.now() + 12000;
+    while (true) {
+        const update = await nextDataFrame(deadline, `Observable query did not publish a later data frame containing ${fresh}`);
+        if (update.data?.some(item => item.name === fresh)) break;
+    }
     console.log('PASS observable author update');
 } finally { await readerStream.cancel(); }
 // Authentication context changes still cannot bypass protected RenameAuthor.

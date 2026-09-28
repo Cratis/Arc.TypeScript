@@ -137,6 +137,8 @@ jobs:
         run: corepack enable
       - name: Install locked dependencies
         run: yarn install --immutable
+      - name: Check tutorial assembler negative cases
+        run: python3 Documentation/tutorial-e2e/assemble.py --self-test
       - name: Build packages and run scratch tutorial with isolated MongoDB replica set
         env:
           ARC_DOCUMENTATION: ${{ github.workspace }}/.arc-tutorial-source/Documentation
