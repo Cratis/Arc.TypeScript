@@ -5,7 +5,10 @@ import type { DrizzleDatabase } from './DrizzleDatabase.js';
 import type { DrizzleObservationLease } from './DrizzleObservationLease.js';
 import type { PostgreSQLListenerConnection } from './PostgreSQLListenerConnection.js';
 import type { PostgreSQLObservationOptions } from './PostgreSQLObservationOptions.js';
-import { resolvePostgreSQLTable, type PostgreSQLTableIdentity } from './PostgreSQLTableIdentity.js';
+import { DefinitivePostgreSQLObservationError, resolvePostgreSQLTable, type PostgreSQLTableIdentity } from './PostgreSQLTableIdentity.js';
+
+/** A transient reader-side failure during recovery; it spends a retry instead of failing the observation. */
+class ReaderRevalidationError extends Error {}
 
 type Lease = { table: Table; database: DrizzleDatabase; changed: (catchup?: boolean) => void; fail: (error: Error) => void; complete?: () => void; key?: string; released: boolean };
 type Entry = { tenant: string; controller: AbortController; leases: Set<Lease>; identities: Map<Table, PostgreSQLTableIdentity>;
@@ -165,8 +168,9 @@ export class PostgreSQLObservationManager {
             const permissionDenied = (error as { code?: unknown })?.code === '42501';
             if (entry.wasReady && !entry.available && !permissionDenied)
                 this.lost(entry, new Error('PostgreSQL change listener lost: validation failure'));
-            const hint = permissionDenied ? '; check catalog permissions' : '';
-            throw new Error(`PostgreSQL observation cannot inspect triggers for '${identity.key}'${hint}`, { cause: error });
+            const message = `PostgreSQL observation cannot inspect triggers for '${identity.key}'`;
+            if (permissionDenied) throw new DefinitivePostgreSQLObservationError(`${message}; check catalog permissions`, { cause: error });
+            throw new Error(message, { cause: error });
         }
         const row = result.rows[0];
         let reason = 'missing';
@@ -179,7 +183,7 @@ export class PostgreSQLObservationManager {
             else if (Number(row.tgnargs) !== 1 || row.arguments !== `${Buffer.from('arc_changes').toString('hex')}00`) reason = 'channel';
             else return;
         }
-        throw new Error(`PostgreSQL observation trigger invalid for '${identity.key}': ${reason}; apply postgresqlChangeTrigger(...) through an application migration`);
+        throw new DefinitivePostgreSQLObservationError(`PostgreSQL observation trigger invalid for '${identity.key}': ${reason}; apply postgresqlChangeTrigger(...) through an application migration`);
     }
 
     private heartbeat(entry: Entry): void {
@@ -275,20 +279,27 @@ export class PostgreSQLObservationManager {
                     try {
                         const identity = await this.bounded(entry, () => resolvePostgreSQLTable(lease.database, lease.table, entry.tenant), undefined, false);
                         if (identity.key !== lease.key || identity.database !== entry.identities.get(lease.table)?.database)
-                            throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${entry.tenant}'`);
+                            throw new DefinitivePostgreSQLObservationError(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${entry.tenant}'`);
                         const listenerDatabase = await this.bounded(entry, () => entry.connection!.query('SELECT current_database() AS database')
                             .catch(error => {
-                                this.lost(entry, new Error('PostgreSQL change listener lost: database verification failure'));
+                                if (!entry.dead && generation === entry.generation)
+                                    this.lost(entry, new Error('PostgreSQL change listener lost: database verification failure'));
                                 throw error;
                             }));
                         if (listenerDatabase.rows[0]?.database !== identity.database)
-                            throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${entry.tenant}'`);
+                            throw new DefinitivePostgreSQLObservationError(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${entry.tenant}'`);
                         await this.validate(entry, identity);
                         if (entry.controller.signal.aborted) throw new Error('PostgreSQL listener operation timed out');
                         if (!lease.released && !entry.dead) entry.identities.set(lease.table, identity);
                     } catch (error) {
                         if (entry.controller.signal.aborted) throw error;
-                        if (!lease.released) lease.fail(error instanceof Error ? error : new Error(String(error)));
+                        // Only an outcome a retry cannot change fails the observation; a pool error or
+                        // reader timeout spends a bounded retry like any other failed attempt.
+                        if (error instanceof DefinitivePostgreSQLObservationError) {
+                            if (!lease.released) lease.fail(error);
+                            continue;
+                        }
+                        throw new ReaderRevalidationError('PostgreSQL change listener lost: reader revalidation failure', { cause: error });
                     }
                 }
                 if (entry.dead || generation !== entry.generation || !entry.leases.size) return;
@@ -299,9 +310,10 @@ export class PostgreSQLObservationManager {
                 this.heartbeat(entry);
                 for (const lease of [...entry.leases]) if (!lease.released && lease.key) lease.changed(true);
                 return;
-            } catch {
+            } catch (error) {
                 if (entry.dead) return;
-                if (!entry.controller.signal.aborted) this.lost(entry, new Error('PostgreSQL change listener lost: recovery attempt failed'));
+                if (!entry.controller.signal.aborted)
+                    this.lost(entry, error instanceof ReaderRevalidationError ? error : new Error('PostgreSQL change listener lost: recovery attempt failed'));
                 // A failed attempt never resets the retry budget; a successful heartbeat does.
             }
         }
