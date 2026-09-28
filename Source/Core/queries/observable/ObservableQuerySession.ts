@@ -37,10 +37,7 @@ export class ObservableQuerySession {
         this.#scope = createOwnedServiceScope(config.services, this.#context);
         this.#subscription = beginSubscription(
             config.operation.fullyQualifiedName, this.#context.correlationId);
-        onServiceScopeClosed(this.#scope, () => {
-            try { this.#subscription.end(); }
-            finally { this.config.onClose(); }
-        });
+        onServiceScopeClosed(this.#scope, () => this.#subscription.end());
     }
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
@@ -183,7 +180,8 @@ export class ObservableQuerySession {
             // current() has no iterator for close() to join. Keep its scoped guards alive
             // until every already-admitted session operation has settled.
             await Promise.allSettled([...this.#operations]);
-            await this.#scope.dispose();
+            try { await this.#scope.dispose(); }
+            finally { this.config.onClose(); }
         })();
         return this.#scopeClosed;
     }
