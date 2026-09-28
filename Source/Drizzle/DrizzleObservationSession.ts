@@ -20,11 +20,16 @@ export class DrizzleObservationSession<T> {
     #snapshot?: T;
     #emitted = false;
     #pumpPromise?: Promise<void>;
+    #readFinished?: Promise<void>;
+    #finishRead?: () => void;
+    #catchupFinished?: Promise<void>;
+    #finishCatchup?: () => void;
     readonly #readContext = new AsyncResource('DrizzleObservation');
     readonly #cancellations = new Set<(reason: Error) => void>();
     readonly #initial: Promise<T>;
 
-    constructor(private readonly read: () => Promise<T>, listen: (changed: (catchup?: boolean) => void, fail: (error: Error) => void) => DrizzleObservationLease | (() => void),
+    constructor(private readonly read: () => Promise<T>, listen: (changed: (catchup?: boolean) => void, fail: (error: Error) => void,
+        complete: () => void) => DrizzleObservationLease | (() => void),
         private readonly signal: AbortSignal | undefined, private readonly onClose: () => void) {
         if (signal?.aborted) {
             this.#closed = true;
@@ -38,9 +43,12 @@ export class DrizzleObservationSession<T> {
             lease = listen((catchup = false) => {
                 if (this.#closed) return;
                 this.#dirty = true;
-                if (catchup) this.#catchup = true;
+                if (catchup) {
+                    this.#catchup = true;
+                    if (!this.#catchupFinished) this.#catchupFinished = new Promise<void>(resolve => { this.#finishCatchup = resolve; });
+                }
                 if (this.#subscriber || catchup) this.schedule();
-            }, error => this.fail(error));
+            }, error => this.fail(error), () => this.close());
         } catch (error) {
             // The session never started, so its owner has nothing to release.
             signal?.removeEventListener('abort', this.abort);
@@ -74,9 +82,9 @@ export class DrizzleObservationSession<T> {
         try {
             await Promise.race([this.#initial, canceled]);
             if (this.#lease?.whenReady) await Promise.race([this.#lease.whenReady(), canceled]);
-            while (this.#catchup || (this.#lease?.whenReady && this.#running)) {
-                if (this.#closed) throw this.#error ?? new Error('Drizzle observation was closed');
-                await Promise.race([this.pump(), canceled]);
+            if (this.#catchup || (this.#lease?.whenReady && (this.#running || this.#dirty))) {
+                void this.pump();
+                await Promise.race([this.#catchupFinished ?? this.#readFinished ?? Promise.resolve(), canceled]);
             }
             if (this.#closed) throw this.#error ?? new Error('Drizzle observation was closed');
             return { hasValue: true, value: this.#snapshot! };
@@ -89,7 +97,10 @@ export class DrizzleObservationSession<T> {
         this.#subscriber = subscriber;
         void this.#initial.then(async () => {
             if (this.#lease?.whenReady) await this.#lease.whenReady();
-            while (!this.#closed && (this.#catchup || (this.#lease?.whenReady && this.#running))) await this.pump();
+            if (this.#catchup || (this.#lease?.whenReady && (this.#running || this.#dirty))) {
+                void this.pump();
+                await (this.#catchupFinished ?? this.#readFinished);
+            }
             if (this.#closed || subscriber.closed) return;
             this.#emitted = true;
             subscriber.next(this.#snapshot!);
@@ -111,6 +122,7 @@ export class DrizzleObservationSession<T> {
 
     private async readSnapshot(): Promise<T> {
         while (true) {
+            if (this.#closed) throw this.#error ?? new Error('Drizzle observation was closed');
             const generation = await this.#lease?.whenReady?.();
             if (this.#closed) throw this.#error ?? new Error('Drizzle observation was closed');
             let value: T;
@@ -133,11 +145,24 @@ export class DrizzleObservationSession<T> {
             try {
                 while (this.#dirty && !this.#closed) {
                     this.#dirty = false;
-                    const value = await this.readSnapshot();
-                    if (this.#closed) break;
-                    this.#snapshot = value;
-                    this.#catchup = false;
-                    if (this.#emitted) this.#subscriber?.next(value);
+                    const catchingUp = this.#catchup;
+                    this.#readFinished = new Promise<void>(resolve => { this.#finishRead = resolve; });
+                    try {
+                        const value = await this.readSnapshot();
+                        if (this.#closed) break;
+                        this.#snapshot = value;
+                        if (catchingUp) {
+                            this.#catchup = false;
+                            this.#finishCatchup?.();
+                            this.#catchupFinished = undefined;
+                            this.#finishCatchup = undefined;
+                        }
+                        if (this.#emitted) this.#subscriber?.next(value);
+                    } finally {
+                        this.#finishRead?.();
+                        this.#readFinished = undefined;
+                        this.#finishRead = undefined;
+                    }
                 }
             } catch (error) {
                 if (!this.#closed) this.fail(error instanceof Error ? error : new Error(String(error)));
@@ -152,6 +177,9 @@ export class DrizzleObservationSession<T> {
         this.#error = error;
         this.#closed = true;
         this.#catchup = false;
+        this.#finishCatchup?.();
+        this.#catchupFinished = undefined;
+        this.#finishCatchup = undefined;
         this.release();
         for (const cancel of this.#cancellations) cancel(error);
         this.#cancellations.clear();
@@ -174,6 +202,9 @@ export class DrizzleObservationSession<T> {
         if (this.#closed) return;
         this.#closed = true;
         this.#catchup = false;
+        this.#finishCatchup?.();
+        this.#catchupFinished = undefined;
+        this.#finishCatchup = undefined;
         this.release();
         for (const cancel of this.#cancellations) cancel(new Error('Drizzle observation was closed'));
         this.#cancellations.clear();

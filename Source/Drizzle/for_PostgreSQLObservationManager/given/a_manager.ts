@@ -21,7 +21,8 @@ export class Listener implements PostgreSQLListenerConnection {
     disconnect?: (error?: Error) => void;
     closeCount = 0;
     async connect(): Promise<void> {}
-    async query(statement: string, _values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }> {
+    async query(statement: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }> {
+        void values;
         if (statement.includes('current_database')) return { rows: [{ database: 'arc' }] };
         if (statement.includes('pg_trigger')) return { rows: [{ tgtype: 60, tgenabled: 'O', no_predicate: true,
             attributes: '', tgisinternal: false, constraint_oid: '0', tgnargs: 1,

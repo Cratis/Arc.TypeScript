@@ -32,8 +32,7 @@ describe('when one lease changes while a shared listener recovers', () => {
             const failures: Error[] = [];
             const updates: string[] = [];
             const good = manager.acquire('tenant', database, table, forced => { if (forced) updates.push('good'); }, error => failures.push(error));
-            let bad!: DrizzleObservationLease;
-            bad = manager.acquire('tenant', otherDatabase, otherTable, forced => { if (forced) updates.push('bad'); },
+            const bad: DrizzleObservationLease = manager.acquire('tenant', otherDatabase, otherTable, forced => { if (forced) updates.push('bad'); },
                 error => { failures.push(error); bad.release(); });
             try {
                 await Promise.all([good.ready, bad.ready]);
@@ -58,8 +57,7 @@ describe('when one lease changes while a shared listener recovers', () => {
         const failures: Error[] = [];
         const updates: string[] = [];
         const good = manager.acquire('tenant', database, table, forced => { if (forced) updates.push('good'); }, error => failures.push(error));
-        let bad!: DrizzleObservationLease;
-        bad = manager.acquire('tenant', changingReader, otherTable, forced => { if (forced) updates.push('bad'); },
+        const bad: DrizzleObservationLease = manager.acquire('tenant', changingReader, otherTable, forced => { if (forced) updates.push('bad'); },
             error => { failures.push(error); bad.release(); });
         try {
             await Promise.all([good.ready, bad.ready]);

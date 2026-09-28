@@ -18,9 +18,10 @@ describe('when PostgreSQL listener recovery exhausts its retry schedule', () => 
         const two = manager.acquire('tenant', database, table, () => {}, error => errors.push(error));
         try {
             await Promise.all([one.ready, two.ready]);
-            first.disconnect?.();
+            first.disconnect?.(new Error('secret disconnect details'));
             await vi.waitFor(() => errors.should.have.lengthOf(2));
-            errors[0]!.message.should.include('recovery exhausted');
+            errors[0]!.message.should.include("connection failure (tenant 'tenant', recovery exhausted)");
+            errors[0]!.message.should.not.include('secret disconnect');
             errors[0]!.message.should.not.include('secret');
             calls.should.equal(3);
             const next = manager.acquire('tenant', database, table, () => {}, error => errors.push(error));

@@ -7,12 +7,12 @@ import type { PostgreSQLListenerConnection } from './PostgreSQLListenerConnectio
 import type { PostgreSQLObservationOptions } from './PostgreSQLObservationOptions.js';
 import { resolvePostgreSQLTable, type PostgreSQLTableIdentity } from './PostgreSQLTableIdentity.js';
 
-type Lease = { table: Table; database: DrizzleDatabase; changed: (catchup?: boolean) => void; fail: (error: Error) => void; key?: string; released: boolean };
+type Lease = { table: Table; database: DrizzleDatabase; changed: (catchup?: boolean) => void; fail: (error: Error) => void; complete?: () => void; key?: string; released: boolean };
 type Entry = { tenant: string; controller: AbortController; leases: Set<Lease>; identities: Map<Table, PostgreSQLTableIdentity>;
     routing: Map<string, Set<Lease>>; connection?: PostgreSQLListenerConnection; startup: Promise<void>; timer?: ReturnType<typeof setTimeout>;
     retryTimer?: ReturnType<typeof setTimeout>; retryWake?: () => void; dead: boolean; generation: number; available: boolean;
     readiness: Promise<number>; resolveReady: (generation: number) => void; rejectReady: (error: Error) => void;
-    retries: number; wasReady: boolean };
+    retries: number; wasReady: boolean; lossReason?: string; lossCause?: Error };
 
 const reconnectDelaysMs = [500, 1000, 2000, 4000, 8000] as const;
 const readiness = () => {
@@ -38,7 +38,8 @@ export class PostgreSQLObservationManager {
         private readonly delays: readonly number[] = reconnectDelaysMs) {}
 
     /** Acquire without blocking scope resolution; only ready leases may read model rows. */
-    acquire(tenant: string, database: DrizzleDatabase, table: Table, changed: (catchup?: boolean) => void, fail: (error: Error) => void): DrizzleObservationLease {
+    acquire(tenant: string, database: DrizzleDatabase, table: Table, changed: (catchup?: boolean) => void, fail: (error: Error) => void,
+        complete?: () => void): DrizzleObservationLease {
         if (this.#disposed) throw new Error('PostgreSQL change listener has been disposed');
         let entry = this.#entries.get(tenant);
         if (!entry) {
@@ -55,7 +56,7 @@ export class PostgreSQLObservationManager {
             void entry.startup.catch(() => {});
         }
         const owner = entry;
-        const lease: Lease = { table, database, changed, fail, released: false };
+        const lease: Lease = { table, database, changed, fail, complete, released: false };
         owner.leases.add(lease);
         const release = (): void => {
             if (lease.released) return;
@@ -113,7 +114,7 @@ export class PostgreSQLObservationManager {
             } catch (error) { release(); throw error; }
         })();
         void ready.catch(() => {});
-        return { ready, release, whenReady: () => owner.readiness,
+        return { ready, release, whenReady: () => owner.dead || lease.released ? Promise.reject(new Error('Drizzle observation was closed')) : owner.readiness,
             isCurrent: generation => !owner.dead && owner.available && owner.generation === generation };
     }
 
@@ -231,6 +232,8 @@ export class PostgreSQLObservationManager {
         if (entry.dead || entry.controller.signal.aborted) return;
         if (!entry.wasReady) { this.terminate(entry, error); return; }
         const wasAvailable = entry.available;
+        if (wasAvailable) entry.lossReason = error.message;
+        entry.lossCause = new Error(error.message);
         entry.available = false;
         entry.generation++;
         entry.controller.abort();
@@ -251,7 +254,8 @@ export class PostgreSQLObservationManager {
         while (!entry.dead && entry.leases.size) {
             const delay = this.delays[entry.retries++];
             if (delay === undefined) {
-                this.terminate(entry, new Error(`PostgreSQL change listener lost: connection failure (tenant '${entry.tenant}', recovery exhausted)`));
+                this.terminate(entry, new Error(`${entry.lossReason ?? 'PostgreSQL change listener lost: connection failure'} (tenant '${entry.tenant}', recovery exhausted)`,
+                    { cause: entry.lossCause }));
                 return;
             }
             try {
@@ -281,7 +285,7 @@ export class PostgreSQLObservationManager {
                             throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${entry.tenant}'`);
                         await this.validate(entry, identity);
                         if (entry.controller.signal.aborted) throw new Error('PostgreSQL listener operation timed out');
-                        entry.identities.set(lease.table, identity);
+                        if (!lease.released && !entry.dead) entry.identities.set(lease.table, identity);
                     } catch (error) {
                         if (entry.controller.signal.aborted) throw error;
                         if (!lease.released) lease.fail(error instanceof Error ? error : new Error(String(error)));
@@ -289,6 +293,8 @@ export class PostgreSQLObservationManager {
                 }
                 if (entry.dead || generation !== entry.generation || !entry.leases.size) return;
                 entry.available = true;
+                entry.lossReason = undefined;
+                entry.lossCause = undefined;
                 entry.resolveReady(generation);
                 this.heartbeat(entry);
                 for (const lease of [...entry.leases]) if (!lease.released && lease.key) lease.changed(true);
@@ -310,8 +316,9 @@ export class PostgreSQLObservationManager {
         for (const lease of leases) if (!lease.released) lease.fail(error);
     }
 
-    private shutdown(entry: Entry): void {
+    private shutdown(entry: Entry, complete = false): void {
         if (entry.dead) return;
+        const leases = complete ? [...entry.leases] : [];
         entry.dead = true;
         entry.generation++;
         entry.controller.abort();
@@ -320,6 +327,7 @@ export class PostgreSQLObservationManager {
         entry.retryWake?.();
         entry.rejectReady(new Error('Drizzle observation was closed'));
         entry.routing.clear(); entry.identities.clear();
+        for (const lease of leases) if (!lease.released) lease.complete?.();
         if (this.#entries.get(entry.tenant) === entry) this.#entries.delete(entry.tenant);
         if (entry.connection) this.scheduleClose(entry, entry.connection);
     }
@@ -354,7 +362,7 @@ export class PostgreSQLObservationManager {
     [Symbol.asyncDispose](): Promise<void> {
         if (this.#disposal) return this.#disposal;
         this.#disposed = true;
-        for (const entry of [...this.#entries.values()]) this.shutdown(entry);
+        for (const entry of [...this.#entries.values()]) this.shutdown(entry, true);
         this.#disposal = this.drainCloses();
         // Disposal may be initiated without awaiting it. Keep the rejection available to an awaiting
         // caller, but do not let a close failure become an unhandled rejection in that case.
