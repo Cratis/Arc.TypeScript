@@ -42,7 +42,7 @@ describe('when a direct SSE guard awaits participant stop', () => {
         } finally { stopped.release(); await reader.cancel().catch(() => {}); }
     });
     it('should close SSE output before stop and join delivery before scope disposal', () => {
-        events[0].should.equal('stop:true');
+        events[0]!.should.equal('stop:true');
         events.should.include('drain');
         events.should.include('guard completed');
     });
