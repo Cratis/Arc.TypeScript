@@ -30,7 +30,7 @@ describe('when a retired recovery query rejects after a replacement becomes avai
             failures.should.have.lengthOf(0);
             replacement.notification?.('arc_changes', 'app.tasks');
             updates.should.deep.equal([true, false]);
-            await lease.whenReady();
+            await lease.whenReady!();
             connections.should.equal(3);
         } finally { lease.release(); await manager[Symbol.asyncDispose](); }
     });
