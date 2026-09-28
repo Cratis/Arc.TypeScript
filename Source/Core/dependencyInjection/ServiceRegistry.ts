@@ -68,6 +68,7 @@ export class ServiceRegistry {
         this.assertLive();
         if (!participant || typeof participant.stop !== 'function' || typeof participant.drain !== 'function')
             throw new ServiceDependencyError('Invalid shutdown participant');
+        this.assertLive();
         this.#participants.add(participant);
         return () => { this.#participants.delete(participant); };
     }
@@ -210,17 +211,15 @@ export class ServiceRegistry {
             const errors: unknown[] = [];
             const reported = new Set<unknown>();
             const record = (error: unknown): void => {
-                const leaves = (value: unknown): unknown[] => value instanceof AggregateError && value.errors.length
-                    ? value.errors.flatMap(leaves) : [value];
-                const values = leaves(error);
-                const unseen: unknown[] = [];
-                for (const value of values) {
+                let repeated = false;
+                const leaves = (value: unknown): unknown[] => {
                     const reference = value !== null && (typeof value === 'object' || typeof value === 'function');
-                    if (reference && reported.has(value)) continue;
-                    unseen.push(value);
+                    if (reference && reported.has(value)) { repeated = true; return []; }
                     if (reference) reported.add(value);
-                }
-                if (unseen.length) errors.push(unseen.length === values.length ? error : new AggregateError(unseen, 'Service disposal failed'));
+                    return value instanceof AggregateError && value.errors.length ? value.errors.flatMap(leaves) : [value];
+                };
+                const unseen = leaves(error);
+                if (unseen.length) errors.push(repeated ? new AggregateError(unseen, 'Service disposal failed') : error);
             };
             try {
                 // Close admission and transport before participant stop; leave session-owned

@@ -36,18 +36,30 @@ export async function disposeObservableServer(hub: ObservableQueryHub, sessions:
         if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     })();
     onTransportClosing?.(transport);
-    try { await transport; } catch { /* Keep collecting registry disposal failures. */ }
+    let transportFailure: unknown;
+    let transportRejected = false;
+    try { await transport; }
+    catch (error) { transportFailure = error; transportRejected = true; }
     if (ownsServices) {
         try { await services.dispose(); }
         catch (error) {
-            // Registry shutdown may have joined this same transport teardown. Keep each
-            // original failure once, even when it is nested in the registry aggregate.
+            // The registry cleanup hook joins this same transport promise. Account for its
+            // leaves once by provenance, even when a leaf is a primitive also thrown elsewhere.
+            const leaves = (failure: unknown): unknown[] => failure instanceof AggregateError && failure.errors.length
+                ? failure.errors.flatMap(leaves) : [failure];
+            const joined = onTransportClosing && transportRejected ? leaves(transportFailure) : [];
+            const seenAggregates = new Set<AggregateError>();
             const collect = (failure: unknown): void => {
-                const reference = failure !== null && (typeof failure === 'object' || typeof failure === 'function');
-                if (reference && failures.includes(failure)) return;
                 if (failure instanceof AggregateError && failure.errors.length) {
+                    if (seenAggregates.has(failure) || failures.includes(failure)) return;
+                    seenAggregates.add(failure);
                     for (const nested of failure.errors) collect(nested);
-                } else failures.push(failure);
+                    return;
+                }
+                const index = joined.findIndex(value => Object.is(value, failure));
+                if (index !== -1) { joined.splice(index, 1); return; }
+                const reference = failure !== null && (typeof failure === 'object' || typeof failure === 'function');
+                if (!reference || !failures.includes(failure)) failures.push(failure);
             };
             if (failures.length) collect(error);
             else failures.push(error);
