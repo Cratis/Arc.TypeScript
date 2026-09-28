@@ -1,21 +1,8 @@
 ```typescript
 import { field } from '@cratis/fundamentals';
-import { command, commandReadModel, inject, key, roles } from '@cratis/arc.core';
+import { command, commandReadModel, inject, key } from '@cratis/arc.core';
 
 @command()
-@roles('Librarian')
-export class RegisterAuthor {
-    @field(AuthorId) id!: AuthorId;
-    @field(AuthorName) name!: AuthorName;
-
-    @inject(AuthorRepository)
-    handle(authors: AuthorRepository): Promise<void> {
-        return authors.save({ id: this.id, name: this.name });
-    }
-}
-
-@command()
-@roles('Librarian')
 export class RenameAuthor {
     @field(AuthorId) @key() id!: AuthorId;
     @field(AuthorName) newName!: AuthorName;
@@ -26,4 +13,5 @@ export class RenameAuthor {
         await authors.save(author);
     }
 }
+// Configure Author as a MongoDB-owned read model; Arc will look it up by the declared key.
 ```
