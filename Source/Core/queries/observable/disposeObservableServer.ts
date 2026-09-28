@@ -43,8 +43,9 @@ export async function disposeObservableServer(hub: ObservableQueryHub, sessions:
             // Registry shutdown may have joined this same transport teardown. Keep each
             // original failure once, even when it is nested in the registry aggregate.
             const collect = (failure: unknown): void => {
-                if (failures.includes(failure)) return;
-                if (failure instanceof AggregateError) {
+                const reference = failure !== null && (typeof failure === 'object' || typeof failure === 'function');
+                if (reference && failures.includes(failure)) return;
+                if (failure instanceof AggregateError && failure.errors.length) {
                     for (const nested of failure.errors) collect(nested);
                 } else failures.push(failure);
             };

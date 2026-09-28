@@ -5,7 +5,7 @@ import type { QueryResult } from '../QueryResult.js';
 import { hasFailure, originalFailure } from '../../execution/failureTracking.js';
 import { queryResult } from '../createQueryResult.js';
 import { requestContext } from '../../execution/RequestContextStore.js';
-import { createOwnedServiceScope, withServices } from '../../dependencyInjection/ServiceScope.js';
+import { createOwnedServiceScope, onServiceScopeClosed, withServices } from '../../dependencyInjection/ServiceScope.js';
 import type { ObservableSource } from './ObservableSource.js';
 import { toEmissions } from './toEmissions.js';
 import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
@@ -37,6 +37,10 @@ export class ObservableQuerySession {
         this.#scope = createOwnedServiceScope(config.services, this.#context);
         this.#subscription = beginSubscription(
             config.operation.fullyQualifiedName, this.#context.correlationId);
+        onServiceScopeClosed(this.#scope, () => {
+            try { this.#subscription.end(); }
+            finally { this.config.onClose(); }
+        });
     }
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
@@ -86,7 +90,7 @@ export class ObservableQuerySession {
         return this.guarded(result);
     }
 
-    /** Stop emissions before closing the session and its scope. */
+    /** @internal Stop emissions before closing the session and its scope. */
     cancel(): void { this.#controller.abort(); }
 
     /** Cancel the producer, release its iterator, and dispose the scope exactly once. */
@@ -165,7 +169,7 @@ export class ObservableQuerySession {
     }
 
     private closeScope(): Promise<void> {
-        if (this.config.services.disposed && this.config.services.hasShutdownParticipants) {
+        if (this.config.services.disposed && this.config.services.hasShutdownParticipants && this.config.deferScopeDisposal()) {
             this.releaseAdmission();
             return Promise.resolve();
         }
@@ -180,10 +184,7 @@ export class ObservableQuerySession {
             // until every already-admitted session operation has settled.
             await Promise.allSettled([...this.#operations]);
             await this.#scope.dispose();
-        })().finally(() => {
-            try { this.#subscription.end(); }
-            finally { this.config.onClose(); }
-        });
+        })();
         return this.#scopeClosed;
     }
 

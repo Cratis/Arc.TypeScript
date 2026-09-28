@@ -87,7 +87,7 @@ export class ArcServer {
         this.routes = table.routes;
         this.endpoints = table.endpoints;
         this.#hub = new ObservableQueryHub(this);
-        this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
+        this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName, this.#ownsServices);
         registerObservableCleanup(this, this.#sessions);
         if (this.#ownsServices) this.services.addShutdownCleanup(
             () => {

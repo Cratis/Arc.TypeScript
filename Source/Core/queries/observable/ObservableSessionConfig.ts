@@ -20,4 +20,5 @@ export interface ObservableSessionConfig {
     readonly reportFailure: (error: unknown) => Promise<void>;
     readonly onRelease: () => void;
     readonly onClose: () => void;
+    readonly deferScopeDisposal: () => boolean;
 }

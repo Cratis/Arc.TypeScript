@@ -210,12 +210,17 @@ export class ServiceRegistry {
             const errors: unknown[] = [];
             const reported = new Set<unknown>();
             const record = (error: unknown): void => {
-                const leaves = (value: unknown): unknown[] => value instanceof AggregateError
+                const leaves = (value: unknown): unknown[] => value instanceof AggregateError && value.errors.length
                     ? value.errors.flatMap(leaves) : [value];
-                const unseen = leaves(error).filter(value => !reported.has(value));
-                if (!unseen.length) return;
-                for (const value of unseen) reported.add(value);
-                errors.push(unseen.length === leaves(error).length ? error : new AggregateError(unseen, 'Service disposal failed'));
+                const values = leaves(error);
+                const unseen: unknown[] = [];
+                for (const value of values) {
+                    const reference = value !== null && (typeof value === 'object' || typeof value === 'function');
+                    if (reference && reported.has(value)) continue;
+                    unseen.push(value);
+                    if (reference) reported.add(value);
+                }
+                if (unseen.length) errors.push(unseen.length === values.length ? error : new AggregateError(unseen, 'Service disposal failed'));
             };
             try {
                 // Close admission and transport before participant stop; leave session-owned
@@ -232,10 +237,8 @@ export class ServiceRegistry {
                     const stops: Promise<unknown>[] = [];
                     for (const [index, participant] of participants.entries()) {
                         try {
-                            const returned: unknown = this.#activeParticipant.run(frames[index]!, () => participant.stop());
-                            if (returned && (typeof returned === 'object' || typeof returned === 'function') &&
-                                typeof (returned as PromiseLike<unknown>).then === 'function')
-                                stops.push(Promise.resolve(returned));
+                            // Assimilate structural thenables while the participant frame is active.
+                            stops.push(this.#activeParticipant.run(frames[index]!, () => Promise.resolve(participant.stop())));
                         } catch (error) { record(error); }
                     }
                     const stopped = await Promise.allSettled(stops);

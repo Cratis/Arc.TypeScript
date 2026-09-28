@@ -24,7 +24,8 @@ export class ObservableSessions {
     #disposed = false;
 
     constructor(private readonly options: ArcOptions, private readonly services: ServiceRegistry,
-        private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>) {}
+        private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>,
+        private readonly serverOwnsServices = false) {}
 
     get sessions(): readonly ObservableQuerySession[] {
         return [...new Set([...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
@@ -90,6 +91,7 @@ export class ObservableSessions {
                 exposeExceptionDetails: exposeExceptionDetails(this.options),
                 pendingEmissions: this.observableLimits.pendingEmissions,
                 reportFailure: error => Promise.resolve(this.options.logger?.(error, context.correlationId)),
+                deferScopeDisposal: () => this.serverOwnsServices && !!held.session && this.sessions.includes(held.session),
                 onRelease: () => {
                     if (!held.session) return;
                     this.#observableSessions.delete(held.session);
