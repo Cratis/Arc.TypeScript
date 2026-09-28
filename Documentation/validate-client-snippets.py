@@ -114,12 +114,18 @@ class Context:
     `<<SNIPPET>>` where the fragment goes. `imports` are the framework imports a member
     fragment relies on without showing them. `siblings` are other snippets a snippet imports
     by relative path, as `(module file stem, snippet id)`, so a spec compiles against the
-    very command snippet the page shows beside it.
+    very command snippet the page shows beside it. `sources` are repository files a snippet
+    imports by relative path, as `(module file stem, repository-relative path)`, copied
+    verbatim so the snippet compiles against the sample file it mirrors. `fixture_imports`
+    lets a snippet use fixture names it does not import; turn it off for a snippet whose
+    own imports are part of what the reader copies, so a missing import fails.
     """
 
     host: str = ""
     imports: tuple[str, ...] = ()
     siblings: tuple[tuple[str, str], ...] = ()
+    sources: tuple[tuple[str, str], ...] = ()
+    fixture_imports: bool = True
 
 
 MODULE = Context()
@@ -156,11 +162,23 @@ export class RegisterAuthor {
 }
 """
 
+# The capstone mirrors the Library sample's Features/Authors layout: its command and read
+# model import the author concepts from `../AuthorId.js` and `../AuthorName.js`.
+CAPSTONE_CONCEPTS = Context(
+    siblings=(("../AuthorId", "capstone/author-id"),),
+    sources=(("../AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+    fixture_imports=False,
+)
+
 # Site-owned pages (the capstone and the vertical-slice series) live in Documentation/web rather
 # than Arc/Documentation, so the shared Arc page scan cannot find their macros.
 # Keep these exceptions explicit so other unreferenced snippet ids still fail.
 SITE_ONLY_SNIPPETS = {
     "guides/chronicle/event-from-command",
+    "capstone/host",
+    "capstone/author-id",
+    "capstone/register-author",
+    "capstone/author-read-model",
     "scenarios/vertical-slices/state-view/author-list",
     "scenarios/vertical-slices/state-view/fluent-projection",
     "scenarios/vertical-slices/state-change/concepts",
@@ -178,6 +196,13 @@ SITE_ONLY_SNIPPETS = {
 # The checked-in inventory: shared Arc page ids plus site-owned page ids.
 # `None` means the file must state that TypeScript does not support the workflow yet.
 SNIPPETS: dict[str, Context | None] = {
+    "capstone/host": MODULE,
+    "capstone/author-id": MODULE,
+    "capstone/register-author": CAPSTONE_CONCEPTS,
+    "capstone/author-read-model": Context(siblings=(("../Registration/Registration", "capstone/register-author"),
+                                                    *CAPSTONE_CONCEPTS.siblings),
+                                          sources=CAPSTONE_CONCEPTS.sources,
+                                          fixture_imports=False),
     "scenarios/vertical-slices/state-view/author-list": MODULE,
     "scenarios/vertical-slices/state-view/fluent-projection": MODULE,
     "scenarios/vertical-slices/state-change/concepts": MODULE,
@@ -721,6 +746,8 @@ def module_source(snippet: Snippet, context: Context, exports: dict[str, tuple[s
     taken = set(DECLARATION_RE.findall(code)) | imported_names(all_imports)
     fixture_imports: dict[str, list[str]] = {}
     for name, (fixture, type_only) in sorted(exports.items()):
+        if not context.fixture_imports:
+            break
         if name in taken or not re.search(rf"(?<![\w$.]){re.escape(name)}(?![\w$])", code):
             continue
         fixture_imports.setdefault(fixture, []).append(f"type {name}" if type_only else name)
@@ -768,7 +795,7 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
         directories[f"snippets/{slug(snippet.id)}"] = snippet.id
         (directory / "snippet.ts").write_text(module_source(snippet, context, exports), encoding="utf-8")
         files.append(f"snippets/{slug(snippet.id)}/snippet.ts")
-        if snippet.id == "arc-without-event-sourcing/standalone-host":
+        if snippet.id in ("arc-without-event-sourcing/standalone-host", "capstone/host"):
             # The host imports metadata generated into its Features root. The fixture only
             # types that import; runtime discovery/validation is checked separately.
             features = directory / "Features"
@@ -784,8 +811,21 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             sibling_context = inventory.get(sibling_id)
             if sibling is None or sibling_context is None:
                 raise SnippetError(f"{snippet.id} imports ./{stem}.js from {sibling_id}, which is not a compilable snippet")
-            (directory / f"{stem}.ts").write_text(module_source(sibling, sibling_context, exports), encoding="utf-8")
-            files.append(f"snippets/{slug(snippet.id)}/{stem}.ts")
+            sibling_path = (directory / f"{stem}.ts").resolve()
+            if not sibling_path.is_relative_to(project.resolve() / "snippets"):
+                raise SnippetError(f"{snippet.id} imports sibling {stem!r} outside the generated project")
+            sibling_path.parent.mkdir(parents=True, exist_ok=True)
+            sibling_path.write_text(module_source(sibling, sibling_context, exports), encoding="utf-8")
+            files.append(sibling_path.relative_to(project.resolve()).as_posix())
+            directories[sibling_path.parent.relative_to(project.resolve()).as_posix()] = sibling_id
+        for stem, source in context.sources:
+            source_path = (directory / f"{stem}.ts").resolve()
+            if not source_path.is_relative_to(project.resolve() / "snippets"):
+                raise SnippetError(f"{snippet.id} imports source {stem!r} outside the generated project")
+            source_path.parent.mkdir(parents=True, exist_ok=True)
+            source_path.write_text((REPO_ROOT / source).read_text(encoding="utf-8"), encoding="utf-8")
+            files.append(source_path.relative_to(project.resolve()).as_posix())
+            directories.setdefault(source_path.parent.relative_to(project.resolve()).as_posix(), snippet.id)
     tsconfig = {
         "extends": str(BASE_TSCONFIG),
         "compilerOptions": {
@@ -796,7 +836,7 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             "incremental": False,
             "noEmit": True,
         },
-        "files": files,
+        "files": list(dict.fromkeys(files)),
     }
     (project / "tsconfig.json").write_text(json.dumps(tsconfig, indent=4) + "\n", encoding="utf-8")
     return directories
@@ -925,7 +965,12 @@ PLANTED_COMPILE_FAILURES: dict[str, tuple[str, str]] = {
     "self-test/type-only-import": (
         "```typescript\nimport { ObservableSource } from '@cratis/arc.core';\n\n"
         "export type Source = ObservableSource<string>;\n```\n", "TS1484"),
+    # A fixture name used without its import, where the snippet's own imports must be complete.
+    "self-test/missing-import": ("```typescript\nexport const name = new AuthorName('Ursula');\n```\n", "TS2304"),
 }
+
+# Planted snippets compiled with a context other than MODULE.
+PLANTED_CONTEXTS: dict[str, Context] = {"self-test/missing-import": Context(fixture_imports=False)}
 
 
 def plant(root: Path, files: dict[str, str]) -> None:
@@ -992,7 +1037,8 @@ def self_test() -> int:
         compile_files = {"self-test/clean": VALID_COMMAND,
                          **{snippet_id: content for snippet_id, (content, _) in PLANTED_COMPILE_FAILURES.items()}}
         plant(compile_root, compile_files)
-        compile_inventory: dict[str, Context | None] = {snippet_id: MODULE for snippet_id in compile_files}
+        compile_inventory: dict[str, Context | None] = {snippet_id: PLANTED_CONTEXTS.get(snippet_id, MODULE)
+                                                        for snippet_id in compile_files}
         problems, compiled, _ = validate(compile_root, compile_inventory, None, FIXTURES)
         reported = {problem.split(" does not compile", 1)[0]: problem for problem in problems
                     if " does not compile" in problem}
