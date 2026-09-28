@@ -7,7 +7,7 @@ import { fromEvent } from '@cratis/chronicle/projections';
 import type { Observable } from 'rxjs';
 
 @eventType()
-class AuthorRegistered {
+export class AuthorRegistered {
     @field(AuthorName) firstName: AuthorName;
     @field(AuthorName) lastName: AuthorName;
     constructor(firstName: AuthorName, lastName: AuthorName) {
@@ -18,7 +18,7 @@ class AuthorRegistered {
 
 @readModel()
 @fromEvent(AuthorRegistered)
-class Author {
+export class Author {
     @field(AuthorId) id!: AuthorId;
     @field(AuthorName) firstName!: AuthorName;
     @field(AuthorName) lastName!: AuthorName;

@@ -10,7 +10,7 @@ of the backend language tabs that the shared Arc pages render through
 snippets in Arc.Kotlin. Nothing in a Markdown file is compiled by anything else, so without
 this gate a renamed decorator or an invented API keeps rendering on the published site.
 
-The gate checks two things:
+The gate checks three things:
 
 * The snippet contract. Every file holds exactly one fence and nothing else. The fence is
   either `typescript`, or `text` holding the explicit statement that TypeScript does not
@@ -28,6 +28,9 @@ The gate checks two things:
   `tsconfig.json` (strict, standard decorators, `verbatimModuleSyntax`,
   `noUncheckedIndexedAccess`) and resolves `@cratis/arc.core`, `@cratis/fundamentals`,
   `zod` and `vitest` from this repository's `node_modules`, then runs the workspace `tsc`.
+* State View discovery. After compilation, `check-state-view-discovery.py` exercises the
+  published fences through Arc source proxy analysis, Node artifact discovery and the
+  Chronicle projection compiler, including the registered read-model schema.
 
 Module resolution is `Bundler`, matching the repository's example applications.
 Fundamentals 7.19.6 also resolves under NodeNext; `--self-test` plants a concept
@@ -761,6 +764,11 @@ def run(arguments: argparse.Namespace) -> int:
         for problem in problems:
             print(f"FAIL {problem}", file=sys.stderr)
         print(f"{len(problems)} snippet problem(s).", file=sys.stderr)
+        return EXIT_DEFECTS
+    discovery = subprocess.run([sys.executable, str(Path(__file__).with_name("check-state-view-discovery.py"))],
+                               check=False)
+    if discovery.returncode:
+        print("FAIL State View discovery/projection check", file=sys.stderr)
         return EXIT_DEFECTS
     shared = f", matched against {arc_documentation}" if arc_documentation else ""
     print(f"Checked {compiled + unsupported} TypeScript snippet ids{shared}: {compiled} compiled, "
