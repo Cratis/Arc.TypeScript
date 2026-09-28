@@ -2,6 +2,8 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { command, key } from '@cratis/arc.core';
+import { AuthorId } from '../AuthorId.js';
+import { AuthorName } from '../AuthorName.js';
 
 @eventType()
 export class AuthorRegistered {

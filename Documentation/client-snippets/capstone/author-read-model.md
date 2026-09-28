@@ -5,6 +5,8 @@ import { ChronicleReadModels } from '@cratis/arc.chronicle';
 import type { Observable } from 'rxjs';
 import { fromEvent } from '@cratis/chronicle/projections';
 import { AuthorRegistered } from '../Registration/Registration.js';
+import { AuthorId } from '../AuthorId.js';
+import { AuthorName } from '../AuthorName.js';
 
 @readModel()
 @fromEvent(AuthorRegistered)

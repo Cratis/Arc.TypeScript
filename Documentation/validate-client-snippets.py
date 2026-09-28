@@ -107,12 +107,15 @@ class Context:
     `<<SNIPPET>>` where the fragment goes. `imports` are the framework imports a member
     fragment relies on without showing them. `siblings` are other snippets a snippet imports
     by relative path, as `(module file stem, snippet id)`, so a spec compiles against the
-    very command snippet the page shows beside it.
+    very command snippet the page shows beside it. `sources` are repository files a snippet
+    imports by relative path, as `(module file stem, repository-relative path)`, copied
+    verbatim so the snippet compiles against the sample file it mirrors.
     """
 
     host: str = ""
     imports: tuple[str, ...] = ()
     siblings: tuple[tuple[str, str], ...] = ()
+    sources: tuple[tuple[str, str], ...] = ()
 
 
 MODULE = Context()
@@ -149,6 +152,13 @@ export class RegisterAuthor {
 }
 """
 
+# The capstone mirrors the Library sample's Features/Authors layout: its command and read
+# model import the author concepts from `../AuthorId.js` and `../AuthorName.js`.
+CAPSTONE_CONCEPTS = Context(
+    siblings=(("../AuthorId", "capstone/author-id"),),
+    sources=(("../AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+)
+
 # The capstone is authored in Documentation/web rather than Arc/Documentation; the
 # shared Arc page scan cannot find its macro. Keep this exception explicit so other
 # unreferenced snippet ids still fail the inventory check.
@@ -159,8 +169,10 @@ SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command", "capstone/host", "c
 SNIPPETS: dict[str, Context | None] = {
     "capstone/host": MODULE,
     "capstone/author-id": MODULE,
-    "capstone/register-author": MODULE,
-    "capstone/author-read-model": Context(siblings=(("../Registration/Registration", "capstone/register-author"),)),
+    "capstone/register-author": CAPSTONE_CONCEPTS,
+    "capstone/author-read-model": Context(siblings=(("../Registration/Registration", "capstone/register-author"),
+                                                    *CAPSTONE_CONCEPTS.siblings),
+                                          sources=CAPSTONE_CONCEPTS.sources),
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -675,6 +687,14 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             sibling_path.write_text(module_source(sibling, sibling_context, exports), encoding="utf-8")
             files.append(sibling_path.relative_to(project.resolve()).as_posix())
             directories[sibling_path.parent.relative_to(project.resolve()).as_posix()] = sibling_id
+        for stem, source in context.sources:
+            source_path = (directory / f"{stem}.ts").resolve()
+            if not source_path.is_relative_to(project.resolve() / "snippets"):
+                raise SnippetError(f"{snippet.id} imports source {stem!r} outside the generated project")
+            source_path.parent.mkdir(parents=True, exist_ok=True)
+            source_path.write_text((REPO_ROOT / source).read_text(encoding="utf-8"), encoding="utf-8")
+            files.append(source_path.relative_to(project.resolve()).as_posix())
+            directories.setdefault(source_path.parent.relative_to(project.resolve()).as_posix(), snippet.id)
     tsconfig = {
         "extends": str(BASE_TSCONFIG),
         "compilerOptions": {
@@ -685,7 +705,7 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             "incremental": False,
             "noEmit": True,
         },
-        "files": files,
+        "files": list(dict.fromkeys(files)),
     }
     (project / "tsconfig.json").write_text(json.dumps(tsconfig, indent=4) + "\n", encoding="utf-8")
     return directories
