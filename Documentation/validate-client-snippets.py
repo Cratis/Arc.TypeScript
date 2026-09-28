@@ -166,10 +166,12 @@ SNIPPETS: dict[str, Context | None] = {
     "arc-without-event-sourcing/register-author": MODULE,
     "arc-without-event-sourcing/rename-author": MODULE,
     "arc-without-event-sourcing/standalone-host": MODULE,
-    "tutorial/authorization/development-header-adapter": None,
+    "tutorial/authorization/development-header-adapter": MODULE,
     "tutorial/authorization/development-authentication-middleware": None,
     "tutorial/validation/relational-duplicate-name-rule": MODULE,
     "tutorial/validation/mongodb-unique-index": None,
+    "tutorial/validation/relational-unique-name": None,
+    "tutorial/books-and-relationships/relational-books-for-author": MODULE,
     "tutorial/books-and-relationships/relational-add-book": MODULE,
     "tutorial/first-slice/relational-author-slice": MODULE,
     "tutorial/first-slice/author-slice": MODULE,
@@ -186,7 +188,7 @@ SNIPPETS: dict[str, Context | None] = {
     "tutorial/real-time/observable-query": Context(
         host=AUTHOR_READ_MODEL,
         imports=(FUNDAMENTALS_FIELD,
-                 "import { query, readModel, service } from '@cratis/arc.core';", "import type { BehaviorSubject } from 'rxjs';")),
+                 "import { query, readModel, service, type ObservableSource } from '@cratis/arc.core';")),
     "scenarios/provide-data-to-a-command/assess-loan": MODULE,
     "scenarios/provide-data-to-a-command/test-the-decision": Context(
         siblings=(("AssessLoan", "scenarios/provide-data-to-a-command/assess-loan"),)),
@@ -234,7 +236,6 @@ FIXTURES: dict[str, str] = {
     "library": """
         import { ConceptAs, field, Guid } from '@cratis/fundamentals';
         import { command, inject, readModel, type ObservableSource } from '@cratis/arc.core';
-        import type { BehaviorSubject } from 'rxjs';
 
         export class AuthorId extends ConceptAs<Guid> {
             static readonly valueType = Guid;
@@ -260,7 +261,7 @@ FIXTURES: dict[str, str] = {
         export abstract class AuthorRepository {
             abstract save(author: Author): Promise<void>;
             abstract all(): Promise<Author[]>;
-            abstract observeAll(): BehaviorSubject<Author[]>;
+            abstract observeAll(): ObservableSource<Author[]>;
             abstract findById(id: AuthorId, signal?: AbortSignal): Promise<Author | undefined>;
             abstract existsByName(name: AuthorName, signal?: AbortSignal): Promise<boolean>;
         }

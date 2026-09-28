@@ -3,7 +3,7 @@ import { field } from '@cratis/fundamentals';
 import { command, commandReadModel, inject, key } from '@cratis/arc.core';
 
 @command()
-class RenameKnownAuthor {
+export class RenameAuthor {
     @field(AuthorId) @key() id!: AuthorId;
     @field(AuthorName) newName!: AuthorName;
 

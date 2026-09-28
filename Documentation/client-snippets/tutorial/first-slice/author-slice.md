@@ -1,7 +1,6 @@
 ```typescript
 import { field } from '@cratis/fundamentals';
-import { command, inject, query, readModel, service } from '@cratis/arc.core';
-import type { BehaviorSubject } from 'rxjs';
+import { command, inject, query, readModel, service, type ObservableSource } from '@cratis/arc.core';
 
 @command()
 export class RegisterAuthor {
@@ -20,7 +19,7 @@ export class Author {
     @field(AuthorName) name!: AuthorName;
 
     @query({ observable: true }, service(AuthorRepository))
-    static allAuthors(authors: AuthorRepository): BehaviorSubject<Author[]> {
+    static allAuthors(authors: AuthorRepository): ObservableSource<Author[]> {
         return authors.observeAll();
     }
 }
