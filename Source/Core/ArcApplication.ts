@@ -77,8 +77,16 @@ export class ArcApplication extends FetchArcApplication {
         const listener = this.#listener;
         this.#listener = undefined;
         const failures: unknown[] = [];
-        try { await listener?.close(); } catch (error) { failures.push(error); }
-        try { await this.server.dispose(); } catch (error) { failures.push(error); }
+        if (this.server.services.hasShutdownParticipants) {
+            // Start registry shutdown synchronously so WebSocket closure can defer session work
+            // until participants stop and drain. Close the listener concurrently with that work.
+            const disposal = this.server.dispose();
+            const outcomes = await Promise.allSettled([disposal, listener?.close() ?? Promise.resolve()]);
+            failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason));
+        } else {
+            try { await listener?.close(); } catch (error) { failures.push(error); }
+            try { await this.server.dispose(); } catch (error) { failures.push(error); }
+        }
         const failure = failures.length === 1 ? failures[0] : failures.length ?
             new AggregateError(failures, 'Arc application shutdown failed') : undefined;
         this.#onStopped?.(failure);

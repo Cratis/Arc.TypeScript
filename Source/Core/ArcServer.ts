@@ -61,6 +61,8 @@ export class ArcServer {
     readonly #ownsServices: boolean;
     /** @internal Optional Node WebSocket bridge shutdown. */
     closeWebSockets?: () => Promise<void>;
+    /** @internal Optional Node WebSocket delivery join after shutdown participants drain. */
+    finishWebSockets?: () => Promise<void>;
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #hub: ObservableQueryHub;
     readonly #sessions: ObservableSessions;
@@ -96,7 +98,13 @@ export class ArcServer {
                 for (const session of this.#sessions.sessions) session.cancel();
             },
             () => this.disposeObservables(this.services.hasShutdownParticipants),
-            () => this.services.hasShutdownParticipants ? this.closeObservableSessions() : Promise.resolve());
+            async () => {
+                if (!this.services.hasShutdownParticipants) return;
+                const outcomes = await Promise.allSettled([this.closeObservableSessions(), this.finishWebSockets?.() ?? Promise.resolve()]);
+                const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+                if (failures.length === 1) throw failures[0];
+                if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
+            });
     }
 
     /**
