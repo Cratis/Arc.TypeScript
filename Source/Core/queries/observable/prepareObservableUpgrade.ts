@@ -30,6 +30,8 @@ export async function prepareObservableUpgrade(server: ArcServer, request: Reque
         if (path === '/.cratis/queries/ws' && !server.canAdmitObservableHubConnection(resolved.context))
             return { status: 503 };
         if (operation && isObservableOperation(operation)) getQuery(new URL(request.url), operation.schema, true);
+        // Shutdown may have started while origin, authentication or tenancy were awaited.
+        if (server.coordinatedShutdownStarted) return { status: 503 };
         return { status: 101, resolved };
     } catch (error) {
         if (error instanceof BadRequest) return { status: 400 };

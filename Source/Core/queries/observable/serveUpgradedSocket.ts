@@ -17,6 +17,11 @@ export function serveUpgradedSocket(server: ArcServer, socket: NodeWebSocketLike
         socket.close(1008, 'Upgrade not authorized');
         throw new Error('Resolved observable connection context is required');
     }
+    if (server.coordinatedShutdownStarted) {
+        // Tracked upgrades were already closed; a socket upgraded after that point is refused without protocol work.
+        socket.close(1001, 'Server shutting down');
+        return { close: () => {}, completion: Promise.resolve() };
+    }
     const transport = new WebSocketTransport(socket, server.observableLimits);
     const path = new URL(request.url).pathname;
     const completion = path === '/.cratis/queries/ws'
