@@ -34,4 +34,4 @@ export class Listener implements PostgreSQLListenerConnection {
     async close(): Promise<void> { this.closeCount++; }
 }
 export const managerFor = (listener: (tenant: string) => PostgreSQLListenerConnection | Promise<PostgreSQLListenerConnection>, timeout = 100) =>
-    new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify, listener }, 60_000, timeout);
+    new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify, listener }, 60_000, timeout, []);

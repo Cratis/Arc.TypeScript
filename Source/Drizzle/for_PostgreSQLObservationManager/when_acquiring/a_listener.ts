@@ -38,7 +38,7 @@ describe('when acquiring shared PostgreSQL observation leases', () => {
     let failures: Error[];
     beforeEach(() => {
         client = new FakeListener(); changes = 0; failures = [];
-        manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify, listener: () => client });
+        manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify, listener: () => client }, 30_000, 5_000, []);
     });
     afterEach(async () => { await manager[Symbol.asyncDispose](); });
     it('should connect once, listen before catalog validation, ignore unknown payloads and share the socket', async () => {
@@ -67,14 +67,14 @@ describe('when acquiring shared PostgreSQL observation leases', () => {
             return query(statement);
         };
         manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify,
-            listener: () => client }, 1, 100);
+            listener: () => client }, 1, 100, []);
         vi.useFakeTimers();
         try {
             const lease = manager.acquire('tenant', database, table, () => {}, error => failures.push(error));
             await lease.ready;
             await vi.advanceTimersByTimeAsync(1);
             failures.should.have.lengthOf(1);
-            failures[0]!.message.should.equal('PostgreSQL change listener lost: heartbeat failure');
+            failures[0]!.message.should.include('recovery exhausted');
             lease.release();
         } finally { vi.useRealTimers(); }
     });
@@ -100,7 +100,7 @@ describe('when acquiring shared PostgreSQL observation leases', () => {
         await Promise.all([first.ready, second.ready]);
         client.disconnect?.(new Error('secret credential in driver message'));
         client.disconnect?.();
-        failures.should.have.lengthOf(2);
+        await vi.waitFor(() => failures.length.should.equal(2));
         failures[0]!.message.should.include('PostgreSQL change listener lost');
         failures[0]!.message.should.not.include('secret credential');
         first.release(); second.release();

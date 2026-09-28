@@ -354,23 +354,42 @@ describe('when observing PostgreSQL changes across processes', () => {
             await a[Symbol.asyncDispose](); await b[Symbol.asyncDispose](); await shared[Symbol.asyncDispose]();
         }
     });
-    it('should error every lease on backend loss and permit a fresh subscription', async () => {
-        const model = reader(first, 'terminated');
-        const firstStream = collect(model); const secondStream = collect(model);
+    it('should catch up all live subscribers and an unused prime after terminating the listener backend', async () => {
+        const name = `arc_notify_reconnect_${process.pid}`;
+        let reconnect!: () => void;
+        let reconnecting!: () => void;
+        const entered = new Promise<void>(resolve => { reconnecting = resolve; });
+        const gate = new Promise<void>(resolve => { reconnect = resolve; });
+        let attempts = 0;
+        const recovering = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify,
+            listener: async () => {
+                if (++attempts > 1) { reconnecting(); await gate; }
+                return nodePostgresListener(new Client({ connectionString: uri, application_name: name }));
+            } }, 30_000, 5000, [20, 40]);
+        const model = new DrizzleReadModels(drizzle(first), table, Task, 100, undefined,
+            { tenant: 'recovery', notifications, postgresql: recovering });
+        const prime = model.observe();
+        const one = collect(model); const two = collect(model);
         try {
-            await waitFor(() => firstStream.values.length === 1 && secondStream.values.length === 1);
-            const pids = await admin.query('SELECT pid FROM pg_stat_activity WHERE application_name = $1', [applicationName]);
+            await waitFor(() => one.values.length === 1 && two.values.length === 1);
+            (await prime.current()).value.should.be.an('array');
+            const pids = await admin.query('SELECT pid FROM pg_stat_activity WHERE application_name = $1', [name]);
             const pid = pids.rows[0]?.pid;
             if (!pid) throw new Error('Listener PID missing');
             await admin.query('SELECT pg_terminate_backend($1)', [pid]);
-            await waitFor(() => firstStream.errors.length === 1 && secondStream.errors.length === 1);
-            firstStream.errors[0]!.message.should.include('PostgreSQL change listener lost');
-            const fresh = collect(model);
-            try { await waitFor(() => fresh.values.length === 1); }
-            finally { fresh.subscription.unsubscribe(); }
+            await entered;
+            await write(`INSERT INTO "${schemaA}".tasks VALUES ('recovered', 'committed during gap')`);
+            one.values.should.have.lengthOf(1);
+            two.values.should.have.lengthOf(1);
+            reconnect();
+            await waitFor(() => one.values.at(-1)?.some(task => task.id === 'recovered') === true &&
+                two.values.at(-1)?.some(task => task.id === 'recovered') === true);
+            (await prime.current()).value.some(task => task.id === 'recovered').should.equal(true);
+            one.errors.should.be.empty; two.errors.should.be.empty;
         } finally {
-            firstStream.subscription.unsubscribe(); secondStream.subscription.unsubscribe();
-            await model[Symbol.asyncDispose]();
+            reconnect(); one.subscription.unsubscribe(); two.subscription.unsubscribe(); prime.close();
+            await model[Symbol.asyncDispose](); await recovering[Symbol.asyncDispose]();
+            await write(`DELETE FROM "${schemaA}".tasks WHERE id = 'recovered'`);
         }
     });
     it('should observe under a role without DDL privileges and not install a missing trigger', async () => {
