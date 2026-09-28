@@ -17,7 +17,7 @@ A useful spec still answers one precise question. Is the decision right? Did Arc
 | A query's arguments, paging, sorting, and result shape | `QueryScenario` | The database's own query behavior |
 | A live query's emissions | `ObservableQueryScenario` | A transport or a browser client |
 | The route, the host, and authentication | `ArcScenario` with HTTP requests | Business edge cases you did not send |
-| Events a command appends for Chronicle, from pinned read models | `ChronicleCommandScenario` | Stored history, aggregates, projections, or constraints |
+| Events a command appends for Chronicle, from pinned or supported seeded read models | `ChronicleCommandScenario` | Aggregates, unsupported projections, constraints, or observer-driven updates |
 | A command that depends on stored events or an aggregate | `ChronicleKernelScenario` against a running kernel | Replays or concurrent writers after the check |
 
 Combine boundaries rather than pushing every case through the widest one. Cover decision branches with fast direct specs, add scenario specs for the Arc contracts that matter, and keep a smaller set of HTTP or integration tests for real composition.
