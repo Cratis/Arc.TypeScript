@@ -17,7 +17,7 @@ The gate checks two things:
   support the workflow yet. The set of snippet ids equals the checked-in inventory in
   `SNIPPETS`, and, when the Arc checkout is available (`../Arc/Documentation` by default),
   the ids the shared Arc pages actually ask a TypeScript tab for, except the explicitly
-  listed site-owned capstone snippet.
+  listed site-owned snippets.
 * Compilation. Each real snippet becomes its own module in a throwaway project under the
   system temporary folder. The snippet text is emitted verbatim; only its single-line
   imports are hoisted above a host class when the snippet is a class-member fragment.
@@ -149,14 +149,20 @@ export class RegisterAuthor {
 }
 """
 
-# The capstone is authored in Documentation/web rather than Arc/Documentation; the
-# shared Arc page scan cannot find its macro. Keep this exception explicit so other
-# unreferenced snippet ids still fail the inventory check.
-SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command"}
+# Site-owned pages (the capstone and State View) live in Documentation/web rather
+# than Arc/Documentation, so the shared Arc page scan cannot find their macros.
+# Keep these exceptions explicit so other unreferenced snippet ids still fail.
+SITE_ONLY_SNIPPETS = {
+    "guides/chronicle/event-from-command",
+    "scenarios/vertical-slices/state-view/author-list",
+    "scenarios/vertical-slices/state-view/fluent-projection",
+}
 
-# The checked-in inventory: shared Arc page ids plus the site-only capstone id.
+# The checked-in inventory: shared Arc page ids plus site-owned page ids.
 # `None` means the file must state that TypeScript does not support the workflow yet.
 SNIPPETS: dict[str, Context | None] = {
+    "scenarios/vertical-slices/state-view/author-list": MODULE,
+    "scenarios/vertical-slices/state-view/fluent-projection": MODULE,
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
