@@ -109,13 +109,16 @@ class Context:
     by relative path, as `(module file stem, snippet id)`, so a spec compiles against the
     very command snippet the page shows beside it. `sources` are repository files a snippet
     imports by relative path, as `(module file stem, repository-relative path)`, copied
-    verbatim so the snippet compiles against the sample file it mirrors.
+    verbatim so the snippet compiles against the sample file it mirrors. `fixture_imports`
+    lets a snippet use fixture names it does not import; turn it off for a snippet whose
+    own imports are part of what the reader copies, so a missing import fails.
     """
 
     host: str = ""
     imports: tuple[str, ...] = ()
     siblings: tuple[tuple[str, str], ...] = ()
     sources: tuple[tuple[str, str], ...] = ()
+    fixture_imports: bool = True
 
 
 MODULE = Context()
@@ -157,6 +160,7 @@ export class RegisterAuthor {
 CAPSTONE_CONCEPTS = Context(
     siblings=(("../AuthorId", "capstone/author-id"),),
     sources=(("../AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+    fixture_imports=False,
 )
 
 # The capstone is authored in Documentation/web rather than Arc/Documentation; the
@@ -172,7 +176,8 @@ SNIPPETS: dict[str, Context | None] = {
     "capstone/register-author": CAPSTONE_CONCEPTS,
     "capstone/author-read-model": Context(siblings=(("../Registration/Registration", "capstone/register-author"),
                                                     *CAPSTONE_CONCEPTS.siblings),
-                                          sources=CAPSTONE_CONCEPTS.sources),
+                                          sources=CAPSTONE_CONCEPTS.sources,
+                                          fixture_imports=False),
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -617,6 +622,8 @@ def module_source(snippet: Snippet, context: Context, exports: dict[str, tuple[s
     taken = set(DECLARATION_RE.findall(code)) | imported_names(all_imports)
     fixture_imports: dict[str, list[str]] = {}
     for name, (fixture, type_only) in sorted(exports.items()):
+        if not context.fixture_imports:
+            break
         if name in taken or not re.search(rf"(?<![\w$.]){re.escape(name)}(?![\w$])", code):
             continue
         fixture_imports.setdefault(fixture, []).append(f"type {name}" if type_only else name)
@@ -827,7 +834,12 @@ PLANTED_COMPILE_FAILURES: dict[str, tuple[str, str]] = {
     "self-test/type-only-import": (
         "```typescript\nimport { ObservableSource } from '@cratis/arc.core';\n\n"
         "export type Source = ObservableSource<string>;\n```\n", "TS1484"),
+    # A fixture name used without its import, where the snippet's own imports must be complete.
+    "self-test/missing-import": ("```typescript\nexport const name = new AuthorName('Ursula');\n```\n", "TS2304"),
 }
+
+# Planted snippets compiled with a context other than MODULE.
+PLANTED_CONTEXTS: dict[str, Context] = {"self-test/missing-import": Context(fixture_imports=False)}
 
 
 def plant(root: Path, files: dict[str, str]) -> None:
@@ -894,7 +906,8 @@ def self_test() -> int:
         compile_files = {"self-test/clean": VALID_COMMAND,
                          **{snippet_id: content for snippet_id, (content, _) in PLANTED_COMPILE_FAILURES.items()}}
         plant(compile_root, compile_files)
-        compile_inventory: dict[str, Context | None] = {snippet_id: MODULE for snippet_id in compile_files}
+        compile_inventory: dict[str, Context | None] = {snippet_id: PLANTED_CONTEXTS.get(snippet_id, MODULE)
+                                                        for snippet_id in compile_files}
         problems, compiled, _ = validate(compile_root, compile_inventory, None, FIXTURES)
         reported = {problem.split(" does not compile", 1)[0]: problem for problem in problems
                     if " does not compile" in problem}
