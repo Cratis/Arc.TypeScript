@@ -1,5 +1,5 @@
 ```typescript
-// handle() receives one prepared value, so return an object that carries several.
+// One typed object keeps RiskBand as its enum; provide() can also return tuple(score, band) for provided(...) handle parameters.
 async provide(): Promise<CreditProfile> {
     const bureau = await currentServices().resolve(CreditBureau);
     const risk = await currentServices().resolve(RiskModel);

@@ -1,13 +1,15 @@
 ```typescript
-import { CommandValidator, injectable, validator } from '@cratis/arc.core';
+import { CommandValidator, currentServices, validator } from '@cratis/arc.core';
 
 @validator(RegisterAuthor)
-@injectable(AuthorRepository)
 export class RegisterAuthorValidator extends CommandValidator<RegisterAuthor> {
-    constructor(authors: AuthorRepository) {
+    constructor() {
         super();
         this.ruleFor(command => command.name)
-            .mustAsync(async (_name, command, signal) => !await authors.existsByName(command.name, signal))
+            .mustAsync(async (_name, command, signal) => {
+                const authors = await currentServices().resolve(AuthorRepository);
+                return !await authors.existsByName(command.name, signal);
+            })
             .withMessage('An author with that name is already registered.');
     }
 }
