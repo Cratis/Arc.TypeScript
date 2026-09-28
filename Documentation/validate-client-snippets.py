@@ -28,9 +28,10 @@ The gate checks three things:
   `tsconfig.json` (strict, standard decorators, `verbatimModuleSyntax`,
   `noUncheckedIndexedAccess`) and resolves `@cratis/arc.core`, `@cratis/fundamentals`,
   `zod` and `vitest` from this repository's `node_modules`, then runs the workspace `tsc`.
-* State View discovery. After compilation, `check-state-view-discovery.py` exercises the
-  published fences through Arc source proxy analysis, Node artifact discovery and the
-  Chronicle projection compiler, including the registered read-model schema.
+* Vertical-slice discovery. After compilation, `check-state-view-discovery.py` exercises the
+  published vertical-slice fences through Arc source proxy analysis, Node artifact discovery
+  of every exported artifact and the Chronicle projection compiler, including the registered
+  read-model schema, and runs their commands and reactors in process.
 
 Module resolution is `Bundler`, matching the repository's example applications.
 Fundamentals 7.19.6 also resolves under NodeNext; `--self-test` plants a concept
@@ -155,13 +156,23 @@ export class RegisterAuthor {
 }
 """
 
-# Site-owned pages (the capstone and State View) live in Documentation/web rather
+# Site-owned pages (the capstone and the vertical-slice series) live in Documentation/web rather
 # than Arc/Documentation, so the shared Arc page scan cannot find their macros.
 # Keep these exceptions explicit so other unreferenced snippet ids still fail.
 SITE_ONLY_SNIPPETS = {
     "guides/chronicle/event-from-command",
     "scenarios/vertical-slices/state-view/author-list",
     "scenarios/vertical-slices/state-view/fluent-projection",
+    "scenarios/vertical-slices/state-change/concepts",
+    "scenarios/vertical-slices/state-change/registration",
+    "scenarios/vertical-slices/state-change/unique-author-name",
+    "scenarios/vertical-slices/state-change/register-author-spec",
+    "scenarios/vertical-slices/automation/reservation-domain",
+    "scenarios/vertical-slices/automation/expiry-management",
+    "scenarios/vertical-slices/translator/member-concepts",
+    "scenarios/vertical-slices/translator/member-registration",
+    "scenarios/vertical-slices/translator/unique-member-name",
+    "scenarios/vertical-slices/translator/hr-integration",
 }
 
 # The checked-in inventory: shared Arc page ids plus site-owned page ids.
@@ -169,6 +180,17 @@ SITE_ONLY_SNIPPETS = {
 SNIPPETS: dict[str, Context | None] = {
     "scenarios/vertical-slices/state-view/author-list": MODULE,
     "scenarios/vertical-slices/state-view/fluent-projection": MODULE,
+    "scenarios/vertical-slices/state-change/concepts": MODULE,
+    "scenarios/vertical-slices/state-change/registration": MODULE,
+    "scenarios/vertical-slices/state-change/unique-author-name": MODULE,
+    "scenarios/vertical-slices/state-change/register-author-spec": Context(
+        siblings=(("Registration", "scenarios/vertical-slices/state-change/registration"),)),
+    "scenarios/vertical-slices/automation/reservation-domain": MODULE,
+    "scenarios/vertical-slices/automation/expiry-management": MODULE,
+    "scenarios/vertical-slices/translator/member-concepts": MODULE,
+    "scenarios/vertical-slices/translator/member-registration": MODULE,
+    "scenarios/vertical-slices/translator/unique-member-name": MODULE,
+    "scenarios/vertical-slices/translator/hr-integration": MODULE,
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -310,6 +332,92 @@ FIXTURES: dict[str, str] = {
             @field(AuthorId) id!: AuthorId;
             @field(AuthorName) newName!: AuthorName;
             handle(): void {}
+        }
+    """,
+    "slices": """
+        import { ConceptAs, field, Guid } from '@cratis/fundamentals';
+        import { command, tuple } from '@cratis/arc.core';
+        import { eventSourceIdResponse } from '@cratis/arc.chronicle';
+        import { eventType } from '@cratis/chronicle/events';
+        import { AuthorName } from './library.js';
+
+        // The Library application the vertical-slice pages build. Each page snippet declares
+        // its own slice and draws the other slices' types from here, mirroring those snippets.
+        export class MemberId extends ConceptAs<Guid> {
+            static readonly valueType = Guid;
+            static create(): MemberId { return new MemberId(Guid.create()); }
+        }
+        export class MemberName extends ConceptAs<string> { static readonly valueType = String; }
+        export class ReservationId extends ConceptAs<Guid> {
+            static readonly valueType = Guid;
+            static create(): ReservationId { return new ReservationId(Guid.create()); }
+        }
+        export class ISBN extends ConceptAs<string> { static readonly valueType = String; }
+
+        @eventType()
+        export class AuthorRegistered {
+            @field(AuthorName) firstName: AuthorName;
+            @field(AuthorName) lastName: AuthorName;
+            constructor(firstName = new AuthorName(''), lastName = new AuthorName('')) {
+                this.firstName = firstName;
+                this.lastName = lastName;
+            }
+        }
+
+        @eventType()
+        export class MemberRegistered {
+            @field(MemberName) firstName: MemberName;
+            @field(MemberName) lastName: MemberName;
+            constructor(firstName = new MemberName(''), lastName = new MemberName('')) {
+                this.firstName = firstName;
+                this.lastName = lastName;
+            }
+        }
+
+        @command()
+        export class RegisterMember {
+            @field(MemberName) firstName: MemberName;
+            @field(MemberName) lastName: MemberName;
+            constructor(firstName = new MemberName(''), lastName = new MemberName('')) {
+                this.firstName = firstName;
+                this.lastName = lastName;
+            }
+            provide(): MemberId { return MemberId.create(); }
+            handle(memberId: MemberId) {
+                return tuple(eventSourceIdResponse(memberId.value.toString()), new MemberRegistered(this.firstName, this.lastName));
+            }
+        }
+
+        @eventType()
+        export class BookReserved {
+            @field(ISBN) isbn: ISBN;
+            @field(MemberId) memberId: MemberId;
+            @field(Date) expiresAt: Date;
+            constructor(isbn = new ISBN(''), memberId = new MemberId(Guid.empty), expiresAt = new Date(0)) {
+                this.isbn = isbn;
+                this.memberId = memberId;
+                this.expiresAt = expiresAt;
+            }
+        }
+
+        @eventType()
+        export class ReservationCancelled {
+            @field(ISBN) isbn: ISBN;
+            @field(MemberId) memberId: MemberId;
+            constructor(isbn = new ISBN(''), memberId = new MemberId(Guid.empty)) {
+                this.isbn = isbn;
+                this.memberId = memberId;
+            }
+        }
+
+        @eventType()
+        export class BookBorrowedFromReservation {
+            @field(ISBN) isbn: ISBN;
+            @field(MemberId) memberId: MemberId;
+            constructor(isbn = new ISBN(''), memberId = new MemberId(Guid.empty)) {
+                this.isbn = isbn;
+                this.memberId = memberId;
+            }
         }
     """,
     "loans": """
@@ -773,7 +881,7 @@ def run(arguments: argparse.Namespace) -> int:
     if discovery.returncode == EXIT_BLOCKED:
         return EXIT_BLOCKED
     if discovery.returncode:
-        print("FAIL State View discovery/projection check", file=sys.stderr)
+        print("FAIL vertical-slice discovery/projection check", file=sys.stderr)
         return EXIT_DEFECTS
     shared = f", matched against {arc_documentation}" if arc_documentation else ""
     print(f"Checked {compiled + unsupported} TypeScript snippet ids{shared}: {compiled} compiled, "
