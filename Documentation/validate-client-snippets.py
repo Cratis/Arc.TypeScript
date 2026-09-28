@@ -152,11 +152,15 @@ export class RegisterAuthor {
 # The capstone is authored in Documentation/web rather than Arc/Documentation; the
 # shared Arc page scan cannot find its macro. Keep this exception explicit so other
 # unreferenced snippet ids still fail the inventory check.
-SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command"}
+SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command", "capstone/host", "capstone/author-id", "capstone/register-author", "capstone/author-read-model"}
 
 # The checked-in inventory: shared Arc page ids plus the site-only capstone id.
 # `None` means the file must state that TypeScript does not support the workflow yet.
 SNIPPETS: dict[str, Context | None] = {
+    "capstone/host": MODULE,
+    "capstone/author-id": MODULE,
+    "capstone/register-author": MODULE,
+    "capstone/author-read-model": Context(siblings=(("../Registration/Registration", "capstone/register-author"),)),
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -648,7 +652,7 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
         directories[f"snippets/{slug(snippet.id)}"] = snippet.id
         (directory / "snippet.ts").write_text(module_source(snippet, context, exports), encoding="utf-8")
         files.append(f"snippets/{slug(snippet.id)}/snippet.ts")
-        if snippet.id == "arc-without-event-sourcing/standalone-host":
+        if snippet.id in ("arc-without-event-sourcing/standalone-host", "capstone/host"):
             # The host imports metadata generated into its Features root. The fixture only
             # types that import; runtime discovery/validation is checked separately.
             features = directory / "Features"
@@ -664,8 +668,13 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             sibling_context = inventory.get(sibling_id)
             if sibling is None or sibling_context is None:
                 raise SnippetError(f"{snippet.id} imports ./{stem}.js from {sibling_id}, which is not a compilable snippet")
-            (directory / f"{stem}.ts").write_text(module_source(sibling, sibling_context, exports), encoding="utf-8")
-            files.append(f"snippets/{slug(snippet.id)}/{stem}.ts")
+            sibling_path = (directory / f"{stem}.ts").resolve()
+            if not sibling_path.is_relative_to(project.resolve() / "snippets"):
+                raise SnippetError(f"{snippet.id} imports sibling {stem!r} outside the generated project")
+            sibling_path.parent.mkdir(parents=True, exist_ok=True)
+            sibling_path.write_text(module_source(sibling, sibling_context, exports), encoding="utf-8")
+            files.append(sibling_path.relative_to(project.resolve()).as_posix())
+            directories[sibling_path.parent.relative_to(project.resolve()).as_posix()] = sibling_id
     tsconfig = {
         "extends": str(BASE_TSCONFIG),
         "compilerOptions": {
