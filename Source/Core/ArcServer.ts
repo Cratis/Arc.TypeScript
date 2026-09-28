@@ -38,6 +38,7 @@ import type { ResolvedConnectionContext } from './queries/observable/ResolvedCon
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
 import { observe } from './execution/observability.js';
 import type { ShutdownTransaction } from './dependencyInjection/ShutdownTransaction.js';
+import { coordinateUpgradedSockets } from './queries/observable/upgradedSockets.js';
 /** Get the execution context for the current request, if one exists. */
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 enum OperationMode { Execute, Validate }
@@ -101,6 +102,8 @@ export class ArcServer {
             this.#hub.coordinateShutdown(transaction);
             if (this.coordinateWebSockets) this.coordinateWebSockets(transaction);
             else if (this.closeWebSockets) transaction.release(Promise.resolve().then(() => this.closeWebSockets!()));
+            // Fastify and Hono upgrade sockets themselves; close those transports before participant stop too.
+            coordinateUpgradedSockets(this, transaction);
         });
     }
 
@@ -161,6 +164,11 @@ export class ArcServer {
                 if (!this.#transaction && !this.services.hasShutdownParticipants) return this.disposeUncoordinated();
                 return Promise.reject(error);
             }
+        }
+        else if (this.#transaction && !this.services.inShutdownParticipant) {
+            // A borrowed server joins its registry's shutdown; reject a self-join without caching it.
+            try { this.services.assertCanDispose(); }
+            catch (error) { return Promise.reject(error); }
         }
         if (this.#closing) return this.#closing;
         // Only an owned registry's shutdown starts here; a borrowed registry stays open for its owner.

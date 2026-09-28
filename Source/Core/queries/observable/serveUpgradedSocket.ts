@@ -7,6 +7,7 @@ import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 import { WebSocketTransport } from './WebSocketTransport.js';
 import { handleObservableHubSocket } from './observableHosting.js';
 import type { NodeWebSocketLike } from './NodeWebSocketLike.js';
+import { trackUpgradedSocket } from './upgradedSockets.js';
 
 /** Host adapters bridge an already-upgraded socket; all frames remain core-owned. */
 export function serveUpgradedSocket(server: ArcServer, socket: NodeWebSocketLike, request: Request,
@@ -21,5 +22,6 @@ export function serveUpgradedSocket(server: ArcServer, socket: NodeWebSocketLike
     const completion = path === '/.cratis/queries/ws'
         ? handleObservableHubSocket(server, request, transport, native, resolved)
         : directWebSocket(server, request, transport, native, resolved);
+    trackUpgradedSocket(server, transport, completion);
     return { close: () => transport.close(), completion };
 }
