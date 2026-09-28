@@ -68,6 +68,8 @@ export class ArcServer {
     coordinateWebSockets?: (transaction: ShutdownTransaction) => void;
     /** @internal A borrowed registry is never implicitly disposed by Arc. */
     get ownsServices(): boolean { return this.#ownsServices; }
+    /** @internal A coordinated shutdown has started; host-upgraded sockets are no longer admitted. */
+    get coordinatedShutdownStarted(): boolean { return this.#transaction !== undefined; }
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #hub: ObservableQueryHub;
     readonly #sessions: ObservableSessions;

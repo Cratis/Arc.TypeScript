@@ -19,6 +19,8 @@ export async function prepareObservableUpgrade(server: ArcServer, request: Reque
     if (!server.endpoints.has(path)) return { status: 404 };
     if (path !== '/.cratis/queries/ws' && (!operation || !isObservableOperation(operation)))
         return { status: 426 };
+    // A coordinated shutdown has already closed tracked upgrades; a late 101 would never be joined.
+    if (server.coordinatedShutdownStarted) return { status: 503 };
     const correlationId = correlation(request.headers.get(server.options.correlationId?.httpHeader ?? 'X-Correlation-ID'));
     try {
         if (!await originAllowed(request.headers.get('origin'), request, native, server.options))
