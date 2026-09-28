@@ -89,7 +89,7 @@ export class DrizzleObservationSession<T> {
         this.#subscriber = subscriber;
         void this.#initial.then(async () => {
             if (this.#lease?.whenReady) await this.#lease.whenReady();
-            while (this.#catchup || (this.#lease?.whenReady && this.#running)) await this.pump();
+            while (!this.#closed && (this.#catchup || (this.#lease?.whenReady && this.#running))) await this.pump();
             if (this.#closed || subscriber.closed) return;
             this.#emitted = true;
             subscriber.next(this.#snapshot!);
@@ -151,6 +151,7 @@ export class DrizzleObservationSession<T> {
         if (this.#closed) return;
         this.#error = error;
         this.#closed = true;
+        this.#catchup = false;
         this.release();
         for (const cancel of this.#cancellations) cancel(error);
         this.#cancellations.clear();
@@ -172,6 +173,7 @@ export class DrizzleObservationSession<T> {
     close(): void {
         if (this.#closed) return;
         this.#closed = true;
+        this.#catchup = false;
         this.release();
         for (const cancel of this.#cancellations) cancel(new Error('Drizzle observation was closed'));
         this.#cancellations.clear();

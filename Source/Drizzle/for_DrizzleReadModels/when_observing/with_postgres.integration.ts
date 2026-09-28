@@ -385,7 +385,7 @@ describe('when observing PostgreSQL changes across processes', () => {
             await waitFor(() => one.values.at(-1)?.some(task => task.id === 'recovered') === true &&
                 two.values.at(-1)?.some(task => task.id === 'recovered') === true);
             (await prime.current()).value.some(task => task.id === 'recovered').should.equal(true);
-            one.errors.should.be.empty; two.errors.should.be.empty;
+            one.errors.should.have.lengthOf(0); two.errors.should.have.lengthOf(0);
         } finally {
             reconnect(); one.subscription.unsubscribe(); two.subscription.unsubscribe(); prime.close();
             await model[Symbol.asyncDispose](); await recovering[Symbol.asyncDispose]();

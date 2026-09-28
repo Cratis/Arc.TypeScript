@@ -30,12 +30,12 @@ describe('when recovering a shared PostgreSQL listener', () => {
             void joining.ready.then(() => { admitted = true; });
             await vi.waitFor(() => calls.should.equal(2));
             admitted.should.equal(false);
-            updates.should.be.empty;
+            updates.should.have.lengthOf(0);
             gate.resolve();
             await joining.ready;
             await vi.waitFor(() => updates.should.have.members(['one', 'two']));
             next.notification?.('arc_changes', 'app.tasks');
-            failures.should.be.empty;
+            failures.should.have.lengthOf(0);
             joining.release();
         } finally { one.release(); two.release(); gate.resolve(); await manager[Symbol.asyncDispose](); }
     });

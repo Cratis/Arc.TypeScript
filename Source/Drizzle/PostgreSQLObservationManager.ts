@@ -72,29 +72,43 @@ export class PostgreSQLObservationManager {
         const ready = (async () => {
             try {
                 await owner.startup;
-                if (owner.wasReady && !owner.available) await owner.readiness;
-                if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
-                const identity = await this.bounded(owner, () => resolvePostgreSQLTable(database, table, tenant), undefined, false);
-                if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
-                const listenerDatabase = await this.bounded(owner, () => owner.connection!.query('SELECT current_database() AS database')
-                    .catch(error => { throw new Error(`PostgreSQL observation could not verify the listener database for tenant '${tenant}'`, { cause: error }); }));
-                if (listenerDatabase.rows[0]?.database !== identity.database)
-                    throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${tenant}'`);
-                await this.validate(owner, identity);
-                if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
-                const existing = owner.identities.get(table);
-                if (existing && (existing.key !== identity.key || existing.database !== identity.database))
-                    throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${tenant}'`);
-                owner.identities.set(table, identity);
-                lease.key = identity.key;
-                let routed = owner.routing.get(identity.key);
-                if (!routed) { routed = new Set(); owner.routing.set(identity.key, routed); }
-                routed.add(lease);
-                if (!owner.wasReady) {
-                    owner.available = true;
-                    owner.wasReady = true;
-                    owner.resolveReady(owner.generation);
-                    this.heartbeat(owner);
+                while (true) {
+                    if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
+                    if (owner.wasReady && !owner.available) await owner.readiness;
+                    if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
+                    const generation = owner.generation;
+                    try {
+                        const identity = await this.bounded(owner, () => resolvePostgreSQLTable(database, table, tenant), undefined, false);
+                        if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
+                        // A loss during a reader operation invalidates the listener used for the rest of validation.
+                        if (owner.wasReady && (generation !== owner.generation || !owner.available)) continue;
+                        const listenerDatabase = await this.bounded(owner, () => owner.connection!.query('SELECT current_database() AS database')
+                            .catch(error => { throw new Error(`PostgreSQL observation could not verify the listener database for tenant '${tenant}'`, { cause: error }); }));
+                        if (listenerDatabase.rows[0]?.database !== identity.database)
+                            throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${tenant}'`);
+                        await this.validate(owner, identity);
+                        if (lease.released || owner.dead) throw new Error('Drizzle observation was closed');
+                        if (owner.wasReady && (generation !== owner.generation || !owner.available)) continue;
+                        const existing = owner.identities.get(table);
+                        if (existing && (existing.key !== identity.key || existing.database !== identity.database))
+                            throw new Error(`PostgreSQL observation database/table mapping differs between reader and listener for tenant '${tenant}'`);
+                        owner.identities.set(table, identity);
+                        lease.key = identity.key;
+                        let routed = owner.routing.get(identity.key);
+                        if (!routed) { routed = new Set(); owner.routing.set(identity.key, routed); }
+                        routed.add(lease);
+                        if (!owner.wasReady) {
+                            owner.available = true;
+                            owner.wasReady = true;
+                            owner.resolveReady(owner.generation);
+                            this.heartbeat(owner);
+                        }
+                        break;
+                    } catch (error) {
+                        if (owner.wasReady && !lease.released && !owner.dead &&
+                            (generation !== owner.generation || !owner.available)) continue;
+                        throw error;
+                    }
                 }
             } catch (error) { release(); throw error; }
         })();
@@ -184,22 +198,25 @@ export class PostgreSQLObservationManager {
     private bounded<T>(entry: Entry, operation: () => Promise<T>, late?: (value: T) => void,
         listenerOperation = true, trackFactory = false): Promise<T> {
         return new Promise<T>((resolve, reject) => {
+            const signal = entry.controller.signal;
             let settled = false;
             const timer = setTimeout(() => {
                 if (settled) return;
                 settled = true;
-                entry.controller.signal.removeEventListener('abort', abort);
+                signal.removeEventListener('abort', abort);
                 if (listenerOperation) this.lost(entry, new Error('PostgreSQL change listener lost: operation timed out'));
                 reject(new Error(listenerOperation ? 'PostgreSQL listener operation timed out' : 'PostgreSQL reader catalog lookup timed out'));
             }, this.operationTimeoutMs);
-            const abort = (): void => { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('Drizzle observation was closed')); } };
-            entry.controller.signal.addEventListener('abort', abort, { once: true });
+            const abort = (): void => { if (!settled) { settled = true; clearTimeout(timer); signal.removeEventListener('abort', abort);
+                reject(new Error('Drizzle observation was closed')); } };
+            signal.addEventListener('abort', abort, { once: true });
+            if (signal.aborted) { abort(); return; }
             const completion = Promise.resolve().then(operation).then(value => {
-                clearTimeout(timer); entry.controller.signal.removeEventListener('abort', abort);
+                clearTimeout(timer); signal.removeEventListener('abort', abort);
                 if (settled) { late?.(value); return; }
                 settled = true; resolve(value);
             }, error => {
-                clearTimeout(timer); entry.controller.signal.removeEventListener('abort', abort);
+                clearTimeout(timer); signal.removeEventListener('abort', abort);
                 if (!settled) { settled = true; reject(error); }
             });
             if (trackFactory) {
