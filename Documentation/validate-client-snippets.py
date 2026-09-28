@@ -767,6 +767,8 @@ def run(arguments: argparse.Namespace) -> int:
         return EXIT_DEFECTS
     discovery = subprocess.run([sys.executable, str(Path(__file__).with_name("check-state-view-discovery.py"))],
                                check=False)
+    if discovery.returncode == EXIT_BLOCKED:
+        return EXIT_BLOCKED
     if discovery.returncode:
         print("FAIL State View discovery/projection check", file=sys.stderr)
         return EXIT_DEFECTS

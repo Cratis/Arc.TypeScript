@@ -73,8 +73,18 @@ console.log('PASS State View source proxies, Node discovery and Author projectio
 """
 
 
+# Build outputs this check imports beyond the validator's own toolchain.
+DISCOVERY_BUILD_OUTPUTS = (
+    ROOT / "Source" / "Tools" / "ProxyGenerator" / "dist" / "analyzeSource.js",
+    ROOT / "Source" / "Chronicle" / "dist" / "ChronicleArtifacts.js",
+)
+
+
 def main():
     validator.ensure_toolchain()
+    missing = [path.relative_to(ROOT).as_posix() for path in DISCOVERY_BUILD_OUTPUTS if not path.is_file()]
+    if missing:
+        raise validator.Blocked(f"packages are not built ({', '.join(missing)} missing); run `yarn build`")
     with tempfile.TemporaryDirectory(prefix="arc-state-view-discovery-") as temporary:
         project = Path(temporary)
         snippets = [validator.parse(snippet_id, validator.SNIPPET_ROOT / f"{snippet_id}.md") for snippet_id in IDS]
@@ -95,6 +105,9 @@ def main():
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (validator.Blocked, validator.SnippetError) as error:
+    except validator.Blocked as error:
+        print(f"BLOCKED State View discovery: {error}", file=sys.stderr)
+        sys.exit(validator.EXIT_BLOCKED)
+    except validator.SnippetError as error:
         print(f"FAIL State View discovery: {error}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(validator.EXIT_DEFECTS)
