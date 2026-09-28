@@ -1,0 +1,7 @@
+{
+  "gates": [
+    { "id": "frontend-lint", "description": "yarn lint — zero errors", "command": ["yarn", "lint"] },
+    { "id": "frontend-compile", "description": "yarn typecheck — zero TypeScript errors", "command": ["yarn", "typecheck"] },
+    { "id": "frontend-compile-specs", "description": "yarn tsc -p tsconfig.specs.json — zero TypeScript errors in specs", "command": ["yarn", "tsc", "-p", "tsconfig.specs.json"] }
+  ]
+}
