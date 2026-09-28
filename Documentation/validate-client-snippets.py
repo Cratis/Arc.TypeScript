@@ -10,14 +10,14 @@ of the backend language tabs that the shared Arc pages render through
 snippets in Arc.Kotlin. Nothing in a Markdown file is compiled by anything else, so without
 this gate a renamed decorator or an invented API keeps rendering on the published site.
 
-The gate checks two things:
+The gate checks three things:
 
 * The snippet contract. Every file holds exactly one fence and nothing else. The fence is
   either `typescript`, or `text` holding the explicit statement that TypeScript does not
   support the workflow yet. The set of snippet ids equals the checked-in inventory in
   `SNIPPETS`, and, when the Arc checkout is available (`../Arc/Documentation` by default),
   the ids the shared Arc pages actually ask a TypeScript tab for, except the explicitly
-  listed site-owned capstone snippet.
+  listed site-owned snippets.
 * Compilation. Each real snippet becomes its own module in a throwaway project under the
   system temporary folder. The snippet text is emitted verbatim; only its single-line
   imports are hoisted above a host class when the snippet is a class-member fragment.
@@ -28,6 +28,9 @@ The gate checks two things:
   `tsconfig.json` (strict, standard decorators, `verbatimModuleSyntax`,
   `noUncheckedIndexedAccess`) and resolves `@cratis/arc.core`, `@cratis/fundamentals`,
   `zod` and `vitest` from this repository's `node_modules`, then runs the workspace `tsc`.
+* State View discovery. After compilation, `check-state-view-discovery.py` exercises the
+  published fences through Arc source proxy analysis, Node artifact discovery and the
+  Chronicle projection compiler, including the registered read-model schema.
 
 Module resolution is `Bundler`, matching the repository's example applications.
 Fundamentals 7.19.6 also resolves under NodeNext; `--self-test` plants a concept
@@ -66,6 +69,9 @@ BASE_TSCONFIG = REPO_ROOT / "tsconfig.json"
 BUILD_OUTPUTS = (
     REPO_ROOT / "Source" / "Core" / "dist" / "index.d.ts",
     REPO_ROOT / "Source" / "Core" / "dist" / "index.js",
+    # Snippets import @cratis/arc.chronicle, which resolves to this workspace's build.
+    REPO_ROOT / "Source" / "Chronicle" / "dist" / "index.d.ts",
+    REPO_ROOT / "Source" / "Chronicle" / "dist" / "index.js",
 )
 
 EXIT_CLEAN, EXIT_DEFECTS, EXIT_BLOCKED = 0, 1, 2
@@ -149,14 +155,20 @@ export class RegisterAuthor {
 }
 """
 
-# The capstone is authored in Documentation/web rather than Arc/Documentation; the
-# shared Arc page scan cannot find its macro. Keep this exception explicit so other
-# unreferenced snippet ids still fail the inventory check.
-SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command"}
+# Site-owned pages (the capstone and State View) live in Documentation/web rather
+# than Arc/Documentation, so the shared Arc page scan cannot find their macros.
+# Keep these exceptions explicit so other unreferenced snippet ids still fail.
+SITE_ONLY_SNIPPETS = {
+    "guides/chronicle/event-from-command",
+    "scenarios/vertical-slices/state-view/author-list",
+    "scenarios/vertical-slices/state-view/fluent-projection",
+}
 
-# The checked-in inventory: shared Arc page ids plus the site-only capstone id.
+# The checked-in inventory: shared Arc page ids plus site-owned page ids.
 # `None` means the file must state that TypeScript does not support the workflow yet.
 SNIPPETS: dict[str, Context | None] = {
+    "scenarios/vertical-slices/state-view/author-list": MODULE,
+    "scenarios/vertical-slices/state-view/fluent-projection": MODULE,
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -755,6 +767,13 @@ def run(arguments: argparse.Namespace) -> int:
         for problem in problems:
             print(f"FAIL {problem}", file=sys.stderr)
         print(f"{len(problems)} snippet problem(s).", file=sys.stderr)
+        return EXIT_DEFECTS
+    discovery = subprocess.run([sys.executable, str(Path(__file__).with_name("check-state-view-discovery.py"))],
+                               check=False)
+    if discovery.returncode == EXIT_BLOCKED:
+        return EXIT_BLOCKED
+    if discovery.returncode:
+        print("FAIL State View discovery/projection check", file=sys.stderr)
         return EXIT_DEFECTS
     shared = f", matched against {arc_documentation}" if arc_documentation else ""
     print(f"Checked {compiled + unsupported} TypeScript snippet ids{shared}: {compiled} compiled, "
