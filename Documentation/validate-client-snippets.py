@@ -69,6 +69,9 @@ BASE_TSCONFIG = REPO_ROOT / "tsconfig.json"
 BUILD_OUTPUTS = (
     REPO_ROOT / "Source" / "Core" / "dist" / "index.d.ts",
     REPO_ROOT / "Source" / "Core" / "dist" / "index.js",
+    # Snippets import @cratis/arc.chronicle, which resolves to this workspace's build.
+    REPO_ROOT / "Source" / "Chronicle" / "dist" / "index.d.ts",
+    REPO_ROOT / "Source" / "Chronicle" / "dist" / "index.js",
 )
 
 EXIT_CLEAN, EXIT_DEFECTS, EXIT_BLOCKED = 0, 1, 2

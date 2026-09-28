@@ -76,6 +76,8 @@ console.log('PASS State View source proxies, Node discovery and Author projectio
 # Build outputs this check imports beyond the validator's own toolchain.
 DISCOVERY_BUILD_OUTPUTS = (
     ROOT / "Source" / "Tools" / "ProxyGenerator" / "dist" / "analyzeSource.js",
+    ROOT / "Source" / "Tools" / "ProxyGenerator" / "dist" / "renderSource.js",
+    ROOT / "Source" / "Core" / "dist" / "NodeArcApplicationBuilder.js",
     ROOT / "Source" / "Chronicle" / "dist" / "ChronicleArtifacts.js",
 )
 
