@@ -35,7 +35,10 @@ export async function resolvePostgreSQLTable(database: DrizzleDatabase, table: T
             FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE c.oid = pg_catalog.to_regclass(${name})`);
     } catch (error) {
-        throw new Error(`PostgreSQL observation could not resolve table '${config.name}' for tenant '${tenant}'; check the reader search_path`, { cause: error });
+        const message = `PostgreSQL observation could not resolve table '${config.name}' for tenant '${tenant}'`;
+        if ((error as { code?: unknown })?.code === '42501')
+            throw new DefinitivePostgreSQLObservationError(`${message}; check the reader's catalog and schema permissions`, { cause: error });
+        throw new Error(`${message}; check the reader search_path`, { cause: error });
     }
     const row = postgresqlRows(result)[0];
     if (!row || !['r'].includes(String(row.kind)) || String(row.schema).startsWith('pg_temp_'))

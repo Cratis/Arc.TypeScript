@@ -4,7 +4,9 @@ import { vi } from 'vitest';
 import type { DrizzleDatabase } from '../../DrizzleDatabase.js';
 import { DrizzleObservation } from '../../DrizzleObservation.js';
 import { PostgreSQLObservationManager } from '../../PostgreSQLObservationManager.js';
-import { Listener, row, table } from '../given/a_manager.js';
+import { pgTable, text } from 'drizzle-orm/pg-core';
+import type { DrizzleObservationLease } from '../../DrizzleObservationLease.js';
+import { database, Listener, row, table } from '../given/a_manager.js';
 
 type Lookup = () => Promise<unknown>;
 const readerWith = (failures: Lookup[]): DrizzleDatabase => {
@@ -57,5 +59,28 @@ describe('when a reader lookup fails transiently while a listener recovers', () 
             (failures[0]!.cause as Error).message.should.not.include('secret');
             connections.should.equal(3);
         } finally { lease.release(); await manager[Symbol.asyncDispose](); }
+    });
+
+    it('should fail only the affected lease immediately when the reader lacks permissions', async () => {
+        const otherTable = pgTable('other_tasks', { id: text('id').primaryKey() });
+        const denied: Lookup = () => Promise.reject(Object.assign(new Error('permission denied for schema app'), { code: '42501' }));
+        const deniedReader = readerWith([denied]);
+        const listeners = [new Listener(), new Listener(), new Listener()];
+        let connections = 0;
+        const manager = new PostgreSQLObservationManager({ mode: DrizzleObservation.PostgreSQLNotify,
+            listener: () => listeners[connections++]! }, 60_000, 20, [1, 1]);
+        const failures: Error[] = [];
+        const updates: string[] = [];
+        const good = manager.acquire('tenant', database, table, forced => { if (forced) updates.push('good'); }, error => failures.push(error));
+        const bad: DrizzleObservationLease = manager.acquire('tenant', deniedReader, otherTable, forced => { if (forced) updates.push('bad'); },
+            error => { failures.push(error); bad.release(); });
+        try {
+            await Promise.all([good.ready, bad.ready]);
+            listeners[0]!.disconnect?.();
+            await vi.waitFor(() => updates.should.deep.equal(['good']));
+            failures.should.have.lengthOf(1);
+            failures[0]!.message.should.include("check the reader's catalog and schema permissions");
+            connections.should.equal(2);
+        } finally { good.release(); bad.release(); await manager[Symbol.asyncDispose](); }
     });
 });
