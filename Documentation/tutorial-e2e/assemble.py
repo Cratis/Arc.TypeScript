@@ -9,11 +9,10 @@ import textwrap
 
 root = Path(__file__).resolve().parents[2]
 p = argparse.ArgumentParser()
-p.add_argument('destination', type=Path)
-p.add_argument('--arc-documentation', type=Path, required=True)
+p.add_argument('destination', type=Path, nargs='?')
+p.add_argument('--arc-documentation', type=Path)
+p.add_argument('--self-test', action='store_true')
 a = p.parse_args()
-out = a.destination
-out.mkdir(parents=True, exist_ok=True)
 
 
 def snippet(name):
@@ -29,9 +28,13 @@ def klass(text, name):
     if not match:
         raise ValueError(f'Missing class {name} in snippet')
     start = match.start()
-    decorator = text.rfind('\n@', 0, start)
-    if decorator != -1 and not text[decorator + 1:start].strip().startswith('import '):
-        start = decorator + 1
+    # Only decorators immediately above this class belong to it; never borrow
+    # decorators from an earlier class or across a blank line.
+    lines = text[:start].splitlines(keepends=True)
+    while lines and lines[-1].strip().startswith('@'):
+        start -= len(lines.pop())
+    if any(line.lstrip().startswith('@') for line in ''.join(lines).rsplit('}', 1)[-1].splitlines()):
+        raise ValueError(f'Detached decorator before {name}')
     brace = text.index('{', match.end())
     depth = 1
     i = brace + 1
@@ -39,6 +42,97 @@ def klass(text, name):
         depth += (text[i] == '{') - (text[i] == '}')
         i += 1
     return text[start:i]
+
+
+def require_replace(body, old, new):
+    if body.count(old) != 1:
+        raise ValueError(f'Expected exactly one occurrence of {old!r}')
+    return body.replace(old, new, 1)
+
+
+def function(text, name):
+    match = re.search(r'\bexport async function ' + name + r'\(', text)
+    if not match:
+        raise ValueError(f'Missing function {name}')
+    brace = text.index('{', match.end())
+    depth = 1
+    i = brace + 1
+    while depth:
+        depth += (text[i] == '{') - (text[i] == '}')
+        i += 1
+    return text[match.start():i]
+
+
+def host_from_snippets(host, registration, index, header):
+    # These checks make a missing chapter or an inverted development gate fail
+    # before emitting a host, rather than silently running a private replacement.
+    if not re.search(r'authentication:\s*development\s*\?\s*\[microsoftIdentityPlatform\(\)\]\s*:\s*\[\]', header):
+        raise ValueError('Development authentication must be enabled only in development')
+    if registration.count('builder.services.addScoped(BookRepository,') != 1:
+        raise ValueError('Missing BookRepository registration')
+    if 'readModels: [Author, Book]' not in registration or 'mongoCollection(Book)' not in registration:
+        raise ValueError('Missing Book read model or collection')
+    setup = header[header.index('const development ='):].strip().replace('\n', '\n    ')
+    old_builder = "const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } });"
+    host = require_replace(host, old_builder, setup)
+    old_mongo = host[host.index('    builder.withMongoDB({'):host.index('    builder.services.addScoped(AuthorRepository,')]
+    new_mongo = registration[registration.index('builder.withMongoDB({'):registration.index('builder.services.addScoped(BookRepository,')].strip()
+    # The scratch run uses a unique database; all other setup is from the tab.
+    new_mongo = require_replace(new_mongo, "database: 'Library'", "database: process.env.TUTORIAL_DATABASE ?? 'Library'")
+    host = require_replace(host, old_mongo, '    ' + new_mongo.replace('\n', '\n    ') + '\n')
+    book_service = registration[registration.index('builder.services.addScoped(BookRepository,'):].strip()
+    old_author_service = host[host.index('    builder.services.addScoped(AuthorRepository,'):host.index('    // Use the same Features root')]
+    host = require_replace(host, old_author_service, old_author_service + '    ' + book_service.replace('\n', '\n    ') + '\n')
+    index_helper = function(index, 'ensureAuthorNameIndex')
+    run_helper = function(index, 'startWithAuthorIndex')
+    run_helper = require_replace(run_helper, 'await app.run({ port: 3000 });',
+                                 'await app.run({ port: Number(process.env.PORT ?? 3000) });')
+    host = require_replace(host, '    const app = await builder.build();\n    await app.run({ port: 3000 });',
+                           '    await startWithAuthorIndex(builder);')
+    host = require_replace(host, 'export async function start()',
+                           index_helper + '\n\n' + run_helper + '\n\nexport async function start()')
+    # The snippet's backend file imports its local feature types as instructed
+    # in its comments; keep those imports explicit in this assembled file.
+    preamble = imports("import { ArcApplication, microsoftIdentityPlatform, Severity, type ArcApplicationBuilder } from '@cratis/arc.core';",
+        "import { mongoCollection, type MongoCollection } from '@cratis/arc.mongodb';",
+        "import type { Filter, Document } from 'mongodb';",
+        "import { metadata } from './Features/generatedMetadata.js';",
+        "import { Author } from './Features/Authors/Author.js';",
+        "import { AuthorRepository } from './Features/Authors/AuthorRepository.js';",
+        "import { MongoAuthorRepository } from './Features/Authors/MongoAuthorRepository.js';",
+        "import { Book } from './Features/Books/Book.js';",
+        "import { BookRepository } from './Features/Books/BookRepository.js';",
+        "import { MongoBookRepository } from './Features/Books/MongoBookRepository.js';")
+    return preamble + host[host.index(index_helper):]
+
+
+def self_test():
+    assert klass('@first()\n@second()\nexport class Target {}', 'Target').startswith('@first()\n@second()')
+    assert klass('@old()\nclass Earlier {}\n\nclass Target {}', 'Target') == 'class Target {}'
+    try:
+        klass('@skipped()\n\nclass Target {}', 'Target')
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('Detached decorator was accepted')
+    host = snippet('arc-without-event-sourcing/standalone-host')
+    registration = snippet('tutorial/books-and-relationships/mongodb-book-registration')
+    index = snippet('tutorial/validation/mongodb-unique-index')
+    header = snippet('tutorial/authorization/development-header-adapter')
+    assembled = host_from_snippets(host, registration, index, header)
+    assert 'await startWithAuthorIndex(builder)' in assembled
+    inverted = header.replace('development ? [microsoftIdentityPlatform()] : []',
+                              'development ? [] : [microsoftIdentityPlatform()]')
+    missing = registration.replace('builder.services.addScoped(BookRepository,',
+                                   'builder.services.addScoped(OtherRepository,')
+    assert inverted != header and missing != registration
+    for changed_registration, changed_header in ((registration, inverted), (missing, header)):
+        try:
+            host_from_snippets(host, changed_registration, index, changed_header)
+        except ValueError:
+            continue
+        raise AssertionError('A broken published host snippet was accepted')
+    print('PASS assembler negative host and decorator tests')
 
 
 def put(name, body):
@@ -49,6 +143,15 @@ def put(name, body):
 
 def imports(*items):
     return '\n'.join(items) + '\n\n'
+
+
+if a.self_test:
+    self_test()
+    raise SystemExit(0)
+if a.destination is None or a.arc_documentation is None:
+    p.error('destination and --arc-documentation are required unless --self-test is set')
+out = a.destination
+out.mkdir(parents=True, exist_ok=True)
 
 fund = "import { ConceptAs, Guid } from '@cratis/fundamentals';"
 field = "import { field } from '@cratis/fundamentals';"
@@ -103,67 +206,42 @@ put('Features/Books/AddBook.ts', imports(field, "import { command, inject } from
     "import { AuthorId } from '../Authors/AuthorId.js';", "import { BookId } from './BookId.js';",
     "import { BookTitle } from './BookTitle.js';", "import { BookRepository } from './BookRepository.js';") +
     klass(snippet(book + 'add-book'), 'AddBook'))
-# Chapter 5 adds @roles to each command/query. Keep the bodies taken from their
-# earlier tabs; the chapter 5 snippets must declare each protected artifact.
+# Chapter 5 supplies the protected class bodies and the role declarations.
 roles_commands = snippet('tutorial/authorization/roles-on-command')
 roles_queries = snippet('tutorial/authorization/roles-on-query')
+command_role = re.search(r'(?m)^(@roles\([^\n]+\))\nexport class RegisterAuthor', roles_commands)
+query_role = re.search(r'(?m)^    (@roles\([^\n]+\))\n    @query\(', roles_queries)
+if not command_role or not query_role:
+    raise ValueError('Missing chapter 5 role declaration')
 for name in ('RegisterAuthor', 'RenameAuthor'):
-    if f'@roles(\'Librarian\')\nexport class {name}' not in roles_commands:
+    source_class = klass(roles_commands, name)
+    if command_role[1] not in source_class:
         raise ValueError(f'Role not declared on {name}')
-for name in ('AddBook',):
-    if name not in (a.arc_documentation / 'tutorial/authorization.mdx').read_text():
-        raise ValueError('Chapter 5 must protect AddBook')
-for name in ('RegisterAuthor', 'RenameAuthor', 'AddBook'):
-    target = out / f'Features/{"Books" if name == "AddBook" else "Authors"}/{name}.ts'
-    text = target.read_text().replace("import { command,", "import { roles, command,")
-    target.write_text(text.replace('@command()\n', "@command()\n@roles('Librarian')\n", 1))
-if "@roles('Librarian')" not in roles_queries:
-    raise ValueError('Chapter 5 must protect AllAuthors')
-for name, feature, query_name in (('Author', 'Authors', 'allAuthors'), ('Book', 'Books', 'booksForAuthor')):
-    target = out / f'Features/{feature}/{name}.ts'
-    text = target.read_text().replace('import { argument,', 'import { roles, argument,').replace('import { query,', 'import { roles, query,')
-    target.write_text(text.replace('    @query({ observable: true }', "    @roles('Librarian')\n    @query({ observable: true }", 1))
+    target = out / f'Features/Authors/{name}.ts'
+    text = target.read_text()
+    original_class = klass(text, name)
+    target.write_text(require_replace(text, original_class, source_class).replace('command,', 'command, roles,', 1))
+query_class = klass(roles_queries, 'Author')
+if query_role[1] not in query_class:
+    raise ValueError('Role not declared on Author query')
+target = out / 'Features/Authors/Author.ts'
+text = target.read_text()
+target.write_text(require_replace(text, klass(text, 'Author'), query_class).replace('query,', 'query, roles,', 1))
+chapter_five = (a.arc_documentation / 'tutorial/authorization.mdx').read_text()
+for name in ('AddBook', 'BooksForAuthor'):
+    if name not in chapter_five:
+        raise ValueError(f'Chapter 5 must protect {name}')
+target = out / 'Features/Books/AddBook.ts'
+text = target.read_text()
+target.write_text(require_replace(text, '@command()\n', '@command()\n' + command_role[1] + '\n').replace('command,', 'command, roles,', 1))
+target = out / 'Features/Books/Book.ts'
+text = target.read_text()
+target.write_text(require_replace(text, '    @query({ observable: true }', '    ' + query_role[1] + '\n    @query({ observable: true }').replace('query,', 'query, roles,', 1))
 
-# Host: start from the standalone tab, applying chapter 2's index helper,
-# chapter 3's registration, and chapter 5's dev-only authentication.
-registration = snippet(book + 'mongodb-book-registration')
-for required in ('readModels: [Author, Book]', 'mongoCollection(Book)', 'BookRepository'):
-    if required not in registration:
-        raise ValueError(f'Chapter 3 registration lacks {required}')
-index_tab = snippet('tutorial/validation/mongodb-unique-index')
-header_tab = snippet('tutorial/authorization/development-header-adapter')
-if 'microsoftIdentityPlatform()' not in header_tab or 'createIndex(' not in index_tab:
-    raise ValueError('Missing chapter 2 or 5 host step')
-put('main.ts', imports("import { ArcApplication, microsoftIdentityPlatform, Severity } from '@cratis/arc.core';",
-    "import { mongoCollection } from '@cratis/arc.mongodb';", "import type { Filter, Document } from 'mongodb';",
-    "import { metadata } from './Features/generatedMetadata.js';",
-    "import { Author } from './Features/Authors/Author.js';", "import { AuthorRepository } from './Features/Authors/AuthorRepository.js';",
-    "import { MongoAuthorRepository } from './Features/Authors/MongoAuthorRepository.js';",
-    "import { Book } from './Features/Books/Book.js';", "import { BookRepository } from './Features/Books/BookRepository.js';",
-    "import { MongoBookRepository } from './Features/Books/MongoBookRepository.js';") + """
-const development = process.env.NODE_ENV === 'development';
-const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' },
-    development, authentication: development ? [microsoftIdentityPlatform()] : [] });
-builder.useGeneratedMetadata(metadata);
-builder.withMongoDB({ server: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017',
-    database: process.env.TUTORIAL_DATABASE ?? 'Library', readModels: [Author, Book] });
-builder.services.addScoped(AuthorRepository, async scope =>
-    new MongoAuthorRepository(await scope.resolve(mongoCollection(Author))));
-builder.services.addScoped(BookRepository, async scope =>
-    new MongoBookRepository(await scope.resolve(mongoCollection(Book))));
-await builder.discover(new URL('./Features/', import.meta.url));
-const app = await builder.build();
-try {
-    const scope = app.server.services.createScope({ tenantId: 'default', correlationId: crypto.randomUUID(),
-        principal: undefined, signal: new AbortController().signal, allowedSeverity: Severity.Warning });
-    try {
-        const collection = await scope.resolve(mongoCollection(Author));
-        await collection.native.createIndex({ [collection.codec.fieldName('name')]: 1 },
-            { unique: true, name: 'unique_author_name' });
-    } finally { await scope.dispose(); }
-    await app.run({ port: Number(process.env.PORT ?? 3000) });
-} finally { await app.dispose(); }
-""")
+# Compose the actual published host steps, not a parallel hard-coded host.
+put('main.ts', host_from_snippets(host_tab, snippet(book + 'mongodb-book-registration'),
+                                 snippet('tutorial/validation/mongodb-unique-index'),
+                                 snippet('tutorial/authorization/development-header-adapter')))
 # Install instructions and backend compiler settings are those from the linked
 # create-an-application guide; no workspace:^ dependency escapes into scratch.
 put('package.json', '''{"name":"arc-tutorial-e2e","private":true,"type":"module","scripts":{

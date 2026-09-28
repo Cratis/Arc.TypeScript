@@ -19,7 +19,7 @@ container=''
 server=''
 cleanup() {
     if [ -n "$server" ]; then kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true; fi
-    if [ -n "$container" ]; then docker stop "$container" >/dev/null 2>&1 || true; docker rm "$container" >/dev/null 2>&1 || true; fi
+    if [ -n "$container" ]; then docker stop "$container" >/dev/null 2>&1 || true; docker rm --volumes "$container" >/dev/null 2>&1 || true; fi
     # The only removed tree was created above by mktemp for this run.
     rm -rf -- "$scratch"
 }
@@ -34,11 +34,12 @@ for package in core mongodb proxygenerator; do
 done
 cd "$scratch/app"
 npm install --no-audit --no-fund ../arc-packages/arc.core.tgz ../arc-packages/arc.mongodb.tgz \
-    @cratis/fundamentals@^7.19.6 @opentelemetry/api@^1.9.0 mongodb@^6.21.0 rxjs@^7.8.2 \
-    react@^19 react-dom@^19 @cratis/arc@22.19.1 @cratis/arc.react@22.19.1 @cratis/components@^4 \
+    @cratis/fundamentals@7.19.6 @opentelemetry/api@1.9.1 mongodb@6.21.0 rxjs@7.8.2 \
+    react@19.3.0 react-dom@19.3.0 @cratis/arc@22.19.1 @cratis/arc.react@22.19.1 @cratis/components@4.6.0 \
     reflect-metadata@0.2.2 tsyringe@4.10.0
 npm install --no-audit --no-fund --save-dev ../arc-packages/arc.proxygenerator.tgz \
-    typescript@npm:@typescript/typescript6@^6.0.2 @types/node@^22 tsx vite @types/react @types/react-dom
+    typescript@npm:@typescript/typescript6@6.0.2 @types/node@22.20.4 tsx@4.23.15 vite@8.3.0 \
+    @types/react@19.3.0 @types/react-dom@19.3.0
 npm run generate
 npm run build
 test -f dist/main.js

@@ -14,6 +14,7 @@ export class MongoBookRepository extends BookRepository {
 
     observeForAuthor(authorId: AuthorId): ObservableSource<Book[]> {
         const field = this.collection.codec.fieldName('authorId');
+        // BookId and AuthorId both use Guid; the key-field codec also encodes this author id.
         const storedId = this.collection.codec.id(authorId);
         return this.collection.observe({ [field]: storedId });
     }
