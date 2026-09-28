@@ -2,7 +2,7 @@
 import { field } from '@cratis/fundamentals';
 import { readModel } from '@cratis/arc.core';
 import { eventType } from '@cratis/chronicle/events';
-import { IProjectionBuilderFor, IProjectionFor, projection } from '@cratis/chronicle';
+import { projection, type IProjectionBuilderFor, type IProjectionFor } from '@cratis/chronicle';
 
 @eventType()
 class AuthorImported {
