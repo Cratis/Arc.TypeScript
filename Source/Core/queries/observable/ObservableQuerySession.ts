@@ -13,6 +13,7 @@ import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
 import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
 import { clonePrincipal } from './clonePrincipal.js';
 import { beginSubscription, observe } from '../../execution/observability.js';
+import type { ShutdownTransaction } from '../../dependencyInjection/ShutdownTransaction.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
 export class ObservableQuerySession {
@@ -30,6 +31,10 @@ export class ObservableQuerySession {
     readonly #operations = new Set<Promise<unknown>>();
     #terminalFailure: unknown;
     #released = false;
+    #transaction: ShutdownTransaction | undefined;
+    #producer: ((coordinated: boolean) => Promise<void>) | undefined;
+    #producerClosing: Promise<void> | undefined;
+    readonly #transports: { release: () => Promise<void>; join: () => Promise<void> }[] = [];
 
     private constructor(private readonly config: ObservableSessionConfig) {
         this.#context = Object.freeze({ ...config.context, principal: clonePrincipal(config.context.principal),
@@ -43,6 +48,7 @@ export class ObservableQuerySession {
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
     static async open(config: ObservableSessionConfig): Promise<ObservableQuerySession> {
         const session = new ObservableQuerySession(config);
+        config.onCreate(session);
         try {
             const start = (): Promise<QueryResult<ObservableSource<unknown>>> =>
                 config.operation.run(config.input, session.#context, config.options) as Promise<QueryResult<ObservableSource<unknown>>>;
@@ -50,7 +56,7 @@ export class ObservableQuerySession {
                 { query_name: config.operation.fullyQualifiedName }, start, undefined, result => result.hasExceptions));
             session.#result = result;
             await session.reportResult(result);
-            if (result.isSuccess) session.#source = result.data;
+            if (result.isSuccess && !session.#context.signal.aborted) session.#source = result.data;
             else await session.close();
             return session;
         } catch (error) {
@@ -87,17 +93,55 @@ export class ObservableQuerySession {
         return this.guarded(result);
     }
 
+    /** @internal Transfer this session to the owner before releasing its producer. */
+    coordinateShutdown(transaction: ShutdownTransaction): void {
+        if (this.#transaction) return;
+        this.#transaction = transaction;
+        this.cancel();
+        transaction.release(this.releaseProducer());
+        transaction.work(() => this.joinWork());
+        transaction.scope(() => this.finishScope());
+        for (const transport of this.#transports) {
+            transaction.release(transport.release());
+            transaction.work(transport.join);
+        }
+    }
+
+    /** @internal Attach a direct delivery surface to the session's transaction phases. */
+    attachTransport(release: () => Promise<void>, join: () => Promise<void>): void {
+        this.#transports.push({ release, join });
+        if (this.#transaction) {
+            this.#transaction.release(release());
+            this.#transaction.work(join);
+        }
+    }
+
+    /** @internal Abort and return the source cursor independently of the consumer's guard. */
+    releaseProducer(): Promise<void> {
+        this.cancel();
+        return this.#producerClosing ??= this.#producer?.(!!this.#transaction) ?? Promise.resolve();
+    }
+
+    /** @internal Join an admitted stream and its guards only after participants drain. */
+    async joinWork(): Promise<void> {
+        await Promise.allSettled([...this.#operations]);
+        if (this.#activeIterator) await this.#activeIterator.return(undefined);
+        await this.close();
+        if (this.#terminalFailure) throw this.#terminalFailure;
+    }
+
     /** @internal Stop emissions before closing the session and its scope. */
     cancel(): void { this.#controller.abort(); }
 
     /** Cancel the producer, release its iterator, and dispose the scope exactly once. */
     close(): Promise<void> {
         if (this.#closed) return this.#closed;
-        this.#controller.abort();
+        this.cancel();
         this.releaseAdmission();
         this.#closed = (async () => {
             const failures: unknown[] = [];
-            if (this.#activeIterator) {
+            try { await this.releaseProducer(); } catch (error) { failures.push(error); }
+            if (!this.#transaction && this.#activeIterator) {
                 try { await this.#activeIterator.return(undefined); }
                 catch (error) { failures.push(error); }
             }
@@ -131,7 +175,8 @@ export class ObservableQuerySession {
         try {
             if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
-            for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions)) {
+            for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions,
+                release => { this.#producer = release; if (this.#context.signal.aborted) void this.releaseProducer().catch(() => {}); })) {
                 if (this.#context.signal.aborted) return;
                 const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
                     { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
@@ -166,7 +211,7 @@ export class ObservableQuerySession {
     }
 
     private closeScope(): Promise<void> {
-        if (this.config.services.disposed && this.config.services.hasShutdownParticipants && this.config.deferScopeDisposal()) {
+        if (this.#transaction) {
             this.releaseAdmission();
             return Promise.resolve();
         }
@@ -221,15 +266,7 @@ export class ObservableQuerySession {
             if (decision === ObservableEmissionDecision.Allow) return result;
             if (decision === ObservableEmissionDecision.Suppress) return undefined;
             await this.config.reportFailure(new Error('Observable emission denied by policy'));
-        } catch (error) {
-            if (this.#context.signal.aborted && this.config.services.disposed &&
-                error instanceof Error && error.message === 'Service registry is disposed') return undefined;
-            if (this.#context.signal.aborted) {
-                await this.config.reportFailure(error);
-                return undefined;
-            }
-            await this.config.reportFailure(error);
-        }
+        } catch (error) { await this.config.reportFailure(error); }
         return queryResult(this.#context, { isAuthorized: false });
     }
 

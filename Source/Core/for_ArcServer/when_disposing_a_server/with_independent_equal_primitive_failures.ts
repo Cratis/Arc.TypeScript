@@ -7,17 +7,42 @@ import { serviceToken } from '../../dependencyInjection/ServiceToken.js';
 import { captureFailure } from '../../dependencyInjection/for_ServiceRegistry/given/a_service_lifecycle.js';
 
 should();
-describe('when transport and a separate disposer throw equal primitive failures', () => {
+describe('when transport throws synchronously without shutdown participants', () => {
+    let failure: unknown;
+    let disposed: boolean;
+    let disposedAtFirstOutcome: boolean;
+    beforeEach(async () => {
+        disposed = false;
+        const token = serviceToken<object>('singleton');
+        const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Singleton,
+            factory: () => ({ [Symbol.dispose]: () => { disposed = true; } }) }] });
+        await server.services.singletonScope().resolve(token);
+        server.closeWebSockets = () => { throw 'busy'; };
+        failure = await captureFailure(server.dispose());
+        disposedAtFirstOutcome = disposed;
+        await server.services.dispose();
+    });
+    it('should report only the transport error from the first shutdown', () => {
+        should().equal(failure, 'busy');
+        disposedAtFirstOutcome.should.equal(false);
+        disposed.should.equal(true);
+    });
+});
+
+describe('when transport and a separate disposer throw equal primitives with participants', () => {
     let failure: AggregateError;
     beforeEach(async () => {
         const token = serviceToken<object>('singleton');
         const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Singleton,
             factory: () => ({ [Symbol.dispose]: () => { throw 'busy'; } }) }] });
         await server.services.singletonScope().resolve(token);
-        server.closeWebSockets = () => { throw 'busy'; };
+        server.services.addShutdownParticipant({ stop: () => {}, drain: async () => {} });
+        server.closeWebSockets = async () => { throw 'busy'; };
         failure = await captureFailure(server.dispose()) as AggregateError;
     });
     it('should retain both independently originating failures', () => {
-        failure.errors.should.deep.equal(['busy', 'busy']);
+        failure.errors.should.have.lengthOf(2);
+        failure.errors[0].should.equal('busy');
+        ((failure.errors[1] as AggregateError).errors[0] as string).should.equal('busy');
     });
 });

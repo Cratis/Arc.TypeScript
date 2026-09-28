@@ -23,7 +23,9 @@ describe('when transport and an empty aggregate singleton disposer fail', () => 
     });
     it('should report both the transport failure and the empty aggregate', () => {
         failure.errors.should.include(transportError);
-        failure.errors.should.include(singletonError);
         failure.errors.should.have.lengthOf(2);
+        const registryFailure = failure.errors[1] as AggregateError;
+        const scopeFailure = registryFailure.errors[0] as AggregateError;
+        should().equal(scopeFailure.errors[0], singletonError);
     });
 });

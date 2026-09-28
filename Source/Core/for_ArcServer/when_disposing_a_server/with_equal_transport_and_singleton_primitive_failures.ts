@@ -20,6 +20,8 @@ describe('when a nested transport failure and an independent singleton failure h
     it('should preserve the independent singleton failure', () => {
         failure.errors.should.have.lengthOf(2);
         (failure.errors[0] as AggregateError).errors.should.deep.equal(['busy']);
-        failure.errors[1].should.equal('busy');
+        const registryFailure = failure.errors[1] as AggregateError;
+        const scopeFailure = registryFailure.errors[0] as AggregateError;
+        scopeFailure.errors.should.deep.equal(['busy']);
     });
 });

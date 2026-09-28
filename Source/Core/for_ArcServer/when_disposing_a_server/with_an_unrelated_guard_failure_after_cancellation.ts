@@ -40,8 +40,8 @@ describe('when an already-running emission guard fails after shutdown cancellati
             await beforeDeadline(closing, 'guard shutdown');
         } finally { release.release(); }
     });
-    it('should log the unrelated guard error while suppressing its emission', () => {
+    it('should log the unrelated guard error and retain the unauthorized snapshot result', () => {
         logged.should.deep.equal([failure]);
-        should().equal(returned, undefined);
+        (returned as { isAuthorized: boolean }).isAuthorized.should.equal(false);
     });
 });

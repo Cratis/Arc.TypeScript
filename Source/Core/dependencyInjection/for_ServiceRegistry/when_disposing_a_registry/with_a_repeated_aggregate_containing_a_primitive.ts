@@ -10,7 +10,11 @@ describe('when registry cleanup reports the same aggregate with a primitive twic
     beforeEach(async () => {
         const registry = new ServiceRegistry();
         const original = new AggregateError(['cleanup failed'], 'cleanup failed');
-        registry.addShutdownCleanup(() => {}, async () => { throw original; }, async () => { throw original; });
+        registry.addShutdownParticipant({ stop: () => {}, drain: async () => {} });
+        registry.addShutdownResource(transaction => {
+            transaction.release(Promise.reject(original));
+            transaction.work(async () => { throw original; });
+        });
         failure = await captureFailure(registry.dispose()) as AggregateError;
     });
     it('should report the originating failure once', () => {

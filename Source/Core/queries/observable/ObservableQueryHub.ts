@@ -20,6 +20,7 @@ import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 import { correlation } from '../../execution/correlation.js';
 import { SseHubTransport } from './SseHubTransport.js';
 import type { ObservableSocket } from './ObservableSocket.js';
+import type { ShutdownTransaction } from '../../dependencyInjection/ShutdownTransaction.js';
 
 const ssePath = '/.cratis/queries/sse';
 const subscribePath = `${ssePath}/subscribe`;
@@ -32,6 +33,7 @@ export class ObservableQueryHub {
     #healthVersion = 0;
     #disposed = false;
     #stopping = false;
+    #closing: Promise<void> | undefined;
 
     constructor(readonly server: ArcServer) {}
 
@@ -98,13 +100,27 @@ export class ObservableQueryHub {
     /** Reject new connections before participant drain; existing connections close during cleanup. */
     stopAdmission(): void { this.#stopping = true; }
 
-    async dispose(transportOnly = false): Promise<void> {
-        if (this.#disposed) return;
+    /** @internal Register transport and delivery as independent transaction phases. */
+    coordinateShutdown(transaction: ShutdownTransaction): void {
+        this.#disposed = true;
+        this.stopAdmission();
+        this.#healthChanged.complete();
+        for (const connection of this.connections) {
+            transaction.release(connection.releaseTransport());
+            transaction.work(() => connection.joinDelivery());
+        }
+    }
+
+    dispose(): Promise<void> {
+        if (this.#closing) return this.#closing;
         this.#disposed = true;
         this.#healthChanged.complete();
-        const outcomes = await Promise.allSettled([...this.#connections.values()].map(connection => connection.close(transportOnly)));
-        const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
-        if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
+        this.#closing = (async () => {
+            const outcomes = await Promise.allSettled(this.connections.map(connection => connection.close()));
+            const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+            if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
+        })();
+        return this.#closing;
     }
 
     private async openSse(request: Request, native?: NativeRequestContext): Promise<Response> {

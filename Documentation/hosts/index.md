@@ -68,7 +68,7 @@ The adapters add no Arc behavior of their own. Each one:
 
 ## Ownership and shutdown
 
-The framework owns its listener. Mounting an application does not make the adapter own shutdown: close the framework's server, then call `await arc.dispose()` to dispose Arc's services.
+The framework owns its listener. Mounting an application does not make the adapter own shutdown: call `shutdownArcHost(arc.server, () => framework.close())` from `@cratis/arc.core/hosting` to start participant shutdown before closing a listener with live observables. Express also provides `middleware.shutdown(listener)`. If your host supplied Arc's registry, pass it explicitly as the third argument to `shutdownArcHost` (or the second argument to Express `shutdown`); it is never disposed implicitly. Without participants the helper closes the framework first, then disposes Arc, as before. `framework.close()` or `middleware.close(listener)` alone remains listener-only.
 
 ## Related
 

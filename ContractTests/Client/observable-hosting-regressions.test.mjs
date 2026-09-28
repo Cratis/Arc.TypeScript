@@ -143,13 +143,22 @@ test('direct WebSocket joins time out and terminate a stalled socket', async () 
     })] });
     const host = await runArc(server, { port: 0 });
     const socket = new WebSocket(`ws://127.0.0.1:${host.server.address().port}/api/numbers`);
+    let timedOut = false;
     try {
         const closed = new Promise(resolve => socket.addEventListener('close', resolve));
         await within(observing);
         await assert.rejects(within(host.close({ timeoutMs: 1000 })), /Arc WebSocket shutdown timed out/);
+        timedOut = true;
         await within(closed);
         assert.equal(host.server.listening, false);
-    } finally { release(); socket.close(); await server.dispose(); }
+    } finally {
+        release(); socket.close();
+        if (timedOut) await assert.rejects(within(server.dispose()), error => {
+            const leaves = failure => failure instanceof AggregateError ? failure.errors.flatMap(leaves) : [failure];
+            return leaves(error).some(failure => failure instanceof Error && failure.message === 'Arc WebSocket shutdown timed out');
+        });
+        else await server.dispose();
+    }
 });
 
 test('runArc stops listening and bounds direct WebSocket shutdown with a pending source', async () => {

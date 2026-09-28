@@ -6,8 +6,8 @@ import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { TLSSocket } from 'node:tls';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction, RequestHandler } from 'express';
-import { attachNodeWebSockets, serverOf } from '@cratis/arc.core/hosting';
-import type { ArcApplication, ArcServer, NativeRequestContext } from '@cratis/arc.core';
+import { attachNodeWebSockets, serverOf, shutdownArcHost } from '@cratis/arc.core/hosting';
+import type { ArcApplication, ArcServer, NativeRequestContext, ServiceRegistry } from '@cratis/arc.core';
 
 const origin = 'http://arc.invalid';
 /** Return ordinary Express middleware; injectWebSocket() separately bridges listener upgrades. */
@@ -15,6 +15,7 @@ export function cratisArc(application: ArcServer | ArcApplication,
     native?: (request: ExpressRequest) => NativeRequestContext | Promise<NativeRequestContext>): RequestHandler & {
         injectWebSocket(host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>): () => Promise<void>;
         close(host: HttpServer): Promise<void>;
+        shutdown(host: HttpServer, registry?: ServiceRegistry): Promise<void>;
     } {
     const server = serverOf(application);
     const middleware = async (request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
@@ -57,6 +58,16 @@ export function cratisArc(application: ArcServer | ArcApplication,
         }
     };
     const socketDisposers = new Map<HttpServer, () => Promise<void>>();
+    const closeHost = async (host: HttpServer): Promise<void> => {
+        try { await socketDisposers.get(host)?.(); }
+        finally {
+            socketDisposers.delete(host);
+            const closed = new Promise<void>((resolve, reject) => host.close(error => error ? reject(error) : resolve()));
+            // SSE responses keep close() pending until their clients disconnect.
+            host.closeAllConnections();
+            await closed;
+        }
+    };
     return Object.assign(middleware, {
         injectWebSocket: (host: HttpServer, upgradeNative?: (request: IncomingMessage) => NativeRequestContext | Promise<NativeRequestContext>) => {
             if (socketDisposers.has(host)) throw new Error('Express observable WebSockets are already injected');
@@ -64,15 +75,7 @@ export function cratisArc(application: ArcServer | ArcApplication,
             socketDisposers.set(host, dispose);
             return async () => { socketDisposers.delete(host); await dispose(); };
         },
-        async close(host: HttpServer) {
-            try { await socketDisposers.get(host)?.(); }
-            finally {
-                socketDisposers.delete(host);
-                const closed = new Promise<void>((resolve, reject) => host.close(error => error ? reject(error) : resolve()));
-                // SSE responses keep close() pending until their clients disconnect.
-                host.closeAllConnections();
-                await closed;
-            }
-        }
+        close: closeHost,
+        shutdown: (host: HttpServer, registry?: ServiceRegistry) => shutdownArcHost(server, () => closeHost(host), registry)
     });
 }

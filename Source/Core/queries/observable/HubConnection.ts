@@ -28,8 +28,8 @@ export class HubConnection {
     readonly #keepAlive: HubKeepAlive;
     #closing: Promise<void> | undefined;
     #transportClosing: Promise<void> | undefined;
-    #transportOnly = false;
-    #switchToTransportOnly: (() => void) | undefined;
+    #delivery: Promise<void> | undefined;
+    #closingSubscriptions: readonly HubSubscription[] = [];
 
     constructor(
         readonly server: ArcServer,
@@ -51,7 +51,7 @@ export class HubConnection {
     get context(): ExecutionContext { return this.#context; }
     get subscriptionCount(): number { return this.#states.activeCount; }
     get subscriptions(): readonly HubSubscription[] { return [...this.#subscriptions.values()]; }
-    get closed(): boolean { return this.#closing !== undefined; }
+    get closed(): boolean { return this.#transportClosing !== undefined; }
 
     /** Advertise revisions promptly, including when a WS client sent a legacy Subscribe on open. */
     async connect(): Promise<void> {
@@ -143,67 +143,65 @@ export class HubConnection {
         catch { /* Cleanup was already recorded; a failing logger must not orphan the connection. */ }
     }
 
-    close(transportOnly = false): Promise<void> {
-        if (transportOnly) {
-            this.#transportOnly = true;
-            this.#switchToTransportOnly?.();
-        }
-        if (this.#closing) return transportOnly ? this.#transportClosing! : this.#closing;
+    /** @internal Stop keepalives, output and admission without joining delivery. */
+    releaseTransport(): Promise<void> {
+        if (this.#transportClosing) return this.#transportClosing;
         this.#keepAlive.stop();
-        let finishTransport!: () => void;
-        let failTransport!: (error: unknown) => void;
-        this.#transportClosing = new Promise<void>((resolve, reject) => {
-            finishTransport = resolve;
-            failTransport = reject;
-        });
-        this.#closing = Promise.resolve().then(async () => {
+        this.#closingSubscriptions = [...this.#subscriptions.values()];
+        this.#subscriptions.clear();
+        for (const subscription of this.#closingSubscriptions) subscription.controller.abort();
+        let resolve!: () => void;
+        let reject!: (error: unknown) => void;
+        this.#transportClosing = new Promise<void>((done, failed) => { resolve = done; reject = failed; });
+        void this.#transportClosing.catch(() => {});
+        try { this.output.close(); resolve(); }
+        catch (error) { reject(error); }
+        this.onChange();
+        return this.#transportClosing;
+    }
+
+    /** @internal Join every admitted subscription after the participants drain. */
+    joinDelivery(): Promise<void> {
+        if (this.#delivery) return this.#delivery;
+        this.releaseTransport();
+        this.#delivery = (async () => {
             try {
-                this.output.close();
-                const errors: unknown[] = [];
-                const active = [...this.#subscriptions.values()];
-                this.#subscriptions.clear();
-                for (const subscription of active) subscription.controller.abort();
-                if (this.#transportOnly) {
-                    // Registry shutdown owns the sessions after participant drains. Do not await a
-                    // session disposer or delivery that needs a participant to stop first.
-                    this.onClose();
-                    this.onChange();
-                    finishTransport();
-                    return;
-                }
-                const joined = Promise.allSettled(active.map(async subscription => {
+                const outcomes = await Promise.allSettled(this.#closingSubscriptions.map(async subscription => {
                     try {
                         await subscription.session?.close();
                         await subscription.admission;
                         await subscription.delivery;
                     } catch (error) { await this.recordCleanupFailure(subscription, error); }
                 }));
-                let timer: ReturnType<typeof setTimeout> | undefined;
-                try {
-                    const switched = new Promise<void>(resolve => { this.#switchToTransportOnly = resolve; });
-                    const result = await Promise.race([
-                        joined.then(results => ({ results })),
-                        switched.then(() => ({ results: undefined })),
-                        new Promise<never>((_, reject) => {
-                            timer = setTimeout(() => reject(new Error('Observable hub shutdown timed out')),
-                                this.server.observableLimits.shutdownTimeoutMs);
-                        })
-                    ]);
-                    for (const outcome of result.results ?? []) if (outcome.status === 'rejected') errors.push(outcome.reason);
-                } catch (error) { errors.push(error); }
-                finally { if (timer) clearTimeout(timer); this.#switchToTransportOnly = undefined; }
-                this.onClose();
-                this.onChange();
-                finishTransport();
-                if (this.#transportOnly) return;
-                if (errors.length === 1) throw errors[0];
-                if (errors.length) throw new AggregateError(errors, 'Observable hub shutdown failed');
-            } catch (error) { failTransport(error); throw error; }
-        });
-        // An abort listener may start a full close which shutdown later switches to transport-only.
-        // Its rejection still reaches callers of close(), without orphaning the shutdown joiner.
+                const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+                if (failures.length === 1) throw failures[0];
+                if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
+            } finally { this.onClose(); this.onChange(); }
+        })();
+        void this.#delivery.catch(() => {});
+        return this.#delivery;
+    }
+
+    close(): Promise<void> {
+        if (this.#closing) return this.#closing;
+        const transport = this.releaseTransport();
+        if (this.#closing) return this.#closing;
+        const delivery = this.joinDelivery();
+        this.#closing = (async () => {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const deadline = new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('Observable hub shutdown timed out')),
+                    this.server.observableLimits.shutdownTimeoutMs);
+            });
+            let outcomes: PromiseSettledResult<void>[];
+            try { outcomes = await Promise.race([Promise.allSettled([transport, delivery]), deadline]); }
+            finally { if (timer) clearTimeout(timer); }
+            const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+            if (failures.length === 1) throw failures[0];
+            if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
+        })();
         void this.#closing.catch(() => {});
-        return transportOnly ? this.#transportClosing : this.#closing;
+        return this.#closing;
     }
 
     revision(message: Record<string, unknown>): number | undefined {

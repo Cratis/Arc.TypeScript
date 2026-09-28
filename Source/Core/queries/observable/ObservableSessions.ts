@@ -11,11 +11,14 @@ import { isObservableOperation } from './ObservableOperation.js';
 import { observableCallerKey } from './observableCallerKey.js';
 import type { ObservableLimits } from './ObservableLimits.js';
 import { exposeExceptionDetails } from '../../execution/exposeExceptionDetails.js';
+import type { ShutdownTransaction } from '../../dependencyInjection/ShutdownTransaction.js';
 
 export class ObservableSessions {
     readonly #observableSessions = new Set<ObservableQuerySession>();
     readonly #snapshotSessions = new Set<ObservableQuerySession>();
     readonly #retiringSessions = new Set<ObservableQuerySession>();
+    readonly #openingSessions = new Set<ObservableQuerySession>();
+    #transaction: ShutdownTransaction | undefined;
     readonly #observableOwners = new Map<ObservableQuerySession, string>();
     readonly #openingOwners = new Map<string, number>();
     readonly #reportedCleanup = new WeakSet<object>();
@@ -24,11 +27,10 @@ export class ObservableSessions {
     #disposed = false;
 
     constructor(private readonly options: ArcOptions, private readonly services: ServiceRegistry,
-        private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>,
-        private readonly serverOwnsServices = false) {}
+        private readonly observableLimits: ObservableLimits, private readonly queries: () => ReadonlyMap<string, Operation>) {}
 
     get sessions(): readonly ObservableQuerySession[] {
-        return [...new Set([...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
+        return [...new Set([...this.#openingSessions, ...this.#observableSessions, ...this.#snapshotSessions, ...this.#retiringSessions])];
     }
     recordCleanupFailure(session: object): boolean {
         if (this.#reportedCleanup.has(session)) return false;
@@ -36,6 +38,12 @@ export class ObservableSessions {
         return true;
     }
     markDisposed(): void { this.#disposed = true; }
+    /** @internal Coordinate opening, active and retiring records before asynchronous teardown. */
+    coordinateShutdown(transaction: ShutdownTransaction): void {
+        this.#transaction = transaction;
+        this.markDisposed();
+        for (const session of this.sessions) session.coordinateShutdown(transaction);
+    }
 
     private callerKey(context: ExecutionContext): string { return observableCallerKey(context); }
 
@@ -91,7 +99,11 @@ export class ObservableSessions {
                 exposeExceptionDetails: exposeExceptionDetails(this.options),
                 pendingEmissions: this.observableLimits.pendingEmissions,
                 reportFailure: error => Promise.resolve(this.options.logger?.(error, context.correlationId)),
-                deferScopeDisposal: () => this.serverOwnsServices && !!held.session && this.sessions.includes(held.session),
+                onCreate: session => {
+                    held.session = session;
+                    this.#openingSessions.add(session);
+                    if (this.#transaction) session.coordinateShutdown(this.#transaction);
+                },
                 onRelease: () => {
                     if (!held.session) return;
                     this.#observableSessions.delete(held.session);
@@ -105,9 +117,10 @@ export class ObservableSessions {
                     this.#snapshotSessions.delete(held.session);
                     this.#observableOwners.delete(held.session);
                     this.#retiringSessions.delete(held.session);
+                    this.#openingSessions.delete(held.session);
                 }
             });
-            held.session = session;
+            this.#openingSessions.delete(session);
             if (this.#disposed || this.services.disposed) {
                 await session.close();
                 throw new Error('Arc server is disposed');

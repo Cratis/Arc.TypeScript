@@ -16,6 +16,7 @@ import { ServiceRegistryState } from './ServiceRegistryState.js';
 import type { SingletonServiceContext } from './SingletonServiceContext.js';
 import type { ShutdownParticipant } from './ShutdownParticipant.js';
 import type { ShutdownParticipantFrame } from './ShutdownParticipantFrame.js';
+import { ShutdownTransaction } from './ShutdownTransaction.js';
 
 const serviceInstances = new WeakMap<ServiceRegistry, WeakSet<object>>();
 /** @internal Only the container owns instances supplied by registration or claimed by a factory. */
@@ -31,7 +32,7 @@ export class ServiceRegistry {
     readonly #activeExecution = new AsyncLocalStorage<ServiceExecutionFrame>();
     readonly #activeParticipant = new AsyncLocalStorage<ShutdownParticipantFrame>();
     readonly #participants = new Set<ShutdownParticipant>();
-    readonly #shutdownCleanups = new Set<{ stop: () => void; cleanup: () => Promise<void>; finish?: () => Promise<void> }>();
+    readonly #shutdownResources = new Set<(transaction: ShutdownTransaction) => void>();
     readonly #waits = new Map<ServiceResolutionNode, Map<ServiceResolutionNode, number>>();
     readonly #owners = new WeakMap<object, ServiceScope | null>();
     readonly #singletons: ServiceScope;
@@ -39,7 +40,7 @@ export class ServiceRegistry {
     readonly #singletonContext: SingletonServiceContext = Object.freeze({ signal: this.#lifetime.signal });
     #state = ServiceRegistryState.Running;
     #singletonFailed = false;
-    #shutdownHasParticipants = false;
+    #frozenParticipants: readonly ShutdownParticipant[] | undefined;
     #closing: Promise<void> | undefined;
 
     constructor(registrations: readonly ServiceRegistration<unknown>[] = []) {
@@ -68,7 +69,12 @@ export class ServiceRegistry {
     get disposed(): boolean { return this.#state !== ServiceRegistryState.Running; }
     get singletonFailed(): boolean { return this.#singletonFailed; }
     /** @internal Whether shutdown has participants whose work may depend on an admitted operation. */
-    get hasShutdownParticipants(): boolean { return this.#participants.size > 0 || this.#shutdownHasParticipants; }
+    get hasShutdownParticipants(): boolean { return (this.#frozenParticipants ?? [...this.#participants]).length > 0; }
+    /** @internal Freeze only participant registration; ordinary admission remains open until registry disposal. */
+    freezeShutdownParticipants(): boolean {
+        this.#frozenParticipants ??= [...this.#participants];
+        return this.#frozenParticipants.length > 0;
+    }
     /**
      * Register a shutdown participant while admission is open. Its stop runs before any drain;
      * all drains settle before scopes and singletons close. Remove an unused participant by
@@ -79,13 +85,14 @@ export class ServiceRegistry {
         if (!participant || typeof participant.stop !== 'function' || typeof participant.drain !== 'function')
             throw new ServiceDependencyError('Invalid shutdown participant');
         this.assertLive();
+        if (this.#frozenParticipants) throw new ServiceDependencyError('Service registry is disposed');
         this.#participants.add(participant);
-        return () => { this.#participants.delete(participant); };
+        return () => { if (!this.#frozenParticipants) this.#participants.delete(participant); };
     }
-    /** @internal Server-owned transport cancellation and cleanup, registered before shutdown can start. */
-    addShutdownCleanup(stop: () => void, cleanup: () => Promise<void>, finish?: () => Promise<void>): void {
+    /** @internal Register resources with the registry-owned shutdown transaction. */
+    addShutdownResource(register: (transaction: ShutdownTransaction) => void): void {
         this.assertLive();
-        this.#shutdownCleanups.add({ stop, cleanup, finish });
+        this.#shutdownResources.add(register);
     }
     /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
@@ -199,6 +206,10 @@ export class ServiceRegistry {
     admitScope(scope: ServiceScope): void { this.assertLive(); this.#scopes.add(scope); }
     release(scope: ServiceScope): void { this.#scopes.delete(scope); }
     assertLive(): void { if (this.#state !== ServiceRegistryState.Running || this.#singletonFailed) throw new ServiceDependencyError('Service registry is disposed'); }
+    /** @internal A participant may close borrowed server resources but must not join its own registry. */
+    get inShutdownParticipant(): boolean {
+        return this.#activeParticipant.getStore()?.state === ServiceExecutionState.Running;
+    }
     /** @internal Reject self-joins before a server begins or joins its own teardown. */
     assertCanDispose(): void {
         if (this.hasLivingExecution() || hasLivingServiceResolution(this) || hasLivingServiceDisposal(this) ||
@@ -215,11 +226,15 @@ export class ServiceRegistry {
         this.#state = ServiceRegistryState.Draining;
         const executions = [...this.#executions];
         const scopes = [...this.#scopes];
-        const participants = [...this.#participants];
-        this.#shutdownHasParticipants = participants.length > 0;
-        const cleanups = [...this.#shutdownCleanups];
+        this.freezeShutdownParticipants();
+        const participants = this.#frozenParticipants!;
+        const transaction = new ShutdownTransaction();
+        const errors: unknown[] = [];
+        // Ownership is established before a host can close its listener in the same tick.
+        if (participants.length) for (const register of this.#shutdownResources) {
+            try { register(transaction); } catch (error) { errors.push(error); }
+        }
         const completion = Promise.resolve().then(async () => {
-            const errors: unknown[] = [];
             const reported = new Set<unknown>();
             const record = (error: unknown): void => {
                 let repeated = false;
@@ -233,14 +248,7 @@ export class ServiceRegistry {
                 if (unseen.length) errors.push(repeated ? new AggregateError(unseen, 'Service disposal failed') : error);
             };
             try {
-                // Close admission and transport before participant stop; leave session-owned
-                // scopes alive until participants and tracked executions have settled.
-                for (const hook of cleanups) {
-                    try { hook.stop(); } catch (error) { record(error); }
-                }
-                for (const hook of cleanups) {
-                    try { await hook.cleanup(); } catch (error) { record(error); }
-                }
+                await transaction.settle('release', record);
                 if (participants.length) {
                     // A stop continuation inherits its participant frame. Keep it live through drain.
                     const frames = participants.map((): ShutdownParticipantFrame => ({ state: ServiceExecutionState.Running }));
@@ -260,10 +268,9 @@ export class ServiceRegistry {
                     for (const outcome of drains) if (outcome.status === 'rejected') record(outcome.reason);
                     for (const frame of frames) frame.state = ServiceExecutionState.Drained;
                 }
+                await transaction.settle('work', record);
                 await Promise.allSettled(executions);
-                for (const hook of cleanups) {
-                    if (hook.finish) try { await hook.finish(); } catch (error) { record(error); }
-                }
+                await transaction.settle('scopes', record);
                 for (const scope of scopes) {
                     try { await closeServiceScope(scope); } catch (error) { record(error); }
                 }

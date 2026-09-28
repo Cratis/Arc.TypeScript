@@ -6,8 +6,9 @@ import type { Subscribable } from './Subscribable.js';
 const cancellationTimeoutMs = 1000;
 const aborted = (): DOMException => new DOMException('Observable query subscription was canceled', 'AbortError');
 
-async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
+async function releaseIterator<T>(iterator: AsyncIterator<T>, coordinated: boolean): Promise<void> {
     if (!iterator.return) return;
+    if (coordinated) { await iterator.return(); return; }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         await Promise.race([
@@ -22,10 +23,13 @@ async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
 
 /** Convert a structural observable or async iterable into a cancellable, bounded stream. */
 export async function* toEmissions<T>(source: ObservableSource<T>, signal: AbortSignal,
-    maximumPending = 256): AsyncGenerator<T> {
+    maximumPending = 256, onProducer?: (release: (coordinated: boolean) => Promise<void>) => void): AsyncGenerator<T> {
     if (signal.aborted) return;
     if (Symbol.asyncIterator in source) {
         const iterator = (source as AsyncIterable<T>)[Symbol.asyncIterator]();
+        let closing: Promise<void> | undefined;
+        const release = (coordinated: boolean): Promise<void> => closing ??= releaseIterator(iterator, coordinated);
+        onProducer?.(release);
         try {
             while (!signal.aborted) {
                 const next = await new Promise<IteratorResult<T>>((resolve, reject) => {
@@ -36,7 +40,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
                 if (next.done) return;
                 yield next.value;
             }
-        } finally { await releaseIterator(iterator); }
+        } finally { await release(false); }
         return;
     }
     const pending: T[] = [];
@@ -68,6 +72,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
         } catch (error) { failure = error; }
     };
     const cancel = (): void => { finished = true; unsubscribe(); notify(); };
+    onProducer?.(async () => { cancel(); });
     signal.addEventListener('abort', cancel, { once: true });
     if (signal.aborted) cancel();
     try {

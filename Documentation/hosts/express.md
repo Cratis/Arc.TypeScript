@@ -21,15 +21,11 @@ const listener = app.listen(3000, '127.0.0.1');
 middleware.injectWebSocket(listener);
 
 process.once('SIGTERM', () => {
-    void (async () => {
-        try {
-            await middleware.close(listener); // Drain WebSockets and SSE, then close the listener.
-        } finally { await arc.dispose(); }
-    })();
+    void middleware.shutdown(listener);
 });
 ```
 
-`arc` is the built application from [Host adapters](index.md#before-you-start). With the Tasks sample's artifacts, `POST /api/tasks/registration/register-task` now reaches Arc, and `GET /health` reaches your route.
+`arc` is the built application from [Host adapters](index.md#before-you-start). `middleware.shutdown(listener)` coordinates participant stop and drain with transport closure. If you supplied your own `ServiceRegistry`, pass it explicitly as `middleware.shutdown(listener, registry)`; Arc never implicitly disposes a borrowed registry. With the Tasks sample's artifacts, `POST /api/tasks/registration/register-task` now reaches Arc, and `GET /health` reaches your route.
 
 :::caution[Mount Arc before body parsers]
 Arc reads the raw request body itself. If `express.json()` or another body parser runs first, it consumes the body, and Arc answers every command with 400 `malformedRequest`. Install `cratisArc(arc)` before you add body parsers, as in the example.
@@ -49,7 +45,7 @@ An unexpected error inside the adapter is passed to Express with `next(error)`. 
 
 ## Observable queries over WebSockets
 
-Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `middleware.injectWebSocket(listener, native?)`; the middleware cannot see upgrades. Call `middleware.close(listener)` during shutdown to drain WebSockets and SSE before closing the listener. Dispose the Arc application separately. See [WebSockets](websockets.md#express).
+Express HTTP middleware does not run on Node `upgrade` requests. Attach WebSockets to the listener with `middleware.injectWebSocket(listener, native?)`; the middleware cannot see upgrades. Call `middleware.shutdown(listener)` to close the listener and Arc in the required order. `middleware.close(listener)` remains listener-only; if participants are registered, closing the listener first can start scope disposal before they stop. See [WebSockets](websockets.md#express).
 
 ## Related
 
