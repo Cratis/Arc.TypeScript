@@ -636,6 +636,17 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
         directories[f"snippets/{slug(snippet.id)}"] = snippet.id
         (directory / "snippet.ts").write_text(module_source(snippet, context, exports), encoding="utf-8")
         files.append(f"snippets/{slug(snippet.id)}/snippet.ts")
+        if snippet.id == "arc-without-event-sourcing/standalone-host":
+            # The host imports metadata generated into its Features root. The fixture only
+            # types that import; runtime discovery/validation is checked separately.
+            features = directory / "Features"
+            features.mkdir()
+            (features / "generatedMetadata.ts").write_text(
+                "import type { GeneratedMetadata } from '@cratis/arc.core';\n"
+                "export const metadata = { version: 1, artifacts: [] } satisfies GeneratedMetadata;\n",
+                encoding="utf-8",
+            )
+            files.append(f"snippets/{slug(snippet.id)}/Features/generatedMetadata.ts")
         for stem, sibling_id in context.siblings:
             sibling = by_id.get(sibling_id)
             sibling_context = inventory.get(sibling_id)
