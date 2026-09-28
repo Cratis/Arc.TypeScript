@@ -236,8 +236,10 @@ export class ServiceRegistry {
                     const stops: Promise<unknown>[] = [];
                     for (const [index, participant] of participants.entries()) {
                         try {
-                            // Assimilate structural thenables while the participant frame is active.
-                            stops.push(this.#activeParticipant.run(frames[index]!, () => Promise.resolve(participant.stop())));
+                            // Normalize stop results inside the participant frame, including native Promise then getters.
+                            stops.push(this.#activeParticipant.run(frames[index]!, () => new Promise<void>((resolve, reject) => {
+                                Promise.resolve(participant.stop()).then(resolve, reject);
+                            })));
                         } catch (error) { record(error); }
                     }
                     const stopped = await Promise.allSettled(stops);
