@@ -31,4 +31,11 @@ export class MongoObservable<T> extends Observable<T> {
     async current(): Promise<{ hasValue: true; value: T }> {
         return (await (this.#pendingSnapshot ??= this.open())).current();
     }
+
+    /** Release a primed snapshot without creating a subscription or opening a new change stream. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        const pending = this.#pendingSnapshot;
+        this.#pendingSnapshot = undefined;
+        if (pending) await (await pending).close();
+    }
 }

@@ -60,9 +60,9 @@ function prepareBarrels(existing: ReadonlyMap<string, string>, files: Map<string
 
 /** Refuse edits to non-owned output before publishing any generated files. */
 export async function preflightSourceFiles(output: string, files: Map<string, SourceFileEntry>,
-    options: SourceGeneratorOptions): Promise<Map<string, string>> {
+    options: SourceGeneratorOptions, colocated = false): Promise<Map<string, string>> {
     const existing = await readExisting(output);
     verifyOwnership(existing, files, options);
-    prepareBarrels(existing, files, options);
+    if (!colocated) prepareBarrels(existing, files, options);
     return existing;
 }
