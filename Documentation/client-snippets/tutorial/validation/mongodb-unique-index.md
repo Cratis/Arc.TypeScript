@@ -8,7 +8,7 @@ export async function ensureAuthorNameIndex(collection: MongoCollection<Author>)
         { unique: true, name: 'unique_author_name' });
 }
 
-// Call this from start() with the already-configured builder, instead of its build/run lines.
+// In start(), call startWithAuthorIndex(builder) instead of its build/run lines.
 export async function startWithAuthorIndex(builder: ArcApplicationBuilder): Promise<void> {
     const app = await builder.build();
     try {
