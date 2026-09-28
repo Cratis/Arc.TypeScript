@@ -8,5 +8,5 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 execFileSync(process.execPath, [resolve(root, '../../Source/Tools/ProxyGenerator/dist/cli.js'),
     '--project', join(root, 'tsconfig.json'), '--artifacts', join(root, 'Features'),
-    '--output', join(root, 'dist/proxies'), '--metadata', join(root, 'Features/generatedMetadata.ts'),
+    '--output', join(root, 'Features'), '--metadata', join(root, 'Features/generatedMetadata.ts'),
     '--check-metadata'], { stdio: 'inherit' });

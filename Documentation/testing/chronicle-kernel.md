@@ -3,7 +3,7 @@ title: Test Chronicle commands against a kernel
 description: Seed an event source's history, run Arc commands against a live Chronicle kernel, and assert aggregates, projections, constraints, and concurrency in an isolated event store.
 ---
 
-Some command behavior only exists in the kernel. An aggregate needs stored history to load, a projection needs the kernel to run it, and a constraint or concurrency check is enforced when Chronicle appends. The [in-memory scenario](chronicle.md) does none of that. `ChronicleKernelScenario` from `@cratis/arc.chronicle/testing` runs the command through the real Arc pipeline against a running kernel, in a fresh event store for each scenario.
+Some command behavior only exists in the kernel. An aggregate needs stored history to load; a constraint or concurrency check is enforced when Chronicle appends; and projections outside the [in-process Chronicle testing capabilities](https://github.com/Cratis/Chronicle.TypeScript/blob/main/Documentation/testing.md#projection-capabilities) need a kernel. The [in-memory scenario](chronicle.md) evaluates supported flat projections on demand for keyed reads, but does not run observers or update read models after command appends. An unsupported definition throws `UnsupportedProjectionOperation`: use this kernel scenario rather than bypassing that boundary. `ChronicleKernelScenario` from `@cratis/arc.chronicle/testing` runs the command through the real Arc pipeline against a running kernel, in a fresh event store for each scenario.
 
 :::caution[Experimental]
 The Chronicle integration and its testing helpers are experimental. A kernel scenario needs a running Chronicle kernel, so it is **not** part of `yarn test` or the default `yarn ci` check.
@@ -121,7 +121,7 @@ The second `execute` replays both the seeded `BookLent` and the `BookReturned` t
 
 ## Assert a projection
 
-Seeding also drives projections. Register the read model with the scenario, and assert it with `shouldHaveReadModel(Type, id, predicate?)`. The [Library suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/kernel-scenarios.test.mjs) seeds a `BookAdded`, checks the `Book` read model it projects, executes `AddBook`, and checks the new book:
+Seeding drives the kernel's projections, including definitions and lifecycle behavior outside the [in-process capability boundary](https://github.com/Cratis/Chronicle.TypeScript/blob/main/Documentation/testing.md#projection-capabilities). Register the read model with the scenario, and assert it with `shouldHaveReadModel(Type, id, predicate?)`. The [Library suite](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/kernel-scenarios.test.mjs) seeds a `BookAdded`, checks the `Book` read model it projects, executes `AddBook`, and checks the new book:
 
 ```typescript
 const scenario = ChronicleKernelScenario.for(AddBook, [BookAdded, Book, AddBookValidator, BookTitleValidator]);

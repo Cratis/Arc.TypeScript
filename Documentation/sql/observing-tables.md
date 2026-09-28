@@ -3,7 +3,7 @@ title: Observe SQL tables in process
 description: Announce committed writes to tenant-scoped Drizzle read models and stream small SQL results.
 ---
 
-**Experimental, in-process only.** Observation sees **only writes announced with `notifyChanged` in this application process**. Other processes, database clients, triggers, and unannounced writes are invisible. Host-owned transactions around Arc commands and transactions owned by an outer command runner are **not** covered by command completion: announce those writes **after commit**. Read from a connection that sees freshly committed data, not a long-lived repeatable-read snapshot or a lagging replica. Pages are **eventually consistent**, not atomic snapshots of count and rows.
+**Experimental, in-process only.** For committed changes from other processes on PostgreSQL, see [PostgreSQL LISTEN/NOTIFY observation](observing-postgresql.md). This mode sees **only writes announced with `notifyChanged` in this application process**. Other processes, database clients, triggers, and unannounced writes are invisible. Host-owned transactions around Arc commands and transactions owned by an outer command runner are **not** covered by command completion: announce those writes **after commit**. Read from a connection that sees freshly committed data, not a long-lived repeatable-read snapshot or a lagging replica. Pages are **eventually consistent**, not atomic snapshots of count and rows.
 
 Install `rxjs` alongside `@cratis/arc.drizzle`: it is a required peer dependency, loaded even when observation is disabled. Enable `DrizzleObservation.InProcess` explicitly. Without it, starting an observation fails; ordinary read APIs and validated `notifyChanged` calls still work.
 

@@ -3,7 +3,7 @@ title: Change a sample
 description: Regenerate proxies and metadata, lint, and check client generation after you change the Tasks or Library sample, and find where each Arc for .NET test-app behavior is covered in this repository.
 ---
 
-The Tasks and Library samples in this repository are checked by the same gate as the packages. Both samples commit their generated metadata, and Library also commits its browser proxies, so a change to a decorated artifact has to be followed by a regeneration, or `yarn ci` fails. This page is for contributors to this repository; applications have their own scripts.
+The Tasks and Library samples in this repository are checked by the same gate as the packages. Both samples commit generated metadata and co-located proxies, so a change to a decorated artifact has to be followed by a regeneration, or `yarn ci` fails. This page is for contributors to this repository; applications have their own scripts.
 
 ## After you change a slice
 
@@ -11,9 +11,10 @@ Run these from the repository root. The `generate-proxies` scripts run the proxy
 
 | Command | What it does |
 | --- | --- |
-| `yarn workspace @cratis/arc.core.sample.tasks generate-proxies` | Regenerates `Samples/Tasks/Features/generatedMetadata.ts`, and compiles the Tasks proxies into `dist/proxies` |
-| `yarn workspace @cratis/arc.sample.library generate-proxies` | Regenerates `Samples/Library/Features/generatedMetadata.ts` and the proxies in `Samples/Library/Web/src/generated` |
+| `yarn workspace @cratis/arc.core.sample.tasks generate-proxies` | Regenerates `Samples/Tasks/Features/generatedMetadata.ts`, writes proxies beside its backend slices, and type-checks the proxies |
+| `yarn workspace @cratis/arc.sample.library generate-proxies` | Regenerates `Samples/Library/Features/generatedMetadata.ts` and proxies beside its backend slices |
 | `yarn check:metadata` | Fails when either sample's committed metadata differs from its source |
+| `yarn check:proxies` | Fails when either sample's committed proxies differ from regenerated output, or new proxies are untracked; run after both `generate-proxies` commands |
 | `yarn lint:tasks:arc` | Runs the Arc ESLint rules over `Samples/Tasks/Features` with type information |
 | `yarn test:client-generation` | Builds, regenerates the Tasks proxies, compiles the client fixtures, and runs the generated proxies against Express, Fastify, and Hono |
 
@@ -35,7 +36,7 @@ Arc for .NET exercises its hosts with two test applications in the Arc repositor
 | Anonymous and authenticated queries, roles, and cross-cutting authorization filters | `Shared/Features/AuthenticationQueries`, `CrossCuttingAuthorization` | `@roles('Librarian')` in Library; authorization filters in Arc.Core | Library `with_librarian_role`, `without_librarian_role`; `yarn test:conformance` |
 | Host adapters | `AspNetCore/Program.cs` (ASP.NET Core) | `@cratis/arc.express`, `@cratis/arc.fastify`, `@cratis/arc.hono`; Library runs on Express | `Source/{Express,Fastify,Hono}/for_cratisArc`; `yarn test:client-generation` runs generated proxies against all three |
 | MongoDB collections and the change-stream watcher | `AspNetCore/Features/MongoWatcher` | `@cratis/arc.mongodb` `observe()` and `MongoDBWatcher` | `Source/MongoDB/run-integration.sh`, including `with_each_http_adapter` |
-| React frontend with generated proxies | `ArcCore/main.tsx`, `AspNetCore/main.tsx`, `Shared/Features/*Page.tsx` | `Samples/Library/Web` | `yarn workspace @cratis/arc.sample.library test:e2e` exercises the proxies, not the browser UI |
+| React frontend with generated proxies | `ArcCore/main.tsx`, `AspNetCore/main.tsx`, `Shared/Features/*Page.tsx` | `Samples/Library/Features/**/*.tsx` (app shell in `Web/src`) | `yarn workspace @cratis/arc.sample.library test:e2e` exercises the proxies, not the browser UI |
 | API description | Swagger UI through `Cratis.Arc.Swagger` | `GET /openapi.json`, without a bundled UI | `Source/Core/openApi/for_renderOpenApi` |
 
 Three .NET behaviors have no counterpart by design:

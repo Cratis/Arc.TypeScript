@@ -74,7 +74,7 @@ export class ChronicleCommandScenario<T extends object> {
     /** Execute the command and assert only events produced by that execution, never seeded history. */
     async execute(command: T | Partial<T>): Promise<ScenarioCommandResult & AppendedEventAssertion> {
         const start = this.#appended.length;
-        const result = await this.#scenario.execute(command);
+        const result = await this.#readModels.runWithProjectionErrors(() => this.#scenario.execute(command));
         const appended = this.#appended.slice(start);
         return Object.assign(result, { appendedEvents: appended,
             shouldHaveAppendedEvent: <E>(type: new (...args: never[]) => E,

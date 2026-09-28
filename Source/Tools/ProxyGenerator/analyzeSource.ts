@@ -15,11 +15,12 @@ import { warningOption } from './sourceOperationOptions.js';
 import { resolveIdentityDetails } from './resolveIdentityDetails.js';
 import { collectSourceQueries } from './collectSourceQueries.js';
 import { collectSourceRules } from './collectSourceRules.js';
+import { metadataOwned, owned } from './generatedSourceOwnership.js';
 
 type Collection = {
     checker: ts.TypeChecker; program: ts.Program; root: string; rootNamespace: string; hasMetadata: boolean;
     resolver: SourceTypeResolver; diagnostics: string[]; operations: SourceOperation[]; validators: ValidatorRules[];
-    targets: Map<string, ts.Symbol>; concepts: Map<string, { name: string; symbol: ts.Symbol }[]>;
+    contributingFiles: Set<string>; targets: Map<string, ts.Symbol>; concepts: Map<string, { name: string; symbol: ts.Symbol }[]>;
 };
 
 function collectCommand(declaration: ts.ClassDeclaration, path: string, namespace: string, routeOverride: string | undefined,
@@ -56,14 +57,22 @@ function collectDeclaration(declaration: ts.ClassDeclaration, path: string, stat
             isPackageSymbol(checker, base.expression, name, '@cratis/arc.core')))
         .map(base => base.typeArguments?.[0] && checker.getTypeFromTypeNode(base.typeArguments[0]).getSymbol())[0] : undefined;
     const target = explicitTarget || inheritedTarget;
-    if (target) validators.push(extractValidatorRules(declaration, target));
-    if (annotation(checker, declaration, 'derivedType', 'fundamentals'))
+    if (target) {
+        validators.push(extractValidatorRules(declaration, target));
+        state.contributingFiles.add(path);
+    }
+    if (annotation(checker, declaration, 'derivedType', 'fundamentals')) {
         resolver.resolve(checker.getTypeAtLocation(declaration), declaration);
-    if (annotation(checker, declaration, 'identityDetailsProvider'))
+        state.contributingFiles.add(path);
+    }
+    if (annotation(checker, declaration, 'identityDetailsProvider')) {
         resolveIdentityDetails(declaration, checker, resolver, root, path, diagnostics);
+        state.contributingFiles.add(path);
+    }
     const isCommand = !!annotation(checker, declaration, 'command');
     const isModel = !!annotation(checker, declaration, 'readModel');
     if (!isCommand && !isModel) return;
+    state.contributingFiles.add(path);
     const namespace = stringArgument(annotation(checker, declaration, isCommand ? 'command' : 'readModel'), 'namespace') ??
         [rootNamespace, ...relative(root, dirname(path)).split(sep).filter(value => value && value !== '.')].filter(Boolean).join('.');
     const owner = declaration.name!.text;
@@ -78,7 +87,7 @@ function discoverClasses(state: Collection, visit?: (declaration: ts.ClassDeclar
     const { checker, root, program } = state;
     for (const path of discoveryFiles(root).map(file => resolve(file))) {
         const file = program.getSourceFile(path);
-        if (!file || file.isDeclarationFile) continue;
+        if (!file || file.isDeclarationFile || owned(file.text) || metadataOwned(file.text)) continue;
         const module = checker.getSymbolAtLocation(file);
         const exports = new Set(module ? checker.getExportsOfModule(module).map(symbol =>
             symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol) : []);
@@ -93,17 +102,19 @@ function discoverClasses(state: Collection, visit?: (declaration: ts.ClassDeclar
 
 /** Analyze commands, queries, models, and client-safe validation rules beneath an artifacts root. */
 export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
-    program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void): SourceAnalysis {
+    program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void,
+    contributingFiles = new Set<string>()): SourceAnalysis & { readonly contributingFiles: readonly string[] } {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
     const state: Collection = {
         checker, program, root, rootNamespace, hasMetadata: generatedMetadata,
-        resolver: new SourceTypeResolver(checker, root, generatedMetadata, rootNamespace),
-        diagnostics: [], operations: [], validators: [], targets: new Map(), concepts: new Map()
+        resolver: new SourceTypeResolver(checker, root, generatedMetadata, rootNamespace,
+            declaration => contributingFiles.add(resolve(declaration.getSourceFile().fileName))),
+        diagnostics: [], operations: [], validators: [], contributingFiles, targets: new Map(), concepts: new Map()
     };
     discoverClasses(state, visit);
     if (!state.operations.length) throw new Error(`No @command or @readModel queries below ${root} in ${project}`);
     const recordedRules = collectSourceRules(state.targets, state.concepts, state.validators, state.operations, state.diagnostics);
-    return { operations: state.operations, models: [...state.resolver.models.values()], recordedRules,
+    return { operations: state.operations, models: [...state.resolver.models.values()], contributingFiles: [...contributingFiles], recordedRules,
         diagnostics: [...new Set(state.diagnostics)] };
 }

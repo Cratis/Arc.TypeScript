@@ -13,8 +13,8 @@ describe('when executing with a projection-backed read model', given(a_reduced_c
         result = await scenario.execute({ id: 'source-a' });
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should identify the kernel scenario rather than quietly returning missing state', () => {
-        result.isSuccess.should.equal(false);
-        JSON.stringify(result).should.contain('ChronicleKernelScenario');
+    it('should materialize the projection from seeded history', () => {
+        result.isSuccess.should.equal(true);
+        (result.response as number).should.equal(2);
     });
 }));

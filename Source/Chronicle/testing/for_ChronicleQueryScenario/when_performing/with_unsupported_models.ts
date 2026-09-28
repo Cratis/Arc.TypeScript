@@ -4,17 +4,17 @@ import { given } from '@cratis/arc.testing';
 import { a_chronicle_query, BalanceChanged } from '../given/a_chronicle_query.js';
 
 describe('when performing a Chronicle query for seeded projection history', given(a_chronicle_query, context => {
-    let scenario: ReturnType<typeof context.create>;
+    let scenario: ReturnType<typeof context.create<{ amount: number }>>;
     let result: Awaited<ReturnType<typeof scenario.perform>>;
     beforeEach(async () => {
-        scenario = context.create('projected');
+        scenario = context.create<{ amount: number }>('projected');
         scenario.given.forEventSource('source-a').events(new BalanceChanged(2));
         result = await scenario.perform({ id: 'source-a' });
     });
     afterEach(async () => { await scenario.dispose(); });
-    it('should require a kernel rather than fabricate a projection', () => {
-        result.isSuccess.should.equal(false);
-        JSON.stringify(result).should.contain('ChronicleKernelScenario');
+    it('should return the projected model from seeded history', () => {
+        result.isSuccess.should.equal(true);
+        result.data!.amount.should.equal(2);
     });
 }));
 

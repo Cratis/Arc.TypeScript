@@ -13,7 +13,7 @@ export function discoveryFiles(folder: string): string[] {
             if (entry.isDirectory()) {
                 if (!['dist', 'node_modules', 'given'].includes(entry.name) && !entry.name.startsWith('for_')) walk(path);
             } else if (entry.isFile() && /\.(?:js|ts)$/.test(entry.name) && !entry.name.endsWith('.d.ts') &&
-                !/^index\.[jt]s$/.test(entry.name)) files.push(path);
+                !/^index\.[jt]s$/.test(entry.name) && !/\.proxy\.[jt]s$/.test(entry.name)) files.push(path);
         }
     };
     walk(folder);

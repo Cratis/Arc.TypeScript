@@ -13,7 +13,8 @@ export class SourceTypeResolver {
     readonly models = new Map<string, SourceModel>();
     private readonly declarations = new Map<string, ts.Declaration>();
     constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string,
-        private readonly generatedMetadata = false, private readonly rootNamespace = '') {}
+        private readonly generatedMetadata = false, private readonly rootNamespace = '',
+        private readonly contribute: (declaration: ts.Declaration) => void = () => {}) {}
     private namespace(declaration: ts.Declaration): string {
         const segments = relative(this.artifacts, dirname(declaration.getSourceFile().fileName)).split(sep).filter(Boolean);
         if (segments.includes('..')) throw new Error(`${declaration.getSourceFile().fileName}: reachable model is outside the artifacts root`);
@@ -61,11 +62,16 @@ export class SourceTypeResolver {
             const base = type.getBaseTypes()?.find(candidate => isTypeFrom(this.checker, candidate, 'ConceptAs', '@cratis/fundamentals'));
             const argument = this.checker.getTypeArguments(type as ts.TypeReference)[0] ??
                 (base && this.checker.getTypeArguments(base as ts.TypeReference)[0]);
-            if (argument) return this.resolve(argument, location, optional);
+            if (argument) {
+                const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
+                if (declaration) this.contribute(declaration);
+                return this.resolve(argument, location, optional);
+            }
         }
         const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
         if (symbol?.declarations?.some(ts.isEnumDeclaration)) return this.resolveEnum(symbol, type, location, nullable);
         if (declaration && name && !declaration.getSourceFile().isDeclarationFile) {
+            this.contribute(declaration);
             const key = [this.namespace(declaration), name].filter(Boolean).join('.');
             this.checkIdentity(key, declaration);
             if (!this.models.has(key)) {
@@ -116,6 +122,7 @@ export class SourceTypeResolver {
     private resolveEnum(symbol: ts.Symbol, type: ts.Type, location: ts.Node, nullable: boolean): SourceType {
         const declaration = symbol.declarations?.find(ts.isEnumDeclaration);
         if (!declaration) return this.unsupported(type, location);
+        this.contribute(declaration);
         const name = symbol.getName();
         const members = declaration.members.map(member => ({ name: fieldName(member.name), value: this.checker.getConstantValue(member) }));
         if (members.some(member => typeof member.value !== 'number' && typeof member.value !== 'string')) return this.unsupported(type, location);

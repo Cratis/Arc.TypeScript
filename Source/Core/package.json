@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.core",
-  "version": "0.40.0",
+  "version": "0.43.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {

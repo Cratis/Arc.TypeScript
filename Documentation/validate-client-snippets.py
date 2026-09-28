@@ -16,7 +16,8 @@ The gate checks two things:
   either `typescript`, or `text` holding the explicit statement that TypeScript does not
   support the workflow yet. The set of snippet ids equals the checked-in inventory in
   `SNIPPETS`, and, when the Arc checkout is available (`../Arc/Documentation` by default),
-  the ids the shared pages actually ask a TypeScript tab for.
+  the ids the shared Arc pages actually ask a TypeScript tab for, except the explicitly
+  listed site-owned capstone snippet.
 * Compilation. Each real snippet becomes its own module in a throwaway project under the
   system temporary folder. The snippet text is emitted verbatim; only its single-line
   imports are hoisted above a host class when the snippet is a class-member fragment.
@@ -148,13 +149,32 @@ export class RegisterAuthor {
 }
 """
 
-# The checked-in inventory: every id the shared Arc pages ask a TypeScript tab for.
+# The capstone is authored in Documentation/web rather than Arc/Documentation; the
+# shared Arc page scan cannot find its macro. Keep this exception explicit so other
+# unreferenced snippet ids still fail the inventory check.
+SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command"}
+
+# The checked-in inventory: shared Arc page ids plus the site-only capstone id.
 # `None` means the file must state that TypeScript does not support the workflow yet.
 SNIPPETS: dict[str, Context | None] = {
+    "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
     "understanding-the-proxy-boundary/register-author": MODULE,
     "understanding-the-proxy-boundary/rename-property": MODULE,
+    "arc-without-event-sourcing/author-read-model": MODULE,
+    "arc-without-event-sourcing/register-author": MODULE,
+    "arc-without-event-sourcing/rename-author": MODULE,
+    "arc-without-event-sourcing/standalone-host": MODULE,
+    "tutorial/authorization/development-header-adapter": MODULE,
+    "tutorial/authorization/development-authentication-middleware": None,
+    "tutorial/validation/relational-duplicate-name-rule": MODULE,
+    "tutorial/validation/mongodb-unique-index": MODULE,
+    "tutorial/validation/relational-unique-name": MODULE,
+    "tutorial/books-and-relationships/relational-books-for-author": MODULE,
+    "tutorial/books-and-relationships/relational-add-book": MODULE,
+    "tutorial/first-slice/relational-author-slice": MODULE,
+    "tutorial/first-slice/typed-command": MODULE,
     "tutorial/first-slice/author-slice": MODULE,
     "tutorial/validation/author-name-rule": MODULE,
     "tutorial/validation/duplicate-name-rule": MODULE,
@@ -169,7 +189,7 @@ SNIPPETS: dict[str, Context | None] = {
     "tutorial/real-time/observable-query": Context(
         host=AUTHOR_READ_MODEL,
         imports=(FUNDAMENTALS_FIELD,
-                 "import { query, readModel, service } from '@cratis/arc.core';", "import type { BehaviorSubject } from 'rxjs';")),
+                 "import { query, readModel, service, type ObservableSource } from '@cratis/arc.core';")),
     "scenarios/provide-data-to-a-command/assess-loan": MODULE,
     "scenarios/provide-data-to-a-command/test-the-decision": Context(
         siblings=(("AssessLoan", "scenarios/provide-data-to-a-command/assess-loan"),)),
@@ -195,13 +215,12 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/test-a-command/spec": Context(
         siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
     # Command-key model resolution is available for handlers and provide(), not validator parameters.
-    # The in-memory Chronicle scenario materializes reducer-backed models, not projections.
+    # The in-memory Chronicle scenario materializes reducer-backed and supported flat projection-backed models.
     "scenarios/use-current-state-in-a-command/rename-author": MODULE,
     "scenarios/use-current-state-in-a-command/rename-author-validator": MODULE,
     "scenarios/use-current-state-in-a-command/register-customer-validator": MODULE,
     "scenarios/use-current-state-in-a-command/required-order-state": MODULE,
     "scenarios/use-current-state-in-a-command/chronicle-commands": MODULE,
-    "scenarios/use-current-state-in-a-command/seed-events": MODULE,
     "scenarios/use-current-state-in-a-command/pin-read-model": MODULE,
     "frontend/index/open-account": MODULE,
     "frontend/react/commands/index/command-payload": MODULE,
@@ -218,7 +237,6 @@ FIXTURES: dict[str, str] = {
     "library": """
         import { ConceptAs, field, Guid } from '@cratis/fundamentals';
         import { command, inject, readModel, type ObservableSource } from '@cratis/arc.core';
-        import type { BehaviorSubject } from 'rxjs';
 
         export class AuthorId extends ConceptAs<Guid> {
             static readonly valueType = Guid;
@@ -244,7 +262,7 @@ FIXTURES: dict[str, str] = {
         export abstract class AuthorRepository {
             abstract save(author: Author): Promise<void>;
             abstract all(): Promise<Author[]>;
-            abstract observeAll(): BehaviorSubject<Author[]>;
+            abstract observeAll(): ObservableSource<Author[]>;
             abstract findById(id: AuthorId, signal?: AbortSignal): Promise<Author | undefined>;
             abstract existsByName(name: AuthorName, signal?: AbortSignal): Promise<boolean>;
         }
@@ -499,7 +517,7 @@ def check_contract(root: Path, inventory: dict[str, Context | None], arc_documen
         else:
             for snippet_id in sorted(shared - inventory.keys()):
                 problems.append(f"shared Arc page asks for {snippet_id}, which is not in the TypeScript inventory")
-            for snippet_id in sorted(inventory.keys() - shared):
+            for snippet_id in sorted(inventory.keys() - shared - SITE_ONLY_SNIPPETS):
                 problems.append(f"{snippet_id} is in the TypeScript inventory but no shared Arc page uses it")
 
     snippets: list[Snippet] = []
@@ -618,6 +636,17 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
         directories[f"snippets/{slug(snippet.id)}"] = snippet.id
         (directory / "snippet.ts").write_text(module_source(snippet, context, exports), encoding="utf-8")
         files.append(f"snippets/{slug(snippet.id)}/snippet.ts")
+        if snippet.id == "arc-without-event-sourcing/standalone-host":
+            # The host imports metadata generated into its Features root. The fixture only
+            # types that import; runtime discovery/validation is checked separately.
+            features = directory / "Features"
+            features.mkdir()
+            (features / "generatedMetadata.ts").write_text(
+                "import type { GeneratedMetadata } from '@cratis/arc.core';\n"
+                "export const metadata = { version: 1, artifacts: [] } satisfies GeneratedMetadata;\n",
+                encoding="utf-8",
+            )
+            files.append(f"snippets/{slug(snippet.id)}/Features/generatedMetadata.ts")
         for stem, sibling_id in context.siblings:
             sibling = by_id.get(sibling_id)
             sibling_context = inventory.get(sibling_id)
