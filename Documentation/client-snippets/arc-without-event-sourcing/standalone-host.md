@@ -22,8 +22,8 @@ class MongoAuthorRepository extends AuthorRepository {
 }
 
 export async function start(): Promise<void> {
-    const builder = ArcApplication.createBuilder();
-    builder.add(RegisterAuthor, Author).withMongoDB({
+    const builder = ArcApplication.createBuilder({ tenancy: { resolve: () => 'default' } });
+    builder.add(RegisterAuthor, RenameAuthor, Author).withMongoDB({
         server: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017',
         database: 'Library', readModels: [Author]
     });

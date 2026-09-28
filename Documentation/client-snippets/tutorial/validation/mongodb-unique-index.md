@@ -1,3 +1,9 @@
-```text
-TypeScript does not support this workflow yet: this .NET MongoDB driver index-creation step is host-specific. Install a unique index through your MongoDB schema or migration tooling instead.
+```typescript
+import type { MongoCollection } from '@cratis/arc.mongodb';
+
+export async function ensureAuthorNameIndex(collection: MongoCollection<Author>): Promise<void> {
+    await collection.native.createIndex(
+        { [collection.codec.fieldName('name')]: 1 },
+        { unique: true, name: 'unique_author_name' });
+}
 ```

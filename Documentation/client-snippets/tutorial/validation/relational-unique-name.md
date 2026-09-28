@@ -1,3 +1,9 @@
-```text
-TypeScript does not support this workflow yet: EF Core's OnModelCreating override is .NET-only. With Arc's Drizzle integration, define a unique constraint on the author-name column in your application-owned SQL schema and apply the migration before writes. Arc supplies database handles, not schema migrations; see /arc/backend/typescript/sql/. The validator's pre-check is not a concurrency guarantee.
+```typescript
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { DrizzleDialect, guidCodec, sqliteColumn } from '@cratis/arc.drizzle';
+
+export const authors = sqliteTable('authors', {
+    id: sqliteColumn(guidCodec(DrizzleDialect.SQLite))('id').primaryKey(),
+    name: text('name').notNull().unique()
+});
 ```
