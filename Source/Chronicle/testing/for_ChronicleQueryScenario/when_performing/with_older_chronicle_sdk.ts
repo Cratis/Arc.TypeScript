@@ -4,6 +4,7 @@ import { given } from '@cratis/arc.testing';
 import { ReadModelScenario } from '@cratis/chronicle/testing';
 import { ChronicleScenarioReadModels } from '../../ChronicleScenarioReadModels.js';
 import { BalanceChanged, ProjectedBalance } from '../given/a_chronicle_query.js';
+import { InferredAmountChanged, InferredAmountProjection, UnbackedName } from '../../given/inferred_projection.js';
 
 class an_older_chronicle_sdk {
     readonly models = new ChronicleScenarioReadModels([BalanceChanged, ProjectedBalance], () => undefined,
@@ -21,6 +22,19 @@ describe('when reading a projection with an older Chronicle SDK', given(an_older
         (failure as Error).message.should.contain('@cratis/chronicle >= 6.19.0');
     });
 }));
+
+describe('when an older Chronicle SDK sees an unrelated untyped projection', () => {
+    let instance: unknown;
+    beforeEach(async () => {
+        const models = new ChronicleScenarioReadModels([InferredAmountChanged, UnbackedName, InferredAmountProjection],
+            () => undefined, async () => ({ ReadModelScenario }));
+        models.given.forEventSource('source-a').events(new InferredAmountChanged(2));
+        instance = await models.forTenant('Default').findInstanceById(UnbackedName, 'source-a');
+    });
+    it('should leave the unbacked read model missing', () => {
+        (instance == null).should.equal(true);
+    });
+});
 
 describe('when the Chronicle testing subpath is unavailable for a projection', () => {
     let failure: unknown;

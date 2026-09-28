@@ -276,7 +276,7 @@ __metadata:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.express": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.14.0"
+    "@cratis/chronicle": "npm:6.19.0"
     "@cratis/fundamentals": "npm:7.19.6"
     express: "npm:^5.1.0"
     rxjs: "npm:^7.8.2"
@@ -311,25 +311,6 @@ __metadata:
     "@grpc/grpc-js": "npm:^1.14.4"
     nice-grpc: "npm:^2.1.17"
   checksum: 10c0/31e95f1637747f1b6b5e34d117b6037ed7f3d815e98ae90d3e9cc073408e2f45950abc022badea58b9ef36acf3f8ab6be0737fe454116ceb60b087323f2f461e
-  languageName: node
-  linkType: hard
-
-"@cratis/chronicle@npm:6.14.0":
-  version: 6.14.0
-  resolution: "@cratis/chronicle@npm:6.14.0"
-  dependencies:
-    "@bufbuild/protobuf": "npm:^2.15.0"
-    "@cratis/chronicle.contracts": "npm:19.6.1"
-    "@grpc/grpc-js": "npm:^1.14.4"
-    "@opentelemetry/api": "npm:^1.9.1"
-    glob: "npm:^13.0.6"
-    nice-grpc: "npm:^2.1.17"
-    nice-grpc-common: "npm:^2.0.4"
-    reflect-metadata: "npm:^0.2.2"
-    undici: "npm:^8.10.2"
-  peerDependencies:
-    "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/ffe35240102d31247ad7dbbd9d838d1bdf06d7b45c29c23eab498048ab14126e4a3e08043e392480912b9bd46cfd215926816f5b02b89123673137ddeef702aa
   languageName: node
   linkType: hard
 

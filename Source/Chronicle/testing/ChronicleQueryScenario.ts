@@ -47,9 +47,7 @@ export class ChronicleQueryScenario<T = unknown> {
     }
     async perform(arguments_: Record<string, unknown> = {}, options?: QueryOptions): Promise<QueryResult<T>> {
         try {
-            const result = await this.#scenario.perform(arguments_, options);
-            this.#readModels.rethrowUnsupportedProjection();
-            return result;
+            return await this.#readModels.runWithProjectionErrors(() => this.#scenario.perform(arguments_, options));
         }
         catch (error) {
             if (error instanceof StreamingQueryNotSupportedError && error.queryName === `${this.#model.name}.${this.#method}`)

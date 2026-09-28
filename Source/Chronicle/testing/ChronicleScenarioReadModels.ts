@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { IEventStore } from '@cratis/chronicle';
 import { getEventTypeMetadata } from '@cratis/chronicle/events';
 import type { ReadModelScenario, UnsupportedProjectionOperation } from '@cratis/chronicle/testing';
@@ -18,7 +19,7 @@ export class ChronicleScenarioReadModels {
     readonly #seeded = new Map<string, Map<string, object[]>>();
     readonly #seedOrder = new Map<string, { sourceId: string; events: object[] }[]>();
     readonly #materialized = new Map<string, Map<ClassType, ReadModelScenario<object>>>();
-    #unsupportedProjection: UnsupportedProjectionOperation | undefined;
+    readonly #execution = new AsyncLocalStorage<{ unsupportedProjection?: UnsupportedProjectionOperation }>();
     #unsupportedType: typeof UnsupportedProjectionOperation | undefined;
     readonly #catalog = new ChronicleArtifacts();
 
@@ -62,11 +63,18 @@ export class ChronicleScenarioReadModels {
         this.#readModels.set(type, tenants);
     }
 
-    /** Arc pipelines turn execution errors into results; preserve the SDK's unsupported-projection error for scenario callers. */
-    rethrowUnsupportedProjection(): void {
-        const error = this.#unsupportedProjection;
-        this.#unsupportedProjection = undefined;
-        if (error) throw error;
+    /** Arc pipelines turn execution errors into results; preserve the SDK's unsupported-projection error for this execution. */
+    async runWithProjectionErrors<T>(execute: () => Promise<T>): Promise<T> {
+        return this.#execution.run({}, async () => {
+            const scope = this.#execution.getStore()!;
+            try {
+                const result = await execute();
+                if (scope.unsupportedProjection) throw scope.unsupportedProjection;
+                return result;
+            } finally {
+                scope.unsupportedProjection = undefined;
+            }
+        });
     }
 
     /** Only keyed lookups are available offline; lists and subscriptions require the kernel. */
@@ -75,8 +83,10 @@ export class ChronicleScenarioReadModels {
             findInstanceById: async (model: ClassType, id: string) => {
                 try { return await this.find(model, id, tenant); }
                 catch (error) {
-                    if (this.#unsupportedType && error instanceof this.#unsupportedType)
-                        this.#unsupportedProjection = error;
+                    if (this.#unsupportedType && error instanceof this.#unsupportedType) {
+                        const scope = this.#execution.getStore();
+                        if (scope) scope.unsupportedProjection = error;
+                    }
                     throw error;
                 }
             },
@@ -110,14 +120,20 @@ export class ChronicleScenarioReadModels {
             try { testing = await this.loadTesting(); }
             catch (error) {
                 if ((error as NodeJS.ErrnoException).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' ||
-                    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND')
+                    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND') {
+                    if (inferredCandidate) return null;
                     throw new Error(`given.forEventSource(...).events requires @cratis/chronicle >= ${requiredVersion}`, { cause: error });
+                }
                 throw error;
             }
-            if (typeof testing.ReadModelScenario !== 'function')
+            if (typeof testing.ReadModelScenario !== 'function') {
+                if (inferredCandidate) return null;
                 throw new Error(`given.forEventSource(...).events requires @cratis/chronicle >= ${requiredVersion}`);
-            if (projected && typeof testing.UnsupportedProjectionOperation !== 'function')
+            }
+            if (projected && typeof testing.UnsupportedProjectionOperation !== 'function') {
+                if (inferredCandidate) return null;
                 throw new Error(`Projection-backed read model '${model.name}' requires @cratis/chronicle >= 6.19.0; use ChronicleKernelScenario with an older SDK`);
+            }
             if (projected) this.#unsupportedType = testing.UnsupportedProjectionOperation;
             try { scenario = new testing.ReadModelScenario(model, this.#catalog); }
             catch (error) {
