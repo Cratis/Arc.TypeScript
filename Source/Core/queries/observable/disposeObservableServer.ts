@@ -51,8 +51,15 @@ export async function disposeObservableServer(hub: ObservableQueryHub, sessions:
             const seenAggregates = new Set<AggregateError>();
             const collect = (failure: unknown): void => {
                 if (failure instanceof AggregateError && failure.errors.length) {
-                    if (seenAggregates.has(failure) || failures.includes(failure)) return;
+                    if (seenAggregates.has(failure)) return;
                     seenAggregates.add(failure);
+                    if (failures.includes(failure)) {
+                        for (const leaf of leaves(failure)) {
+                            const index = joined.findIndex(value => Object.is(value, leaf));
+                            if (index !== -1) joined.splice(index, 1);
+                        }
+                        return;
+                    }
                     for (const nested of failure.errors) collect(nested);
                     return;
                 }
