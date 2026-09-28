@@ -4,6 +4,10 @@ import { command, commandReadModel, inject, key, readModel } from '@cratis/arc.c
 import { eventType, type EventContext } from '@cratis/chronicle/events';
 import { fromEvent, passive, removedWith } from '@cratis/chronicle/projections';
 import { onceOnly, reactor, type ReactorServices } from '@cratis/chronicle/reactors';
+import { MemberId } from '../../Members/MemberId.js';
+import { ISBN } from '../ISBN.js';
+import { BookBorrowedFromReservation, BookReserved, ReservationCancelled } from '../ReservationEvents.js';
+import { ReservationId } from '../ReservationId.js';
 
 // Reservations/ExpiryManagement/ExpiryManagement.ts
 // Events come first: a decorator can only reference a class that is already declared.

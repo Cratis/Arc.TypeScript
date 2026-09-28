@@ -97,17 +97,21 @@ for (const [name, module, expected] of [[listName, list, ['AuthorRegistered', 'A
 }
 console.log('PASS State View source proxies, Node discovery and Author projection schema');
 
-const slice = async id => import(pathToFileURL(join(root, 'dist/snippets', id, 'snippet.js')).href);
+// Each snippet compiles in the folder its page's layout gives it (Context.location), beside
+// copies of the page snippets it imports by relative path.
+const folders = __FOLDERS__;
+const load = (id, file) => import(pathToFileURL(join(root, 'dist/snippets', folders[id], file)).href);
+const slice = async id => load(id, 'snippet.js');
 const discovered = async id => {
     const catalog = new ChronicleArtifacts();
     const seen = new Set();
     const builder = new NodeArcApplicationBuilder();
     builder.addArtifactObserver(type => { seen.add(type); return catalog.register(type); });
-    await builder.discover(pathToFileURL(join(root, 'dist/snippets', id)));
+    await builder.discover(pathToFileURL(join(root, 'dist/snippets', folders[id])));
     return { catalog, seen };
 };
 const proxiesFor = (id, expected) => {
-    const proxies = [...renderSource(analyzeSource(join(root, 'tsconfig.json'), join(root, 'snippets', id))).keys()];
+    const proxies = [...renderSource(analyzeSource(join(root, 'tsconfig.json'), join(root, 'snippets', folders[id]))).keys()];
     for (const name of expected)
         assert.ok(proxies.some(proxy => proxy.endsWith(`${name}.ts`)), `${id}: ${name} proxy missing from ${proxies.join(', ')}`);
 };
@@ -156,8 +160,14 @@ const { reactorCommandResultHandler } = await import('@cratis/arc.chronicle');
 const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const context = source => ({ eventSourceId: source, sequenceNumber: 0n, eventType: { id: { value: 'event' } },
     correlationId: '00000000-0000-0000-0000-000000000001' });
-const { AuthorName } = await import(pathToFileURL(join(root, 'dist/fixtures/library.js')).href);
-const slices = await import(pathToFileURL(join(root, 'dist/fixtures/slices.js')).href);
+// The concepts and neighbouring slices each snippet actually imports: the page snippets' own
+// copies beside it, never the fixtures.
+const { AuthorName } = await load(ids.registration, '../AuthorName.js');
+const { ISBN } = await load(ids.expiry, '../ISBN.js');
+const { MemberId } = await load(ids.expiry, '../../Members/MemberId.js');
+const { ReservationId } = await load(ids.expiry, '../ReservationId.js');
+const hrRegistration = await load(ids.hr, '../Registration/Registration.js');
+const { MemberName: RegistrationMemberName } = await load(ids.memberRegistration, '../MemberName.js');
 
 // State Change: the returned identity is both the response and the event source.
 {
@@ -180,7 +190,6 @@ const slices = await import(pathToFileURL(join(root, 'dist/fixtures/slices.js'))
 // evaluate a passive projection, so the decision reads pinned reservations.
 {
     const { CancelExpiredReservation, PendingReservation, ReservationExpired, ReservationExpiryReactor } = modules.expiry;
-    const { ISBN, MemberId, ReservationId } = slices;
     const member = MemberId.create();
     const expired = ReservationId.create().value.toString();
     const pending = ReservationId.create().value.toString();
@@ -199,6 +208,8 @@ const slices = await import(pathToFileURL(join(root, 'dist/fixtures/slices.js'))
         assert.equal(early.appendedEvents.length, 0, 'CancelExpiredReservation appended for a reservation that is not yet due');
     } finally { await scenario.dispose(); }
 
+    // The reactor's returned array goes through Arc's reactor result handler, which runs each
+    // command through the Arc pipeline; the pinned reservation is still the one that is due.
     const reactor = new ReservationExpiryReactor();
     const now = new Date();
     const candidates = [{ id: new ReservationId(expired), expiresAt: new Date(now.getTime() - 1) },
@@ -208,6 +219,16 @@ const slices = await import(pathToFileURL(join(root, 'dist/fixtures/slices.js'))
     assert.equal(commands.length, 1);
     assert.ok(commands[0] instanceof CancelExpiredReservation);
     assert.equal(commands[0].reservationId.value.toString(), expired);
+    const sweep = ChronicleCommandScenario.for(CancelExpiredReservation, PendingReservation, ReservationExpired);
+    const results = [];
+    const server = { execute: async value => { const result = await sweep.execute(value); results.push(result); return result; } };
+    try {
+        sweep.givenReadModel(PendingReservation, expired, reservation(expired, '978-0', new Date(now.getTime() - 1)));
+        assert.equal(await reactorCommandResultHandler(() => server)(commands, context('scheduler'), ReservationExpiryReactor, 'store', 'tenant'), true);
+        assert.equal(results.length, 1);
+        results[0].shouldBeSuccessful();
+        results[0].shouldHaveAppendedEvent(ReservationExpired, expired, event => event.isbn.value === '978-0');
+    } finally { await sweep.dispose(); }
 }
 
 // Translation: the reactor filters and translates, and Arc runs the returned command.
@@ -217,22 +238,23 @@ const slices = await import(pathToFileURL(join(root, 'dist/fixtures/slices.js'))
     const payload = { employeeId: 'EMP-00247', givenName: 'Ada', familyName: 'Lovelace' };
     assert.equal(reactor.hRMemberCreated({ ...payload, status: 'INACTIVE' }), undefined);
     const command = reactor.hRMemberCreated({ ...payload, status: 'ACTIVE' });
-    assert.ok(command instanceof slices.RegisterMember);
-    const scenario = ChronicleCommandScenario.for(slices.RegisterMember, slices.MemberRegistered);
+    // The command the reactor returns is the page's RegisterMember, imported by the page's path.
+    assert.ok(command instanceof hrRegistration.RegisterMember);
+    const scenario = ChronicleCommandScenario.for(hrRegistration.RegisterMember, hrRegistration.MemberRegistered);
     const results = [];
     const server = { execute: async value => { const result = await scenario.execute(value); results.push(result); return result; } };
     try {
         assert.equal(await reactorCommandResultHandler(() => server)(command, context('EMP-00247'), MemberImportReactor, 'store', 'tenant'), true);
         assert.equal(results.length, 1);
         results[0].shouldBeSuccessful();
-        results[0].shouldHaveAppendedEvent(slices.MemberRegistered, String(results[0].response),
+        results[0].shouldHaveAppendedEvent(hrRegistration.MemberRegistered, String(results[0].response),
             event => event.firstName.value === 'Ada' && event.lastName.value === 'Lovelace');
     } finally { await scenario.dispose(); }
 
     const { RegisterMember, MemberRegistered } = modules.memberRegistration;
     const registration = ChronicleCommandScenario.for(RegisterMember, MemberRegistered);
     try {
-        const result = await registration.execute(new RegisterMember(new slices.MemberName('Grace'), new slices.MemberName('Hopper')));
+        const result = await registration.execute(new RegisterMember(new RegistrationMemberName('Grace'), new RegistrationMemberName('Hopper')));
         result.shouldBeSuccessful();
         assert.match(String(result.response), guid);
         result.shouldHaveAppendedEvent(MemberRegistered, String(result.response), event => event.firstName.value === 'Grace');
@@ -265,7 +287,10 @@ def main():
         settings["compilerOptions"].update({"noEmit": False, "outDir": "dist"})
         config.write_text(json.dumps(settings), encoding="utf-8")
         check = project / "check.mjs"
-        check.write_text(CHECK.replace("__ROOT__", ROOT.as_posix()), encoding="utf-8")
+        folders = {validator.slug(snippet_id): "/".join(part for part in (validator.slug(snippet_id),
+                   validator.SNIPPETS[snippet_id].location) if part) for snippet_id in IDS}
+        check.write_text(CHECK.replace("__ROOT__", ROOT.as_posix()).replace("__FOLDERS__", json.dumps(folders)),
+                         encoding="utf-8")
         for command in ([str(validator.TSC), "-p", str(config), "--pretty", "false"], ["node", str(check)]):
             result = subprocess.run(command, cwd=project, check=False)
             if result.returncode:

@@ -3,6 +3,8 @@ import { field } from '@cratis/fundamentals';
 import { command, CommandValidator, tuple, validator } from '@cratis/arc.core';
 import { eventSourceIdResponse } from '@cratis/arc.chronicle';
 import { eventType } from '@cratis/chronicle/events';
+import { AuthorId } from '../AuthorId.js';
+import { AuthorName } from '../AuthorName.js';
 
 // Authors/Registration/Registration.ts
 

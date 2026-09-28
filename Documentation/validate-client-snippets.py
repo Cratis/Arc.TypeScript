@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -118,7 +119,9 @@ class Context:
     imports by relative path, as `(module file stem, repository-relative path)`, copied
     verbatim so the snippet compiles against the sample file it mirrors. `fixture_imports`
     lets a snippet use fixture names it does not import; turn it off for a snippet whose
-    own imports are part of what the reader copies, so a missing import fails.
+    own imports are part of what the reader copies, so a missing import fails. `location` is
+    the folder the snippet's file sits in, relative to its own compilation folder, so its
+    relative imports resolve exactly as they do in the application layout the page shows.
     """
 
     host: str = ""
@@ -126,6 +129,7 @@ class Context:
     siblings: tuple[tuple[str, str], ...] = ()
     sources: tuple[tuple[str, str], ...] = ()
     fixture_imports: bool = True
+    location: str = ""
 
 
 MODULE = Context()
@@ -170,6 +174,15 @@ CAPSTONE_CONCEPTS = Context(
     fixture_imports=False,
 )
 
+STATE_CHANGE_CONCEPTS = "scenarios/vertical-slices/state-change/concepts"
+STATE_CHANGE_REGISTRATION = "scenarios/vertical-slices/state-change/registration"
+RESERVATION_DOMAIN = "scenarios/vertical-slices/automation/reservation-domain"
+MEMBER_CONCEPTS = "scenarios/vertical-slices/translator/member-concepts"
+MEMBER_REGISTRATION = "scenarios/vertical-slices/translator/member-registration"
+# A slice folder imports its parent folder's concepts: `../AuthorId.js`, `../MemberName.js`.
+AUTHOR_CONCEPTS_FROM_SLICE = (("../AuthorId", STATE_CHANGE_CONCEPTS), ("../AuthorName", STATE_CHANGE_CONCEPTS))
+MEMBER_CONCEPTS_FROM_SLICE = (("../MemberId", MEMBER_CONCEPTS), ("../MemberName", MEMBER_CONCEPTS))
+
 # Site-owned pages (the capstone and the vertical-slice series) live in Documentation/web rather
 # than Arc/Documentation, so the shared Arc page scan cannot find their macros.
 # Keep these exceptions explicit so other unreferenced snippet ids still fail.
@@ -205,17 +218,35 @@ SNIPPETS: dict[str, Context | None] = {
                                           fixture_imports=False),
     "scenarios/vertical-slices/state-view/author-list": MODULE,
     "scenarios/vertical-slices/state-view/fluent-projection": MODULE,
-    "scenarios/vertical-slices/state-change/concepts": MODULE,
-    "scenarios/vertical-slices/state-change/registration": MODULE,
+    # The State Change, Automation and Translation pages: each snippet compiles in the folder
+    # the page's layout puts it in and imports the other slices by the relative paths a reader
+    # copies, so a missing or wrong import fails. A snippet that shows several files in one fence
+    # stands in for each of them. The "(continued)" snippets extend the file shown above them and
+    # import nothing of their own beyond the framework, so they keep the fixture names.
+    "scenarios/vertical-slices/state-change/concepts": Context(fixture_imports=False, location="Authors"),
+    "scenarios/vertical-slices/state-change/registration": Context(
+        siblings=AUTHOR_CONCEPTS_FROM_SLICE, fixture_imports=False, location="Authors/Registration"),
     "scenarios/vertical-slices/state-change/unique-author-name": MODULE,
     "scenarios/vertical-slices/state-change/register-author-spec": Context(
-        siblings=(("Registration", "scenarios/vertical-slices/state-change/registration"),)),
-    "scenarios/vertical-slices/automation/reservation-domain": MODULE,
-    "scenarios/vertical-slices/automation/expiry-management": MODULE,
-    "scenarios/vertical-slices/translator/member-concepts": MODULE,
-    "scenarios/vertical-slices/translator/member-registration": MODULE,
+        siblings=(("../../Registration", STATE_CHANGE_REGISTRATION),
+                  ("../../../AuthorId", STATE_CHANGE_CONCEPTS),
+                  ("../../../AuthorName", STATE_CHANGE_CONCEPTS)),
+        fixture_imports=False, location="Authors/Registration/for_RegisterAuthor/when_registering"),
+    "scenarios/vertical-slices/automation/reservation-domain": Context(
+        siblings=(("../Members/MemberId", MEMBER_CONCEPTS),), fixture_imports=False, location="Reservations"),
+    "scenarios/vertical-slices/automation/expiry-management": Context(
+        siblings=(("../ISBN", RESERVATION_DOMAIN),
+                  ("../ReservationId", RESERVATION_DOMAIN),
+                  ("../ReservationEvents", RESERVATION_DOMAIN),
+                  ("../../Members/MemberId", MEMBER_CONCEPTS)),
+        fixture_imports=False, location="Reservations/ExpiryManagement"),
+    "scenarios/vertical-slices/translator/member-concepts": Context(fixture_imports=False, location="Members"),
+    "scenarios/vertical-slices/translator/member-registration": Context(
+        siblings=MEMBER_CONCEPTS_FROM_SLICE, fixture_imports=False, location="Members/Registration"),
     "scenarios/vertical-slices/translator/unique-member-name": MODULE,
-    "scenarios/vertical-slices/translator/hr-integration": MODULE,
+    "scenarios/vertical-slices/translator/hr-integration": Context(
+        siblings=(*MEMBER_CONCEPTS_FROM_SLICE, ("../Registration/Registration", MEMBER_REGISTRATION)),
+        fixture_imports=False, location="Members/HRIntegration"),
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -727,7 +758,8 @@ def imported_names(import_lines: list[str]) -> set[str]:
     return names
 
 
-def module_source(snippet: Snippet, context: Context, exports: dict[str, tuple[str, bool]]) -> str:
+def module_source(snippet: Snippet, context: Context, exports: dict[str, tuple[str, bool]],
+                  fixtures: str = "../../fixtures") -> str:
     """Build the compilable module for a snippet, emitting the snippet body verbatim."""
     assert snippet.code is not None
     imports: list[str] = []
@@ -752,10 +784,15 @@ def module_source(snippet: Snippet, context: Context, exports: dict[str, tuple[s
             continue
         fixture_imports.setdefault(fixture, []).append(f"type {name}" if type_only else name)
     lines = ["// Generated by Documentation/validate-client-snippets.py from " + relative(snippet.path)]
-    lines += [f"import {{ {', '.join(names)} }} from '../../fixtures/{fixture}.js';"
+    lines += [f"import {{ {', '.join(names)} }} from '{fixtures}/{fixture}.js';"
               for fixture, names in sorted(fixture_imports.items())]
     lines += [*all_imports, "", code, ""]
     return "\n".join(lines)
+
+
+def fixtures_from(project: Path, directory: Path) -> str:
+    """The relative import path from a generated module's folder to the fixtures folder."""
+    return Path(os.path.relpath(project.resolve() / "fixtures", directory.resolve())).as_posix()
 
 
 def slug(snippet_id: str) -> str:
@@ -790,11 +827,15 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
     for snippet in snippets:
         context = inventory[snippet.id]
         assert context is not None
-        directory = project / "snippets" / slug(snippet.id)
+        own = project / "snippets" / slug(snippet.id)
+        directory = (own / context.location).resolve()
+        if not directory.is_relative_to(own.resolve()):
+            raise SnippetError(f"{snippet.id} has a location outside its own folder: {context.location!r}")
         directory.mkdir(parents=True)
-        directories[f"snippets/{slug(snippet.id)}"] = snippet.id
-        (directory / "snippet.ts").write_text(module_source(snippet, context, exports), encoding="utf-8")
-        files.append(f"snippets/{slug(snippet.id)}/snippet.ts")
+        directories[directory.relative_to(project.resolve()).as_posix()] = snippet.id
+        (directory / "snippet.ts").write_text(
+            module_source(snippet, context, exports, fixtures_from(project, directory)), encoding="utf-8")
+        files.append(directory.relative_to(project.resolve()).as_posix() + "/snippet.ts")
         if snippet.id in ("arc-without-event-sourcing/standalone-host", "capstone/host"):
             # The host imports metadata generated into its Features root. The fixture only
             # types that import; runtime discovery/validation is checked separately.
@@ -815,7 +856,8 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             if not sibling_path.is_relative_to(project.resolve() / "snippets"):
                 raise SnippetError(f"{snippet.id} imports sibling {stem!r} outside the generated project")
             sibling_path.parent.mkdir(parents=True, exist_ok=True)
-            sibling_path.write_text(module_source(sibling, sibling_context, exports), encoding="utf-8")
+            sibling_path.write_text(module_source(sibling, sibling_context, exports,
+                                                  fixtures_from(project, sibling_path.parent)), encoding="utf-8")
             files.append(sibling_path.relative_to(project.resolve()).as_posix())
             directories[sibling_path.parent.relative_to(project.resolve()).as_posix()] = sibling_id
         for stem, source in context.sources:
@@ -868,7 +910,8 @@ def compile_snippets(snippets: list[Snippet], inventory: dict[str, Context | Non
             raise Blocked(f"tsc reported diagnostics but exited 0:\n{output}")
         if failures and keep is False:
             for snippet_id in failures:
-                source = project / "snippets" / slug(snippet_id) / "snippet.ts"
+                context = inventory.get(snippet_id) or MODULE
+                source = project / "snippets" / slug(snippet_id) / context.location / "snippet.ts"
                 if source.is_file():
                     numbered = [f"{index:4} | {text}" for index, text in
                                 enumerate(source.read_text(encoding="utf-8").splitlines(), start=1)]
@@ -967,10 +1010,31 @@ PLANTED_COMPILE_FAILURES: dict[str, tuple[str, str]] = {
         "export type Source = ObservableSource<string>;\n```\n", "TS1484"),
     # A fixture name used without its import, where the snippet's own imports must be complete.
     "self-test/missing-import": ("```typescript\nexport const name = new AuthorName('Ursula');\n```\n", "TS2304"),
+    # A relative import one folder off: the snippet compiles where its page's layout puts it.
+    "self-test/wrong-relative-import": (
+        "```typescript\nimport { AuthorName } from '../../AuthorName.js';\n\n"
+        "export const name = new AuthorName('Ursula');\n```\n", "TS2307"),
+}
+
+# Planted snippets that must compile: a concept, and a snippet two folders down importing it
+# by the relative path its layout gives it.
+PLANTED_CLEAN = {
+    "self-test/concept": "```typescript\nimport { ConceptAs } from '@cratis/fundamentals';\n\n"
+                         "export class AuthorName extends ConceptAs<string> {\n"
+                         "    static readonly valueType = String;\n}\n```\n",
+    "self-test/nested": "```typescript\nimport { AuthorName } from '../AuthorName.js';\n\n"
+                        "export const name = new AuthorName('Ursula');\n```\n",
 }
 
 # Planted snippets compiled with a context other than MODULE.
-PLANTED_CONTEXTS: dict[str, Context] = {"self-test/missing-import": Context(fixture_imports=False)}
+PLANTED_CONTEXTS: dict[str, Context] = {
+    "self-test/missing-import": Context(fixture_imports=False),
+    "self-test/concept": Context(fixture_imports=False),
+    "self-test/nested": Context(siblings=(("../AuthorName", "self-test/concept"),), fixture_imports=False,
+                                location="Authors/Registration"),
+    "self-test/wrong-relative-import": Context(siblings=(("../AuthorName", "self-test/concept"),),
+                                               fixture_imports=False, location="Authors/Registration"),
+}
 
 
 def plant(root: Path, files: dict[str, str]) -> None:
@@ -1034,7 +1098,7 @@ def self_test() -> int:
 
         compile_root = base / "compile" / "client-snippets"
         compile_root.mkdir(parents=True)
-        compile_files = {"self-test/clean": VALID_COMMAND,
+        compile_files = {"self-test/clean": VALID_COMMAND, **PLANTED_CLEAN,
                          **{snippet_id: content for snippet_id, (content, _) in PLANTED_COMPILE_FAILURES.items()}}
         plant(compile_root, compile_files)
         compile_inventory: dict[str, Context | None] = {snippet_id: PLANTED_CONTEXTS.get(snippet_id, MODULE)
@@ -1043,7 +1107,8 @@ def self_test() -> int:
         reported = {problem.split(" does not compile", 1)[0]: problem for problem in problems
                     if " does not compile" in problem}
         unexpected = [problem for problem in problems if " does not compile" not in problem]
-        if unexpected or "self-test/clean" in reported or "fixtures" in reported:
+        if unexpected or "fixtures" in reported or any(snippet_id in reported
+                                                       for snippet_id in ("self-test/clean", *PLANTED_CLEAN)):
             print("FAIL self-test compile baseline reported problems:\n" + "\n".join(problems), file=sys.stderr)
             failed = True
         for snippet_id, (_, diagnostic) in PLANTED_COMPILE_FAILURES.items():

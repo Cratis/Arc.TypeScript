@@ -3,6 +3,8 @@ import { field } from '@cratis/fundamentals';
 import { command, tuple } from '@cratis/arc.core';
 import { eventSourceIdResponse } from '@cratis/arc.chronicle';
 import { eventType } from '@cratis/chronicle/events';
+import { MemberId } from '../MemberId.js';
+import { MemberName } from '../MemberName.js';
 
 // Members/Registration/Registration.ts
 

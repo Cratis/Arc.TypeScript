@@ -2,6 +2,8 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { onceOnly, reactor } from '@cratis/chronicle/reactors';
+import { MemberName } from '../MemberName.js';
+import { RegisterMember } from '../Registration/Registration.js';
 
 // Members/HRIntegration/HRIntegration.ts
 

@@ -2,7 +2,8 @@
 import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
 import { strictEqual } from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'vitest';
-import { AuthorRegistered, RegisterAuthor, RegisterAuthorValidator } from './Registration.js';
+import { AuthorName } from '../../../AuthorName.js';
+import { AuthorRegistered, RegisterAuthor, RegisterAuthorValidator } from '../../Registration.js';
 
 // Authors/Registration/for_RegisterAuthor/when_registering/and_author_does_not_exist.ts
 describe('when registering an author that does not exist', () => {

@@ -1,6 +1,7 @@
 ```typescript
 import { ConceptAs, field, Guid } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
+import { MemberId } from '../Members/MemberId.js';
 
 // Reservations/ReservationId.ts
 export class ReservationId extends ConceptAs<Guid> {
