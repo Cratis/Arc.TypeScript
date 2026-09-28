@@ -111,6 +111,7 @@ export class ChronicleScenarioReadModels {
             this.#catalog.projections.some(type => getProjectionMetadata(type)?.readModelType === undefined);
         const projected = !reduced && (explicitlyProjected || inferredCandidate);
         if (!reduced && !projected) return null;
+        const inferredRequirement = `Cannot determine whether an untyped declarative projection applies to '${model.name}' without @cratis/chronicle >= 6.19.0; declare an explicit read-model type on the projection (for example, @projection('', ReadModel)).`;
         let byType = this.#materialized.get(tenant);
         if (!byType) { byType = new Map(); this.#materialized.set(tenant, byType); }
         let scenario = byType.get(model);
@@ -121,17 +122,17 @@ export class ChronicleScenarioReadModels {
             catch (error) {
                 if ((error as NodeJS.ErrnoException).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' ||
                     (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND') {
-                    if (inferredCandidate) return null;
+                    if (inferredCandidate) throw new Error(inferredRequirement, { cause: error });
                     throw new Error(`given.forEventSource(...).events requires @cratis/chronicle >= ${requiredVersion}`, { cause: error });
                 }
                 throw error;
             }
             if (typeof testing.ReadModelScenario !== 'function') {
-                if (inferredCandidate) return null;
+                if (inferredCandidate) throw new Error(inferredRequirement);
                 throw new Error(`given.forEventSource(...).events requires @cratis/chronicle >= ${requiredVersion}`);
             }
             if (projected && typeof testing.UnsupportedProjectionOperation !== 'function') {
-                if (inferredCandidate) return null;
+                if (inferredCandidate) throw new Error(inferredRequirement);
                 throw new Error(`Projection-backed read model '${model.name}' requires @cratis/chronicle >= 6.19.0; use ChronicleKernelScenario with an older SDK`);
             }
             if (projected) this.#unsupportedType = testing.UnsupportedProjectionOperation;
