@@ -176,11 +176,17 @@ SNIPPETS: dict[str, Context | None] = {
     "tutorial/first-slice/relational-author-slice": MODULE,
     "tutorial/first-slice/typed-command": MODULE,
     "tutorial/first-slice/author-slice": MODULE,
+    "tutorial/first-slice/author-concepts": MODULE,
     "tutorial/validation/author-name-rule": MODULE,
     "tutorial/validation/duplicate-name-rule": MODULE,
     "tutorial/authorization/roles-on-command": MODULE,
     "tutorial/authorization/roles-on-query": MODULE,
     "tutorial/books-and-relationships/book-concepts": MODULE,
+    "tutorial/books-and-relationships/book-repository": MODULE,
+    "tutorial/books-and-relationships/mongodb-book-repository": MODULE,
+    "tutorial/books-and-relationships/mongodb-book-registration": Context(
+        host="const builder = ArcApplication.createBuilder();\n<<SNIPPET>>",
+        imports=("import { ArcApplication } from '@cratis/arc.core';",)),
     "tutorial/books-and-relationships/add-book": MODULE,
     "tutorial/books-and-relationships/books-for-author": MODULE,
     "tutorial/real-time/one-shot-query": Context(
@@ -237,6 +243,7 @@ FIXTURES: dict[str, str] = {
     "library": """
         import { ConceptAs, field, Guid } from '@cratis/fundamentals';
         import { command, inject, readModel, type ObservableSource } from '@cratis/arc.core';
+        import type { MongoCollection } from '@cratis/arc.mongodb';
 
         export class AuthorId extends ConceptAs<Guid> {
             static readonly valueType = Guid;
@@ -270,6 +277,11 @@ FIXTURES: dict[str, str] = {
         export abstract class BookRepository {
             abstract save(book: Book): Promise<void>;
             abstract observeForAuthor(authorId: AuthorId): ObservableSource<Book[]>;
+        }
+        export class MongoBookRepository extends BookRepository {
+            constructor(_collection: MongoCollection<Book>) { super(); }
+            save(): Promise<void> { return Promise.resolve(); }
+            observeForAuthor(): ObservableSource<Book[]> { throw new Error('fixture only'); }
         }
 
         @command()
