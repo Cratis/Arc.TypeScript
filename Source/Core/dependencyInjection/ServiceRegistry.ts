@@ -229,16 +229,39 @@ export class ServiceRegistry {
         const scopes = [...this.#scopes];
         this.freezeShutdownParticipants();
         const participants = this.#frozenParticipants!;
+        // Without participants, run the original shutdown unchanged; only participants use the transaction.
+        const completion = participants.length ? this.coordinatedShutdown(participants, executions, scopes) :
+            Promise.resolve().then(async () => {
+                const errors: unknown[] = [];
+                try {
+                    await Promise.allSettled(executions);
+                    for (const scope of scopes) {
+                        try { await closeServiceScope(scope); } catch (error) { errors.push(error); }
+                    }
+                    try { await closeServiceScope(this.#singletons); } catch (error) { errors.push(error); }
+                    // Factories have settled; background work returned by a singleton may now stop.
+                    this.#lifetime.abort();
+                    try { await disposeCreatedServices(this.#singletons); } catch (error) { errors.push(error); }
+                } finally {
+                    this.#state = ServiceRegistryState.Closed;
+                    this.#waits.clear();
+                }
+                if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
+            });
+        this.#closing = completion;
+        return completion;
+    }
+    private coordinatedShutdown(participants: readonly ShutdownParticipant[], executions: readonly Promise<void>[],
+        scopes: readonly ServiceScope[]): Promise<void> {
         const transaction = new ShutdownTransaction();
         const errors: unknown[] = [];
         // Ownership is established before a host can close its listener in the same tick.
-        if (participants.length) for (const register of this.#shutdownResources) {
+        for (const register of this.#shutdownResources) {
             try { register(transaction); } catch (error) { errors.push(error); }
         }
-        const completion = Promise.resolve().then(async () => {
+        return Promise.resolve().then(async () => {
             const reported = new Set<unknown>();
-            // Without participants, keep the original per-failure aggregation.
-            const record = !participants.length ? (error: unknown): void => { errors.push(error); } : (error: unknown): void => {
+            const record = (error: unknown): void => {
                 let repeated = false;
                 const leaves = (value: unknown): unknown[] => {
                     const reference = value !== null && (typeof value === 'object' || typeof value === 'function');
@@ -251,25 +274,23 @@ export class ServiceRegistry {
             };
             try {
                 await transaction.settle('release', record);
-                if (participants.length) {
-                    // A stop continuation inherits its participant frame. Keep it live through drain.
-                    const frames = participants.map((): ShutdownParticipantFrame => ({ state: ServiceExecutionState.Running }));
-                    const stops: Promise<unknown>[] = [];
-                    for (const [index, participant] of participants.entries()) {
-                        try {
-                            // Normalize stop results inside the participant frame, including native Promise then getters.
-                            stops.push(this.#activeParticipant.run(frames[index]!, () => new Promise<void>((resolve, reject) => {
-                                Promise.resolve(participant.stop()).then(resolve, reject);
-                            })));
-                        } catch (error) { record(error); }
-                    }
-                    const stopped = await Promise.allSettled(stops);
-                    for (const outcome of stopped) if (outcome.status === 'rejected') record(outcome.reason);
-                    const drains = await Promise.allSettled(participants.map((participant, index) =>
-                        this.#activeParticipant.run(frames[index]!, () => Promise.resolve().then(() => participant.drain()))));
-                    for (const outcome of drains) if (outcome.status === 'rejected') record(outcome.reason);
-                    for (const frame of frames) frame.state = ServiceExecutionState.Drained;
+                // A stop continuation inherits its participant frame. Keep it live through drain.
+                const frames = participants.map((): ShutdownParticipantFrame => ({ state: ServiceExecutionState.Running }));
+                const stops: Promise<unknown>[] = [];
+                for (const [index, participant] of participants.entries()) {
+                    try {
+                        // Normalize stop results inside the participant frame, including native Promise then getters.
+                        stops.push(this.#activeParticipant.run(frames[index]!, () => new Promise<void>((resolve, reject) => {
+                            Promise.resolve(participant.stop()).then(resolve, reject);
+                        })));
+                    } catch (error) { record(error); }
                 }
+                const stopped = await Promise.allSettled(stops);
+                for (const outcome of stopped) if (outcome.status === 'rejected') record(outcome.reason);
+                const drains = await Promise.allSettled(participants.map((participant, index) =>
+                    this.#activeParticipant.run(frames[index]!, () => Promise.resolve().then(() => participant.drain()))));
+                for (const outcome of drains) if (outcome.status === 'rejected') record(outcome.reason);
+                for (const frame of frames) frame.state = ServiceExecutionState.Drained;
                 await transaction.settle('work', record);
                 await Promise.allSettled(executions);
                 await transaction.settle('scopes', record);
@@ -286,7 +307,5 @@ export class ServiceRegistry {
             }
             if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
         });
-        this.#closing = completion;
-        return completion;
     }
 }

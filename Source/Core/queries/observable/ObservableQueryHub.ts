@@ -33,7 +33,6 @@ export class ObservableQueryHub {
     #healthVersion = 0;
     #disposed = false;
     #stopping = false;
-    #closing: Promise<void> | undefined;
 
     constructor(readonly server: ArcServer) {}
 
@@ -111,16 +110,13 @@ export class ObservableQueryHub {
         }
     }
 
-    dispose(): Promise<void> {
-        if (this.#closing) return this.#closing;
+    async dispose(): Promise<void> {
+        if (this.#disposed) return;
         this.#disposed = true;
         this.#healthChanged.complete();
-        this.#closing = (async () => {
-            const outcomes = await Promise.allSettled(this.connections.map(connection => connection.close()));
-            const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
-            if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
-        })();
-        return this.#closing;
+        const outcomes = await Promise.allSettled([...this.#connections.values()].map(connection => connection.close()));
+        const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+        if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
     }
 
     private async openSse(request: Request, native?: NativeRequestContext): Promise<Response> {

@@ -156,7 +156,11 @@ export class ArcServer {
     dispose(): Promise<void> {
         if (this.#ownsServices) {
             try { this.services.assertCanDispose(); }
-            catch (error) { return Promise.reject(error); }
+            catch (error) {
+                // Without participants, owned work keeps the original order: transport teardown, then the self-join rejection.
+                if (!this.#transaction && !this.services.hasShutdownParticipants) return this.disposeUncoordinated();
+                return Promise.reject(error);
+            }
         }
         if (this.#closing) return this.#closing;
         // Only an owned registry's shutdown starts here; a borrowed registry stays open for its owner.
@@ -164,7 +168,7 @@ export class ArcServer {
         if (this.#transaction && !this.#ownsServices) {
             if (!this.services.inShutdownParticipant) return this.#closing = this.services.dispose();
             const failures: unknown[] = [];
-            const sessions = this.#sessions.sessions.map(session => session.close());
+            const sessions = this.#sessions.coordinatedSessions.map(session => session.close());
             return this.#closing = Promise.all([
                 this.#transaction.settle('release', error => { failures.push(error); }),
                 Promise.allSettled(sessions).then(outcomes => {
@@ -177,13 +181,17 @@ export class ArcServer {
         }
         if (this.#transaction || this.#ownsServices && participants)
             return this.#closing = this.services.dispose();
-        // With no participants, preserve main's transport-first admission and failure timing.
-        const local = disposeObservableServer(this.#hub, this.#sessions,
-            this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined,
-            this.services, this.#ownsServices);
+        // With no participants, run the original transport-first teardown.
+        const local = this.disposeUncoordinated();
         if (this.#ownsServices) return this.#closing = local;
         // A locally disposed server no longer participates in its borrowed registry's shutdown.
-        return this.#closing = local.finally(this.#removeShutdownResource);
+        void local.then(this.#removeShutdownResource, this.#removeShutdownResource);
+        return this.#closing = local;
+    }
+    /** The original dispose, kept verbatim (including its async wrapper) for shutdown without participants. */
+    private async disposeUncoordinated(): Promise<void> {
+        return disposeObservableServer(this.#hub, this.#sessions,
+            this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined, this.services, this.#ownsServices);
     }
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */
     queryOperation(name: string): Operation | undefined { return this.#queriesByName.get(name); }

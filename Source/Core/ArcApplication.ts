@@ -77,9 +77,20 @@ export class ArcApplication extends FetchArcApplication {
         this.#disposed = true;
         const listener = this.#listener;
         this.#listener = undefined;
-        try { await shutdownArcHost(this.server, () => listener?.close() ?? Promise.resolve());
-            this.#onStopped?.();
-        } catch (error) { this.#onStopped?.(error); throw error; }
+        if (this.server.ownsServices && this.server.services.hasShutdownParticipants) {
+            try { await shutdownArcHost(this.server, () => listener?.close() ?? Promise.resolve());
+                this.#onStopped?.();
+            } catch (error) { this.#onStopped?.(error); throw error; }
+            return;
+        }
+        // Without participants, keep the original listener-first shutdown.
+        const failures: unknown[] = [];
+        try { await listener?.close(); } catch (error) { failures.push(error); }
+        try { await this.server.dispose(); } catch (error) { failures.push(error); }
+        const failure = failures.length === 1 ? failures[0] : failures.length ?
+            new AggregateError(failures, 'Arc application shutdown failed') : undefined;
+        this.#onStopped?.(failure);
+        if (failure) throw failure;
     }
     /** Dispose the application, whether or not it started a listener. */
     override async dispose(): Promise<void> { await this.stop(); }

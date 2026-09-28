@@ -52,7 +52,7 @@ export class HubConnection {
     get context(): ExecutionContext { return this.#context; }
     get subscriptionCount(): number { return this.#states.activeCount; }
     get subscriptions(): readonly HubSubscription[] { return [...this.#subscriptions.values()]; }
-    get closed(): boolean { return this.#transportClosing !== undefined; }
+    get closed(): boolean { return this.#closing !== undefined || this.#transportClosing !== undefined; }
 
     /** Advertise revisions promptly, including when a WS client sent a legacy Subscribe on open. */
     async connect(): Promise<void> {
@@ -147,6 +147,8 @@ export class HubConnection {
     /** @internal Stop keepalives, output and admission without joining delivery. */
     releaseTransport(): Promise<void> {
         if (this.#transportClosing) return this.#transportClosing;
+        // An uncoordinated close already owns output and subscriptions; the work phase joins it.
+        if (this.#closing) return Promise.resolve();
         this.#keepAlive.stop();
         this.#closingSubscriptions = [...this.#subscriptions.values()];
         this.#subscriptions.clear();
@@ -164,6 +166,7 @@ export class HubConnection {
     /** @internal Join every admitted subscription after the participants drain. */
     joinDelivery(): Promise<void> {
         if (this.#delivery) return this.#delivery;
+        if (this.#closing && !this.#transportClosing) return this.#delivery = this.#closing;
         this.releaseTransport();
         this.#delivery = (async () => {
             try {
@@ -183,6 +186,43 @@ export class HubConnection {
         return this.#delivery;
     }
 
+    /** The original close, used whenever no shutdown transaction released this connection first. */
+    private closeUncoordinated(): Promise<void> {
+        this.#keepAlive.stop();
+        this.#closing = Promise.resolve().then(async () => {
+            this.output.close();
+            const errors: unknown[] = [];
+            const active = [...this.#subscriptions.values()];
+            this.#subscriptions.clear();
+            for (const subscription of active) subscription.controller.abort();
+            const joined = Promise.allSettled(active.map(async subscription => {
+                try {
+                    await subscription.session?.close();
+                    await subscription.admission;
+                    await subscription.delivery;
+                } catch (error) { await this.recordCleanupFailure(subscription, error); }
+            }));
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                const results = await Promise.race([
+                    joined,
+                    new Promise<never>((_, reject) => {
+                        timer = setTimeout(() => reject(new Error('Observable hub shutdown timed out')),
+                            this.server.observableLimits.shutdownTimeoutMs);
+                    })
+                ]);
+                for (const result of results) if (result.status === 'rejected') errors.push(result.reason);
+            } catch (error) { errors.push(error); }
+            finally { if (timer) clearTimeout(timer); }
+            this.#released = true;
+            this.onClose();
+            this.onChange();
+            if (errors.length === 1) throw errors[0];
+            if (errors.length) throw new AggregateError(errors, 'Observable hub shutdown failed');
+        });
+        return this.#closing;
+    }
+
     private releaseConnection(): void {
         if (this.#released) return;
         this.#released = true;
@@ -192,8 +232,8 @@ export class HubConnection {
 
     close(): Promise<void> {
         if (this.#closing) return this.#closing;
+        if (!this.#transportClosing) return this.closeUncoordinated();
         const transport = this.releaseTransport();
-        if (this.#closing) return this.#closing;
         const delivery = this.joinDelivery();
         this.#closing = (async () => {
             let timer: ReturnType<typeof setTimeout> | undefined;

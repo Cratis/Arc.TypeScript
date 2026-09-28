@@ -27,9 +27,11 @@ describe('when closing a streaming session whose scope fails to dispose', () => 
         failure = await beforeDeadline(captureFailure(session.close()), 'session close') as AggregateError;
         await captureFailure(server.dispose());
     });
-    it('should report the cached scope failure once', () => {
+    // Without shutdown participants, close keeps its original shape: the iterator and the scope report the same failure.
+    it('should report the cached scope failure from the iterator and the scope', () => {
         failure.message.should.equal('Observable subscription cleanup failed');
-        failure.errors.should.have.lengthOf(1);
+        failure.errors.should.have.lengthOf(2);
+        failure.errors[0].should.equal(failure.errors[1]);
         const scope = failure.errors[0] as AggregateError;
         scope.message.should.equal('Service disposal failed');
         scope.errors.should.deep.equal([leaf]);

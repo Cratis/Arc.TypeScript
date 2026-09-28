@@ -31,6 +31,7 @@ export class ObservableQuerySession {
     readonly #operations = new Set<Promise<unknown>>();
     #terminalFailure: unknown;
     #released = false;
+    #subscriptionEnded = false;
     #transaction: ShutdownTransaction | undefined;
     #producer: (() => Promise<void>) | undefined;
     #producerClosing: Promise<void> | undefined;
@@ -42,7 +43,6 @@ export class ObservableQuerySession {
         this.#scope = createOwnedServiceScope(config.services, this.#context);
         this.#subscription = beginSubscription(
             config.operation.fullyQualifiedName, this.#context.correlationId);
-        onServiceScopeClosed(this.#scope, () => this.#subscription.end());
     }
 
     /** Open the producer only after the actual query pipeline authorizes and validates the caller. */
@@ -56,7 +56,7 @@ export class ObservableQuerySession {
                 { query_name: config.operation.fullyQualifiedName }, start, undefined, result => result.hasExceptions));
             session.#result = result;
             await session.reportResult(result);
-            if (result.isSuccess && !session.#context.signal.aborted) session.#source = result.data;
+            if (result.isSuccess && !(session.#transaction && session.#context.signal.aborted)) session.#source = result.data;
             else await session.close();
             return session;
         } catch (error) {
@@ -97,6 +97,8 @@ export class ObservableQuerySession {
     coordinateShutdown(transaction: ShutdownTransaction): void {
         if (this.#transaction) return;
         this.#transaction = transaction;
+        // Registry shutdown may close the scope directly; end the subscription when it does.
+        onServiceScopeClosed(this.#scope, () => this.endSubscription());
         this.cancel();
         // Release is bounded; a source that has not returned by then is reported when the work phase closes the session.
         transaction.release(this.releaseProducer().catch(() => {}));
@@ -137,18 +139,33 @@ export class ObservableQuerySession {
     /** Cancel the producer, release its iterator, and dispose the scope exactly once. */
     close(): Promise<void> {
         if (this.#closed) return this.#closed;
+        if (!this.#transaction) return this.closeUncoordinated();
         this.cancel();
         this.releaseAdmission();
         this.#closed = (async () => {
             const failures: unknown[] = [];
             try { await this.releaseProducer(); } catch (error) { failures.push(error); }
-            if (!this.#transaction && this.#activeIterator) {
-                try { await this.#activeIterator.return(undefined); }
-                catch (error) { failures.push(error); }
-            }
             try { await this.closeScope(); }
             catch (error) { if (!failures.includes(error)) failures.push(error); }
             if (this.#terminalFailure && !failures.includes(this.#terminalFailure)) failures.push(this.#terminalFailure);
+            if (failures.length) throw new AggregateError(failures, 'Observable subscription cleanup failed');
+        })();
+        return this.#closed;
+    }
+
+    /** The original close, used whenever no shutdown transaction owns this session. */
+    private closeUncoordinated(): Promise<void> {
+        this.#controller.abort();
+        this.releaseAdmission();
+        this.#closed = (async () => {
+            const failures: unknown[] = [];
+            if (this.#activeIterator) {
+                try { await this.#activeIterator.return(undefined); }
+                catch (error) { failures.push(error); }
+            }
+            try { await this.disposeScope(); }
+            catch (error) { failures.push(error); }
+            if (this.#terminalFailure) failures.push(this.#terminalFailure);
             if (failures.length) throw new AggregateError(failures, 'Observable subscription cleanup failed');
         })();
         return this.#closed;
@@ -177,14 +194,17 @@ export class ObservableQuerySession {
             if (this.rejection) { yield this.redact(this.rejection); return; }
             if (!this.#source) throw new Error('Observable query source was not initialized');
             for await (const value of toEmissions(this.#source, this.#context.signal, this.config.pendingEmissions,
-                release => { this.#producer = release; if (this.#context.signal.aborted) void this.releaseProducer().catch(() => {}); })) {
-                if (this.#context.signal.aborted) return;
+                release => {
+                    this.#producer = release;
+                    if (this.#transaction && this.#context.signal.aborted) void this.releaseProducer().catch(() => {});
+                })) {
+                if (this.#transaction && this.#context.signal.aborted) return;
                 const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
                     { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
                         this.#context, this.config.options, value), undefined, result => result.hasExceptions));
                 await this.reportResult(result);
                 const guarded = await this.guarded(result);
-                if (this.#context.signal.aborted) return;
+                if (this.#transaction && this.#context.signal.aborted) return;
                 if (!guarded) continue;
                 yield this.redact(guarded);
                 if (guarded.isSuccess) this.#firstEmissionDelivered = true;
@@ -193,16 +213,14 @@ export class ObservableQuerySession {
         } catch (error) {
             if (this.#context.signal.aborted) {
                 if (error instanceof DOMException && error.name === 'AbortError' ||
-                    this.config.services.disposed && error instanceof Error && error.message === 'Service registry is disposed') return;
+                    this.#transaction && this.config.services.disposed && error instanceof Error && error.message === 'Service registry is disposed') return;
                 this.#terminalFailure = error;
                 throw error;
             }
             await this.config.reportFailure(error);
             yield queryResult(this.#context, { exceptionMessages: [this.config.exposeExceptionDetails
                 ? String(error) : 'An unexpected error occurred'] });
-        } finally {
-            await this.closeScope();
-        }
+        } finally { await this.closeScope(); }
     }
 
     private releaseAdmission(): void {
@@ -222,14 +240,26 @@ export class ObservableQuerySession {
     private disposeScope(): Promise<void> {
         if (this.#scopeClosed) return this.#scopeClosed;
         this.releaseAdmission();
-        this.#scopeClosed = (async () => {
+        this.#scopeClosed = this.#transaction ? (async () => {
             // current() has no iterator for close() to join. Keep its scoped guards alive
             // until every already-admitted session operation has settled.
             await Promise.allSettled([...this.#operations]);
             try { await this.#scope.dispose(); }
+            finally {
+                try { this.endSubscription(); }
+                finally { this.config.onClose(); }
+            }
+        })() : this.#scope.dispose().finally(() => {
+            try { this.endSubscription(); }
             finally { this.config.onClose(); }
-        })();
+        });
         return this.#scopeClosed;
+    }
+
+    private endSubscription(): void {
+        if (this.#subscriptionEnded) return;
+        this.#subscriptionEnded = true;
+        this.#subscription.end();
     }
 
     private async reportResult(result: QueryResult): Promise<void> {

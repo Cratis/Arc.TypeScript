@@ -220,13 +220,19 @@ export class ServiceScope {
     #closeInternal(): Promise<void> {
         if (this.#closing) return this.#closing;
         this.#state = ServiceScopeState.Closing;
-        const completion = Promise.resolve().then(() => this.#closeCore()).finally(() => {
+        const completion = Promise.resolve().then(() => this.#closeCore());
+        this.#closing = completion;
+        const settled = (): void => {
             this.#state = ServiceScopeState.Closed;
             this.#registry.release(this);
-            try { for (const callback of this.#onClosed) callback(); }
-            finally { this.#onClosed.clear(); }
-        });
-        this.#closing = completion;
+            // Only coordinated shutdown registers callbacks; without them this is the original settlement.
+            const callbacks = [...this.#onClosed];
+            this.#onClosed.clear();
+            for (const callback of callbacks) {
+                try { callback(); } catch { /* A closure observer must not become an unhandled settlement failure. */ }
+            }
+        };
+        void completion.then(settled, settled);
         return completion;
     }
     async #closeCore(): Promise<void> {

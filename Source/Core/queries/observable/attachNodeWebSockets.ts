@@ -69,14 +69,14 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
             const routed = new URL(`${path}${url.search}`, 'http://arc.invalid');
             socket.setTimeout(arc.observableLimits.handshakeTimeoutMs, () => reject(408));
             const provided = await native?.(request);
-            if (socket.destroyed || transportClosing) { if (transportClosing) reject(503); return; }
+            if (socket.destroyed || closing || transportClosing) { if (closing || transportClosing) reject(503); return; }
             const trusted: NativeRequestContext = { ...provided,
                 secure: provided?.secure ?? (request.socket instanceof TLSSocket && request.socket.encrypted === true),
                 remoteAddress: provided?.remoteAddress ?? request.socket.remoteAddress };
             const handshake = new Request(routed, { headers: new Headers(request.headers as Record<string, string>) });
             const prepared = await prepareObservableUpgrade(arc, handshake, trusted);
             if (prepared.status !== 101 || !prepared.resolved) { reject(prepared.status); return; }
-            if (socket.destroyed || transportClosing) { if (transportClosing) reject(503); return; }
+            if (socket.destroyed || closing || transportClosing) { if (closing || transportClosing) reject(503); return; }
             socket.setTimeout(0);
             webSockets.handleUpgrade(request, socket, head, connection => {
                 socket.off('error', onSocketError);
@@ -105,6 +105,8 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
     let active: readonly { transport: WebSocketTransport; work: Promise<void> }[] = [];
     const releaseTransport = (): Promise<void> => {
         if (transportClosing) return transportClosing;
+        // An uncoordinated dispose already closed the transport and removed this bridge.
+        if (closing) return Promise.resolve();
         host.off('upgrade', onUpgrade);
         active = [...connections];
         const sockets = active.map(connection => {
@@ -131,6 +133,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
     };
     const joinDelivery = (): Promise<void> => {
         if (delivery) return delivery;
+        if (closing && !transportClosing) return delivery = closing;
         const transport = releaseTransport();
         delivery = (async () => {
             try {
@@ -144,6 +147,7 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
     };
     const dispose = (): Promise<void> => {
         if (closing) return closing;
+        if (!transportClosing) return disposeUncoordinated();
         const transport = releaseTransport();
         const work = joinDelivery();
         closing = (async () => {
@@ -164,6 +168,30 @@ export function attachNodeWebSockets(host: HttpServer, arc: ArcServer,
             } finally { if (timer) clearTimeout(timer); }
         })();
         void closing.catch(() => {});
+        return closing;
+    };
+    // The original disposer, used whenever no shutdown transaction released this bridge first.
+    const disposeUncoordinated = (): Promise<void> => {
+        host.off('upgrade', onUpgrade);
+        owned.delete(host);
+        for (const connection of connections) connection.transport.close();
+        const admitted = [...connections];
+        closing = (async () => {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                const outcomes = await Promise.race([
+                    Promise.allSettled(admitted.map(connection => connection.work)),
+                    new Promise<never>((_, reject) => {
+                        timer = setTimeout(() => {
+                            for (const connection of admitted) connection.transport.socket.terminate();
+                            reject(new Error('Arc WebSocket shutdown timed out'));
+                        }, arc.observableLimits.shutdownTimeoutMs);
+                    })
+                ]);
+                const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+                if (failures.length) throw new AggregateError(failures, 'Arc WebSocket shutdown failed');
+            } finally { if (timer) clearTimeout(timer); }
+        })();
         return closing;
     };
     owned.set(host, { releaseTransport, joinDelivery, dispose });
