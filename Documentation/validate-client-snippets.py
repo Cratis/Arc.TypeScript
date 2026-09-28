@@ -16,7 +16,8 @@ The gate checks two things:
   either `typescript`, or `text` holding the explicit statement that TypeScript does not
   support the workflow yet. The set of snippet ids equals the checked-in inventory in
   `SNIPPETS`, and, when the Arc checkout is available (`../Arc/Documentation` by default),
-  the ids the shared pages actually ask a TypeScript tab for.
+  the ids the shared Arc pages actually ask a TypeScript tab for, except the explicitly
+  listed site-owned capstone snippet.
 * Compilation. Each real snippet becomes its own module in a throwaway project under the
   system temporary folder. The snippet text is emitted verbatim; only its single-line
   imports are hoisted above a host class when the snippet is a class-member fragment.
@@ -148,9 +149,15 @@ export class RegisterAuthor {
 }
 """
 
-# The checked-in inventory: every id the shared Arc pages ask a TypeScript tab for.
+# The capstone is authored in Documentation/web rather than Arc/Documentation; the
+# shared Arc page scan cannot find its macro. Keep this exception explicit so other
+# unreferenced snippet ids still fail the inventory check.
+SITE_ONLY_SNIPPETS = {"guides/chronicle/event-from-command"}
+
+# The checked-in inventory: shared Arc page ids plus the site-only capstone id.
 # `None` means the file must state that TypeScript does not support the workflow yet.
 SNIPPETS: dict[str, Context | None] = {
+    "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
     "understanding-the-proxy-boundary/register-author": MODULE,
@@ -508,7 +515,7 @@ def check_contract(root: Path, inventory: dict[str, Context | None], arc_documen
         else:
             for snippet_id in sorted(shared - inventory.keys()):
                 problems.append(f"shared Arc page asks for {snippet_id}, which is not in the TypeScript inventory")
-            for snippet_id in sorted(inventory.keys() - shared):
+            for snippet_id in sorted(inventory.keys() - shared - SITE_ONLY_SNIPPETS):
                 problems.append(f"{snippet_id} is in the TypeScript inventory but no shared Arc page uses it")
 
     snippets: list[Snippet] = []
