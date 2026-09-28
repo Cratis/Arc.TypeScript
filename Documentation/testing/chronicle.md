@@ -1,6 +1,6 @@
 ---
 title: Testing Chronicle commands
-description: Test event-sourced Arc commands without a kernel - seed reducer history, pin read models, and assert appended events.
+description: Test event-sourced Arc commands without a kernel - seed supported read-model history, pin read models, and assert appended events.
 ---
 
 An event-sourced command makes a decision and records it as events. A test for it answers three questions: what state did the command see, which events did it append, and what did it refuse. `@cratis/arc.chronicle/testing` has two scenarios for this, and this page covers the in-memory one. Both run the command through the real Arc pipeline: authorization, validation, `provide()`, `handle()`, and the Chronicle response handler.
@@ -15,12 +15,12 @@ The Chronicle integration and its testing helpers are experimental. See [Chronic
 | --- | --- | --- |
 | Needs | Nothing; the event log is in memory | A running Chronicle kernel at `ARC_CHRONICLE_TEST_URL` |
 | Runs in `yarn test` | Yes | Only when you opt in |
-| State the command reads | Pinned models or reducer state folded from seeded events | Events you seed with `given.events`, projected by the kernel |
+| State the command reads | Pinned models or reducer/flat projection state from seeded events | Events you seed with `given.events`, projected by the kernel |
 | Aggregates (`commandAggregate`) | Not supported; the command fails | Rehydrated from the seeded events |
 | Constraints and concurrency | Not enforced | Enforced |
-| Projections | Not run | Run; assert them with `shouldHaveReadModel` |
+| Projections | Supported flat definitions evaluated on demand; see the [Chronicle testing capabilities](https://github.com/Cratis/Chronicle.TypeScript/blob/main/Documentation/testing.md#projection-capabilities) | Run by the kernel; assert them with `shouldHaveReadModel` |
 
-Start with `ChronicleCommandScenario`. Most tests check the decision a command makes from the state it is given, and the in-memory scenario checks that in milliseconds. For snapshot queries injecting `ChronicleReadModels`, [ChronicleQueryScenario](queries.md#query-chronicle-read-models-in-memory) reuses the same pin and reducer-history seeding rules for keyed lookups. Move to `ChronicleKernelScenario` when the test depends on an aggregate, a projection, a constraint, or a concurrency check; [Test Chronicle commands against a kernel](chronicle-kernel.md) covers it.
+Start with `ChronicleCommandScenario`. Most tests check the decision a command makes from the state it is given, and the in-memory scenario checks that in milliseconds. For snapshot queries injecting `ChronicleReadModels`, [ChronicleQueryScenario](queries.md#query-chronicle-read-models-in-memory) reuses the same pin and seeded-history rules for keyed lookups. Move to `ChronicleKernelScenario` when the test depends on an aggregate, an unsupported projection operation, a constraint, or a concurrency check; [Test Chronicle commands against a kernel](chronicle-kernel.md) covers it.
 
 ## The slice under test
 
@@ -109,7 +109,7 @@ await scenario.dispose();
 ```
 
 Here `AccountBalanceReducer` handles `AccountOpened` and produces the `AccountBalance` injected into `CheckAccount`.
-The SDK's `ReadModelScenario` (introduced in `@cratis/chronicle` 6.14.0) folds the seeded events on demand for each source.
+The SDK's `ReadModelScenario` folds reducer history (since 6.14.0) and, starting in 6.19.0, evaluates supported flat projections from seeded events on demand for each source.
 The main `@cratis/arc.chronicle` entry supports `@cratis/chronicle` 6.7.0 and later. Seeding reducer history through `given.forEventSource(...).events` requires SDK 6.14.0 or later; the scenario loads its testing subpath only when it needs to fold seeded history. A different source has no balance;
 required `commandReadModel(AccountBalance)` rejects it and an optional read model receives `null`. Seeding does not
 appear in `result.appendedEvents` or `scenario.appendedEvents`. Later command appends are **not** folded into this
@@ -120,11 +120,10 @@ Seed history for a different tenant with `scenario.given.forEventSource('account
 that tenant in the command's trusted context before executing. `given.forEventSource(id).readModel(instance)` pins
 state for the current tenant instead; `givenReadModel(Type, id, instance, tenant?)` also defaults to the current tenant.
 If you select a source before setting `scenario.context.tenantId`, the default tenant is resolved when you call `.events(...)` or `.readModel(...)`.
-A pinned instance wins over history for its type, source and tenant.
+A pinned instance wins over history for its type, source and tenant. Projection seeds retain chronological order across source IDs, so projected `EventContext.SequenceNumber` reflects the order of `.events(...)` calls. Reducer seeds retain their existing per-source feeding order; interleaved sources can therefore have different sequence numbers in reducer contexts.
 
-A projection-backed model with seeded history cannot be evaluated offline: the scenario reports an error naming
-`ChronicleKernelScenario`. With no history for that source, it is missing just like an unseeded reducer-backed model.
-A plain `@readModel()` without a reducer or projection is also missing even when other models have seeded history.
+With `@cratis/chronicle` 6.19.0 or later, a projection-backed model with seeded history is evaluated in-process within the [Chronicle testing capability boundary](https://github.com/Cratis/Chronicle.TypeScript/blob/main/Documentation/testing.md#projection-capabilities). An unsupported definition throws the SDK's `UnsupportedProjectionOperation` unchanged; use `ChronicleKernelScenario` for that definition. Older SDKs require a kernel scenario for projection-backed state and report the required SDK version instead of fabricating a model. If a projection omits its read-model type, seeded lookups on older SDKs fail explicitly with `@cratis/chronicle >= 6.19.0` and suggest `@projection('', ReadModel)` because Arc cannot tell which read model it targets without the evaluator. With no history for that source, the model is missing just like an unseeded reducer-backed model.
+A plain `@readModel()` without a reducer or projection is also missing when the SDK can rule out untyped projections for it (or none are registered), even if other models have seeded history.
 Aggregates also require the kernel scenario because the in-memory event log cannot
 replay their routed event history. This is not a substitute for constraints, concurrency, compliance or reactors.
 
@@ -171,10 +170,10 @@ Pass everything the command touches to `for(...)`: its event types, validators, 
 A pinned read model belongs to one ID and one tenant:
 
 - The tenant defaults to the current `scenario.context.tenantId`, or `Default` when the context sets none. Pass the tenant as the fourth argument to pin a model in a different tenant.
-- A read model that is neither pinned nor materialized by reducer events is missing. `commandReadModel(Book)` rejects the command, and `commandReadModel(Book, { optional: true })` hands `handle()` a `null`.
+- A read model that is neither pinned nor materialized from supported seeded history is missing. `commandReadModel(Book)` rejects the command, and `commandReadModel(Book, { optional: true })` hands `handle()` a `null`.
 - A command that injects `ChronicleReadModels` and calls `findInstanceById` or `getById` receives the pinned instance for any ID, not only the command key. `getAll` and the observe methods are not backed by the in-memory store.
 
-A pinned read model is a fixed value. The scenario does not run the projection that would build it, and a later execution does not update it. To check a projection, use the [kernel scenario](chronicle-kernel.md#assert-a-projection).
+A pinned read model is a fixed value. The scenario does not evaluate history for that pinned type, and a later execution does not update it. To check observer-driven updates or projections outside the in-process capability boundary, use the [kernel scenario](chronicle-kernel.md#assert-a-projection).
 
 ## Assert several appended events
 
@@ -237,9 +236,9 @@ To run a command as a signed-in user, set the principal on `scenario.context`, a
 
 ## What the in-memory scenario does not do
 
-The in-memory log records the events a command appends, with their routing, subject, and tags, and it accepts concurrency scopes. Its tail sequence number counts command appends only, not seeded history. It does not enforce concurrency or constraints, run projections or reactors, load aggregates, or replace the kernel suite.
+The in-memory log records the events a command appends, with their routing, subject, and tags, and it accepts concurrency scopes. Its tail sequence number counts command appends only, not seeded history. It does not enforce concurrency or constraints, run observers or reactors, load aggregates, or replace the kernel suite. Supported flat projections are evaluated on demand for seeded keyed reads, not kept up to date by command appends.
 
-It can seed reducer history, but an aggregate cannot load it, and commands do not update reducer state in this fixture. When the decision depends on projection or aggregate history, use the [kernel scenario](chronicle-kernel.md#seed-an-event-sources-history), which seeds a book's loan and returns it through an aggregate. `Source/Chronicle/run-integration.sh` covers adapter-level integration checks.
+It can seed reducer and supported flat projection history, but an aggregate cannot load it, and commands do not update read-model state in this fixture. When the decision depends on unsupported projection or aggregate history, use the [kernel scenario](chronicle-kernel.md#seed-an-event-sources-history), which seeds a book's loan and returns it through an aggregate. `Source/Chronicle/run-integration.sh` covers adapter-level integration checks.
 
 ## Related
 

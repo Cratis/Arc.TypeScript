@@ -1,21 +1,30 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { IEventStore } from '@cratis/chronicle';
 import { getEventTypeMetadata } from '@cratis/chronicle/events';
-import type { ReadModelScenario } from '@cratis/chronicle/testing';
+import type { ReadModelScenario, UnsupportedProjectionOperation } from '@cratis/chronicle/testing';
+import { getProjectionMetadata } from '@cratis/chronicle/projections';
 import { getReducerMetadata } from '@cratis/chronicle/reducers';
 import { ChronicleArtifacts } from '../ChronicleArtifacts.js';
 
 type ClassType<T extends object = object> = new () => T;
+type TestingModule = Pick<typeof import('@cratis/chronicle/testing'), 'ReadModelScenario'> & {
+    UnsupportedProjectionOperation?: typeof UnsupportedProjectionOperation;
+};
 
 /** Shared tenant-scoped seed store for in-memory Chronicle command and query scenarios. */
 export class ChronicleScenarioReadModels {
     readonly #readModels = new Map<ClassType, Map<string, Map<string, unknown>>>();
     readonly #seeded = new Map<string, Map<string, object[]>>();
+    readonly #seedOrder = new Map<string, { sourceId: string; events: object[] }[]>();
     readonly #materialized = new Map<string, Map<ClassType, ReadModelScenario<object>>>();
+    readonly #execution = new AsyncLocalStorage<{ unsupportedProjection?: UnsupportedProjectionOperation }>();
+    #unsupportedType: typeof UnsupportedProjectionOperation | undefined;
     readonly #catalog = new ChronicleArtifacts();
 
-    constructor(artifacts: ClassType[], private readonly currentTenant: () => string | undefined) {
+    constructor(artifacts: ClassType[], private readonly currentTenant: () => string | undefined,
+        private readonly loadTesting: () => Promise<TestingModule> = () => import('@cratis/chronicle/testing')) {
         for (const artifact of artifacts) this.#catalog.register(artifact);
     }
 
@@ -31,6 +40,9 @@ export class ChronicleScenarioReadModels {
                             throw new Error(`In-memory Chronicle cannot seed an unregistered event: ${event.constructor.name}`);
                     }
                     source.push(...events);
+                    const order = this.#seedOrder.get(resolvedTenant) ?? [];
+                    order.push({ sourceId, events });
+                    this.#seedOrder.set(resolvedTenant, order);
                     history.set(sourceId, source);
                     this.#seeded.set(resolvedTenant, history);
                     this.#materialized.delete(resolvedTenant);
@@ -51,10 +63,33 @@ export class ChronicleScenarioReadModels {
         this.#readModels.set(type, tenants);
     }
 
+    /** Arc pipelines turn execution errors into results; preserve the SDK's unsupported-projection error for this execution. */
+    async runWithProjectionErrors<T>(execute: () => Promise<T>): Promise<T> {
+        return this.#execution.run({}, async () => {
+            const scope = this.#execution.getStore()!;
+            try {
+                const result = await execute();
+                if (scope.unsupportedProjection) throw scope.unsupportedProjection;
+                return result;
+            } finally {
+                scope.unsupportedProjection = undefined;
+            }
+        });
+    }
+
     /** Only keyed lookups are available offline; lists and subscriptions require the kernel. */
     forTenant(tenant: string): IEventStore['readModels'] {
         return new Proxy({
-            findInstanceById: async (model: ClassType, id: string) => this.find(model, id, tenant),
+            findInstanceById: async (model: ClassType, id: string) => {
+                try { return await this.find(model, id, tenant); }
+                catch (error) {
+                    if (this.#unsupportedType && error instanceof this.#unsupportedType) {
+                        const scope = this.#execution.getStore();
+                        if (scope) scope.unsupportedProjection = error;
+                    }
+                    throw error;
+                }
+            },
             getInstances: async () => { throw new Error('In-memory Chronicle cannot list read models; use ChronicleKernelScenario'); },
             watch: () => { throw new Error('In-memory Chronicle cannot watch read models; use ChronicleKernelScenario'); }
         }, { get: (target, property: string | symbol) => {
@@ -68,27 +103,51 @@ export class ChronicleScenarioReadModels {
         const pinned = this.#readModels.get(model)?.get(tenant)?.get(id);
         if (pinned !== undefined) return pinned;
         if (!this.#seeded.get(tenant)?.get(id)?.length) return null;
-        if (!this.#catalog.reducers.some(type => getReducerMetadata(type)?.readModel === model)) {
-            if (this.#catalog.hasProjectionFor(model))
-                throw new Error(`Projection-backed read model '${model.name}' is not supported yet; use a kernel-backed test. Use ChronicleKernelScenario for projections.`);
-            return null;
-        }
+        const reduced = this.#catalog.reducers.some(type => getReducerMetadata(type)?.readModel === model);
+        const explicitlyProjected = this.#catalog.hasProjectionFor(model);
+        // Let ReadModelScenario's compiler decide whether a declarative projection without an
+        // explicit model resolves to this registered read model; decorators alone cannot tell.
+        const inferredCandidate = !reduced && !explicitlyProjected && this.#catalog.readModels.includes(model) &&
+            this.#catalog.projections.some(type => getProjectionMetadata(type)?.readModelType === undefined);
+        const projected = !reduced && (explicitlyProjected || inferredCandidate);
+        if (!reduced && !projected) return null;
+        const inferredRequirement = `Cannot determine whether an untyped declarative projection applies to '${model.name}' without @cratis/chronicle >= 6.19.0; declare an explicit read-model type on the projection (for example, @projection('', ReadModel)).`;
         let byType = this.#materialized.get(tenant);
         if (!byType) { byType = new Map(); this.#materialized.set(tenant, byType); }
         let scenario = byType.get(model);
         if (!scenario) {
-            let Scenario: typeof ReadModelScenario;
-            try { ({ ReadModelScenario: Scenario } = await import('@cratis/chronicle/testing')); }
+            const requiredVersion = projected ? '6.19.0' : '6.14';
+            let testing: TestingModule;
+            try { testing = await this.loadTesting(); }
             catch (error) {
                 if ((error as NodeJS.ErrnoException).code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' ||
-                    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND')
-                    throw new Error('given.forEventSource(...).events requires @cratis/chronicle >= 6.14', { cause: error });
+                    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND') {
+                    if (inferredCandidate) throw new Error(inferredRequirement, { cause: error });
+                    throw new Error(`given.forEventSource(...).events requires @cratis/chronicle >= ${requiredVersion}`, { cause: error });
+                }
                 throw error;
             }
-            if (typeof Scenario !== 'function')
-                throw new Error('given.forEventSource(...).events requires @cratis/chronicle >= 6.14');
-            scenario = new Scenario(model, this.#catalog);
-            for (const [sourceId, events] of this.#seeded.get(tenant) ?? []) scenario.given.forEventSource(sourceId).events(...events);
+            if (typeof testing.ReadModelScenario !== 'function') {
+                if (inferredCandidate) throw new Error(inferredRequirement);
+                throw new Error(`given.forEventSource(...).events requires @cratis/chronicle >= ${requiredVersion}`);
+            }
+            if (projected && typeof testing.UnsupportedProjectionOperation !== 'function') {
+                if (inferredCandidate) throw new Error(inferredRequirement);
+                throw new Error(`Projection-backed read model '${model.name}' requires @cratis/chronicle >= 6.19.0; use ChronicleKernelScenario with an older SDK`);
+            }
+            if (projected) this.#unsupportedType = testing.UnsupportedProjectionOperation;
+            try { scenario = new testing.ReadModelScenario(model, this.#catalog); }
+            catch (error) {
+                // The SDK compiled the untyped definitions, but none belongs to this model.
+                if (inferredCandidate && error instanceof Error &&
+                    error.message === `Expected one projection for read model '${model.name}', found 0.`) return null;
+                throw error;
+            }
+            if (projected) {
+                for (const { sourceId, events } of this.#seedOrder.get(tenant) ?? []) scenario.given.forEventSource(sourceId).events(...events);
+            } else {
+                for (const [sourceId, events] of this.#seeded.get(tenant) ?? []) scenario.given.forEventSource(sourceId).events(...events);
+            }
             byType.set(model, scenario);
         }
         return scenario.instanceForEventSourceId(id);

@@ -36,8 +36,8 @@ const options = {
 const upstreamAllowlist = [
     // Chronicle contracts uses an extensionless relative import; remove when its NodeNext exports add the extension.
     { package: '@cratis/chronicle.contracts', code: 2834, count: 1 },
-    // Chronicle imports absent contracts exports; remove when the installed Chronicle/contracts versions agree.
-    { package: '@cratis/chronicle', code: 2305, count: 41 },
+    // Chronicle 6.19.0 imports absent contracts exports; remove when the installed Chronicle/contracts versions agree.
+    { package: '@cratis/chronicle', code: 2305, count: 43 },
     // Chronicle references absent contracts namespace members; remove when the installed versions agree.
     { package: '@cratis/chronicle', code: 2694, count: 20 },
     // Drizzle's optional gel types are not installed; remove when its declarations stop requiring gel.
