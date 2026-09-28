@@ -1,5 +1,5 @@
 ```typescript
-// handle() receives one prepared value, so return an object that carries several.
+// tuple(...) supports several values; keep RiskBand typed here because provided(String) infers boxed String.
 async provide(): Promise<CreditProfile> {
     const bureau = await currentServices().resolve(CreditBureau);
     const risk = await currentServices().resolve(RiskModel);
