@@ -101,11 +101,17 @@ export class ObservableQuerySession {
                 catch (error) { failures.push(error); }
             }
             try { await this.closeScope(); }
-            catch (error) { failures.push(error); }
-            if (this.#terminalFailure) failures.push(this.#terminalFailure);
+            catch (error) { if (!failures.includes(error)) failures.push(error); }
+            if (this.#terminalFailure && !failures.includes(this.#terminalFailure)) failures.push(this.#terminalFailure);
             if (failures.length) throw new AggregateError(failures, 'Observable subscription cleanup failed');
         })();
         return this.#closed;
+    }
+
+    /** @internal Finish the scope retained while shutdown participants drain. */
+    async finishScope(): Promise<void> {
+        try { await this.disposeScope(); }
+        catch (error) { throw new AggregateError([error], 'Observable subscription cleanup failed', { cause: error }); }
     }
 
     /** Report a transport or serialization failure through the configured server logger. */
@@ -159,6 +165,14 @@ export class ObservableQuerySession {
     }
 
     private closeScope(): Promise<void> {
+        if (this.config.services.disposed && this.config.services.hasShutdownParticipants) {
+            this.releaseAdmission();
+            return Promise.resolve();
+        }
+        return this.disposeScope();
+    }
+
+    private disposeScope(): Promise<void> {
         if (this.#scopeClosed) return this.#scopeClosed;
         this.releaseAdmission();
         this.#scopeClosed = (async () => {
@@ -209,7 +223,12 @@ export class ObservableQuerySession {
             if (decision === ObservableEmissionDecision.Suppress) return undefined;
             await this.config.reportFailure(new Error('Observable emission denied by policy'));
         } catch (error) {
-            if (this.#context.signal.aborted && this.config.services.disposed) return undefined;
+            if (this.#context.signal.aborted && this.config.services.disposed &&
+                error instanceof Error && error.message === 'Service registry is disposed') return undefined;
+            if (this.#context.signal.aborted) {
+                await this.config.reportFailure(error);
+                return undefined;
+            }
             await this.config.reportFailure(error);
         }
         return queryResult(this.#context, { isAuthorized: false });

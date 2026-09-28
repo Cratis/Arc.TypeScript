@@ -34,6 +34,6 @@ describe('when disposing a server after singleton failure starts shutdown', () =
         } finally { await captureFailure(server.dispose()); }
     });
     it('should close sessions and websockets after singleton failure', () => {
-        events.should.deep.equal(['websockets closed', 'session closed', 'stop', 'drain']);
+        events.should.deep.equal(['websockets closed', 'stop', 'drain', 'session closed']);
     });
 });

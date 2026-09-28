@@ -23,7 +23,7 @@ describe('when owned work attempts server disposal before external shutdown', ()
     });
 });
 
-describe('when a late participant joins an already started server disposal', () => {
+describe('when a participant registers during an already started server disposal', () => {
     let failure: unknown;
     beforeEach(async () => {
         const server = new ArcServer({});
@@ -32,15 +32,15 @@ describe('when a late participant joins an already started server disposal', () 
         try {
             const closing = server.dispose();
             await beforeDeadline(entered.promise, 'transport teardown entry');
-            server.services.addShutdownParticipant({ stop: () => {}, drain: async () => {
-                failure = await beforeDeadline(captureFailure(server.dispose()), 'participant server self-join');
-            } });
+            failure = await captureFailure(Promise.resolve().then(() => server.services.addShutdownParticipant({
+                stop: () => {}, drain: async () => {}
+            })));
             release.release();
-            await beforeDeadline(closing, 'late participant shutdown');
+            await beforeDeadline(closing, 'server shutdown');
         } finally { release.release(); await server.dispose(); }
     });
-    it('should reject the participant self-join while completing external shutdown', () => {
-        (failure as Error).message.should.match(/Cannot await service registry disposal from owned work/);
+    it('should reject the late participant before transport teardown completes', () => {
+        (failure as Error).message.should.equal('Service registry is disposed');
     });
 });
 

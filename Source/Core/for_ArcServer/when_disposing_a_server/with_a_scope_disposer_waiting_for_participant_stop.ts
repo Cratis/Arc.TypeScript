@@ -12,30 +12,24 @@ import { CurrentValueSubject } from '../../queries/observable/CurrentValueSubjec
 import { observableExecution } from '../given/an_observable_execution.js';
 
 should();
-describe('when disposing a server with a live observable and shutdown participant', () => {
-    let beforeRelease: string[];
+describe('when an observable disposer waits for participant cancellation', () => {
     let events: string[];
     beforeEach(async () => {
         events = [];
-        const token = serviceToken<object>('subscription dependency');
-        const entered = gate(); const release = gate();
+        const canceled = gate();
+        const token = serviceToken<object>('observable scope');
         const server = new ArcServer({ services: [{ token, lifetime: ServiceLifetime.Scoped,
-            factory: () => ({ [Symbol.dispose]: () => { events.push('scope disposed'); } }) }],
+            factory: () => ({ [Symbol.asyncDispose]: async () => { events.push('disposer started');
+                await canceled.promise; events.push('scope disposed'); } }) }],
         observableQueries: [defineObservableQuery({ name: 'Live', schema: z.object({}), handlerDependencies: [token],
-            observe: async () => { await currentServices().resolve(token); return new CurrentValueSubject(1); } })] });
+            observe: async () => { await currentServices().resolve(token); return CurrentValueSubject.of(1); } })] });
         await server.openObservableQuery('Live', {}, observableExecution());
-        server.services.addShutdownParticipant({ stop: () => { events.push('stop'); },
-            drain: async () => { entered.release(); await release.promise; events.push('drained'); } });
-        try {
-            const closing = server.dispose();
-            await beforeDeadline(entered.promise, 'observable participant drain');
-            beforeRelease = [...events];
-            release.release();
-            await beforeDeadline(closing, 'observable shutdown');
-        } finally { release.release(); await server.dispose(); }
+        server.services.addShutdownParticipant({ stop: () => { events.push('stop'); canceled.release(); },
+            drain: async () => { events.push('drain'); } });
+        try { await beforeDeadline(server.dispose(), 'scope cancellation shutdown'); }
+        finally { canceled.release(); }
     });
-    it('should retain the observable scope until every participant has drained', () => {
-        beforeRelease.should.deep.equal(['stop']);
-        events.should.deep.equal(['stop', 'drained', 'scope disposed']);
+    it('should stop and drain before disposing the observable scope', () => {
+        events.should.deep.equal(['stop', 'drain', 'disposer started', 'scope disposed']);
     });
 });

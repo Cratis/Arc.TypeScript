@@ -31,15 +31,13 @@ describe('when disposing a registry during a current-value emission guard', () =
         observableQueries: [defineObservableQuery({ name: 'Live', schema: z.object({}),
             observe: () => CurrentValueSubject.of(1) })] });
         const session = await server.openObservableQuery('Live', {}, observableExecution());
-        const closeEntered = gate();
-        const originalClose = session.close.bind(session);
-        session.close = () => { const closing = originalClose(); closeEntered.release(); return closing; };
+        const stopEntered = gate();
         const current = session.current();
         try {
             await beforeDeadline(entered.promise, 'current emission guard entry');
-            server.services.addShutdownParticipant({ stop: () => {}, drain: async () => {} });
+            server.services.addShutdownParticipant({ stop: () => { stopEntered.release(); }, drain: async () => {} });
             const closing = server.services.dispose();
-            await beforeDeadline(closeEntered.promise, 'observable session close entry');
+            await beforeDeadline(stopEntered.promise, 'participant stop entry');
             await Promise.resolve();
             disposedBeforeRelease = disposed;
             release.release();

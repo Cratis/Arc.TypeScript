@@ -140,7 +140,7 @@ export class HubConnection {
         catch { /* Cleanup was already recorded; a failing logger must not orphan the connection. */ }
     }
 
-    close(): Promise<void> {
+    close(transportOnly = false): Promise<void> {
         if (this.#closing) return this.#closing;
         this.#keepAlive.stop();
         this.#closing = Promise.resolve().then(async () => {
@@ -149,6 +149,13 @@ export class HubConnection {
             const active = [...this.#subscriptions.values()];
             this.#subscriptions.clear();
             for (const subscription of active) subscription.controller.abort();
+            if (transportOnly) {
+                // Registry shutdown owns the sessions after participant drains. Do not await a
+                // session disposer or delivery that needs a participant to stop first.
+                this.onClose();
+                this.onChange();
+                return;
+            }
             const joined = Promise.allSettled(active.map(async subscription => {
                 try {
                     await subscription.session?.close();

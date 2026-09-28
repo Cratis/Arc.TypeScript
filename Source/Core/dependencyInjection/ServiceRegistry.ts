@@ -25,7 +25,7 @@ export class ServiceRegistry {
     readonly #activeExecution = new AsyncLocalStorage<ServiceExecutionFrame>();
     readonly #activeParticipant = new AsyncLocalStorage<ShutdownParticipantFrame>();
     readonly #participants = new Set<ShutdownParticipant>();
-    readonly #shutdownCleanups = new Set<{ stop: () => void; cleanup: () => Promise<void> }>();
+    readonly #shutdownCleanups = new Set<{ stop: () => void; cleanup: () => Promise<void>; finish?: () => Promise<void> }>();
     readonly #waits = new Map<ServiceResolutionNode, Map<ServiceResolutionNode, number>>();
     readonly #owners = new WeakMap<object, ServiceScope | null>();
     readonly #singletons: ServiceScope;
@@ -72,9 +72,9 @@ export class ServiceRegistry {
         return () => { this.#participants.delete(participant); };
     }
     /** @internal Server-owned transport cancellation and cleanup, registered before shutdown can start. */
-    addShutdownCleanup(stop: () => void, cleanup: () => Promise<void>): void {
+    addShutdownCleanup(stop: () => void, cleanup: () => Promise<void>, finish?: () => Promise<void>): void {
         this.assertLive();
-        this.#shutdownCleanups.add({ stop, cleanup });
+        this.#shutdownCleanups.add({ stop, cleanup, finish });
     }
     /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
@@ -208,14 +208,23 @@ export class ServiceRegistry {
         const cleanups = [...this.#shutdownCleanups];
         const completion = Promise.resolve().then(async () => {
             const errors: unknown[] = [];
+            const reported = new Set<unknown>();
+            const record = (error: unknown): void => {
+                const leaves = (value: unknown): unknown[] => value instanceof AggregateError
+                    ? value.errors.flatMap(leaves) : [value];
+                const unseen = leaves(error).filter(value => !reported.has(value));
+                if (!unseen.length) return;
+                for (const value of unseen) reported.add(value);
+                errors.push(unseen.length === leaves(error).length ? error : new AggregateError(unseen, 'Service disposal failed'));
+            };
             try {
-                // Close observable admission and finish transport/session teardown before stopping
-                // participants. Neither a session close nor a participant may join the other.
+                // Close admission and transport before participant stop; leave session-owned
+                // scopes alive until participants and tracked executions have settled.
                 for (const hook of cleanups) {
-                    try { hook.stop(); } catch (error) { errors.push(error); }
+                    try { hook.stop(); } catch (error) { record(error); }
                 }
                 for (const hook of cleanups) {
-                    try { await hook.cleanup(); } catch (error) { errors.push(error); }
+                    try { await hook.cleanup(); } catch (error) { record(error); }
                 }
                 if (participants.length) {
                     // A stop continuation inherits its participant frame. Keep it live through drain.
@@ -227,28 +236,31 @@ export class ServiceRegistry {
                             if (returned && (typeof returned === 'object' || typeof returned === 'function') &&
                                 typeof (returned as PromiseLike<unknown>).then === 'function')
                                 stops.push(Promise.resolve(returned));
-                        } catch (error) { errors.push(error); }
+                        } catch (error) { record(error); }
                     }
                     const stopped = await Promise.allSettled(stops);
-                    for (const outcome of stopped) if (outcome.status === 'rejected') errors.push(outcome.reason);
+                    for (const outcome of stopped) if (outcome.status === 'rejected') record(outcome.reason);
                     const drains = await Promise.allSettled(participants.map((participant, index) =>
                         this.#activeParticipant.run(frames[index]!, () => Promise.resolve().then(() => participant.drain()))));
-                    for (const outcome of drains) if (outcome.status === 'rejected') errors.push(outcome.reason);
+                    for (const outcome of drains) if (outcome.status === 'rejected') record(outcome.reason);
                     for (const frame of frames) frame.state = ServiceExecutionState.Drained;
                 }
                 await Promise.allSettled(executions);
-                for (const scope of scopes) {
-                    try { await closeServiceScope(scope); } catch (error) { errors.push(error); }
+                for (const hook of cleanups) {
+                    if (hook.finish) try { await hook.finish(); } catch (error) { record(error); }
                 }
-                try { await closeServiceScope(this.#singletons); } catch (error) { errors.push(error); }
+                for (const scope of scopes) {
+                    try { await closeServiceScope(scope); } catch (error) { record(error); }
+                }
+                try { await closeServiceScope(this.#singletons); } catch (error) { record(error); }
                 // Factories have settled; background work returned by a singleton may now stop.
                 this.#lifetime.abort();
-                try { await disposeCreatedServices(this.#singletons); } catch (error) { errors.push(error); }
+                try { await disposeCreatedServices(this.#singletons); } catch (error) { record(error); }
             } finally {
                 this.#state = ServiceRegistryState.Closed;
                 this.#waits.clear();
             }
-            if (errors.length) throw new AggregateError([...new Set(errors)], 'Service registry disposal failed');
+            if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
         });
         this.#closing = completion;
         return completion;

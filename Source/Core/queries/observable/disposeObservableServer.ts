@@ -7,12 +7,14 @@ import type { ObservableSessions } from './ObservableSessions.js';
 /** Drain observable connections before disposing server-owned services. */
 export async function disposeObservableServer(hub: ObservableQueryHub, sessions: ObservableSessions,
     closeWebSockets: (() => Promise<void>) | undefined, services: ServiceRegistry, ownsServices: boolean,
-    onTransportClosing?: (closing: Promise<void>) => void): Promise<void> {
+    onTransportClosing?: (closing: Promise<void>) => void, closeSessions = true): Promise<void> {
     sessions.markDisposed();
     const activeHubConnections = hub.connections.length;
-    const hubClosing = hub.dispose();
-    const closing = closeWebSockets?.();
-    const open = sessions.sessions;
+    const hubClosing = hub.dispose(!closeSessions);
+    let closing: Promise<void> | undefined;
+    try { closing = closeWebSockets?.(); }
+    catch (error) { closing = Promise.reject(error); }
+    const open = closeSessions ? sessions.sessions : [];
     if (!open.length && !closing && !activeHubConnections) {
         onTransportClosing?.(Promise.resolve());
         if (ownsServices) await services.dispose();
@@ -41,9 +43,10 @@ export async function disposeObservableServer(hub: ObservableQueryHub, sessions:
             // Registry shutdown may have joined this same transport teardown. Keep each
             // original failure once, even when it is nested in the registry aggregate.
             const collect = (failure: unknown): void => {
+                if (failures.includes(failure)) return;
                 if (failure instanceof AggregateError) {
                     for (const nested of failure.errors) collect(nested);
-                } else if (!failures.includes(failure)) failures.push(failure);
+                } else failures.push(failure);
             };
             if (failures.length) collect(error);
             else failures.push(error);

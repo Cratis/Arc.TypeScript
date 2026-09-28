@@ -98,11 +98,11 @@ export class ObservableQueryHub {
     /** Reject new connections before participant drain; existing connections close during cleanup. */
     stopAdmission(): void { this.#stopping = true; }
 
-    async dispose(): Promise<void> {
+    async dispose(transportOnly = false): Promise<void> {
         if (this.#disposed) return;
         this.#disposed = true;
         this.#healthChanged.complete();
-        const outcomes = await Promise.allSettled([...this.#connections.values()].map(connection => connection.close()));
+        const outcomes = await Promise.allSettled([...this.#connections.values()].map(connection => connection.close(transportOnly)));
         const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
         if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
     }

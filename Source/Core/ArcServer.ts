@@ -95,7 +95,8 @@ export class ArcServer {
                 this.#hub.stopAdmission();
                 for (const session of this.#sessions.sessions) session.cancel();
             },
-            () => this.disposeObservables());
+            () => this.disposeObservables(this.services.hasShutdownParticipants),
+            () => this.services.hasShutdownParticipants ? this.closeObservableSessions() : Promise.resolve());
     }
 
     /**
@@ -142,12 +143,27 @@ export class ArcServer {
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, traced) : traced();
     }
 
-    private disposeObservables(): Promise<void> {
+    private disposeObservables(deferSessions = false): Promise<void> {
         if (!this.#observableClosing) {
             const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;
-            this.#observableClosing = disposeObservableServer(this.#hub, this.#sessions, closeWebSockets, this.services, false);
+            this.#observableClosing = disposeObservableServer(this.#hub, this.#sessions, closeWebSockets,
+                this.services, false, undefined, !deferSessions);
         }
         return this.#observableClosing;
+    }
+    private async closeObservableSessions(): Promise<void> {
+        const outcomes = await Promise.allSettled(this.#sessions.sessions.map(async session => {
+            let failure: unknown;
+            try { await session.close(); } catch (error) { failure = error; }
+            try { await session.finishScope(); } catch (error) {
+                if (failure === undefined) failure = error;
+                else failure = new AggregateError([failure, error], 'Observable query shutdown failed');
+            }
+            if (failure !== undefined) throw failure;
+        }));
+        const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+        if (failures.length === 1) throw failures[0];
+        if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
     }
     /** Close observable sessions and owned services. */
     async dispose(): Promise<void> {
@@ -155,12 +171,15 @@ export class ArcServer {
         // Reject before transport teardown or a cached shutdown can make owned work join itself.
         // A rejected attempt must not prevent a later external caller from disposing the registry.
         this.services.assertCanDispose();
-        if (this.services.hasShutdownParticipants && !this.#closingWithoutParticipants) return this.services.dispose();
-        if (!this.#closingWithoutParticipants) {
-            const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;
-            this.#closingWithoutParticipants = disposeObservableServer(this.#hub, this.#sessions,
-                closeWebSockets, this.services, true, closing => { this.#observableClosing = closing; });
-        }
+        if (this.#closingWithoutParticipants) return this.#closingWithoutParticipants;
+        if (this.services.disposed || this.services.hasShutdownParticipants) return this.services.dispose();
+        // Close registry admission before any asynchronous transport teardown. Its cleanup hook
+        // joins the transport promise installed synchronously below.
+        const registryClosing = this.services.dispose();
+        const closeWebSockets = this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined;
+        this.#closingWithoutParticipants = disposeObservableServer(this.#hub, this.#sessions,
+            closeWebSockets, this.services, true, closing => { this.#observableClosing = closing; });
+        void registryClosing.catch(() => {});
         return this.#closingWithoutParticipants;
     }
     /** @internal Look up a query by its namespace-qualified name for hosting transports. */

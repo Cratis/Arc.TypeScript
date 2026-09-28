@@ -6,7 +6,8 @@ import { beforeDeadline, captureFailure, gate } from '../../dependencyInjection/
 
 should();
 describe('when a participant registers during failing transport teardown', () => {
-    let failures: unknown[];
+    let failure: unknown;
+    let registrationFailure: unknown;
     let transportError: Error;
     beforeEach(async () => {
         const entered = gate(); const release = gate();
@@ -16,18 +17,13 @@ describe('when a participant registers during failing transport teardown', () =>
         try {
             const closing = captureFailure(server.dispose());
             await beforeDeadline(entered.promise, 'transport entry');
-            server.services.addShutdownParticipant({ stop: () => {}, drain: async () => {} });
+            registrationFailure = await captureFailure(Promise.resolve().then(() => server.services.addShutdownParticipant({ stop: () => {}, drain: async () => {} })));
             release.release();
-            const failure = await beforeDeadline(closing, 'late participant transport failure');
-            failures = [];
-            const visit = (error: unknown): void => {
-                if (error instanceof AggregateError) error.errors.forEach(visit);
-                else failures.push(error);
-            };
-            visit(failure);
+            failure = await beforeDeadline(closing, 'late participant transport failure');
         } finally { release.release(); }
     });
     it('should report the transport error exactly once', () => {
-        failures.should.deep.equal([transportError]);
+        should().equal(failure, transportError);
+        (registrationFailure as Error).message.should.equal('Service registry is disposed');
     });
 });
