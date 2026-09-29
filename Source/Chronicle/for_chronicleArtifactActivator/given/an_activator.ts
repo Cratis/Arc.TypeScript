@@ -3,7 +3,7 @@
 import { ArcApplicationBuilder } from '@cratis/arc.core';
 import type { ArcServer } from '@cratis/arc.core';
 import { ArtifactCompletionFailed, ArtifactDelivery, ArtifactKind } from '@cratis/chronicle/artifacts';
-import type { ActivatedArtifact, ArtifactActivationContext } from '@cratis/chronicle/artifacts';
+import type { ActivatedArtifact, ArtifactActivationContext, ArtifactInvocationContext } from '@cratis/chronicle/artifacts';
 import type { Constructor } from '@cratis/fundamentals';
 import { chronicleArtifactActivator, type ChronicleArtifactActivator } from '../../chronicleArtifactActivator.js';
 import { ActivatedReactor, construction, Dependency, disposals, FailingCleanup, FailingSingleton, GatedReactor,
@@ -44,6 +44,11 @@ export class an_activator {
     events(correlationId: string, store = this.store, readModels: object = this.readModels): ArtifactActivationContext {
         return { ...this.common(store, readModels), delivery: ArtifactDelivery.Events,
             eventContext: { correlationId } } as unknown as ArtifactActivationContext;
+    }
+
+    /** The invocation metadata Chronicle passes when running a handler for one event. */
+    invocation(correlationId: string = crypto.randomUUID()): ArtifactInvocationContext {
+        return { delivery: ArtifactDelivery.Events, eventContext: { correlationId }, methodName: 'observed' } as unknown as ArtifactInvocationContext;
     }
 
     replayNotification(): ArtifactActivationContext {

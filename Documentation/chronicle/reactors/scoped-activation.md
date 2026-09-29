@@ -21,6 +21,8 @@ builder.withChronicle({
 });
 ```
 
+Scoped activation requires `@cratis/chronicle` 6.17.0 or later. Older versions the peer range still allows either ignore the activator or cannot report per-event correlation and scope cleanup failures, so with the option set `withChronicle` fails with `activateArtifactsInScopes requires @cratis/chronicle 6.17.0 or later`. With the option off, older versions keep working.
+
 Registration rejects the option together with `client`, because caller-owned clients are not supported yet.
 
 With the option set, Chronicle-only artifacts that `discover(...)` found before `withChronicle` was called are registered with Chronicle too. Without it, registration is unchanged.
@@ -58,13 +60,22 @@ When the application shuts down, Arc stops accepting new deliveries, aborts `cur
 
 ## Use the activator directly
 
-`chronicleArtifactActivator(server, eventStore)` from `@cratis/arc.chronicle` is the activator this option installs. It returns an SDK `ClientArtifactsActivator`, so you can pass it as `artifactActivator` when you create a Chronicle client yourself:
+`chronicleArtifactActivator(server, eventStore)` from `@cratis/arc.chronicle` is the activator this option installs. It returns an SDK `ClientArtifactsActivator`, so you can pass it as `artifactActivator` when you create a Chronicle client yourself. This also requires `@cratis/chronicle` 6.17.0 or later; on an older SDK an event delivery fails instead of running with the wrong correlation.
 
 ```typescript title="main.ts (excerpt)"
+import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
 import { chronicleArtifactActivator } from '@cratis/arc.chronicle';
 
 let application: Awaited<ReturnType<typeof builder.build>> | undefined;
 const artifactActivator = chronicleArtifactActivator(() => application!.server, 'MyArcApp');
+const client = new ChronicleClient(ChronicleOptions.fromConnectionString('chronicle://localhost:35000', { artifactActivator }));
+
+application = await builder.withChronicle({ client, eventStore: 'MyArcApp' }).build();
+// Start observing with the client only now: the activator needs the built application.
 ```
 
-In that case you register the artifacts and their dependencies yourself, and Arc does not check them when building.
+The caller owns the ordering:
+
+- Build Arc before the client starts observing. A delivery that arrives earlier finds no application; the delivery fails and Chronicle retries it.
+- You register the reactors, reducers and their dependencies yourself, and Arc does not check them when building.
+- The activator joins Arc's shutdown only after its first activation. Before disposing Arc, stop the client, or call `artifactActivator.stop()` and then `await artifactActivator.drain()`, so no delivery is still using services that `application.dispose()` releases.

@@ -16,6 +16,7 @@ import { runChronicleCommand } from './runChronicleCommand.js';
 import { ChronicleCommandScope } from './ChronicleCommandScope.js';
 import { hasProtectedReadModel } from './hasProtectedReadModel.js';
 import { chronicleArtifactActivator } from './chronicleArtifactActivator.js';
+import { requireScopedActivationSupport } from './requireScopedActivationSupport.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
 export function withChronicle(builder: ArcApplicationBuilder, options: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
@@ -33,6 +34,7 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
         if (!server) throw new Error('Arc must be built before Chronicle artifacts can be activated');
         return server;
     }, registration.eventStore) : undefined;
+    if (activator) requireScopedActivationSupport(registration.connectionString!, activator);
     // Arc constructs activated artifacts, so their registrations must be resolvable when the application is built.
     if (activator) builder.addBuiltObserver(built => {
         for (const artifact of [...artifacts.reactors, ...artifacts.reducers]) {

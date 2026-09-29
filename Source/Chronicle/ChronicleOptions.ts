@@ -17,7 +17,8 @@ export type ChronicleRegistration = {
     readonly completionTimeoutMs?: number;
     /**
      * Preview: construct reactors and reducers in an Arc service scope per delivery, with the observation's tenant
-     * and correlation. Requires an Arc-owned connection.
+     * and correlation. Requires an Arc-owned connection and @cratis/chronicle 6.17.0 or later; registration fails on
+     * older SDKs.
      */
     readonly activateArtifactsInScopes?: boolean;
     readonly connectionString: string;

@@ -10,7 +10,7 @@ describe('when a singleton fails during an active lease', given(an_activator, co
     beforeEach(async () => {
         await context.build();
         const artifact = await context.activate(ScopedReactor, context.events(crypto.randomUUID()));
-        try { await artifact.run!(() => artifact.instance.scope.resolve(FailingSingleton)); }
+        try { await artifact.run!(() => artifact.instance.scope.resolve(FailingSingleton), context.invocation()); }
         catch (error) { failure = error as Error; }
         let settled = false;
         const shutdown = context.dispose().then(() => { settled = true; });

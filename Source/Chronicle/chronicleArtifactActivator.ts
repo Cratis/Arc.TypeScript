@@ -77,9 +77,13 @@ export function chronicleArtifactActivator(server: () => ArcServer, expectedEven
         let completed = false;
         return {
             instance,
-            run: <R>(callback: () => R | Promise<R>, invocation?: ArtifactInvocationContext) =>
-                selected.runInScope(created, callback, invocation?.delivery === eventsDelivery
-                    ? { correlationId: normalizeCorrelationId(invocation.eventContext.correlationId) } : undefined),
+            run: <R>(callback: () => R | Promise<R>, invocation?: ArtifactInvocationContext) => {
+                // Chronicle 6.16 runs event handlers without invocation metadata; each event's correlation would be lost.
+                if (context.delivery === eventsDelivery && invocation?.delivery !== eventsDelivery)
+                    throw new Error(`Chronicle ${context.kind} ${context.artifactId} ran an event handler without its event; scoped activation requires @cratis/chronicle 6.17.0 or later`);
+                return selected.runInScope(created, callback, invocation?.delivery === eventsDelivery
+                    ? { correlationId: normalizeCorrelationId(invocation.eventContext.correlationId) } : undefined);
+            },
             complete: () => { completed = true; return release(); },
             // Completion already reported any cleanup failure; a fallback dispose releases without repeating it.
             dispose: () => completed ? undefined : release()

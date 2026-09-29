@@ -27,7 +27,7 @@ Each recorded reactor and reducer also gets a scoped service registration in Arc
 | `connectionString` | `string` | One of `connectionString` and `client` | Arc creates, connects, and disposes the SDK client |
 | `client` | `IChronicleClient` from `@cratis/chronicle` | One of `connectionString` and `client` | You own the client; see [Choose who owns the client](#choose-who-owns-the-client) |
 | `completionTimeoutMs` | positive integer, milliseconds | No; no wait by default | After each successful append, wait until Chronicle's observers have processed it before the command answers. See [Choose Chronicle read consistency](../queries/read-consistency.md) |
-| `activateArtifactsInScopes` | `boolean` | No; off by default | Preview. Resolve reactors and reducers from Arc's container, one scope per delivery. Arc-owned connections only. See [Scoped activation](reactors/scoped-activation.md) |
+| `activateArtifactsInScopes` | `boolean` | No; off by default | Preview. Resolve reactors and reducers from Arc's container, one scope per delivery. Arc-owned connections and `@cratis/chronicle` 6.17.0 or later only. See [Scoped activation](reactors/scoped-activation.md) |
 
 Registration throws `Chronicle requires eventStore and exactly one of connectionString or client` when the event store is missing, or when neither or both of a connection string and a client are set.
 

@@ -17,6 +17,6 @@ describe('when creating the Arc-owned client with scoped activation', given(a_ch
     });
     afterEach(async () => { fromConnectionString.restore(); await context.dispose(); });
     it('should pass the artifact activator to the client', () => {
-        (typeof fromConnectionString.firstCall.args[1].artifactActivator).should.equal('function');
+        (typeof fromConnectionString.lastCall.args[1].artifactActivator).should.equal('function');
     });
 }));

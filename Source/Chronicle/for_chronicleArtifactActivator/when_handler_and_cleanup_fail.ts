@@ -12,7 +12,7 @@ describe('when the handler and cleanup fail', given(an_activator, context => {
         await context.build();
         try {
             await context.deliver(ReactorWithFailingCleanup, context.events(crypto.randomUUID()), artifact =>
-                artifact.run!(() => { throw handlerFailure; }));
+                artifact.run!(() => { throw handlerFailure; }, context.invocation()));
         } catch (error) { failure = error as ArtifactCompletionFailed; }
     });
     afterEach(() => context.dispose());

@@ -13,7 +13,7 @@ describe('when shutting down with an active activation', given(an_activator, con
         await context.build();
         order.length = 0;
         const artifact = await context.activate(ActivatedReactor, context.events(crypto.randomUUID()));
-        const signal = await artifact.run!(() => currentContext()!.signal);
+        const signal = await artifact.run!(() => currentContext()!.signal, context.invocation());
         const shutdown = context.dispose().then(() => { order.push('shutdown settled'); });
         await new Promise(resolve => setTimeout(resolve, 10));
         signalAborted = signal.aborted;
