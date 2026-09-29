@@ -3,6 +3,7 @@
 import { ChronicleClient, ChronicleOptions, EventStoreNamespaceName } from '@cratis/chronicle';
 import type { IEventStore } from '@cratis/chronicle';
 import type { ArcServer, ExecutionContext } from '@cratis/arc.core';
+import type { ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
 import { reactorCommandResultHandler } from './reactorCommands.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
@@ -11,11 +12,13 @@ import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
 export class ChronicleRuntime {
     readonly #client;
     readonly #owned;
-    constructor(readonly options: ChronicleRegistration, readonly artifacts: ChronicleArtifacts, server: () => ArcServer) {
+    constructor(readonly options: ChronicleRegistration, readonly artifacts: ChronicleArtifacts, server: () => ArcServer,
+        artifactActivator?: ClientArtifactsActivator) {
         if (!options.eventStore) throw new Error('A Chronicle event store is required');
         this.#owned = !options.client;
         this.#client = options.client ?? new ChronicleClient(ChronicleOptions.fromConnectionString(options.connectionString!, {
-            clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(server, options.eventStore)
+            clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(server, options.eventStore),
+            ...artifactActivator ? { artifactActivator } : {}
         }));
     }
     /** Resolves the selected event store in the namespace authorized by Arc. */

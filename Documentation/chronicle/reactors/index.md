@@ -36,7 +36,7 @@ A method whose name does not match an event class is never called, and nothing r
 
 The first argument is the stored event content parsed from JSON, not an instance of your event class. Read its properties, but do not call its methods or test it with `instanceof`. A concept property arrives as its underlying primitive value, so `event.name` on `AuthorRegistered` is a string at runtime even though the class declares an `AuthorName`. The second argument is the event's `EventContext`, which carries the event source ID, sequence number, occurred time, correlation ID, causation, and the identity that caused it.
 
-The SDK constructs the reactor itself. It has no dependency injection, so a reactor cannot take constructor services.
+By default the SDK constructs the reactor itself. It has no dependency injection, so a reactor cannot take constructor services. To have Arc construct reactors with their services instead, see [Activate reactors and reducers in Arc scopes](scoped-activation.md) (preview).
 
 ## What a handler can return
 

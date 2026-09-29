@@ -17,7 +17,7 @@ Importing `@cratis/arc.chronicle` adds the `withChronicle` method to the Node bu
 
 Call it before or after `discover(...)`. The integration records the event types, projections, reducers, reactors, and constraints discovered by Arc, including artifacts discovered earlier. For Chronicle-only artifacts passed to `add(...)`, call `withChronicle` first: Arc otherwise rejects them without an Arc decorator. Arc-owned clients pass the registered artifacts to the SDK and set `discoveryPatterns: []`, so they do not depend on SDK file scanning. For a caller-owned client, import and register your artifacts explicitly or configure its `discoveryPatterns`. Since SDK 6.10.0, compiled JavaScript entry points no longer scan `.ts` files by default; explicit patterns still apply.
 
-Each recorded reactor and reducer also gets a scoped service registration in Arc, but only when nothing else registers that class. A registration in `builder.services` (before or after `withChronicle`), an entry in `options.services`, or an Arc lifetime decorator such as `@singleton()` always wins, and discovering an artifact twice does not add a second registration. With a caller-supplied `ServiceRegistry` in `options.services`, Arc adds no such registrations; register the artifacts yourself. Arc does not construct reactors or reducers through these registrations yet; the Chronicle SDK still creates them.
+Each recorded reactor and reducer also gets a scoped service registration in Arc, but only when nothing else registers that class. A registration in `builder.services` (before or after `withChronicle`), an entry in `options.services`, or an Arc lifetime decorator such as `@singleton()` always wins, and discovering an artifact twice does not add a second registration. With a caller-supplied `ServiceRegistry` in `options.services`, Arc adds no such registrations; register the artifacts yourself. By default Arc does not construct reactors or reducers through these registrations; the Chronicle SDK creates them. To opt in, see [Scoped activation](reactors/scoped-activation.md).
 
 ## Options
 
@@ -27,6 +27,7 @@ Each recorded reactor and reducer also gets a scoped service registration in Arc
 | `connectionString` | `string` | One of `connectionString` and `client` | Arc creates, connects, and disposes the SDK client |
 | `client` | `IChronicleClient` from `@cratis/chronicle` | One of `connectionString` and `client` | You own the client; see [Choose who owns the client](#choose-who-owns-the-client) |
 | `completionTimeoutMs` | positive integer, milliseconds | No; no wait by default | After each successful append, wait until Chronicle's observers have processed it before the command answers. See [Choose Chronicle read consistency](../queries/read-consistency.md) |
+| `activateArtifactsInScopes` | `boolean` | No; off by default | Preview. Resolve reactors and reducers from Arc's container, one scope per delivery. Arc-owned connections and `@cratis/chronicle` 6.17.0 or later only. See [Scoped activation](reactors/scoped-activation.md) |
 
 Registration throws `Chronicle requires eventStore and exactly one of connectionString or client` when the event store is missing, or when neither or both of a connection string and a client are set.
 

@@ -16,6 +16,13 @@ export class a_chronicle_builder {
     start(options: ArcOptions = {}): this { this.options = options; this.builder = new ArcApplicationBuilder(options); this.application = undefined; return this; }
 
     withChronicle(): this { withChronicle(this.builder, { client: this.client, eventStore: 'Fallbacks' }); return this; }
+    /** Opt in to scoped activation over an Arc-owned connection; building never connects. */
+    withScopedActivation(): this { return this.withArcOwnedConnection(true); }
+    /** Use an Arc-owned connection; building never connects. */
+    withArcOwnedConnection(activateArtifactsInScopes: boolean): this {
+        withChronicle(this.builder, { connectionString: 'chronicle://localhost:35000', eventStore: 'Fallbacks', activateArtifactsInScopes });
+        return this;
+    }
     async build(): Promise<BuiltApplication> { this.application = await this.builder.build(); return this.application; }
     registrationsFor(token: ServiceIdentifier<unknown>): ServiceRegistration<unknown>[] {
         return this.builder.services.registrations.filter(registration => registration.token === token);
