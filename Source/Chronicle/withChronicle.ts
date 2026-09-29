@@ -11,6 +11,7 @@ import { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCom
 import { ChronicleResponseHandler } from './ChronicleResponseHandler.js';
 import { ChronicleCommandKeyResolver } from './ChronicleCommandKeyResolver.js';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
+import { ChronicleScopedStore } from './ChronicleStores.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
 import { ChronicleCommandScope } from './ChronicleCommandScope.js';
@@ -54,7 +55,7 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
             registeredInterceptors.add(model);
             const token = serviceToken<ReadModelInterceptor>(`Chronicle read model release: ${model.name}`);
             builder.services.addScoped(token, async scope =>
-                new ChronicleReadModelInterceptor(model as Constructor<object>, await scope.resolve(ChronicleRuntime), scope.identity!));
+                new ChronicleReadModelInterceptor(model as Constructor<object>, await scope.resolve(ChronicleScopedStore), scope.identity!));
             builder.addReadModelInterceptor(token);
         }
         return matched;
@@ -64,13 +65,14 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
         if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');
         return server;
     }, activator));
+    builder.services.addScoped(ChronicleScopedStore, async scope => new ChronicleScopedStore(await scope.resolve(ChronicleRuntime), scope));
     builder.services.addScoped(ChronicleReadModels, async scope =>
-        new ChronicleReadModels(await scope.resolve(ChronicleRuntime), scope.identity!));
+        new ChronicleReadModels(await scope.resolve(ChronicleScopedStore), scope.identity!));
     builder.services.addScoped(ChronicleReadModelForCommandResolver, async scope =>
-        new ChronicleReadModelForCommandResolver(await scope.resolve(ChronicleRuntime), artifacts));
+        new ChronicleReadModelForCommandResolver(await scope.resolve(ChronicleScopedStore), artifacts));
     builder.addReadModelForCommandResolver(ChronicleReadModelForCommandResolver);
     builder.services.addScoped(ChronicleResponseHandler, async scope =>
-        new ChronicleResponseHandler(await scope.resolve(ChronicleRuntime)));
+        new ChronicleResponseHandler(await scope.resolve(ChronicleScopedStore)));
     builder.addCommandResponseValueHandler(ChronicleResponseHandler);
     builder.services.addScoped(ChronicleCommandKeyResolver);
     builder.addCommandKeyResolver(ChronicleCommandKeyResolver);

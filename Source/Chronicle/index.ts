@@ -18,5 +18,6 @@ export { eventSourceType, eventStreamType, eventStreamId, eventSubject } from '.
 export { notAudited } from './notAudited.js';
 export { EventsWithConcurrencyScopes, eventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 export type { ChronicleRegistration } from './ChronicleOptions.js';
+export type { ChronicleStoreSource } from './ChronicleStores.js';
 export type { ChronicleCommandDefinition } from './ChronicleCommandDefinition.js';
 export type { ChronicleProduced } from './ChronicleProduced.js';
