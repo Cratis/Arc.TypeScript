@@ -1,6 +1,8 @@
 ```typescript
 import { field } from '@cratis/fundamentals';
 import { command, CommandValidator, inject, validator } from '@cratis/arc.core';
+import { AuthorId } from './AuthorId.js';
+import { AuthorName } from './AuthorName.js';
 
 export abstract class AuthorRegistration {
     abstract register(id: AuthorId, name: AuthorName): Promise<void>;
