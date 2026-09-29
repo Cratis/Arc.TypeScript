@@ -14,8 +14,8 @@ describe('when activating artifacts in scopes with a caller-owned client created
     let dispose: sinon.SinonSpy;
     let resolvedReactor: unknown;
     beforeEach(async () => {
-        let server: ArcServer | undefined;
-        const artifactActivator = chronicleArtifactActivator(() => server!, 'Orders');
+        const built: { server?: ArcServer } = {};
+        const artifactActivator = chronicleArtifactActivator(() => built.server!, 'Orders');
         options = Object.freeze({ artifactActivator }) as unknown as ChronicleOptions;
         dispose = sinon.spy();
         const client = { options, dispose, getEventStore: async () => ({}) } as unknown as IChronicleClient;
@@ -24,8 +24,8 @@ describe('when activating artifacts in scopes with a caller-owned client created
         builder.services.addScoped(Dependency);
         builder.add(FallbackReactor);
         const application = await builder.build();
-        server = application.server;
-        const scope = server.services.createScope({ tenantId: 'tenant', correlationId: crypto.randomUUID(), principal: undefined,
+        built.server = application.server;
+        const scope = application.server.services.createScope({ tenantId: 'tenant', correlationId: crypto.randomUUID(), principal: undefined,
             signal: new AbortController().signal, allowedSeverity: Severity.Error });
         await scope.resolve(ChronicleRuntime);
         resolvedReactor = await scope.resolve(FallbackReactor);
@@ -34,5 +34,5 @@ describe('when activating artifacts in scopes with a caller-owned client created
     });
     it('should resolve the reactor with its dependencies', () => { resolvedReactor!.should.be.instanceOf(FallbackReactor); });
     it('should leave the client options unchanged', () => { Object.keys(options).should.deep.equal(['artifactActivator']); });
-    it('should not dispose the client', () => { dispose.called.should.be.false; });
+    it('should not dispose the client', () => { dispose.called.should.equal(false); });
 });

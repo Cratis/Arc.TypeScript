@@ -16,5 +16,5 @@ describe('when disposing an Arc-owned Chronicle client twice', () => {
         runtime[Symbol.dispose]();
     });
     afterEach(() => dispose.restore());
-    it('should close the client once', () => { dispose.calledOnce.should.be.true; });
+    it('should close the client once', () => { dispose.callCount.should.equal(1); });
 });
