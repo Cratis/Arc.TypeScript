@@ -41,17 +41,21 @@ const people = new MongoReadModels<Document, PeopleInput>({
 }, 'personViews');
 ```
 
-Each returned document is marked with the model, the request's tenant, and a subject. By default, the subject is the document's string or numeric `_id`. Use `subjectFor(document)` when the model's `@subject()` property holds another value. If a document has no usable subject, the read fails. When the query returns these documents directly, in an array, or in `queryPage`, Arc releases each one before serving it. This covers snapshots, pages, and observable emissions. Arc passes the document to `store.readModels.release` and serves `_id` plus the same fields with Chronicle's released values.
+Each returned document is marked with the model, the request's tenant, and a subject. By default, the subject is the `__subject` Chronicle stored with the document, which is the subject it encrypted with, and otherwise the document's string or numeric `_id`. Use `subjectFor(document)` when neither holds the subject; it must still agree with any stored `__subject`. If a document has no usable subject, the read fails. When the query returns these documents directly, in an array, or in `queryPage`, Arc releases each one before serving it. This covers snapshots, pages, and observable emissions. Arc passes the document to `store.readModels.release` and serves `_id` plus the declared fields with Chronicle's released values.
+
+Chronicle stores bookkeeping with every materialized document: `__lastHandledEventSequenceNumber`, `__initialized`, `__subject`, and `__subjects`. Arc does not release or serve these fields unless the read model declares them, just as the kernel strips them from its own reads.
 
 The query fails rather than serving stored values when:
 
 - the document has a field the read model's schema does not declare, including a name that differs only by case or naming policy;
-- a value is not JSON: BSON `ObjectId`, `Binary`, `Decimal128`, and `Long` are rejected, although `Date` is accepted;
+- a value is not JSON: BSON `ObjectId`, `Binary`, `Decimal128`, and `Long` are rejected, although `Date` is accepted. A `Guid` field stored as a BSON `Binary` UUID therefore fails the read; the key in `_id` is served as stored and is not checked;
 - an object or array does not have a declared schema;
-- the document's `id` or `@subject()` value differs from the marked subject;
+- the document's `id` or `@subject()` value, or its stored `__subject`, differs from the marked subject;
+- the document has per-property subjects in a non-empty `__subjects`, which Chronicle stores for models that join personal data from several subjects. Arc cannot release these yet; read such models through `ChronicleReadModels`;
 - the request's tenant differs from the marked tenant;
 - Chronicle fails to release the document or omits a field;
 - a typed raw document is nested inside another returned shape, such as `MongoReadModels.page()`'s `MongoPage`. Return `queryPage` instead.
+- an instance of a protected read-model class is nested inside another returned shape, such as the object a joined `select((books, authors) => ({ books, authors }))` builds, unless Chronicle released it. Arc intercepts only the value a query returns, its array items, and its page items. Chronicle-released instances, from `ChronicleReadModels`, may be nested.
 
 The typed `find`, `findById`, `page`, and `queryPage` calls reject a MongoDB `projection`, because partial documents are DTO projections.
 
@@ -62,13 +66,15 @@ On the typed path, the boundary covers **exact read-model classes** and **raw do
 - untyped `MongoReadModels` documents and other raw driver documents;
 - derived subtypes selected by the codec;
 - DTOs, mapped objects, and copies of typed raw documents, because a copy loses its marking;
+- typed raw documents that handler code hides where Arc's check cannot see them: behind `toJSON()`, a getter, a private field, or inside a `Map` or `Set`. Arc only inspects own enumerable values. Return the documents themselves;
+- `MongoDBWatcher.changes()` payloads. The `fullDocument` of a change is a raw, unmarked document, so a protected model's fields arrive as ciphertext. Release them yourself or read the changed model through a query;
 - typed raw documents of a model that is not registered with `withChronicle`, because Arc cannot tell whether such a model is protected.
 
 For these paths, call the tenant store's `readModels.release` before serving protected data.
 
 In-memory sorting of a directly read array by an encrypted field orders by ciphertext; database-side sorting on encrypted fields is inherently meaningless.
 
-The live integration check inspects raw MongoDB storage for ciphertext and verifies plaintext through Chronicle HTTP snapshots, observable emissions, command injection, and an Arc query using `MongoCollection` to decode the materialized collection into the exact class. The raw `MongoReadModels` path is checked by specs that use a Chronicle substitute to serve snapshots, pages, and observable SSE through Express, Fastify, and Hono. It has not been checked against a live kernel's stored documents.
+The live integration check inspects raw MongoDB storage for ciphertext and verifies plaintext through Chronicle HTTP snapshots, observable emissions, command injection, and an Arc query using `MongoCollection` to decode the materialized collection into the exact class. The raw `MongoReadModels` path is checked by specs that use a Chronicle substitute to serve snapshots, pages, and observable SSE through Express, Fastify, and Hono, and by the kernel integration, which reads a document the kernel materialized, bookkeeping included, through `MongoReadModels` on each adapter.
 
 :::caution[Release is not authorization]
 Decide separately who may read a person's data.
