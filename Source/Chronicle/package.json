@@ -48,9 +48,12 @@
   },
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
+    "@cratis/arc.mongodb": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
     "@cratis/chronicle": "6.29.0",
     "@cratis/fundamentals": "7.19.6",
+    "@opentelemetry/api": "^1.9.0",
+    "mongodb": "^6.21.0",
     "rxjs": "^7.8.2",
     "zod": "^4.1.0"
   }
