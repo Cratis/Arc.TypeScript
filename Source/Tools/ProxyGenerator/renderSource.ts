@@ -19,6 +19,8 @@ export interface SourceRenderOptions {
     readonly recordedRules?: ReadonlyMap<string, readonly RecordedRule[]>;
     readonly onDiagnostic?: (message: string) => void;
     readonly emitInterfaces?: boolean;
+    /** Omit the `@cratis/arc.react` import and the static `use*` hooks from generated commands and queries. */
+    readonly skipReactHooks?: boolean;
 }
 const notice = `/*---------------------------------------------------------------------------------------------
  *  **DO NOT EDIT** - This file is an automatically generated file.
