@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcApplicationBuilder, serviceToken } from '@cratis/arc.core';
+import { ArcApplicationBuilder, readModelCollectionNameResolver, serviceToken } from '@cratis/arc.core';
 import type { ExecutionContext, ServiceScope } from '@cratis/arc.core';
 import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import { MongoClientFactory } from './MongoClientFactory.js';
@@ -10,6 +10,7 @@ import { MongoReadModelForCommandResolver } from './MongoReadModelForCommandReso
 import type { MongoDBOptions } from './MongoDBOptions.js';
 import { mongoCollection } from './collectionToken.js';
 import { defaultMongoNamingPolicy } from './MongoNamingPolicy.js';
+import { resolveMongoCollectionName } from './resolveMongoCollectionName.js';
 
 /** Public token for applications needing to resolve clients explicitly. */
 export const mongoClientFactory = serviceToken<MongoClientFactory>('MongoClientFactory');
@@ -23,6 +24,8 @@ export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBO
     if (!options.database && !options.databaseNameResolver) throw new Error('MongoDB requires database or databaseNameResolver');
     const factory = new MongoClientFactory(options);
     builder.services.addSingleton(mongoClientFactory, () => factory);
+    // Lets integrations that store read models elsewhere, such as Chronicle, use the collection Arc reads from.
+    builder.services.addSingleton(readModelCollectionNameResolver, () => (type: new () => object) => resolveMongoCollectionName(options, type));
     builder.services.addScoped(MongoReadModelForCommandResolver, () => new MongoReadModelForCommandResolver(options));
     builder.addReadModelForCommandResolver(MongoReadModelForCommandResolver);
     const resolveDatabase = async (scope: ServiceScope) => {
@@ -44,9 +47,7 @@ export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBO
         builder.services.addScoped(token, async scope => {
             const { context, database } = await resolveDatabase(scope);
             const namingPolicy = options.namingPolicy ?? defaultMongoNamingPolicy;
-            const collectionName = options.collectionName?.(type) ?? namingPolicy.collectionName(type);
-            if (!collectionName) throw new Error('MongoDB collection name is required');
-            return new MongoCollection(database.collection(collectionName), database, type, context, {
+            return new MongoCollection(database.collection(resolveMongoCollectionName(options, type)), database, type, context, {
                 ignoreConventions: options.ignoreConventions, maxObservableItems: options.maxObservableItems,
                 maxPageSize: options.maxPageSize, namingPolicy
             });

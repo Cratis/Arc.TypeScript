@@ -10,6 +10,8 @@ export interface ArcBuilderExtensions {}
 export type { ArcBuilderIntegrationOptions } from './ArcBuilderIntegrationOptions.js';
 export { canonicalMetadataSignature } from './reflection/generatedMetadataSignature.js';
 export { optionalService } from './dependencyInjection/optionalService.js';
+export { readModelCollectionNameResolver } from './readModels/readModelCollectionNameResolver.js';
+export type { ReadModelCollectionName } from './readModels/ReadModelCollectionName.js';
 export type { GeneratedMetadata, GeneratedArtifactMetadata } from './reflection/GeneratedArtifactMetadata.js';
 /** Convert model-bound values to the same JSON-ready shape as Arc's HTTP pipeline. */
 export { encode as encodeWireValue } from './reflection/wireSchema.js';

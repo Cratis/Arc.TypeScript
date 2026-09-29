@@ -7,6 +7,7 @@ export { encodeGeometry, decodeGeometry } from './MongoGeoJSON.js';
 export type { MongoGeometry } from './MongoGeoJSON.js';
 export { defaultMongoNamingPolicy, camelCaseMongoNamingPolicy } from './MongoNamingPolicy.js';
 export type { MongoNamingPolicy } from './MongoNamingPolicy.js';
+export { resolveMongoCollectionName } from './resolveMongoCollectionName.js';
 export { MongoClientFactory } from './MongoClientFactory.js';
 export { MongoCollection } from './MongoCollection.js';
 export { MongoObservable } from './MongoObservable.js';
