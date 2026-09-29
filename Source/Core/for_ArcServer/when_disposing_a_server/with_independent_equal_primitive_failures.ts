@@ -22,9 +22,9 @@ describe('when transport throws synchronously without shutdown participants', ()
         disposedAtFirstOutcome = disposed;
         await server.services.dispose();
     });
-    it('should report only the transport error from the first shutdown', () => {
+    it('should report the transport error after disposing owned singletons', () => {
         should().equal(failure, 'busy');
-        disposedAtFirstOutcome.should.equal(false);
+        disposedAtFirstOutcome.should.equal(true);
         disposed.should.equal(true);
     });
 });
