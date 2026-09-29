@@ -34,3 +34,17 @@ export class ReactorThatCannotBeConstructed {
     static readonly inject = [Dependency, FailingCleanup];
     constructor(readonly dependency: Dependency, readonly cleanup: FailingCleanup) { throw new Error('construction failed'); }
 }
+
+/** Construction waits until the specification releases the gate. */
+export const construction = { gate: Promise.resolve(), started: false };
+
+export class GatedReactor {
+    constructor(readonly dependency: Dependency) {}
+}
+
+export class FailingSingleton {}
+
+/** Keeps its activation scope so a handler can resolve services from it. */
+export class ScopedReactor {
+    constructor(readonly scope: { resolve<T>(token: new (...args: never[]) => T): Promise<T> }) {}
+}

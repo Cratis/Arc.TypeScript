@@ -6,8 +6,8 @@ import { ArtifactCompletionFailed, ArtifactDelivery, ArtifactKind } from '@crati
 import type { ActivatedArtifact, ArtifactActivationContext } from '@cratis/chronicle/artifacts';
 import type { Constructor } from '@cratis/fundamentals';
 import { chronicleArtifactActivator, type ChronicleArtifactActivator } from '../../chronicleArtifactActivator.js';
-import { ActivatedReactor, Dependency, disposals, FailingCleanup, ReactorThatCannotBeConstructed, ReactorWithFailingCleanup,
-    SingletonReactor } from './artifacts.js';
+import { ActivatedReactor, construction, Dependency, disposals, FailingCleanup, FailingSingleton, GatedReactor,
+    ReactorThatCannotBeConstructed, ReactorWithFailingCleanup, ScopedReactor, SingletonReactor } from './artifacts.js';
 
 type BuiltApplication = Awaited<ReturnType<ArcApplicationBuilder['build']>>;
 
@@ -28,6 +28,14 @@ export class an_activator {
         this.builder = new ArcApplicationBuilder();
         this.builder.services.addScoped(Dependency).addScoped(FailingCleanup).addScoped(ActivatedReactor)
             .addScoped(ReactorWithFailingCleanup).addScoped(ReactorThatCannotBeConstructed).addSingleton(SingletonReactor);
+        this.builder.services.addScoped(GatedReactor, async scope => {
+            const dependency = await scope.resolve(Dependency);
+            construction.started = true;
+            await construction.gate;
+            return new GatedReactor(dependency);
+        });
+        this.builder.services.addScoped(ScopedReactor, scope => new ScopedReactor(scope));
+        this.builder.services.addSingleton(FailingSingleton, () => { throw new Error('singleton failed'); });
         this.application = await this.builder.build();
         this.activator = chronicleArtifactActivator(() => this.application.server, this.store);
     }
