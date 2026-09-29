@@ -30,7 +30,7 @@ These stages match the [command pipeline](../commands/command-pipeline.md).
 After the method returns, Arc shapes the value in the same request or subscription scope:
 
 1. **Renderers.** The first registered [renderer](renderers.md) whose `canRender` accepts the value turns it into data or a `queryPage`.
-2. **Read-model interceptors.** Each registered [interceptor](read-model-interception.md) for the exact runtime class of an item transforms it, including items inside a provider-owned page.
+2. **Read-model interceptors.** Each registered [interceptor](read-model-interception.md) for the exact runtime class of an item transforms it, including items inside a provider-owned page. An interceptor that implements `isReleased` also protects nested instances of its model: the query fails if one is found that it does not report released.
 3. **Sorting and paging.** An array is sorted, then paged, in memory. A `queryPage` is used as is. See [Paging and sorting](model-bound/paging.md).
 4. **Encoding.** Decorated models and concepts become their wire shape.
 

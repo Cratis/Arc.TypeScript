@@ -25,7 +25,7 @@ export class ChronicleReadModels {
     async getAll<T extends object>(type: Constructor<T>,
         consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T[]> {
         this.checkConsistency(type, consistency);
-        return (await (await this.getStore()).readModels.getInstances(type)).map(markKernelReleased);
+        return (await (await this.getStore()).readModels.getInstances(type)).map(model => markKernelReleased(model));
     }
     /** Fetch one read model by its event-source ID, or null if it does not exist. */
     getById<T extends object>(type: Constructor<T>, id: string,

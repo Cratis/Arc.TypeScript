@@ -31,6 +31,7 @@ export class ChronicleReadModelInterceptor implements ReadModelInterceptor {
         if (provenance.model !== this.model) throw new Error(`Raw document is not a ${this.model.name}`);
         if (!this.context.tenantId || provenance.tenantId !== this.context.tenantId)
             throw new Error(`Raw ${this.model.name} document belongs to another tenant`);
-        return releaseRawDocument(this.model, document, provenance.subject, await this.runtime.getStore(this.context));
+        return markKernelReleased(
+            await releaseRawDocument(this.model, document, provenance.subject, await this.runtime.getStore(this.context)));
     }
 }

@@ -13,6 +13,13 @@ describe('when a raw-document interceptor passes the document through', given(ra
         result = await interceptReadModel(document, [context.interceptor], context.context);
     });
     it('should return the document', () => { (result === document).should.equal(true); });
-    it('should serve it as the interceptor returned it', () =>
-        (() => assertNoUnreleasedReadModels(result, [context.interceptor])).should.not.throw());
+    it('should serve it in the slot interception returned it for', () =>
+        (() => assertNoUnreleasedReadModels(result, [context.interceptor], new WeakSet([document]))).should.not.throw());
+    it('should keep its mark so it cannot pass as released elsewhere', () =>
+        (() => assertNoUnreleasedReadModels({ nested: result }, [context.interceptor])).should.throw('nested or projected raw documents'));
+    it('should intercept it again when it is emitted again', async () => {
+        const calls = context.interceptRawDocument.callCount;
+        await interceptReadModel(document, [context.interceptor], context.context);
+        context.interceptRawDocument.callCount.should.equal(calls + 1);
+    });
 }));

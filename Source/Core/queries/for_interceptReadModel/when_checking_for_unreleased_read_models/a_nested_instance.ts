@@ -4,10 +4,11 @@ import { given } from '../../../given.js';
 import { assertNoUnreleasedReadModels } from '../../interceptReadModel.js';
 import { Person, raw_documents } from '../given/raw_documents.js';
 
-describe('when an intercepted instance is nested inside another shape', given(raw_documents, context => {
+describe('when a protected instance is nested inside another shape', given(raw_documents, context => {
     let error: Error | undefined;
     beforeEach(() => {
-        try { assertNoUnreleasedReadModels({ joined: { people: [new Person()] } }, [context.interceptor]); }
+        const interceptor = { ...context.interceptor, isReleased: () => false };
+        try { assertNoUnreleasedReadModels({ joined: { people: [new Person()] } }, [interceptor]); }
         catch (reason) { error = reason as Error; }
     });
     it('should fail', () => { error!.message.should.contain('nested instances that were not released are not supported'); });
