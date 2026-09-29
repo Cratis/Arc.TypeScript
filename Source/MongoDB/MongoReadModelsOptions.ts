@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import type { ExecutionContext } from '@cratis/arc.core';
-import type { Document, Filter, MongoClient } from 'mongodb';
+import type { ClassType, ExecutionContext } from '@cratis/arc.core';
+import type { Document, Filter, MongoClient, WithId } from 'mongodb';
 
 /** The application chooses a database and trusted query filter for every tenant. */
 export interface MongoReadModelsOptions<T extends Document, I> {
@@ -13,4 +13,12 @@ export interface MongoReadModelsOptions<T extends Document, I> {
     readonly databaseForTenant: (tenantId: string, context: ExecutionContext) => string;
     /** Application-owned mapping from parsed query input to a trusted MongoDB filter. */
     readonly filterFor: (input: I, context: ExecutionContext) => Filter<T>;
+    /**
+     * The read model these raw documents hold. When set, every returned document carries the model, tenant and
+     * subject so a registered read-model interceptor (such as Chronicle's compliance release) transforms it before
+     * it is served, and field projections are rejected.
+     */
+    readonly readModel?: ClassType;
+    /** The compliance subject of a document (default: its string or numeric `_id`). Requires `readModel`. */
+    readonly subjectFor?: (document: WithId<T>) => string;
 }
