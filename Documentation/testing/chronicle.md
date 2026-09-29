@@ -110,7 +110,7 @@ await scenario.dispose();
 
 Here `AccountBalanceReducer` handles `AccountOpened` and produces the `AccountBalance` injected into `CheckAccount`.
 The SDK's `ReadModelScenario` folds reducer history (since 6.14.0) and, starting in 6.19.0, evaluates supported flat projections from seeded events on demand for each source.
-The main `@cratis/arc.chronicle` entry supports `@cratis/chronicle` 6.7.0 and later. Seeding reducer history through `given.forEventSource(...).events` requires SDK 6.14.0 or later; the scenario loads its testing subpath only when it needs to fold seeded history. A different source has no balance;
+The main `@cratis/arc.chronicle` entry supports `@cratis/chronicle` 6.17.0 and later. The scenario loads the SDK's testing subpath only when it needs to fold seeded history. A different source has no balance;
 required `commandReadModel(AccountBalance)` rejects it and an optional read model receives `null`. Seeding does not
 appear in `result.appendedEvents` or `scenario.appendedEvents`. Later command appends are **not** folded into this
 scenario's read models, matching the .NET command scenario's seeded-history lookup. Use a kernel scenario to test

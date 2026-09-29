@@ -21,9 +21,7 @@ builder.withChronicle({
 });
 ```
 
-Scoped activation requires `@cratis/chronicle` 6.17.0 or later. Older versions the peer range still allows either ignore the activator or cannot report per-event correlation and scope cleanup failures, so with the option set `withChronicle` fails with `activateArtifactsInScopes requires @cratis/chronicle 6.17.0 or later`. With the option off, older versions keep working.
-
-Registration rejects the option together with `client`, because caller-owned clients are not supported yet.
+Scoped activation requires `@cratis/chronicle` 6.17.0 or later, the lowest version `@cratis/arc.chronicle` accepts as a peer. To use a Chronicle client you create yourself, see [Use a caller-owned client](#use-a-caller-owned-client).
 
 With the option set, Chronicle-only artifacts that `discover(...)` found before `withChronicle` was called are registered with Chronicle too. Without it, registration is unchanged.
 
@@ -57,27 +55,31 @@ A failed delivery is retried. It is not rolled back: appended events, commands a
 
 ## Shutdown
 
-When the application shuts down, Arc stops accepting new deliveries, aborts `currentContext().signal` for running handlers, and waits for them to finish and dispose their scopes before it disposes services. Cancellation is cooperative: a handler that ignores the signal delays shutdown until it settles.
+When the application shuts down, Arc stops accepting new deliveries, aborts `currentContext().signal` for running handlers, and waits for them to finish and dispose their scopes. Only then does it dispose services, and an Arc-owned Chronicle client is closed last, so the connection stays open while admitted deliveries finish. Cancellation is cooperative: a handler that ignores the signal delays shutdown until it settles. A delivery that arrives after shutdown has started is rejected without touching services.
 
-## Use the activator directly
+## Use a caller-owned client
 
-`chronicleArtifactActivator(server, eventStore)` from `@cratis/arc.chronicle` is the activator this option installs. It returns an SDK `ClientArtifactsActivator`, so you can pass it as `artifactActivator` when you create a Chronicle client yourself. This also requires `@cratis/chronicle` 6.17.0 or later. On 6.16 an event delivery fails instead of running with the wrong correlation; SDKs before 6.16 ignore `artifactActivator` and construct artifacts themselves, and Arc cannot detect that for a client you create.
+`chronicleArtifactActivator(server, eventStore)` from `@cratis/arc.chronicle` is the activator the option installs on an Arc-owned connection. For a Chronicle client you create yourself, pass it as `artifactActivator`, together with `reactorCommandResultHandler` as `reactorResultHandler`, and set `activateArtifactsInScopes` with the client:
 
 ```typescript title="main.ts (excerpt)"
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
-import { chronicleArtifactActivator } from '@cratis/arc.chronicle';
+import { chronicleArtifactActivator, reactorCommandResultHandler } from '@cratis/arc.chronicle';
 
 let application: Awaited<ReturnType<typeof builder.build>> | undefined;
-const artifactActivator = chronicleArtifactActivator(() => application!.server, 'MyArcApp');
-const client = new ChronicleClient(ChronicleOptions.fromConnectionString('chronicle://localhost:35000', { artifactActivator }));
+const server = () => application!.server;
+const client = new ChronicleClient(ChronicleOptions.fromConnectionString('chronicle://localhost:35000', {
+    artifactActivator: chronicleArtifactActivator(server, 'MyArcApp'),
+    reactorResultHandler: reactorCommandResultHandler(server, 'MyArcApp')
+}));
 
-application = await builder.withChronicle({ client, eventStore: 'MyArcApp' }).build();
+application = await builder.withChronicle({ client, eventStore: 'MyArcApp', activateArtifactsInScopes: true }).build();
 // Start observing with the client only now: the activator needs the built application.
 ```
+
+Registration fails unless the client was created with an activator from `chronicleArtifactActivator` for the same event store. Arc never changes the client's options and never disposes the client. With the client registered this way, Arc checks the reactors' and reducers' registrations when building, as it does for an Arc-owned connection.
 
 The caller owns the ordering:
 
 - Build Arc before the client starts observing. A delivery that arrives earlier finds no application; the delivery fails and Chronicle retries it.
-- You register the reactors, reducers and their dependencies yourself, and Arc does not check them when building.
-- Returned commands receive the delivery's signal and event store only when you also pass `reactorCommandResultHandler(() => application!.server, 'MyArcApp')` as `reactorResultHandler`.
-- The activator joins Arc's shutdown only after its first activation. Before disposing Arc, stop the client, or call `artifactActivator.stop()` and then `await artifactActivator.drain()`, so no delivery is still using services that `application.dispose()` releases.
+- Returned commands receive the delivery's signal and event store only when the client also has `reactorCommandResultHandler` as its `reactorResultHandler`.
+- Dispose Arc first, then the client: `await application.dispose()` stops the activator and waits for admitted deliveries while the connection is still open, then `client.dispose()` stops observing. Deliveries that arrive in between are rejected.
