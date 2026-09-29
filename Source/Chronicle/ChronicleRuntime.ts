@@ -12,6 +12,7 @@ import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
 export class ChronicleRuntime {
     readonly #client;
     readonly #owned;
+    #disposed = false;
     constructor(readonly options: ChronicleRegistration, readonly artifacts: ChronicleArtifacts, server: () => ArcServer,
         artifactActivator?: ClientArtifactsActivator) {
         if (!options.eventStore) throw new Error('A Chronicle event store is required');
@@ -25,6 +26,13 @@ export class ChronicleRuntime {
     getStore(context: ExecutionContext): Promise<IEventStore> {
         return this.#client.getEventStore(this.options.eventStore, context.tenantId ?? EventStoreNamespaceName.default.value);
     }
-    /** Close only an integration-owned client. */
-    [Symbol.dispose](): void { if (this.#owned) this.#client.dispose(); }
+    /**
+     * Close only an integration-owned client, once. Arc disposes singletons after shutdown participants, including the
+     * artifact activator, have stopped and drained, so the connection outlives every admitted delivery.
+     */
+    [Symbol.dispose](): void {
+        if (!this.#owned || this.#disposed) return;
+        this.#disposed = true;
+        this.#client.dispose();
+    }
 }
