@@ -121,6 +121,8 @@ export async function buildRegistered(registrations: BuildRegistrations): Promis
     const queries: QueryDefinition<z.ZodType, unknown>[] = [...options.queries ?? []];
     const observableQueries: ObservableQueryDefinition<z.ZodType, unknown>[] = [...options.observableQueries ?? []];
     compileArtifacts(artifacts, graph, registrations, dependencies, commands, queries, observableQueries);
+    // Fallbacks resolve after explicit and decorated registrations; a supplied ServiceRegistry stays untouched.
+    if (!options.services || Array.isArray(options.services)) services.addFallbacks(options.services ?? []);
     dependencies.push(...registrations.authorizationCommandFilters, ...registrations.commandPipelineFilters,
         ...options.authorizationCommandFilters ?? [], ...options.commandPipelineFilters ?? [],
         ...registrations.authorizationQueryFilters, ...registrations.queryPipelineFilters,
