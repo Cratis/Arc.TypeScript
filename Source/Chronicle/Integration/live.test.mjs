@@ -15,7 +15,7 @@ import { serve } from '@hono/node-server';
 import { cratisArc as expressArc } from '@cratis/arc.express';
 import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
 import { cratisArc as honoArc } from '@cratis/arc.hono';
-import { ArcApplication, defineQuery, serviceToken } from '@cratis/arc.core';
+import { ArcApplication, defineQuery, serviceToken, Severity } from '@cratis/arc.core';
 import { MongoCollection, MongoReadModels } from '@cratis/arc.mongodb';
 import { z } from 'zod';
 import { context, trace } from '@opentelemetry/api';
@@ -33,6 +33,7 @@ import { CreatePrivateLive } from '../dist/Integration/CreatePrivateLive.js';
 import { PrivateLiveCreated } from '../dist/Integration/PrivateLiveCreated.js';
 import { PrivateLiveView } from '../dist/Integration/PrivateLiveView.js';
 import { ReadPrivateLiveInCommand } from '../dist/Integration/ReadPrivateLiveInCommand.js';
+import * as scoped from '../dist/Integration/ScopedLiveArtifacts.js';
 const { CreateLive, CreateLiveExactlyOnce, CreateLiveBatch, CreateLiveWithOperation, AdvanceLive,
     ReadLiveInCommand, AdvanceLiveWithConcurrentAppend, LiveCreated, LiveFollowedUp, FollowUpLive, LiveCommandReactor, LiveView } = live;
 
@@ -252,6 +253,32 @@ try {
             } finally { await listener.close(); }
         }));
     }
+    checks.push(test('Chronicle reactor activated in an Arc scope', async () => {
+        const scopedStoreName = `ArcTsScoped${randomUUID().replaceAll('-', '')}`;
+        const scopedBuilder = ArcApplication.createBuilder({ development: true });
+        scopedBuilder.withChronicle({ connectionString, eventStore: scopedStoreName, activateArtifactsInScopes: true });
+        scopedBuilder.services.addScoped(scoped.ScopedLiveGreeting);
+        scopedBuilder.add(scoped.CreateScopedLive, scoped.FollowUpScopedLive, scoped.ScopedLiveCreated,
+            scoped.ScopedLiveFollowedUp, scoped.ScopedLiveReactor);
+        const scopedApplication = await scopedBuilder.build();
+        try {
+            const id = randomUUID();
+            const tenant = 'TenantScoped';
+            const created = await scopedApplication.server.execute(new scoped.CreateScopedLive(id, 'scoped'), {
+                tenantId: tenant, correlationId: randomUUID(), principal: undefined,
+                signal: new globalThis.AbortController().signal, allowedSeverity: Severity.Warning
+            });
+            assert.equal(created.isSuccess, true, JSON.stringify(created));
+            const store = await client.getEventStore(scopedStoreName, tenant);
+            let followups = [];
+            for (let attempt = 0; attempt < 40 && followups.length === 0; attempt++) {
+                followups = await store.eventLog.getForEventSourceIdAndEventTypes(id, [scoped.ScopedLiveFollowedUp]);
+                if (!followups.length) await delay(250);
+            }
+            assert.equal(followups.length, 1, 'the scoped reactor returned a command that appended in the delivered tenant');
+            assert.equal(followups[0].content.name, 'greeted-scoped', 'the reactor received its constructor dependency');
+        } finally { await scopedApplication.dispose(); }
+    }));
     await Promise.all(checks);
 } finally {
     await application.dispose();
