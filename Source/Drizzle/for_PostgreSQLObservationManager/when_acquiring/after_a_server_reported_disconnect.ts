@@ -11,7 +11,7 @@ describe('when the server reports a fatal error on the listener connection', () 
         await lease.ready;
         // node-postgres names server-reported protocol errors 'error', in lowercase.
         client.disconnect!(Object.assign(new Error('terminating connection due to administrator command'), { name: 'error' }));
-        failure!.message.should.equal('PostgreSQL change listener lost: connection failure');
+        failure!.message.should.include('recovery exhausted');
         await manager[Symbol.asyncDispose]();
     });
 });

@@ -85,8 +85,8 @@ export class DrizzleReadModels<T extends object> {
                 'Drizzle observation is not enabled; set observation: DrizzleObservation.InProcess in withDrizzle');
         };
         const observable = new DrizzleObservable<Value>(onClose => new DrizzleObservationSession(read,
-            (changed, fail) => this.#binding!.postgresql ? this.#binding!.postgresql.acquire(this.#binding!.tenant,
-                this.database, this.table, changed, fail) : this.#binding!.notifications.listen(this.#binding!.tenant, this.table, changed),
+            (changed, fail, complete) => this.#binding!.postgresql ? this.#binding!.postgresql.acquire(this.#binding!.tenant,
+                this.database, this.table, changed, fail, complete) : this.#binding!.notifications.listen(this.#binding!.tenant, this.table, changed),
             this.#signal, onClose), canStart,
         () => this.#observations.add(observable), () => this.#observations.delete(observable));
         return observable;
