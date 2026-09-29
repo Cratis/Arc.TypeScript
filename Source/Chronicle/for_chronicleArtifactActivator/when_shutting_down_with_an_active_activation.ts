@@ -24,7 +24,7 @@ describe('when shutting down with an active activation', given(an_activator, con
         order.push(...disposals);
         await shutdown;
     });
-    it('should cancel the active activation', () => { signalAborted.should.be.true; });
+    it('should cancel the active activation', () => { signalAborted.should.equal(true); });
     it('should reject new activations', () => { rejected.message.should.contain('stopped'); });
     it('should wait for the active lease before settling shutdown', () => { order[0]!.should.equal('lease completing'); });
     it('should dispose the activation scope before shutdown settles', () => {

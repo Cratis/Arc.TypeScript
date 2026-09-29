@@ -16,6 +16,6 @@ describe('when activating a singleton artifact', given(an_activator, context => 
         await context.dispose();
     });
     it('should reuse the container instance', () => { instances[0]!.should.equal(instances[1]); });
-    it('should not dispose it with the lease', () => { disposedAfterDeliveries.should.be.empty; });
+    it('should not dispose it with the lease', () => { disposedAfterDeliveries.should.have.lengthOf(0); });
     it('should dispose it with the container', () => { disposals.should.deep.equal(['singleton reactor']); });
 }));

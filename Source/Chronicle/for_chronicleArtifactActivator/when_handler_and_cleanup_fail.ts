@@ -18,5 +18,5 @@ describe('when the handler and cleanup fail', given(an_activator, context => {
     afterEach(() => context.dispose());
     it('should fail the delivery with the completion failure', () => { failure.should.be.instanceOf(ArtifactCompletionFailed); });
     it('should retain the handler failure', () => { (failure.processingError as Error).should.equal(handlerFailure); });
-    it('should retain the cleanup failure', () => { (failure.completionError === undefined).should.be.false; });
+    it('should retain the cleanup failure', () => { (failure.completionError === undefined).should.equal(false); });
 }));

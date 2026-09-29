@@ -15,5 +15,5 @@ describe('when cleanup fails', given(an_activator, context => {
     afterEach(() => context.dispose());
     it('should fail the delivery', () => { failure.should.be.instanceOf(ArtifactCompletionFailed); });
     it('should report the cleanup failure', () => { String(failure.completionError).should.not.equal('undefined'); });
-    it('should not report a processing failure', () => { (failure.processingError === undefined).should.be.true; });
+    it('should not report a processing failure', () => { (failure.processingError === undefined).should.equal(true); });
 }));

@@ -66,7 +66,8 @@ export function chronicleArtifactActivator(server: () => ArcServer, expectedEven
         catch (error) {
             try { await release(); }
             catch (cleanupError) {
-                throw new AggregateError([error, cleanupError], `Activating ${type.name} failed and its services could not be released`);
+                throw new AggregateError([error, cleanupError], `Activating ${type.name} failed and its services could not be released`,
+                    { cause: cleanupError });
             }
             throw error;
         }
