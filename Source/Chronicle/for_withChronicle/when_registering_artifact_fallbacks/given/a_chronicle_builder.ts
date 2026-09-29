@@ -17,8 +17,10 @@ export class a_chronicle_builder {
 
     withChronicle(): this { withChronicle(this.builder, { client: this.client, eventStore: 'Fallbacks' }); return this; }
     /** Opt in to scoped activation over an Arc-owned connection; building never connects. */
-    withScopedActivation(): this {
-        withChronicle(this.builder, { connectionString: 'chronicle://localhost:35000', eventStore: 'Fallbacks', activateArtifactsInScopes: true });
+    withScopedActivation(): this { return this.withArcOwnedConnection(true); }
+    /** Use an Arc-owned connection; building never connects. */
+    withArcOwnedConnection(activateArtifactsInScopes: boolean): this {
+        withChronicle(this.builder, { connectionString: 'chronicle://localhost:35000', eventStore: 'Fallbacks', activateArtifactsInScopes });
         return this;
     }
     async build(): Promise<BuiltApplication> { this.application = await this.builder.build(); return this.application; }

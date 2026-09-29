@@ -133,12 +133,16 @@ export class ArcApplicationBuilder {
         this.#readModelResolvers.push(token);
         return this;
     }
-    /** Admit and observe integration-owned artifacts, including types discovered before the observer was added. */
-    addArtifactObserver(observer: (type: ClassType) => boolean): this {
+    /**
+     * Admit and observe integration-owned artifacts, including types another observer claimed before this one was added.
+     * @param observer - Returns true when it claims the type.
+     * @param claimEarlierDiscoveries - Also offer discovered classes no observer claimed before this one was added.
+     */
+    addArtifactObserver(observer: (type: ClassType) => boolean, claimEarlierDiscoveries = false): this {
         this.#artifactObservers.push(observer);
         withGeneratedMetadata(this.generatedMetadata, () => {
             for (const type of this.#observedTypes) observer(type);
-            for (const type of [...this.#unclaimedTypes]) {
+            if (claimEarlierDiscoveries) for (const type of [...this.#unclaimedTypes]) {
                 if (!observer(type)) continue;
                 this.#unclaimedTypes.delete(type);
                 this.#observedTypes.add(type);

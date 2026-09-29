@@ -11,6 +11,7 @@ import type { ServiceScope } from './ServiceScope.js';
 export class ArcApplicationServices {
     readonly registrations: ServiceRegistration<unknown>[] = [];
     readonly #fallbacks = new Map<symbol, ServiceClass<unknown>>();
+    readonly #deferredFallbackErrors = new Map<symbol, unknown>();
     /**
      * Record a scoped class registration as a fallback. The registration is deferred: it is added when the
      * application is built, and only when no registration in these services, `options.services` entry or
@@ -30,10 +31,20 @@ export class ArcApplicationServices {
             claimed.add(key);
             try { this.addScoped(type); }
             catch (error) {
+                this.#deferredFallbackErrors.set(key, error);
                 // Defer an unbindable constructor to resolution so building an application never fails on a fallback.
                 this.registrations.push({ token: type, lifetime: ServiceLifetime.Scoped, factory: () => { throw error; } });
             }
         }
+    }
+    /**
+     * Get the binding error a materialized scoped fallback defers to resolution. Integrations that resolve the class
+     * from Arc can use it to fail the build instead.
+     * @param type - The class recorded with {@link addScopedFallback}.
+     * @returns The error, or undefined when the fallback was bound, claimed by another registration, or not yet materialized.
+     */
+    deferredFallbackError(type: ServiceClass<unknown>): unknown {
+        return this.#deferredFallbackErrors.get(normalizeServiceToken(type).key);
     }
     /** Register a service once for the lifetime of the application. */
     addSingleton<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {

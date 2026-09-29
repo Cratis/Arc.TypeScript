@@ -34,7 +34,14 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
         return server;
     }, registration.eventStore) : undefined;
     // Arc constructs activated artifacts, so their registrations must be resolvable when the application is built.
-    if (activator) builder.addBuiltObserver(built => built.services.preflight([...artifacts.reactors, ...artifacts.reducers]));
+    if (activator) builder.addBuiltObserver(built => {
+        for (const artifact of [...artifacts.reactors, ...artifacts.reducers]) {
+            const error = builder.services.deferredFallbackError(artifact);
+            if (error !== undefined) throw new Error(`Chronicle artifact ${artifact.name} cannot be activated in a scope: ${
+                error instanceof Error ? error.message : String(error)}`, { cause: error });
+        }
+        built.services.preflight([...artifacts.reactors, ...artifacts.reducers]);
+    });
     const registeredInterceptors = new Set<Constructor>();
     builder.addArtifactObserver(type => {
         const matched = artifacts.register(type as Constructor);
@@ -49,7 +56,8 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
             builder.addReadModelInterceptor(token);
         }
         return matched;
-    });
+    // Only scoped activation also claims Chronicle-only classes discovered before withChronicle; without it, behavior is unchanged.
+    }, activator !== undefined);
     builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(registration as ChronicleRegistration, artifacts, () => {
         if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');
         return server;

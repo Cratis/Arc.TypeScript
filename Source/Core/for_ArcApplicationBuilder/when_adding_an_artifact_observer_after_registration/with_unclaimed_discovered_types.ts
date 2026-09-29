@@ -15,7 +15,7 @@ class a_builder_with_unclaimed_discovered_types {
     builder = new DiscoveringBuilder();
 }
 
-describe('when adding an artifact observer after registration with unclaimed discovered types',
+describe('when adding an artifact observer that claims earlier discoveries after registration with unclaimed discovered types',
     given(a_builder_with_unclaimed_discovered_types, context => {
         let claimedByFirst: ClassType[];
         let seenByLater: ClassType[];
@@ -26,10 +26,10 @@ describe('when adding an artifact observer after registration with unclaimed dis
                 const claimed = type === ChronicleOnlyReactor;
                 if (claimed) claimedByFirst.push(type);
                 return claimed;
-            });
-            context.builder.addArtifactObserver(type => { seenByLater.push(type); return false; });
+            }, true);
+            context.builder.addArtifactObserver(type => { seenByLater.push(type); return false; }, true);
         });
         it('should offer the discovered type to the integration added later', () => { claimedByFirst.should.deep.equal([ChronicleOnlyReactor]); });
         it('should replay the claimed type to later observers', () => { seenByLater.should.include(ChronicleOnlyReactor); });
-        it('should keep offering unclaimed types', () => { seenByLater.should.include(Unrelated); });
+        it('should keep offering unclaimed types to later observers that claim earlier discoveries', () => { seenByLater.should.include(Unrelated); });
     }));
