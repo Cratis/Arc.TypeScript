@@ -30,10 +30,10 @@ describe('when registering MongoDB with a naming policy and a collection overrid
         rule = await resolve({ collectionName: overridden });
         ruleWithoutOverride = await resolve({});
     });
-    it('should expose the override to other integrations', () => rule(TaskRecord).should.equal('Tasks'));
-    it('should expose the naming policy name when there is no override', () => ruleWithoutOverride(TaskRecord).should.equal('taskRecords'));
+    it('should expose the override to other integrations', () => rule(TaskRecord)!.should.equal('Tasks'));
+    it('should expose the naming policy name when there is no override', () => ruleWithoutOverride(TaskRecord)!.should.equal('taskRecords'));
     it('should leave a class that is not registered to the other integration', () =>
         (ruleWithoutOverride(Unregistered) === undefined).should.equal(true));
     it('should resolve the same name as Arc reads the collection from', () =>
-        ruleWithoutOverride(TaskRecord).should.equal(resolveMongoCollectionName({ namingPolicy: camelCaseMongoNamingPolicy }, TaskRecord)));
+        ruleWithoutOverride(TaskRecord)!.should.equal(resolveMongoCollectionName({ namingPolicy: camelCaseMongoNamingPolicy }, TaskRecord)));
 });
