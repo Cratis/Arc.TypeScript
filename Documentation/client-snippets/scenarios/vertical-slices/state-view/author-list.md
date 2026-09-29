@@ -10,7 +10,7 @@ import type { Observable } from 'rxjs';
 export class AuthorRegistered {
     @field(AuthorName) firstName: AuthorName;
     @field(AuthorName) lastName: AuthorName;
-    constructor(firstName: AuthorName, lastName: AuthorName) {
+    constructor(firstName = new AuthorName(''), lastName = new AuthorName('')) {
         this.firstName = firstName;
         this.lastName = lastName;
     }
