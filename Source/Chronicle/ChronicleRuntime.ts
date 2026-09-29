@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ChronicleClient, ChronicleOptions, EventStoreNamespaceName } from '@cratis/chronicle';
-import type { IEventStore } from '@cratis/chronicle';
-import type { ArcServer, ExecutionContext } from '@cratis/arc.core';
+import type { IEventStore, ReadModelNamingPolicy } from '@cratis/chronicle';
+import type { ArcServer, ExecutionContext, ReadModelCollectionName } from '@cratis/arc.core';
 import type { ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
 import { reactorCommandResultHandler } from './reactorCommands.js';
 import type { ChronicleRegistration } from './ChronicleOptions.js';
@@ -14,12 +14,17 @@ export class ChronicleRuntime {
     readonly #owned;
     #disposed = false;
     constructor(readonly options: ChronicleRegistration, readonly artifacts: ChronicleArtifacts, server: () => ArcServer,
-        artifactActivator?: ClientArtifactsActivator) {
+        artifactActivator?: ClientArtifactsActivator, collectionName?: ReadModelCollectionName) {
         if (!options.eventStore) throw new Error('A Chronicle event store is required');
+        // An explicit policy wins. Otherwise store a read model class where the application's storage integration reads
+        // it, and keep the identifier when the client knows no class, as the SDK does without a policy.
+        const readModelNamingPolicy: ReadModelNamingPolicy | undefined = options.readModelNamingPolicy ??
+            (collectionName ? (identifier, readModelType) => readModelType ? collectionName(readModelType) : identifier : undefined);
         this.#owned = !options.client;
         this.#client = options.client ?? new ChronicleClient(ChronicleOptions.fromConnectionString(options.connectionString!, {
             clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(server, options.eventStore),
-            ...artifactActivator ? { artifactActivator } : {}
+            ...artifactActivator ? { artifactActivator } : {},
+            ...readModelNamingPolicy ? { readModelNamingPolicy } : {}
         }));
     }
     /** Resolves the selected event store in the namespace authorized by Arc. */

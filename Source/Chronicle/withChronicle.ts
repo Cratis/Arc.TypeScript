@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcApplicationBuilder, serviceToken } from '@cratis/arc.core';
+import { ArcApplicationBuilder, readModelCollectionNameResolver, serviceToken } from '@cratis/arc.core';
 import type { ArcServer, ReadModelInterceptor } from '@cratis/arc.core';
 import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import type { Constructor } from '@cratis/fundamentals';
@@ -25,6 +25,9 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     const registration = { ...configured, ...options };
     if (!registration.eventStore || (!registration.connectionString && !registration.client) ||
         (registration.connectionString && registration.client)) throw new Error('Chronicle requires eventStore and exactly one of connectionString or client');
+    // Arc never changes a caller-owned client, so a policy passed here could not take effect.
+    if (registration.client && registration.readModelNamingPolicy)
+        throw new Error('Chronicle readModelNamingPolicy applies only to an Arc-owned client; set it in the ChronicleOptions the caller-owned client is created with');
     const artifacts = new ChronicleArtifacts();
     let server: ArcServer | undefined;
     builder.addBuiltObserver(built => { server = built; });
@@ -63,10 +66,16 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
         return matched;
     // Only scoped activation also claims Chronicle-only classes discovered before withChronicle; without it, behavior is unchanged.
     }, activator !== undefined);
-    builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(registration as ChronicleRegistration, artifacts, () => {
-        if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');
-        return server;
-    }, registration.client ? undefined : activator));
+    builder.services.addSingleton(ChronicleRuntime, async scope => {
+        // withMongoDB registers the collection rule after or before this call; resolving here, once Arc is built, sees both.
+        const collectionName = registration.client || registration.readModelNamingPolicy ||
+            !builder.services.registrations.some(registered => registered.token === readModelCollectionNameResolver) ? undefined :
+            await scope.resolve(readModelCollectionNameResolver);
+        return new ChronicleRuntime(registration as ChronicleRegistration, artifacts, () => {
+            if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');
+            return server;
+        }, registration.client ? undefined : activator, collectionName);
+    });
     builder.services.addScoped(ChronicleScopedStore, async scope => new ChronicleScopedStore(await scope.resolve(ChronicleRuntime), scope));
     builder.services.addScoped(ChronicleReadModels, async scope =>
         new ChronicleReadModels(await scope.resolve(ChronicleScopedStore), scope.identity!));
