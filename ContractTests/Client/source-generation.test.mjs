@@ -276,6 +276,18 @@ export class Create { @fundamentals.field(Guid) id!: Guid; @field(Date) created!
     }, include: ['Features/**/*.ts', 'interfaces/**/*.ts'] }));
     const interfaceCompile = spawnSync(join(root, 'node_modules/.bin/tsc'), ['-p', join(src, 'tsconfig.json')], { cwd: root, encoding: 'utf8' });
     assert.equal(interfaceCompile.status, 0, interfaceCompile.stdout + interfaceCompile.stderr);
+    const server = join(src, 'server'); await mkdir(server);
+    await generateFromSource({ project: join(src, 'tsconfig.json'), artifacts: features, output: server, skipReactHooks: true });
+    for (const name of ['Checkout/Create.ts', 'Listing/All.ts', 'Listing/Paged.ts', 'Listing/Stream.ts', 'Listing/Changes.ts'])
+        assert.doesNotMatch(await readFile(join(server, 'Shop', name), 'utf8'), /arc\.react|static use/);
+    await writeFile(join(src, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+        target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', strict: true,
+        skipLibCheck: false, experimentalDecorators: true, noEmit: true, types: ['node']
+    }, include: ['Features/**/*.ts', 'server/**/*.ts'] }));
+    const serverCompile = spawnSync(join(root, 'node_modules/.bin/tsc'), ['-p', join(src, 'tsconfig.json'), '--listFilesOnly'], { cwd: root, encoding: 'utf8' });
+    assert.equal(serverCompile.status, 0, serverCompile.stdout + serverCompile.stderr);
+    // React must not be pulled into the program at all by server-only proxies.
+    assert.doesNotMatch(serverCompile.stdout, /arc\.react|node_modules\/(@types\/)?react\//);
 });
 
 test('edited generated barrels are not overwritten or deleted', async () => {
@@ -435,6 +447,7 @@ test('CLI accepts equals options, help, root namespace and safe output switches'
     const help = spawnSync(process.execPath, [cli, '--help'], { cwd: root, encoding: 'utf8' });
     assert.equal(help.status, 0, help.stderr);
     assert.match(help.stdout, /--emit-interfaces/);
+    assert.match(help.stdout, /--skip-react-hooks/);
     const generated = spawnSync(process.execPath, [cli, `--project=${project}`, `--artifacts=${artifacts}`, `--output=${output}`,
         '--root-namespace=App', '--api-prefix=v2', '--use-generated-metadata', '--skip-index-generation', '--skip-output-deletion'], { cwd: root, encoding: 'utf8' });
     assert.equal(generated.status, 0, generated.stderr);
