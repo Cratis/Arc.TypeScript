@@ -51,6 +51,8 @@ export class ArcApplicationBuilder {
     readonly #readModelResolvers: ServiceIdentifier<ReadModelForCommandResolver>[] = [];
     readonly #artifactObservers: ((type: ClassType) => boolean)[] = [];
     readonly #observedTypes = new Set<ClassType>();
+    /** Discovered classes no observer claimed yet; an integration added later may still claim them. */
+    readonly #unclaimedTypes = new Set<ClassType>();
     readonly #commandRunners: ((context: CommandContext, execute: () => Promise<CommandResult>) => Promise<CommandResult>)[] = [];
     readonly #commandScopes: (() => CommandExecutionScope)[] = [];
     readonly #builtObservers: ((server: ArcServer) => void)[] = [];
@@ -136,6 +138,11 @@ export class ArcApplicationBuilder {
         this.#artifactObservers.push(observer);
         withGeneratedMetadata(this.generatedMetadata, () => {
             for (const type of this.#observedTypes) observer(type);
+            for (const type of [...this.#unclaimedTypes]) {
+                if (!observer(type)) continue;
+                this.#unclaimedTypes.delete(type);
+                this.#observedTypes.add(type);
+            }
         });
         return this;
     }
@@ -179,7 +186,8 @@ export class ArcApplicationBuilder {
             return this;
         });
     }
-    protected register(type: ClassType, namespace: string): boolean {
+    /** @param retainUnclaimed - Keep an unclaimed discovered class for integrations added later. */
+    protected register(type: ClassType, namespace: string, retainUnclaimed = false): boolean {
         let external = false;
         for (const observer of this.#artifactObservers) if (observer(type)) external = true;
         const metadata = ownMetadata(type);
@@ -193,6 +201,7 @@ export class ArcApplicationBuilder {
             !metadata.authorizationCommandFilter && !metadata.commandPipelineFilter &&
             !metadata.authorizationQueryFilter && !metadata.queryPipelineFilter) {
             if (external) this.#observedTypes.add(type);
+            else if (retainUnclaimed) this.#unclaimedTypes.add(type);
             return external;
         }
         const effective = metadata.namespace ?? namespace;

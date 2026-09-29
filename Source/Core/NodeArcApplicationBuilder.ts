@@ -23,7 +23,7 @@ export class NodeArcApplicationBuilder extends ArcApplicationBuilder {
                 const namespace = [options.rootNamespace, ...relative(folder, dirname(file)).split(sep)
                     .filter(value => value && value !== '.')].filter(Boolean).join('.');
                 for (const exported of Object.values(module)) {
-                    if (typeof exported === 'function') this.register(exported as ClassType, namespace);
+                    if (typeof exported === 'function') this.register(exported as ClassType, namespace, true);
                 }
             }
             return this;
