@@ -2,12 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { normalizeCorrelationId, Severity } from '@cratis/arc.core';
 import type { ArcServer, ExecutionContext, ServiceRegistry, ShutdownParticipant } from '@cratis/arc.core';
-import { ArtifactDelivery } from '@cratis/chronicle/artifacts';
-import type { ActivatedArtifact, ArtifactActivationContext, ArtifactInvocationContext, ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
+// Type-only: ArtifactDelivery is a runtime export only from @cratis/chronicle 6.16, above the peer floor. Importing it as a
+// value would break loading @cratis/arc.chronicle on older SDKs even when scoped activation is off.
+import type { ArtifactDelivery, ActivatedArtifact, ArtifactActivationContext, ArtifactInvocationContext, ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
 import type { Constructor } from '@cratis/fundamentals';
 
 /** A Chronicle artifact activator that also takes part in Arc's coordinated shutdown. */
 export type ChronicleArtifactActivator = ClientArtifactsActivator & ShutdownParticipant;
+
+const eventsDelivery: `${ArtifactDelivery.Events}` = 'events';
 
 /**
  * Activate Chronicle reactors and reducers in an Arc service scope, one scope per delivery.
@@ -42,7 +45,7 @@ export function chronicleArtifactActivator(server: () => ArcServer, expectedEven
         const identity: ExecutionContext = Object.freeze({
             principal: undefined,
             tenantId: context.eventStore.namespace.value,
-            correlationId: context.delivery === ArtifactDelivery.Events
+            correlationId: context.delivery === eventsDelivery
                 ? normalizeCorrelationId(context.eventContext.correlationId)
                 : crypto.randomUUID(),
             signal: AbortSignal.any([context.signal, shutdown.signal]),
@@ -75,7 +78,7 @@ export function chronicleArtifactActivator(server: () => ArcServer, expectedEven
         return {
             instance,
             run: <R>(callback: () => R | Promise<R>, invocation?: ArtifactInvocationContext) =>
-                selected.runInScope(created, callback, invocation?.delivery === ArtifactDelivery.Events
+                selected.runInScope(created, callback, invocation?.delivery === eventsDelivery
                     ? { correlationId: normalizeCorrelationId(invocation.eventContext.correlationId) } : undefined),
             complete: () => { completed = true; return release(); },
             // Completion already reported any cleanup failure; a fallback dispose releases without repeating it.
