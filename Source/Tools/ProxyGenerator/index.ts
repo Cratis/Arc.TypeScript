@@ -7,6 +7,7 @@ export { renderSource } from './renderSource.js';
 export { generateFromSource } from './generateFromSource.js';
 export type { SourceGeneratorOptions } from './generateFromSource.js';
 export type { SourceRenderOptions } from './renderSource.js';
+export type { TypeMapping, TypeMappings } from './typeMappings.js';
 export type { SourceAnalysis } from './SourceAnalysis.js';
 export type { SourceOperation } from './SourceOperation.js';
 export type { SourceModel } from './SourceModel.js';

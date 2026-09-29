@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { SourceGeneratorOptions } from './generateFromSource.js';
+import { parseTypeMappingOptions } from './typeMappings.js';
 
 /** Parse the source-generation CLI options without changing its accepted switches. */
 export function parseSourceOptions(values: readonly string[], usage: string):
@@ -10,8 +11,16 @@ export function parseSourceOptions(values: readonly string[], usage: string):
         '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces', '--watch', '--check-metadata',
         '--use-generated-metadata'];
     const arguments_ = ['--project', '--artifacts', '--output', '--metadata', '--segments-to-skip', '--api-prefix', '--root-namespace'];
+    const repeatable = '--type-mapping';
+    const typeMappings: string[] = [];
     for (let index = 0; index < values.length; index++) {
         const [key, attached] = values[index]!.split(/=(.*)/s, 2);
+        if (key === repeatable) {
+            const value = attached ?? values[++index];
+            if (value === undefined || value === '' || value.startsWith('--')) throw new Error(`Missing value for ${key}`);
+            typeMappings.push(value);
+            continue;
+        }
         if ((!flags.includes(key!) && !arguments_.includes(key!)) || key! in options || flags.includes(key!) && attached !== undefined)
             throw new Error(`Unknown or duplicate option: ${values[index]}`);
         if (flags.includes(key!)) options[key!] = true;
@@ -37,7 +46,8 @@ export function parseSourceOptions(values: readonly string[], usage: string):
         rootNamespace: typeof options['--root-namespace'] === 'string' ? options['--root-namespace'] : undefined,
         skipIndexGeneration: options['--skip-index-generation'] === true,
         skipOutputDeletion: options['--skip-output-deletion'] === true,
-        emitInterfaces: options['--emit-interfaces'] === true
+        emitInterfaces: options['--emit-interfaces'] === true,
+        typeMappings: typeMappings.length ? parseTypeMappingOptions(typeMappings) : undefined
     };
     return { configuration, watch: options['--watch'] === true, checkMetadata: options['--check-metadata'] === true };
 }

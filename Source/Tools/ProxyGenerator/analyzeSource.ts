@@ -10,6 +10,7 @@ import { SourceTypeResolver } from './SourceTypeResolver.js';
 import type { SourceAnalysis } from './SourceAnalysis.js';
 import type { SourceOperation } from './SourceOperation.js';
 import { extractValidatorRules, type ValidatorRules } from './extractValidatorRules.js';
+import type { TypeMappings } from './typeMappings.js';
 import { sourceProgram } from './sourceProgram.js';
 import { warningOption } from './sourceOperationOptions.js';
 import { resolveIdentityDetails } from './resolveIdentityDetails.js';
@@ -103,16 +104,18 @@ function discoverClasses(state: Collection, visit?: (declaration: ts.ClassDeclar
 /** Analyze commands, queries, models, and client-safe validation rules beneath an artifacts root. */
 export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
     program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void,
-    contributingFiles = new Set<string>()): SourceAnalysis & { readonly contributingFiles: readonly string[] } {
+    contributingFiles = new Set<string>(), typeMappings?: TypeMappings): SourceAnalysis & { readonly contributingFiles: readonly string[] } {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
     const state: Collection = {
         checker, program, root, rootNamespace, hasMetadata: generatedMetadata,
         resolver: new SourceTypeResolver(checker, root, generatedMetadata, rootNamespace,
-            declaration => contributingFiles.add(resolve(declaration.getSourceFile().fileName))),
+            declaration => contributingFiles.add(resolve(declaration.getSourceFile().fileName)), typeMappings),
         diagnostics: [], operations: [], validators: [], contributingFiles, targets: new Map(), concepts: new Map()
     };
     discoverClasses(state, visit);
+    for (const type of state.resolver.unusedMappings())
+        state.diagnostics.push(`Type mapping '${type}' did not match any type reachable from ${root}; check its namespace-qualified name`);
     if (!state.operations.length) throw new Error(`No @command or @readModel queries below ${root} in ${project}`);
     const recordedRules = collectSourceRules(state.targets, state.concepts, state.validators, state.operations, state.diagnostics);
     return { operations: state.operations, models: [...state.resolver.models.values()], contributingFiles: [...contributingFiles], recordedRules,

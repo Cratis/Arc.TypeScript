@@ -9,5 +9,7 @@ export interface SourceModel {
     readonly members?: readonly { name: string; value: string | number }[];
     readonly base?: string;
     readonly baseKey?: string;
+    /** Package a mapped base class is imported from; the base is not generated. */
+    readonly basePackage?: string;
     readonly derivedTypeId?: string;
 }
