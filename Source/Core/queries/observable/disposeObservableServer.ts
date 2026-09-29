@@ -10,7 +10,14 @@ export async function disposeObservableServer(hub: ObservableQueryHub, sessions:
     sessions.markDisposed();
     const activeHubConnections = hub.connections.length;
     const hubClosing = hub.dispose();
-    const closing = closeWebSockets?.();
+    let closing: Promise<void> | undefined;
+    // A synchronous throw is a failed close like a rejection: owned services must still be disposed.
+    try { closing = closeWebSockets?.(); }
+    catch (error) {
+        closing = Promise.reject(error);
+        // Reported below after the hub drains; mark it handled so the wait cannot surface as unhandled.
+        closing.catch(() => {});
+    }
     const open = sessions.sessions;
     if (!open.length && !closing && !activeHubConnections) {
         if (ownsServices) await services.dispose();
