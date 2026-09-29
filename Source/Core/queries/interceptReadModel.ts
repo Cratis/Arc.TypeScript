@@ -5,15 +5,21 @@ import { throwIfCanceled } from '../execution/throwIfCanceled.js';
 import type { ReadModelInterceptor } from './ReadModelInterceptor.js';
 import { rawReadModelProvenance } from './rawReadModelDocuments.js';
 
-/** Run the interceptors for one returned item: exact-type instances, or raw documents marked as that type. */
+/**
+ * Run the interceptors for one returned item: exact-type instances, or raw documents marked as that type.
+ *
+ * A raw document its own model's interceptors pass through unchanged is added to `passedThrough`, the only raw
+ * documents the walker then serves. Any other marked raw document that interception returns is still checked.
+ */
 export async function interceptReadModel(item: unknown, interceptors: readonly ReadModelInterceptor[],
-    context: ExecutionContext): Promise<unknown> {
+    context: ExecutionContext, passedThrough?: WeakSet<object>): Promise<unknown> {
     throwIfCanceled(context, 'Query canceled');
     if (item === null || typeof item !== 'object') return item;
     const provenance = rawReadModelProvenance(item);
     if (provenance) {
         const handlers = interceptors.filter(handler => handler.model === provenance.model);
         if (!handlers.length) return item;
+        const document = item;
         if (provenance.tenantId !== context.tenantId)
             throw new Error(`Raw ${provenance.model.name} document belongs to another tenant`);
         for (const handler of handlers) {
@@ -25,11 +31,27 @@ export async function interceptReadModel(item: unknown, interceptors: readonly R
         }
         // Marks are never cleared: the caller trusts only this call's result, and a stored document emitted again
         // is intercepted again rather than passing as already released.
+        if (item === document) passedThrough?.add(document);
         return item;
     }
     for (const handler of interceptors) {
         throwIfCanceled(context, 'Query canceled');
         if (item && typeof item === 'object' && item.constructor === handler.model) {
+            item = await handler.intercept(item);
+            throwIfCanceled(context, 'Query canceled');
+        }
+    }
+    // A later interceptor may return a new instance of a protected model, for example a masked copy, after the
+    // protecting interceptor ran; or an interceptor may return another protected model's instance. Run the
+    // protecting interceptors that do not report the result released on it once, so they release it here; the
+    // walker still fails the query if one of them still does not report it released.
+    if (item !== null && typeof item === 'object' && !rawReadModelProvenance(item)) {
+        const model = item.constructor;
+        for (const handler of interceptors) {
+            if (handler.model !== model || typeof handler.isReleased !== 'function') continue;
+            if (item === null || typeof item !== 'object' || item.constructor !== model) break;
+            if (handler.isReleased(item) === true) continue;
+            throwIfCanceled(context, 'Query canceled');
             item = await handler.intercept(item);
             throwIfCanceled(context, 'Query canceled');
         }
@@ -43,7 +65,8 @@ const leaves = [Date, RegExp, ArrayBuffer, Promise, Map, Set, WeakMap, WeakSet];
  * Fail rather than serve an intercepted read model that Arc could not transform.
  *
  * - A raw document marked as an intercepted model, including a typed array or buffer, fails anywhere except in
- *   `intercepted` (the values interception returned for the top-level, array and page slots).
+ *   `passedThrough` (the raw documents of the top-level, array and page slots that their own model's interceptors
+ *   returned unchanged). An interceptor that returns another marked raw document therefore cannot bypass its check.
  * - An exact-type instance fails, wherever it appears (slots included), when an interceptor for its type opts in
  *   to protection by implementing `isReleased` and one of those interceptors does not report it released. An
  *   interceptor that returns another protected model's instance therefore cannot bypass that model's check.
@@ -54,7 +77,7 @@ const leaves = [Date, RegExp, ArrayBuffer, Promise, Map, Set, WeakMap, WeakSet];
  * fields, are not detected.
  */
 export function assertNoUnreleasedReadModels(data: unknown, interceptors: readonly ReadModelInterceptor[],
-    intercepted: WeakSet<object> = new WeakSet()): void {
+    passedThrough: WeakSet<object> = new WeakSet()): void {
     const models = new Set<unknown>(interceptors.map(handler => handler.model));
     const protecting = new Map<unknown, ReadModelInterceptor[]>();
     for (const handler of interceptors) {
@@ -70,7 +93,7 @@ export function assertNoUnreleasedReadModels(data: unknown, interceptors: readon
         const value = pending.pop()!;
         if (visited.has(value)) continue;
         visited.add(value);
-        if (!intercepted.has(value)) {
+        if (!passedThrough.has(value)) {
             const provenance = rawReadModelProvenance(value);
             if (provenance && models.has(provenance.model))
                 throw new Error(`Raw ${provenance.model.name} documents must be returned directly, in an array, or in a query page; ` +

@@ -48,12 +48,8 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
     throwIfCanceled(context, 'Query canceled');
     if (page && !page.isSuccess) return page;
     if (page) data = page.data;
-    const intercepted = new WeakSet<object>();
-    const intercept = async (item: unknown): Promise<unknown> => {
-        const result = await interceptReadModel(item, interceptors, context);
-        if (result !== null && typeof result === 'object') intercepted.add(result);
-        return result;
-    };
+    const passedThrough = new WeakSet<object>();
+    const intercept = (item: unknown): Promise<unknown> => interceptReadModel(item, interceptors, context, passedThrough);
     if (isQueryPage(data)) {
         const items = [];
         for (const item of data.items) items.push(await intercept(item));
@@ -64,7 +60,7 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
         data = items;
     } else data = await intercept(data);
     throwIfCanceled(context, 'Query canceled');
-    assertNoUnreleasedReadModels(data, interceptors, intercepted);
+    assertNoUnreleasedReadModels(data, interceptors, passedThrough);
     if (page) {
         const output = definition.wireOutput ? encode(data, definition.wireType, definition.wireType) : data;
         throwIfCanceled(context, 'Query canceled');

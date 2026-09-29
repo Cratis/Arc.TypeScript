@@ -9,6 +9,8 @@ describe('when iterating a removed change of a protected model', given(sdk_reads
         context.removed = true;
         model = await context.watched(ProjectedView);
     });
-    it('should not trust the removed model, which the SDK never released', () =>
-        context.isReleased(ProjectedView, model).should.equal(false));
+    it('should not serve the removed payload, which the SDK never released', () =>
+        Object.keys(model).length.should.equal(0));
+    it('should serve an empty instance of the model', () => (model instanceof ProjectedView).should.equal(true));
+    it('should trust the empty instance', () => context.isReleased(ProjectedView, model).should.equal(true));
 }));

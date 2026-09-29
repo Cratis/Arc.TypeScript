@@ -98,8 +98,13 @@ export class ChronicleReadModels {
         for await (const change of (await this.getStore()).readModels.watch(type)) {
             // Older Chronicle SDKs can emit an empty-key subscription marker before the first change.
             if (!change.key) continue;
-            // The SDK never releases a removed changeset's model; leave it unmarked so Arc does not trust it.
-            if (!change.removed) this.released(type, change.readModel);
+            // The SDK never releases a removed changeset's model, so never serve its payload: a removal carries only
+            // its key, with an empty instance that holds no protected data.
+            if (change.removed) {
+                yield { ...change, readModel: markKernelReleased(Object.create(type.prototype) as T) };
+                continue;
+            }
+            this.released(type, change.readModel);
             yield change;
         }
     }
