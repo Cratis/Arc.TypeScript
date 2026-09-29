@@ -23,7 +23,9 @@ builder.withChronicle({
 
 Registration rejects the option together with `client`, because caller-owned clients are not supported yet.
 
-With the option set, building the application checks each reactor's and reducer's registration and its constructor dependencies, without constructing any of them. A missing service or a singleton artifact that depends on a scoped service fails the build.
+With the option set, Chronicle-only artifacts that `discover(...)` found before `withChronicle` was called are registered with Chronicle too. Without it, registration is unchanged.
+
+With the option set, building the application checks each reactor's and reducer's registration and its constructor dependencies, without constructing any of them. A missing service, a constructor Arc cannot bind (for example constructor parameters without `inject` tokens or decorator metadata), or a singleton artifact that depends on a scoped service fails the build, and the error names the artifact.
 
 ## What a delivery gets
 
@@ -31,9 +33,15 @@ For each delivery Chronicle makes to a reactor or reducer, Arc:
 
 - rejects it unless it comes from the configured event store;
 - creates a service scope and resolves the artifact from it, so constructor dependencies are shared by every event in the batch and not by the next batch;
-- sets `currentContext()` for each handler, and for the events and commands it returns: the tenant is the observation's namespace, the correlation is the handled event's correlation, there is no principal, and warnings are allowed;
+- sets `currentContext()` for each handler: the tenant is the observation's namespace, the correlation is the handled event's correlation, there is no principal, the signal is cancelled when the application shuts down, and warnings are allowed;
 - handles a replay notification in its own scope, with a newly generated correlation;
 - disposes the scope after the batch and before Chronicle acknowledges it.
+
+Commands a handler returns follow the rules in [Returning commands from a reactor](command-side-effects.md): they run in the observation's tenant with no principal, or with a system principal when the reactor uses `@executeCommandsAsSystem`. They do not receive the delivery's cancellation yet; each returned command gets its own signal, which shutdown does not abort.
+
+### The tenant in a single-tenant application
+
+The tenant is the observation's namespace as Chronicle reports it, so in an application without tenancy a handler sees `Default`, not an unset tenant. `Default` addresses the same data as an unset tenant: Chronicle maps both to the `Default` namespace, and the MongoDB and Drizzle integrations map it to the base database. Arc keeps `Default` rather than clearing it because those integrations require a tenant and fail without one, and because the commands a reactor returns already run with the namespace as their tenant, so a handler and its commands agree.
 
 A registration you make yourself still wins. A reactor registered as a singleton is shared by all deliveries and is disposed with the application, not after each batch; it cannot depend on scoped services.
 
@@ -46,7 +54,7 @@ A failed delivery is retried. It is not rolled back: appended events, commands a
 
 ## Shutdown
 
-When the application shuts down, Arc stops accepting new deliveries, aborts `currentContext().signal` for running ones, and waits for them to finish and dispose their scopes before it disposes services. Cancellation is cooperative: a handler that ignores the signal delays shutdown until it settles.
+When the application shuts down, Arc stops accepting new deliveries, aborts `currentContext().signal` for running handlers, and waits for them to finish and dispose their scopes before it disposes services. Cancellation is cooperative: a handler that ignores the signal delays shutdown until it settles.
 
 ## Use the activator directly
 
