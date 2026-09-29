@@ -19,7 +19,8 @@ builder.withMongoDB({
     namingPolicy: camelCaseMongoNamingPolicy,
     // Chronicle's TypeScript client stores a projected read model in a collection named after its
     // identifier: the class name, unpluralized (User), unless @readModel gives it another id. Both
-    // built-in policies pluralize (users), so read the collection Chronicle writes.
+    // built-in policies pluralize (users), so read the collection Chronicle writes. Return the
+    // @readModel id instead for a read model that sets one.
     collectionName: type => type.name
 });
 const app = await builder.build();
