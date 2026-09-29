@@ -59,7 +59,7 @@ export class a_projection {
             getInstances: this.getInstances, watch: this.watch } }) as unknown as IEventStore);
     readonly context: ExecutionContext = { tenantId: 'tenant-a', correlationId: crypto.randomUUID(), principal: undefined,
         signal: new AbortController().signal, allowedSeverity: Severity.Warning };
-    readonly runtime = { getStore: this.getStore } as unknown as ChronicleRuntime;
+    readonly runtime = { getStore: this.getStore, artifacts: this.artifacts } as unknown as ChronicleRuntime;
     constructor() {
         for (const type of [Created, PrivateView, PublicView, ReducedViewReducer]) this.artifacts.register(type);
     }

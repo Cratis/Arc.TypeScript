@@ -34,7 +34,7 @@ Arc selects a tenant from the execution context, and the collection selects that
 
 The original `MongoReadModels<T, I>` remains for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`, and caps pages at 100 by default. It has no change streams or field codecs; use the model-bound collection for those.
 
-`MongoReadModels` returns raw driver documents. When they hold a protected Chronicle read model, set `readModel` to that class so Arc can release them. See [Release raw MongoDB documents](../chronicle/compliance.md#release-raw-mongodb-documents).
+`MongoReadModels` returns raw driver documents. When they hold a protected Chronicle read model, set `readModel` to that class so Arc can release them. The class must also be registered with `withChronicle`; otherwise Arc has no release interceptor for it and serves the documents as stored. See [Release raw MongoDB documents](../chronicle/compliance.md#release-raw-mongodb-documents).
 
 ## Current boundaries
 

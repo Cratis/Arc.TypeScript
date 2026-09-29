@@ -22,7 +22,7 @@ An Arc application meets compliance at two points: when a command appends events
 
 Mark the **read-model property** `@pii()` as well as the event property when projected personal data must be encrypted at rest. Marking only the event protects the event log but leaves the projected read-model field in plaintext.
 
-Chronicle releases values on reads through Chronicle, including `ChronicleReadModels` snapshots, observations, watches, and command injection. Arc does not release those instances again. Instances obtained by calling the SDK directly through `ChronicleReadModels.getStore()`, or clones of released instances, may receive an extra, harmless release at the Arc query edge.
+Chronicle releases values on reads through Chronicle, including `ChronicleReadModels` snapshots, observations, watches, and command injection. Arc does not release those instances again. The exception is a reducer model whose protection sits only in nested values or `@encrypted()` fields, or the model of a removed watch change: the TypeScript SDK does not release those, so Arc does not trust them. Returned directly, in an array or in a query page, Arc releases them at the query edge; nested inside another shape, they fail the query. Instances obtained by calling the SDK directly through `ChronicleReadModels.getStore()`, or clones of released instances, may receive an extra, harmless release at the Arc query edge.
 
 ### Release at the Arc query edge
 
@@ -48,7 +48,7 @@ Chronicle stores bookkeeping with every materialized document: `__lastHandledEve
 The query fails rather than serving stored values when:
 
 - the document has a field the read model's schema does not declare, including a name that differs only by case or naming policy;
-- a value is not JSON: BSON `ObjectId`, `Binary`, `Decimal128`, and `Long` are rejected, although `Date` is accepted. A `Guid` field stored as a BSON `Binary` UUID therefore fails the read; the key in `_id` is served as stored and is not checked;
+- a value is not JSON: BSON `ObjectId`, `Binary`, and `Decimal128` are rejected, although `Date` is accepted. With the driver's default promotion, an int64 within the safe integer range (±2^53) arrives as a JavaScript number and is accepted; only int64 values outside that range, which arrive as a BSON `Long` (or a `bigint` with `useBigInt64`), are rejected. A `Guid` field stored as a BSON `Binary` UUID therefore fails the read; the key in `_id` is served as stored and is not checked;
 - an object or array does not have a declared schema;
 - the document's `id` or `@subject()` value, or its stored `__subject`, differs from the marked subject;
 - the document has per-property subjects in a non-empty `__subjects`, which Chronicle stores for models that join personal data from several subjects. Arc cannot release these yet; read such models through `ChronicleReadModels`;

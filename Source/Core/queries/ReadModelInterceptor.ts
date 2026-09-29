@@ -15,10 +15,11 @@ export interface ReadModelInterceptor<T extends object = object> {
      */
     interceptRawDocument?(document: object, provenance: RawReadModelProvenance): object | Promise<object>;
     /**
-     * Opt in to protecting this model wherever it appears. When present, an instance found nested inside a
-     * returned shape (outside the top-level, array and page slots Arc intercepts) is served only if this returns
-     * true; otherwise Arc fails the query. Interceptors that omit it do not protect nested instances: those are
-     * served as they are, untransformed.
+     * Opt in to protecting this model wherever it appears. When present, every exact-type instance in a result,
+     * including the values `intercept` returned for the top-level, array and page slots, is served only if this
+     * returns true; otherwise Arc fails the query. It must therefore return true for anything this interceptor's
+     * `intercept` returns. Interceptors that omit it do not protect nested instances: those are served as they
+     * are, untransformed.
      */
     isReleased?(model: T): boolean;
 }

@@ -16,7 +16,8 @@ export interface MongoReadModelsOptions<T extends Document, I> {
     /**
      * The read model these raw documents hold. When set, every returned document carries the model, tenant and
      * subject so a registered read-model interceptor (such as Chronicle's compliance release) transforms it before
-     * it is served, and field projections are rejected.
+     * it is served, and field projections are rejected. Chronicle releases the documents only when this class is
+     * registered with `withChronicle`; otherwise no interceptor exists for it and they are served as stored.
      */
     readonly readModel?: ClassType;
     /**

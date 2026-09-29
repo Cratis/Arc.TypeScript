@@ -11,5 +11,5 @@ describe('when a protected instance is nested inside another shape', given(raw_d
         try { assertNoUnreleasedReadModels({ joined: { people: [new Person()] } }, [interceptor]); }
         catch (reason) { error = reason as Error; }
     });
-    it('should fail', () => { error!.message.should.contain('nested instances that were not released are not supported'); });
+    it('should fail', () => { error!.message.should.contain('instances that were not released are not supported'); });
 }));

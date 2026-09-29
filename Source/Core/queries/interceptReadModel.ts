@@ -42,13 +42,14 @@ const leaves = [Date, RegExp, ArrayBuffer, Promise, Map, Set, WeakMap, WeakSet];
 /**
  * Fail rather than serve an intercepted read model that Arc could not transform.
  *
- * - A raw document marked as an intercepted model fails anywhere except in `intercepted` (the values interception
- *   returned for the top-level, array and page slots).
- * - An exact-type instance nested inside another shape fails only when an interceptor for its type opts in to
- *   protection by implementing `isReleased`, and one of those interceptors does not report it released.
- *   Interceptors without `isReleased` keep the pass-through behavior for nested instances.
+ * - A raw document marked as an intercepted model, including a typed array or buffer, fails anywhere except in
+ *   `intercepted` (the values interception returned for the top-level, array and page slots).
+ * - An exact-type instance fails, wherever it appears (slots included), when an interceptor for its type opts in
+ *   to protection by implementing `isReleased` and one of those interceptors does not report it released. An
+ *   interceptor that returns another protected model's instance therefore cannot bypass that model's check.
+ *   Interceptors without `isReleased` keep the pass-through behavior.
  *
- * Only own enumerable values are walked, iteratively; typed arrays, buffers and other leaf types are skipped.
+ * Only own enumerable values are walked, iteratively; typed arrays, buffers and other leaf types are not descended.
  * Documents copied or mapped into new objects, and values reachable only through `toJSON()`, getters or private
  * fields, are not detected.
  */
@@ -69,17 +70,17 @@ export function assertNoUnreleasedReadModels(data: unknown, interceptors: readon
         const value = pending.pop()!;
         if (visited.has(value)) continue;
         visited.add(value);
-        if (ArrayBuffer.isView(value) || leaves.some(type => value instanceof type)) continue;
         if (!intercepted.has(value)) {
             const provenance = rawReadModelProvenance(value);
             if (provenance && models.has(provenance.model))
                 throw new Error(`Raw ${provenance.model.name} documents must be returned directly, in an array, or in a query page; ` +
                     'nested or projected raw documents are not supported');
-            const handlers = protecting.get(value.constructor);
-            if (handlers && !handlers.every(handler => handler.isReleased!(value) === true))
-                throw new Error(`${(value.constructor as { name: string }).name} read models must be returned directly, ` +
-                    'in an array, or in a query page; nested instances that were not released are not supported');
         }
+        if (ArrayBuffer.isView(value) || leaves.some(type => value instanceof type)) continue;
+        const handlers = protecting.get(value.constructor);
+        if (handlers && !handlers.every(handler => handler.isReleased!(value) === true))
+            throw new Error(`${(value.constructor as { name: string }).name} read models must be returned directly, ` +
+                'in an array, or in a query page; instances that were not released are not supported');
         if (Array.isArray(value)) {
             for (let index = 0; index < value.length; index++) {
                 const child: unknown = value[index];
