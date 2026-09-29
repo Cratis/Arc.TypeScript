@@ -10,6 +10,13 @@ every exported artifact, and their commands and reactors are run in process: reg
 through the in-memory Chronicle command scenario, the expiry command against seeded
 reservation history, and each reactor's returned commands through Arc's reactor result
 handler. Nothing here needs a Chronicle kernel, so constraints are only checked for discovery.
+
+The Real-Time Chat backends are built into an Arc application from discovery and run in process,
+each shown file compiled as its own module, so an import cycle between them fails here as it
+fails the application:
+a subscriber to the room's query receives each message the command sends, the delta transfer sends
+only the new message, and the RabbitMQ variant's room loads its history and receives from a
+stand-in broker.
 """
 
 import importlib.util
@@ -46,7 +53,13 @@ SLICE_IDS = (
     "scenarios/vertical-slices/translator/hr-integration",
 )
 
-IDS = STATE_VIEW_IDS + SLICE_IDS
+# The Real-Time Chat pages: each shows a whole chat backend.
+CHAT_IDS = (
+    "scenarios/chat/in-memory/backend",
+    "scenarios/chat/rabbitmq/backend",
+)
+
+IDS = STATE_VIEW_IDS + SLICE_IDS + CHAT_IDS
 
 # The script is run outside the discovered folder: NodeArcApplicationBuilder refuses to
 # discover its own bootstrap. Both source analysis and runtime discovery use actual output
@@ -59,6 +72,7 @@ import { analyzeSource } from '__ROOT__/Source/Tools/ProxyGenerator/dist/analyze
 import { renderSource } from '__ROOT__/Source/Tools/ProxyGenerator/dist/renderSource.js';
 import { NodeArcApplicationBuilder } from '__ROOT__/Source/Core/dist/NodeArcApplicationBuilder.js';
 import { ChronicleArtifacts } from '__ROOT__/Source/Chronicle/dist/ChronicleArtifacts.js';
+import { ObservableTransfer } from '__ROOT__/Source/Core/dist/queries/observable/ObservableTransfer.js';
 import { ProjectionDefinitionCompiler } from '__ROOT__/node_modules/@cratis/chronicle/dist/projections/ProjectionDefinitionCompiler.js';
 
 const root = process.cwd();
@@ -99,9 +113,16 @@ console.log('PASS State View source proxies, Node discovery and Author projectio
 
 // Each snippet compiles in the folder its page's layout gives it (Context.location), beside
 // copies of the page snippets it imports by relative path.
+// A multi-file snippet (Context.files) is one module per shown file; its exports are merged,
+// imported in the sorted order Arc's discovery loads them.
 const folders = __FOLDERS__;
+const fileStems = __MODULES__;
 const load = (id, file) => import(pathToFileURL(join(root, 'dist/snippets', folders[id], file)).href);
-const slice = async id => load(id, 'snippet.js');
+const slice = async id => {
+    const merged = {};
+    for (const stem of fileStems[id]) Object.assign(merged, await load(id, `${stem}.js`));
+    return merged;
+};
 const discovered = async id => {
     const catalog = new ChronicleArtifacts();
     const seen = new Set();
@@ -261,6 +282,119 @@ const { MemberName: RegistrationMemberName } = await load(ids.memberRegistration
     } finally { await registration.dispose(); }
 }
 console.log('PASS vertical-slice commands and reactors run in process: registration, expiry and member import');
+
+// Real-Time Chat: build each backend into an Arc application from discovery, subscribe to a room,
+// send through the command and watch the subscription receive the message.
+const { Guid } = await import('@cratis/fundamentals');
+const { Severity } = await import('@cratis/arc.core');
+const execution = () => ({ correlationId: Guid.create().toString(), principal: undefined, tenantId: undefined,
+    signal: new AbortController().signal, allowedSeverity: Severity.Warning });
+const chatApplication = async (id, register = () => {}) => {
+    const builder = new NodeArcApplicationBuilder();
+    register(builder);
+    await builder.discover(pathToFileURL(join(root, 'dist/snippets', folders[id])));
+    const app = await builder.build();
+    const name = (operations, operation) => {
+        const found = operations.filter(candidate => candidate.name === operation);
+        assert.equal(found.length, 1, `${id}: ${operation} is not registered once: ${operations.map(item => item.name).join(', ')}`);
+        return found[0].fullyQualifiedName;
+    };
+    return { app, send: name(app.server.commands, 'SendMessage'), forRoom: name(app.server.queries, 'forRoom') };
+};
+const next = async (results, label) => {
+    const result = await Promise.race([results.next(), new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}: no emission`)), 5000))]);
+    assert.equal(result.done, false, `${label}: the subscription ended`);
+    assert.ok(result.value.isSuccess, `${label}: ${JSON.stringify(result.value)}`);
+    return result.value;
+};
+const sendMessage = async (chat, roomName, user, message) => {
+    const sent = await chat.app.server.executeCommand(chat.send, { roomName, user, message }, execution());
+    assert.ok(sent.isSuccess, `SendMessage failed: ${JSON.stringify(sent)}`);
+};
+const users = result => result.data.map(item => `${item.user}: ${item.message}`);
+
+// In-memory: the room is a BehaviorSubject in a @singleton ChatService.
+{
+    const id = 'scenarios_chat_in_memory_backend';
+    expectDiscovered(id, await discovered(id), await slice(id), { arc: ['ChatMessage', 'SendMessage'] });
+    proxiesFor(id, ['ForRoom', 'SendMessage', 'ChatMessage']);
+    const chat = await chatApplication(id);
+    try {
+        const session = await chat.app.server.openObservableQuery(chat.forRoom, { roomName: 'lobby' }, execution());
+        assert.equal(session.rejection, undefined, `forRoom was rejected: ${JSON.stringify(session.rejection)}`);
+        const results = session.results();
+        const transfer = new ObservableTransfer('delta');
+        const frame = result => { const prepared = transfer.prepare(result); prepared.commit(); return prepared.payload; };
+        try {
+            const initial = await next(results, 'initial history');
+            assert.deepEqual(initial.data, []);
+            assert.deepEqual(frame(initial).data, []);
+
+            await sendMessage(chat, 'lobby', 'ada', 'hello');
+            const first = await next(results, 'first message');
+            assert.deepEqual(users(first), ['ada: hello']);
+            const firstFrame = frame(first);
+            assert.equal(firstFrame.data, undefined, 'a delta frame carried the whole history');
+            assert.equal(firstFrame.changeSet.added.length, 1);
+            assert.equal(typeof firstFrame.changeSet.added[0].id, 'string', 'ChatMessage.id is not a string on the wire');
+
+            await sendMessage(chat, 'lobby', 'grace', 'hi');
+            const second = await next(results, 'second message');
+            assert.deepEqual(users(second), ['ada: hello', 'grace: hi']);
+            const secondFrame = frame(second);
+            assert.deepEqual(secondFrame.changeSet.added.map(item => item.user), ['grace'], 'the delta is not only the new message');
+            assert.deepEqual(secondFrame.changeSet.removed, []);
+            assert.deepEqual(secondFrame.changeSet.replaced, []);
+        } finally { await results.return(undefined); await session.close(); }
+
+        // A snapshot of the room answers from the current value, and rooms do not share messages.
+        const snapshot = await chat.app.server.performQuery(chat.forRoom, { roomName: 'lobby' }, execution());
+        assert.deepEqual(users(snapshot), ['ada: hello', 'grace: hi']);
+        const other = await chat.app.server.performQuery(chat.forRoom, { roomName: 'kitchen' }, execution());
+        assert.deepEqual(other.data, []);
+    } finally { await chat.app.dispose(); }
+}
+
+// RabbitMQ: the room loads its history from ChatPersistence, SendMessage publishes through
+// ChatPublisher, and a stand-in broker delivers the envelope back to the room.
+{
+    const id = 'scenarios_chat_rabbitmq_backend';
+    const module = await slice(id);
+    expectDiscovered(id, await discovered(id), module, { arc: ['ChatMessage', 'SendMessage'] });
+    proxiesFor(id, ['ForRoom', 'SendMessage', 'ChatMessage']);
+    const { ChatPersistence, ChatPublisher, ChatService, ChatMessage, ChatMessageId } = module;
+    const stored = new ChatMessage(ChatMessageId.create(), 'system', new Date(0), 'welcome');
+    const published = [];
+    class StoredHistory extends ChatPersistence {
+        async history(roomName) { return roomName === 'lobby' ? [stored] : []; }
+    }
+    class LoopbackBroker extends ChatPublisher {
+        static inject = [ChatService];
+        constructor(chatService) { super(); this.chatService = chatService; }
+        async publish(envelope) {
+            published.push(envelope);
+            const room = await this.chatService.getChatRoom(envelope.roomName);
+            room.receive(new ChatMessage(new ChatMessageId(Guid.parse(envelope.id)), envelope.user, new Date(envelope.sentAt), envelope.message));
+        }
+    }
+    const chat = await chatApplication(id, builder => {
+        builder.services.addSingleton(ChatPersistence, StoredHistory);
+        builder.services.addSingleton(ChatPublisher, LoopbackBroker);
+    });
+    try {
+        const session = await chat.app.server.openObservableQuery(chat.forRoom, { roomName: 'lobby' }, execution());
+        assert.equal(session.rejection, undefined, `forRoom was rejected: ${JSON.stringify(session.rejection)}`);
+        const results = session.results();
+        try {
+            assert.deepEqual(users(await next(results, 'persisted history')), ['system: welcome']);
+            await sendMessage(chat, 'lobby', 'ada', 'hello');
+            assert.equal(published.length, 1);
+            assert.equal(published[0].roomName, 'lobby');
+            assert.deepEqual(users(await next(results, 'received message')), ['system: welcome', 'ada: hello']);
+        } finally { await results.return(undefined); await session.close(); }
+    } finally { await chat.app.dispose(); }
+}
+console.log('PASS chat backends run in process: a room subscriber receives each sent message, as a one-message delta');
 """
 
 
@@ -289,8 +423,10 @@ def main():
         check = project / "check.mjs"
         folders = {validator.slug(snippet_id): "/".join(part for part in (validator.slug(snippet_id),
                    validator.SNIPPETS[snippet_id].location) if part) for snippet_id in IDS}
-        check.write_text(CHECK.replace("__ROOT__", ROOT.as_posix()).replace("__FOLDERS__", json.dumps(folders)),
-                         encoding="utf-8")
+        modules = {validator.slug(snippet_id): sorted(stem for stem, _ in validator.module_files(
+                   snippet, validator.SNIPPETS[snippet_id])) for snippet_id, snippet in zip(IDS, snippets)}
+        check.write_text(CHECK.replace("__ROOT__", ROOT.as_posix()).replace("__FOLDERS__", json.dumps(folders))
+                         .replace("__MODULES__", json.dumps(modules)), encoding="utf-8")
         for command in ([str(validator.TSC), "-p", str(config), "--pretty", "false"], ["node", str(check)]):
             result = subprocess.run(command, cwd=project, check=False)
             if result.returncode:
