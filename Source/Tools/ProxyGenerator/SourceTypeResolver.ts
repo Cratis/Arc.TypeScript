@@ -5,6 +5,7 @@ import { dirname, relative, sep } from 'node:path';
 import type { SourceField } from './SourceField.js';
 import type { SourceModel } from './SourceModel.js';
 import type { SourceType } from './SourceType.js';
+import { resolveTypeMappings, type ResolvedTypeMapping, type TypeMappings } from './typeMappings.js';
 import { fieldName, isPackageSymbol, isStandardType, isTypeFrom, originalSymbol } from './sourceSymbols.js';
 
 const fundamentals = new Set(['Guid', 'DateOnly', 'TimeOnly', 'TimeSpan']);
@@ -14,7 +15,20 @@ export class SourceTypeResolver {
     private readonly declarations = new Map<string, ts.Declaration>();
     constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string,
         private readonly generatedMetadata = false, private readonly rootNamespace = '',
-        private readonly contribute: (declaration: ts.Declaration) => void = () => {}) {}
+        private readonly contribute: (declaration: ts.Declaration) => void = () => {}, typeMappings?: TypeMappings) {
+        this.mappings = resolveTypeMappings(typeMappings);
+    }
+    private readonly mappings: ReadonlyMap<string, ResolvedTypeMapping>;
+    private readonly usedMappings = new Set<string>();
+    /** Mappings that never matched a reachable type: almost always a misspelled key. */
+    unusedMappings(): string[] { return [...this.mappings.keys()].filter(key => !this.usedMappings.has(key)); }
+    /** An imported class is its own runtime constructor; an imported enum keeps the primitive constructor it would have had. */
+    private mapped(key: string, enumConstructor?: 'String' | 'Number'): SourceType | undefined {
+        const mapping = this.mappings.get(key);
+        if (!mapping) return undefined;
+        this.usedMappings.add(key);
+        return { ...primitive(mapping.export, enumConstructor ?? mapping.export), package: mapping.package, mapped: true };
+    }
     private namespace(declaration: ts.Declaration): string {
         const segments = relative(this.artifacts, dirname(declaration.getSourceFile().fileName)).split(sep).filter(Boolean);
         if (segments.includes('..')) throw new Error(`${declaration.getSourceFile().fileName}: reachable model is outside the artifacts root`);
@@ -73,6 +87,8 @@ export class SourceTypeResolver {
         if (declaration && name && !declaration.getSourceFile().isDeclarationFile) {
             this.contribute(declaration);
             const key = [this.namespace(declaration), name].filter(Boolean).join('.');
+            const mapped = this.mapped(key);
+            if (mapped) return { ...mapped, nullable };
             this.checkIdentity(key, declaration);
             if (!this.models.has(key)) {
                 this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields: [] });
@@ -106,6 +122,7 @@ export class SourceTypeResolver {
                 const baseType = type.getBaseTypes()?.find(base => base.symbol?.declarations?.some(ts.isClassDeclaration) &&
                     !base.symbol.declarations.every(origin => origin.getSourceFile().isDeclarationFile));
                 const base = baseType ? this.resolve(baseType, declaration) : undefined;
+                const basePackage = base?.mapped ? base.package : undefined;
                 const derived = (ts.getDecorators(declaration) ?? []).map(decorator => decorator.expression).find(expression => {
                     if (!ts.isCallExpression(expression)) return false;
                     const symbol = ts.isPropertyAccessExpression(expression.expression) ? expression.expression.name : expression.expression;
@@ -113,7 +130,7 @@ export class SourceTypeResolver {
                 });
                 const derivedTypeId = derived && ts.isCallExpression(derived) && derived.arguments[0] && ts.isStringLiteral(derived.arguments[0]) ? derived.arguments[0].text : undefined;
                 this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields,
-                    base: base?.model, baseKey: base?.modelKey, derivedTypeId });
+                    base: basePackage ? base!.text : base?.model, baseKey: base?.modelKey, basePackage, derivedTypeId });
             }
             return { ...primitive(name, name), model: name, modelKey: key, nullable };
         }
@@ -127,6 +144,8 @@ export class SourceTypeResolver {
         const members = declaration.members.map(member => ({ name: fieldName(member.name), value: this.checker.getConstantValue(member) }));
         if (members.some(member => typeof member.value !== 'number' && typeof member.value !== 'string')) return this.unsupported(type, location);
         const key = [this.namespace(declaration), name].filter(Boolean).join('.');
+        const mapped = this.mapped(key, typeof members[0]?.value === 'string' ? 'String' : 'Number');
+        if (mapped) return { ...mapped, nullable };
         this.checkIdentity(key, declaration);
         this.models.set(key, {
             kind: 'enum', name, namespace: this.namespace(declaration), fields: [], members: members as { name: string; value: number | string }[]

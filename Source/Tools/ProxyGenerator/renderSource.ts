@@ -77,8 +77,8 @@ export function aliasTypes(types: readonly SourceType[], source: string, destina
 }
 export function renderModel(model: SourceModel, path: string, destinations: ReadonlyMap<string, string>, options: SourceRenderOptions = {}): string {
     if (model.kind === 'enum') return `export enum ${model.name} {\n${model.members!.map(member => `    ${member.name} = ${typeof member.value === 'string' ? quote(member.value) : member.value},`).join('\n')}\n}\n`;
-    const base = model.base ? { text: model.base, constructor: model.base, model: model.base, modelKey: model.baseKey,
-        enumerable: false, nullable: false, void: false } : undefined;
+    const base: SourceType | undefined = model.base ? { text: model.base, constructor: model.base, model: model.basePackage ? undefined : model.base,
+        modelKey: model.baseKey, package: model.basePackage, mapped: !!model.basePackage, enumerable: false, nullable: false, void: false } : undefined;
     const types = aliasTypes([...model.fields.map(field => field.type), ...(base ? [base] : [])], path, destinations, model.name);
     model = { ...model, fields: model.fields.map((field, index) => ({ ...field, type: types[index]! })), base: base && types.at(-1)!.text };
     const baseType = base && types.at(-1);
@@ -99,6 +99,23 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
     const fields = model.fields.map(field => `    @field(${field.type.constructor}${field.type.enumerable ? ', true' : ''})\n    ${wireName(field.name)}${field.optional ? '?' : '!'}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n\n');
     return `${imports.join('\n')}${imports.length ? '\n\n' : ''}${model.derivedTypeId ? `@derivedType(${quote(model.derivedTypeId)})\n` : ''}export class ${model.name}${model.base ? ` extends ${model.base}` : ''} {${fields ? `\n${fields}\n` : '\n'}}\n`;
 }
+const importedNames = /^import\s+(?:type\s+)?\{([^}]*)\}\s+from\s/gm;
+const declaredNames = /^(?:export\s+)?(?:abstract\s+)?(?:class|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm;
+/** A mapped type is imported under its export name; refuse a file where anything else already owns that name. */
+function checkMappedNames(path: string, text: string, mapped: ReadonlySet<string>): void {
+    const names = [...text.matchAll(importedNames)].flatMap(match => match[1]!.split(',').map(part => part.trim().replace(/^type\s+/, '').split(/\s+as\s+/).at(-1)!))
+        .concat([...text.matchAll(declaredNames)].map(match => match[1]!));
+    for (const name of mapped) {
+        if (names.filter(candidate => candidate === name).length > 1)
+            throw new Error(`Type mapping export '${name}' collides with another import or declaration named '${name}' in ${path}`);
+    }
+}
+function mappedNames(analysis: SourceAnalysis): Set<string> {
+    const types = [...analysis.models.flatMap(model => model.fields.map(field => field.type)),
+        ...analysis.operations.flatMap(operation => [operation.result, ...operation.fields.map(field => field.type)])];
+    return new Set([...types.filter(type => type.mapped).map(type => type.text.replace(/\[\]$/, '')),
+        ...analysis.models.filter(model => model.basePackage).map(model => model.base!)]);
+}
 /** Render analyzer results without importing or executing the application. */
 export function renderSource(analysis: SourceAnalysis, options: SourceRenderOptions = {}): ReadonlyMap<string, string> {
     const destinations = new Map<string, string>();
@@ -106,7 +123,9 @@ export function renderSource(analysis: SourceAnalysis, options: SourceRenderOpti
     for (const message of analysis.diagnostics ?? []) diagnostic(message);
     const files = new Map<string, string>();
     const folded = new Set<string>();
+    const mapped = mappedNames(analysis);
     const add = (path: string, text: string): void => {
+        checkMappedNames(path, text, mapped);
         if (folded.has(path.toLowerCase())) throw new Error(`Generated output collision: ${path}`);
         folded.add(path.toLowerCase());
         files.set(path, notice + (text.startsWith('export enum ') ? '' : `/* eslint-disable sort-imports */\n${text.includes('export interface I') ? '/* eslint-disable @typescript-eslint/no-empty-interface */\n' : ''}`) + '// eslint-disable-next-line header/header\n' + text);

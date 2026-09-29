@@ -34,7 +34,7 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
     const outputRoot = await realpath(configuration.output);
     const program = sourceProgram(configuration.project);
     const analysis = analyzeSource(configuration.project, root, configuration.rootNamespace,
-        !!configuration.metadata || configuration.generatedMetadata === true, program);
+        !!configuration.metadata || configuration.generatedMetadata === true, program, undefined, undefined, configuration.typeMappings);
     const separateOutput = !(await isColocatedOutput(root, outputRoot, analysis));
     const watched = new Set(await externalFiles(root, outputRoot, metadata, separateOutput, program));
     let timer: NodeJS.Timeout | undefined, pending: Promise<void> = Promise.resolve();

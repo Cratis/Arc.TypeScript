@@ -9,6 +9,8 @@ export interface SourceType {
     /** Local import name when a model name collides in the generated file. */
     readonly alias?: string;
     readonly package?: string;
+    /** Set when the type is imported from a user-configured package mapping rather than generated. */
+    readonly mapped?: boolean;
     readonly enumerable: boolean;
     readonly nullable: boolean;
     readonly void: boolean;

@@ -13,7 +13,8 @@ import { watchSource } from './watchSource.js';
 const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <folder>' +
     ' [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch]' +
     ' [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>]' +
-    ' [--use-proxy-file-suffix] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces] [--skip-react-hooks]';
+    ' [--use-proxy-file-suffix] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces] [--skip-react-hooks]' +
+    ' [--type-mapping <Type>=<package>[#<export>]]...';
 
 async function generateManifest(): Promise<void> {
     const [manifestPath, outputRoot, extra] = process.argv.slice(2);
