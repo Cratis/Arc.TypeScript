@@ -9,6 +9,8 @@ import { camelCaseMongoNamingPolicy } from '../MongoNamingPolicy.js';
 import { resolveMongoCollectionName } from '../resolveMongoCollectionName.js';
 import '../withMongoDB.js';
 
+class Unregistered {}
+
 should();
 describe('when registering MongoDB with a naming policy and a collection override', () => {
     const overridden = (type: new () => object) => type === TaskRecord ? 'Tasks' : `${type.name}!`;
@@ -30,6 +32,8 @@ describe('when registering MongoDB with a naming policy and a collection overrid
     });
     it('should expose the override to other integrations', () => rule(TaskRecord).should.equal('Tasks'));
     it('should expose the naming policy name when there is no override', () => ruleWithoutOverride(TaskRecord).should.equal('taskRecords'));
+    it('should leave a class that is not registered to the other integration', () =>
+        (ruleWithoutOverride(Unregistered) === undefined).should.equal(true));
     it('should resolve the same name as Arc reads the collection from', () =>
         ruleWithoutOverride(TaskRecord).should.equal(resolveMongoCollectionName({ namingPolicy: camelCaseMongoNamingPolicy }, TaskRecord)));
 });

@@ -25,7 +25,9 @@ export function withMongoDB(builder: ArcApplicationBuilder, configured: MongoDBO
     const factory = new MongoClientFactory(options);
     builder.services.addSingleton(mongoClientFactory, () => factory);
     // Lets integrations that store read models elsewhere, such as Chronicle, use the collection Arc reads from.
-    builder.services.addSingleton(readModelCollectionNameResolver, () => (type: new () => object) => resolveMongoCollectionName(options, type));
+    // Arc reads only the classes registered in readModels, so any other class keeps the other integration's name.
+    builder.services.addSingleton(readModelCollectionNameResolver, () => (type: new () => object) =>
+        options.readModels.includes(type) ? resolveMongoCollectionName(options, type) : undefined);
     builder.services.addScoped(MongoReadModelForCommandResolver, () => new MongoReadModelForCommandResolver(options));
     builder.addReadModelForCommandResolver(MongoReadModelForCommandResolver);
     const resolveDatabase = async (scope: ServiceScope) => {

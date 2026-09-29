@@ -67,9 +67,10 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     // Only scoped activation also claims Chronicle-only classes discovered before withChronicle; without it, behavior is unchanged.
     }, activator !== undefined);
     builder.services.addSingleton(ChronicleRuntime, async scope => {
-        // withMongoDB registers the collection rule after or before this call; resolving here, once Arc is built, sees both.
-        const collectionName = registration.client || registration.readModelNamingPolicy ||
-            !builder.services.registrations.some(registered => registered.token === readModelCollectionNameResolver) ? undefined :
+        // withMongoDB may register the collection rule before or after this call; checking here, once Arc is built, sees both.
+        // optionalService only binds command and query parameters, and scope.resolve rejects it, so look the registration up.
+        const hasCollectionRule = builder.services.registrations.some(registered => registered.token === readModelCollectionNameResolver);
+        const collectionName = registration.client || registration.readModelNamingPolicy || !hasCollectionRule ? undefined :
             await scope.resolve(readModelCollectionNameResolver);
         return new ChronicleRuntime(registration as ChronicleRegistration, artifacts, () => {
             if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');

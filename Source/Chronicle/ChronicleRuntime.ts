@@ -17,9 +17,10 @@ export class ChronicleRuntime {
         artifactActivator?: ClientArtifactsActivator, collectionName?: ReadModelCollectionName) {
         if (!options.eventStore) throw new Error('A Chronicle event store is required');
         // An explicit policy wins. Otherwise store a read model class where the application's storage integration reads
-        // it, and keep the identifier when the client knows no class, as the SDK does without a policy.
+        // it, and keep the identifier when the client knows no class or the integration does not read it, as the SDK
+        // does without a policy.
         const readModelNamingPolicy: ReadModelNamingPolicy | undefined = options.readModelNamingPolicy ??
-            (collectionName ? (identifier, readModelType) => readModelType ? collectionName(readModelType) : identifier : undefined);
+            (collectionName ? (identifier, readModelType) => readModelType ? collectionName(readModelType) ?? identifier : identifier : undefined);
         this.#owned = !options.client;
         this.#client = options.client ?? new ChronicleClient(ChronicleOptions.fromConnectionString(options.connectionString!, {
             clientArtifactsProvider: artifacts, discoveryPatterns: [], reactorResultHandler: reactorCommandResultHandler(server, options.eventStore),
