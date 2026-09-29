@@ -11,7 +11,9 @@ through the in-memory Chronicle command scenario, the expiry command against see
 reservation history, and each reactor's returned commands through Arc's reactor result
 handler. Nothing here needs a Chronicle kernel, so constraints are only checked for discovery.
 
-The Real-Time Chat backends are built into an Arc application from discovery and run in process:
+The Real-Time Chat backends are built into an Arc application from discovery and run in process,
+each shown file compiled as its own module, so an import cycle between them fails here as it
+fails the application:
 a subscriber to the room's query receives each message the command sends, the delta transfer sends
 only the new message, and the RabbitMQ variant's room loads its history and receives from a
 stand-in broker.
@@ -111,9 +113,16 @@ console.log('PASS State View source proxies, Node discovery and Author projectio
 
 // Each snippet compiles in the folder its page's layout gives it (Context.location), beside
 // copies of the page snippets it imports by relative path.
+// A multi-file snippet (Context.files) is one module per shown file; its exports are merged,
+// imported in the sorted order Arc's discovery loads them.
 const folders = __FOLDERS__;
+const fileStems = __MODULES__;
 const load = (id, file) => import(pathToFileURL(join(root, 'dist/snippets', folders[id], file)).href);
-const slice = async id => load(id, 'snippet.js');
+const slice = async id => {
+    const merged = {};
+    for (const stem of fileStems[id]) Object.assign(merged, await load(id, `${stem}.js`));
+    return merged;
+};
 const discovered = async id => {
     const catalog = new ChronicleArtifacts();
     const seen = new Set();
@@ -414,8 +423,10 @@ def main():
         check = project / "check.mjs"
         folders = {validator.slug(snippet_id): "/".join(part for part in (validator.slug(snippet_id),
                    validator.SNIPPETS[snippet_id].location) if part) for snippet_id in IDS}
-        check.write_text(CHECK.replace("__ROOT__", ROOT.as_posix()).replace("__FOLDERS__", json.dumps(folders)),
-                         encoding="utf-8")
+        modules = {validator.slug(snippet_id): sorted(stem for stem, _ in validator.module_files(
+                   snippet, validator.SNIPPETS[snippet_id])) for snippet_id, snippet in zip(IDS, snippets)}
+        check.write_text(CHECK.replace("__ROOT__", ROOT.as_posix()).replace("__FOLDERS__", json.dumps(folders))
+                         .replace("__MODULES__", json.dumps(modules)), encoding="utf-8")
         for command in ([str(validator.TSC), "-p", str(config), "--pretty", "false"], ["node", str(check)]):
             result = subprocess.run(command, cwd=project, check=False)
             if result.returncode:

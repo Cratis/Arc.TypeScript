@@ -1,15 +1,17 @@
 ```typescript
-import { ConceptAs, field, Guid } from '@cratis/fundamentals';
-import { argument, command, inject, query, readModel, service, singleton } from '@cratis/arc.core';
-import { BehaviorSubject } from 'rxjs';
-
 // Chat/ChatRoom.ts
+import { singleton } from '@cratis/arc.core';
+import { BehaviorSubject } from 'rxjs';
+// A type-only import: ChatRoomPage.ts imports ChatService from this file at runtime, so a runtime
+// import back would be a cycle that fails when Arc's discovery loads the files.
+import type { ChatMessage } from './ChatRoomPage.js';
+
 export class ChatRoom {
     // Holds the room's full history and hands it to every new subscriber.
     readonly messages = new BehaviorSubject<ChatMessage[]>([]);
 
-    send(user: string, message: string): void {
-        this.messages.next([...this.messages.value, new ChatMessage(ChatMessageId.create(), user, new Date(), message)]);
+    send(message: ChatMessage): void {
+        this.messages.next([...this.messages.value, message]);
     }
 }
 
@@ -29,6 +31,11 @@ export class ChatService {
 }
 
 // Chat/ChatRoomPage.ts
+import { ConceptAs, field, Guid } from '@cratis/fundamentals';
+import { argument, command, inject, query, readModel, service } from '@cratis/arc.core';
+import { BehaviorSubject } from 'rxjs';
+import { ChatService } from './ChatRoom.js';
+
 export class ChatMessageId extends ConceptAs<Guid> {
     static readonly valueType = Guid;
 
@@ -65,7 +72,7 @@ export class SendMessage {
 
     @inject(ChatService)
     handle(chatService: ChatService): void {
-        chatService.getChatRoom(this.roomName).send(this.user, this.message);
+        chatService.getChatRoom(this.roomName).send(new ChatMessage(ChatMessageId.create(), this.user, new Date(), this.message));
     }
 }
 ```

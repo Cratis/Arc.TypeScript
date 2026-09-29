@@ -1,9 +1,7 @@
 ```typescript
-import { ConceptAs, field, Guid } from '@cratis/fundamentals';
-import { argument, command, inject, injectable, query, readModel, service, singleton } from '@cratis/arc.core';
-import { BehaviorSubject } from 'rxjs';
-
 // Chat/ChatPersistence.ts
+import type { ChatMessage } from './ChatRoomPage.js';
+
 // An abstract class, so it can be the service token; register your implementation for it.
 export abstract class ChatPersistence {
     // Loads a room's messages, oldest first.
@@ -11,6 +9,12 @@ export abstract class ChatPersistence {
 }
 
 // Chat/ChatRoom.ts
+import { injectable, singleton } from '@cratis/arc.core';
+import { BehaviorSubject } from 'rxjs';
+import { ChatPersistence } from './ChatPersistence.js';
+// Type-only: ChatRoomPage.ts imports ChatService from this file at runtime.
+import type { ChatMessage } from './ChatRoomPage.js';
+
 export class ChatRoom {
     readonly messages: BehaviorSubject<ChatMessage[]>;
 
@@ -45,11 +49,19 @@ export class ChatService {
 }
 
 // Chat/ChatPublisher.ts
+import type { ChatMessageEnvelope } from './ChatRoomPage.js';
+
 export abstract class ChatPublisher {
     abstract publish(envelope: ChatMessageEnvelope): Promise<void>;
 }
 
 // Chat/ChatRoomPage.ts
+import { ConceptAs, field, Guid } from '@cratis/fundamentals';
+import { argument, command, inject, query, readModel, service } from '@cratis/arc.core';
+import { BehaviorSubject } from 'rxjs';
+import { ChatPublisher } from './ChatPublisher.js';
+import { ChatService } from './ChatRoom.js';
+
 export class ChatMessageId extends ConceptAs<Guid> {
     static readonly valueType = Guid;
 
