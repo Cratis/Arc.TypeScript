@@ -76,7 +76,7 @@ application = await builder.withChronicle({ client, eventStore: 'MyArcApp', acti
 // Start observing with the client only now: the activator needs the built application.
 ```
 
-Registration fails unless the client was created with an activator from `chronicleArtifactActivator` for the same event store. Arc never changes the client's options and never disposes the client. With the client registered this way, Arc checks the reactors' and reducers' registrations when building, as it does for an Arc-owned connection.
+Registration verifies only that the client was created with an activator from `chronicleArtifactActivator` for the same event store; passing `reactorCommandResultHandler(...)` as `reactorResultHandler` is your responsibility, and without it returned commands are not executed through Arc. Arc never changes the client's options and never disposes the client. With the client registered this way, Arc checks the reactors' and reducers' registrations when building, as it does for an Arc-owned connection.
 
 The caller owns the ordering:
 

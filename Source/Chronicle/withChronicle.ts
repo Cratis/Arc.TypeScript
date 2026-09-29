@@ -33,7 +33,7 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     if (registration.activateArtifactsInScopes && registration.client &&
         chronicleArtifactActivatorEventStore(callerActivator) !== registration.eventStore)
         throw new Error(`Chronicle activateArtifactsInScopes with a caller-owned client requires creating it with artifactActivator: chronicleArtifactActivator(server, '${
-            registration.eventStore}') and reactorResultHandler: reactorCommandResultHandler(server, '${registration.eventStore}')`);
+            registration.eventStore}'). Also pass reactorResultHandler: reactorCommandResultHandler(server, '${registration.eventStore}') so returned commands run through Arc`);
     const activator = !registration.activateArtifactsInScopes ? undefined : registration.client ? callerActivator : chronicleArtifactActivator(() => {
         if (!server) throw new Error('Arc must be built before Chronicle artifacts can be activated');
         return server;

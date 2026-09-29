@@ -11,8 +11,9 @@ export type ChronicleRegistration = {
     readonly connectionString?: never;
     /**
      * Preview: construct reactors and reducers in an Arc service scope per delivery. The client must have been created with
-     * `artifactActivator: chronicleArtifactActivator(...)` for this event store, and `reactorResultHandler:
-     * reactorCommandResultHandler(...)` for returned commands; registration fails otherwise. Arc never changes or disposes it.
+     * `artifactActivator: chronicleArtifactActivator(...)` for this event store; registration verifies only that. Passing
+     * `reactorResultHandler: reactorCommandResultHandler(...)` is the caller's responsibility; without it, returned commands
+     * are not executed through Arc. Arc never changes or disposes the client.
      */
     readonly activateArtifactsInScopes?: boolean;
 } | {
