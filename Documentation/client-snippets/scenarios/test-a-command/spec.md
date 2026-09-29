@@ -2,6 +2,8 @@
 import { CommandScenario, type ScenarioCommandResult } from '@cratis/arc.testing';
 import { deepStrictEqual } from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'vitest';
+import { AuthorId } from './AuthorId.js';
+import { AuthorName } from './AuthorName.js';
 import { AuthorRegistration, RecordAuthor, RecordAuthorValidator } from './RecordAuthor.js';
 
 describe('when recording an author', () => {

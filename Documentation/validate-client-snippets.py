@@ -328,9 +328,17 @@ SNIPPETS: dict[str, Context | None] = {
         imports=(FUNDAMENTALS_FIELD,
                  "import { command, inject, rejected, validation, type Outcome } from '@cratis/arc.core';")),
     "scenarios/query-related-data/books-for-author": MODULE,
-    "scenarios/test-a-command/command-under-test": MODULE,
+    # The test-a-command pair imports the author concepts from the files beside it, so a
+    # missing import fails: the capstone's `AuthorId` and the Library sample's `AuthorName`.
+    "scenarios/test-a-command/command-under-test": Context(
+        siblings=(("AuthorId", "capstone/author-id"),),
+        sources=(("AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+        fixture_imports=False),
     "scenarios/test-a-command/spec": Context(
-        siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
+        siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),
+                  ("AuthorId", "capstone/author-id")),
+        sources=(("AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+        fixture_imports=False),
     # Command-key model resolution is available for handlers and provide(), not validator parameters.
     # The in-memory Chronicle scenario materializes reducer-backed and supported flat projection-backed models.
     "scenarios/use-current-state-in-a-command/rename-author": MODULE,
