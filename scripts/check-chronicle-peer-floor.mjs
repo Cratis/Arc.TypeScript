@@ -25,25 +25,45 @@ function peerFloor() {
     return floor;
 }
 
+const specifierPattern = String.raw`(['"])(@cratis\/chronicle(?:\/[^'"]*)?)`;
+const bindings = String.raw`(?:type\b\s*)?(?:[\w$]+\s*,\s*)?(?:\{[^}]*\}|\*\s*(?:as\s+[\w$]+)?|[\w$]+)`;
+// Emit styles vary (tsc, bundlers, minifiers), so whitespace between tokens is optional throughout.
+const staticPattern = new RegExp(String.raw`(?<![\w$.])(import|export)\s*(${bindings})\s*from\s*${specifierPattern}\3`, 'g');
+const sideEffectPattern = new RegExp(String.raw`(?<![\w$.])import\s*${specifierPattern}\1`, 'g');
+const dynamicPattern = new RegExp(String.raw`(?<![\w$.])import\s*\(\s*${specifierPattern}\1\s*\)`, 'g');
+const referencePattern = new RegExp(specifierPattern + String.raw`\1`, 'g');
+
+/** Every import or re-export of the SDK in the source: static, side-effect and dynamic. */
+export function sdkImports(source) {
+    return [
+        ...[...source.matchAll(staticPattern)].map(match => ({ clause: match[2].trim(), specifier: match[4] })),
+        ...[...source.matchAll(sideEffectPattern)].map(match => ({ specifier: match[2] })),
+        ...[...source.matchAll(dynamicPattern)].map(match => ({ specifier: match[2], dynamic: true }))
+    ];
+}
+
 /** Runtime imports from the SDK that could fail to link against the recorded floor exports. */
 export function violations(source, exportsBySpecifier, file = '<source>') {
     const found = [];
-    const pattern = /^\s*(import|export)\s+(?!type\b)([^;'"]*?)\s*from\s*['"](@cratis\/chronicle(?:\/[^'"]*)?)['"]/gm;
-    for (const match of source.matchAll(pattern)) {
-        const [, , clause, specifier] = match;
+    const imports = sdkImports(source);
+    // A quoted SDK specifier outside any recognized import form (for example require) would otherwise go unchecked.
+    const references = [...source.matchAll(referencePattern)].length;
+    if (references > imports.length)
+        found.push(`${file}: ${references - imports.length} reference(s) to ${sdk} are not in a recognized import form`);
+    // A dynamic import is resolved only when it runs, so it cannot stop the module from linking; callers handle its failure.
+    for (const { clause, specifier } of imports.filter(entry => !entry.dynamic)) {
         const available = exportsBySpecifier[specifier];
         if (!available) { found.push(`${file}: ${specifier} is not an entry point of the peer floor`); continue; }
+        if (clause === undefined || /^type\b/.test(clause)) continue;
         const named = /\{([^}]*)\}/.exec(clause);
         const rest = clause.replace(/\{[^}]*\}/, '').replace(/,/g, ' ').trim();
-        if (rest && !/^\*(\s+as\s+\w+)?$/.test(rest)) found.push(`${file}: ${specifier} default import '${rest}' is not supported`);
+        if (rest && !/^\*(\s*as\s+[\w$]+)?$/.test(rest)) found.push(`${file}: ${specifier} default import '${rest}' is not supported`);
         for (const part of named ? named[1].split(',') : []) {
-            const name = part.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0]?.trim();
-            if (!name || part.trim().startsWith('type ')) continue;
+            const binding = part.trim();
+            if (!binding || /^type\s/.test(binding)) continue;
+            const name = binding.split(/\s+as\s+/)[0].trim();
             if (!available.includes(name)) found.push(`${file}: ${specifier} does not export '${name}' in the peer floor`);
         }
-    }
-    for (const match of source.matchAll(/^\s*import\s*['"](@cratis\/chronicle(?:\/[^'"]*)?)['"]/gm)) {
-        if (!exportsBySpecifier[match[1]]) found.push(`${file}: ${match[1]} is not an entry point of the peer floor`);
     }
     return found;
 }
@@ -86,8 +106,24 @@ function selfTest() {
         ["export { ArtifactDelivery } from '@cratis/chronicle/artifacts';", 1],
         ["import Chronicle from '@cratis/chronicle';", 1],
         ["import '@cratis/chronicle/activation';", 1],
-        ["import { ChronicleClient } from '@cratis/chronicle/newEntry';", 1]
+        ["import { ChronicleClient } from '@cratis/chronicle/newEntry';", 1],
+        ['import{ArtifactDelivery}from"@cratis/chronicle/artifacts";', 1],
+        ['import{ChronicleClient as Client}from"@cratis/chronicle";', 0],
+        ['import type{ArtifactDelivery}from"@cratis/chronicle/artifacts";', 0],
+        ['import*as artifacts from"@cratis/chronicle/artifacts";', 0],
+        ["import {\n    ChronicleClient,\n    ArtifactDelivery\n} from '@cratis/chronicle';", 1],
+        ["export * from '@cratis/chronicle';", 0],
+        ['export*from"@cratis/chronicle/newEntry";', 1],
+        ["export * as chronicle from '@cratis/chronicle';", 0],
+        ['export{ArtifactDelivery as Delivery}from"@cratis/chronicle/artifacts";', 1],
+        ['import"@cratis/chronicle/activation";', 1],
+        ["const artifacts = await import('@cratis/chronicle/artifacts');", 0],
+        ['const later=import("@cratis/chronicle/newEntry");', 0],
+        ["const chronicle = require('@cratis/chronicle');", 1],
+        ["import { ChronicleClient } from '@cratis/chronicle'; const e = new Error('requires @cratis/chronicle 6.17.0');", 0]
     ];
+    if (sdkImports('import{ChronicleClient}from"@cratis/chronicle";export*from"@cratis/chronicle/artifacts";').length !== 2)
+        throw new Error('Self-test: compact static imports and re-exports were not all recognized');
     for (const [source, expected] of expectations) {
         const actual = violations(source, floor).length;
         if (actual !== expected) throw new Error(`Self-test: expected ${expected} violation(s) for ${source}, found ${actual}`);
@@ -103,9 +139,13 @@ async function check() {
     const dist = join(packageFolder, 'dist');
     if (!existsSync(dist)) throw new Error('Source/Chronicle/dist is missing; run yarn build first');
     const files = shippedFiles(dist);
-    const found = files.flatMap(file => violations(readFileSync(file, 'utf8'), baseline.exports, relative(root, file)));
+    const sources = files.map(file => [file, readFileSync(file, 'utf8')]);
+    const found = sources.flatMap(([file, source]) => violations(source, baseline.exports, relative(root, file)));
+    const imports = sources.reduce((count, [, source]) => count + sdkImports(source).length, 0);
+    // The shipped integration imports the SDK; finding none means the patterns no longer match the emit.
+    if (!imports) throw new Error(`Found no ${sdk} imports in ${files.length} shipped modules; the check would pass without checking anything`);
     if (found.length) throw new Error(`@cratis/arc.chronicle imports ${sdk} exports newer than its peer floor ${floor}:\n${found.join('\n')}`);
-    console.log(`@cratis/arc.chronicle loads with ${sdk} ${floor}: ${files.length} shipped modules checked`);
+    console.log(`@cratis/arc.chronicle loads with ${sdk} ${floor}: ${imports} imports in ${files.length} shipped modules checked`);
 }
 
 const [mode, argument] = process.argv.slice(2);
