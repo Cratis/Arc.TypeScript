@@ -122,6 +122,10 @@ class Context:
     own imports are part of what the reader copies, so a missing import fails. `location` is
     the folder the snippet's file sits in, relative to its own compilation folder, so its
     relative imports resolve exactly as they do in the application layout the page shows.
+    `files` marks a snippet that shows several files of one folder: each file starts at a
+    `// <location>/<Name>.ts` comment and carries its own imports, and each becomes its own
+    module `<Name>.ts` in `location`. The imports between them are then real module imports,
+    so a missing one fails to compile and an import cycle fails when discovery loads them.
     """
 
     host: str = ""
@@ -130,9 +134,12 @@ class Context:
     sources: tuple[tuple[str, str], ...] = ()
     fixture_imports: bool = True
     location: str = ""
+    files: bool = False
 
 
 MODULE = Context()
+
+FILE_MARKER_RE = re.compile(r"^//\s+(?P<path>\S+)\.ts$")
 
 FUNDAMENTALS_FIELD = "import { field } from '@cratis/fundamentals';"
 
@@ -204,6 +211,9 @@ SITE_ONLY_SNIPPETS = {
     "scenarios/vertical-slices/translator/member-registration",
     "scenarios/vertical-slices/translator/unique-member-name",
     "scenarios/vertical-slices/translator/hr-integration",
+    "scenarios/chat/in-memory/backend",
+    "scenarios/chat/rabbitmq/backend",
+    "scenarios/camel-casing/setup",
 }
 
 # The checked-in inventory: shared Arc page ids plus site-owned page ids.
@@ -247,6 +257,13 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/vertical-slices/translator/hr-integration": Context(
         siblings=(*MEMBER_CONCEPTS_FROM_SLICE, ("../Registration/Registration", MEMBER_REGISTRATION)),
         fixture_imports=False, location="Members/HRIntegration"),
+    # The Real-Time Chat pages show each chat backend whole, from the application's Chat folder;
+    # check-state-view-discovery.py runs the in-memory one in process.
+    # Each file is its own module, as in the application, so an import cycle between them fails
+    # the discovery check the way it fails the application.
+    "scenarios/chat/in-memory/backend": Context(fixture_imports=False, location="Chat", files=True),
+    "scenarios/chat/rabbitmq/backend": Context(fixture_imports=False, location="Chat", files=True),
+    "scenarios/camel-casing/setup": Context(fixture_imports=False),
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
@@ -790,6 +807,35 @@ def module_source(snippet: Snippet, context: Context, exports: dict[str, tuple[s
     return "\n".join(lines)
 
 
+def split_files(snippet: Snippet, context: Context) -> list[tuple[str, Snippet]]:
+    """Split a `files` snippet at its `// <location>/<Name>.ts` markers into one snippet per file."""
+    assert snippet.code is not None
+    chunks: list[tuple[str, list[str]]] = []
+    for line in snippet.code.splitlines():
+        marker = FILE_MARKER_RE.match(line)
+        if marker:
+            folder, _, stem = marker.group("path").rpartition("/")
+            if folder != context.location:
+                raise SnippetError(f"{relative(snippet.path)}: {line} is not in the snippet's folder "
+                                   f"{context.location!r}")
+            if any(stem == existing for existing, _ in chunks):
+                raise SnippetError(f"{relative(snippet.path)}: {line} appears twice")
+            chunks.append((stem, [line]))
+        elif chunks:
+            chunks[-1][1].append(line)
+        elif line.strip():
+            raise SnippetError(f"{relative(snippet.path)}: a multi-file snippet must start with a "
+                               f"`// {context.location}/<Name>.ts` marker, found: {line}")
+    if len(chunks) < 2:
+        raise SnippetError(f"{relative(snippet.path)}: a multi-file snippet needs at least two file markers")
+    return [(stem, Snippet(snippet.id, snippet.path, "\n".join(lines))) for stem, lines in chunks]
+
+
+def module_files(snippet: Snippet, context: Context) -> list[tuple[str, Snippet]]:
+    """The modules a snippet becomes, as (file stem, snippet): one `snippet`, or one per shown file."""
+    return split_files(snippet, context) if context.files else [("snippet", snippet)]
+
+
 def fixtures_from(project: Path, directory: Path) -> str:
     """The relative import path from a generated module's folder to the fixtures folder."""
     return Path(os.path.relpath(project.resolve() / "fixtures", directory.resolve())).as_posix()
@@ -833,9 +879,10 @@ def write_project(project: Path, snippets: list[Snippet], inventory: dict[str, C
             raise SnippetError(f"{snippet.id} has a location outside its own folder: {context.location!r}")
         directory.mkdir(parents=True)
         directories[directory.relative_to(project.resolve()).as_posix()] = snippet.id
-        (directory / "snippet.ts").write_text(
-            module_source(snippet, context, exports, fixtures_from(project, directory)), encoding="utf-8")
-        files.append(directory.relative_to(project.resolve()).as_posix() + "/snippet.ts")
+        for stem, module in module_files(snippet, context):
+            (directory / f"{stem}.ts").write_text(
+                module_source(module, context, exports, fixtures_from(project, directory)), encoding="utf-8")
+            files.append(directory.relative_to(project.resolve()).as_posix() + f"/{stem}.ts")
         if snippet.id in ("arc-without-event-sourcing/standalone-host", "capstone/host"):
             # The host imports metadata generated into its Features root. The fixture only
             # types that import; runtime discovery/validation is checked separately.
@@ -911,11 +958,12 @@ def compile_snippets(snippets: list[Snippet], inventory: dict[str, Context | Non
         if failures and keep is False:
             for snippet_id in failures:
                 context = inventory.get(snippet_id) or MODULE
-                source = project / "snippets" / slug(snippet_id) / context.location / "snippet.ts"
-                if source.is_file():
-                    numbered = [f"{index:4} | {text}" for index, text in
-                                enumerate(source.read_text(encoding="utf-8").splitlines(), start=1)]
-                    failures[snippet_id].append("  generated snippet.ts:\n" + "\n".join(numbered))
+                folder = project / "snippets" / slug(snippet_id) / context.location
+                for source in sorted(folder.glob("*.ts")) if context.files else [folder / "snippet.ts"]:
+                    if source.is_file():
+                        numbered = [f"{index:4} | {text}" for index, text in
+                                    enumerate(source.read_text(encoding="utf-8").splitlines(), start=1)]
+                        failures[snippet_id].append(f"  generated {source.name}:\n" + "\n".join(numbered))
         return failures
     finally:
         if keep:
@@ -1014,6 +1062,11 @@ PLANTED_COMPILE_FAILURES: dict[str, tuple[str, str]] = {
     "self-test/wrong-relative-import": (
         "```typescript\nimport { AuthorName } from '../../AuthorName.js';\n\n"
         "export const name = new AuthorName('Ursula');\n```\n", "TS2307"),
+    # A multi-file snippet whose second file uses the first file's class without importing it:
+    # it compiles as one module, so this proves each file is compiled as its own module.
+    "self-test/files-missing-import": (
+        "```typescript\n// Room/Room.ts\nexport class Room { }\n\n"
+        "// Room/RoomService.ts\nexport const lobby = new Room();\n```\n", "TS2304"),
 }
 
 # Planted snippets that must compile: a concept, and a snippet two folders down importing it
@@ -1024,6 +1077,9 @@ PLANTED_CLEAN = {
                          "    static readonly valueType = String;\n}\n```\n",
     "self-test/nested": "```typescript\nimport { AuthorName } from '../AuthorName.js';\n\n"
                         "export const name = new AuthorName('Ursula');\n```\n",
+    "self-test/files": "```typescript\n// Room/Room.ts\nexport class Room { }\n\n"
+                       "// Room/RoomService.ts\nimport { Room } from './Room.js';\n\n"
+                       "export const room = new Room();\n```\n",
 }
 
 # Planted snippets compiled with a context other than MODULE.
@@ -1034,6 +1090,8 @@ PLANTED_CONTEXTS: dict[str, Context] = {
                                 location="Authors/Registration"),
     "self-test/wrong-relative-import": Context(siblings=(("../AuthorName", "self-test/concept"),),
                                                fixture_imports=False, location="Authors/Registration"),
+    "self-test/files": Context(fixture_imports=False, location="Room", files=True),
+    "self-test/files-missing-import": Context(fixture_imports=False, location="Room", files=True),
 }
 
 
