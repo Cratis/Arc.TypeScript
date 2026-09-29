@@ -194,7 +194,8 @@ MEMBER_CONCEPTS_FROM_SLICE = (("../MemberId", MEMBER_CONCEPTS), ("../MemberName"
 # than Arc/Documentation, so the shared Arc page scan cannot find their macros.
 # Keep these exceptions explicit so other unreferenced snippet ids still fail.
 SITE_ONLY_SNIPPETS = {
-    "guides/chronicle/event-from-command",
+    "testing-with-cratis/register-author",
+    "testing-with-cratis/register-author-spec",
     "capstone/host",
     "capstone/author-id",
     "capstone/register-author",
@@ -264,7 +265,10 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/chat/in-memory/backend": Context(fixture_imports=False, location="Chat", files=True),
     "scenarios/chat/rabbitmq/backend": Context(fixture_imports=False, location="Chat", files=True),
     "scenarios/camel-casing/setup": Context(fixture_imports=False),
-    "guides/chronicle/event-from-command": MODULE,
+    # The Testing with Cratis page: the spec imports the slice beside it, as a reader's does.
+    "testing-with-cratis/register-author": Context(fixture_imports=False),
+    "testing-with-cratis/register-author-spec": Context(
+        siblings=(("RegisterAuthor", "testing-with-cratis/register-author"),), fixture_imports=False),
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
     "understanding-the-proxy-boundary/register-author": MODULE,
@@ -324,9 +328,17 @@ SNIPPETS: dict[str, Context | None] = {
         imports=(FUNDAMENTALS_FIELD,
                  "import { command, inject, rejected, validation, type Outcome } from '@cratis/arc.core';")),
     "scenarios/query-related-data/books-for-author": MODULE,
-    "scenarios/test-a-command/command-under-test": MODULE,
+    # The test-a-command pair imports the author concepts from the files beside it, so a
+    # missing import fails: the capstone's `AuthorId` and the Library sample's `AuthorName`.
+    "scenarios/test-a-command/command-under-test": Context(
+        siblings=(("AuthorId", "capstone/author-id"),),
+        sources=(("AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+        fixture_imports=False),
     "scenarios/test-a-command/spec": Context(
-        siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),)),
+        siblings=(("RecordAuthor", "scenarios/test-a-command/command-under-test"),
+                  ("AuthorId", "capstone/author-id")),
+        sources=(("AuthorName", "Samples/Library/Features/Authors/AuthorName.ts"),),
+        fixture_imports=False),
     # Command-key model resolution is available for handlers and provide(), not validator parameters.
     # The in-memory Chronicle scenario materializes reducer-backed and supported flat projection-backed models.
     "scenarios/use-current-state-in-a-command/rename-author": MODULE,
