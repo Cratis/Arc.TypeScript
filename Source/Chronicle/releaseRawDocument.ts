@@ -33,16 +33,37 @@ function assertReleasable(value: unknown, schema: JsonSchema, path: string): voi
 }
 
 /**
+ * Bookkeeping the Chronicle kernel stamps onto every stored read-model document (`WellKnownProperties.All`). It is
+ * not read-model data unless the read model declares the property itself.
+ */
+const kernelBookkeeping = ['__lastHandledEventSequenceNumber', '__initialized', '__subject', '__subjects'];
+
+function isEmptySubjectMap(value: unknown): boolean {
+    return value === null || value === undefined ||
+        typeof value === 'object' && isPlainObject(value) && Object.keys(value).length === 0;
+}
+
+/**
  * Release one raw storage document of a protected Chronicle read model for an explicit subject. The document keeps
- * its `_id` and fields; every other field is replaced by Chronicle's released value. Fails rather than returning
- * anything Chronicle did not release.
+ * its `_id` and declared fields; every declared field is replaced by Chronicle's released value, and undeclared
+ * kernel bookkeeping is removed. Fails rather than returning anything Chronicle did not release.
  */
 export async function releaseRawDocument(model: Constructor<object>, document: object, subject: string,
     store: IEventStore): Promise<object> {
     if (typeof document !== 'object' || document === null || !isPlainObject(document))
         throw new Error(`Raw ${model.name} document must be a plain object`);
     const schema = getReadModelMetadata(model)?.schema ?? JsonSchemaGenerator.generate(model);
-    const { _id: key, ...fields } = document as Record<string, unknown>;
+    const declared = schema.properties ?? {};
+    const { _id: key, ...stored } = document as Record<string, unknown>;
+    // The kernel encrypts with the subject it stamps and releases per-property subjects on their own keys.
+    const storedSubject = stored.__subject;
+    if (storedSubject !== undefined && storedSubject !== null && storedSubject !== subject)
+        throw new Error(`Raw ${model.name} document subject does not match the subject Chronicle stored`);
+    if (!isEmptySubjectMap(stored.__subjects))
+        throw new Error(`Raw ${model.name} documents with per-property compliance subjects (__subjects) cannot be released`);
+    const fields: Record<string, unknown> = {};
+    for (const [name, value] of Object.entries(stored))
+        if (!kernelBookkeeping.includes(name) || Object.hasOwn(declared, name)) fields[name] = value;
     assertReleasable(fields, schema, model.name);
     const instance = Object.assign(Reflect.construct(model, []) as object, fields);
     if (!Object.hasOwn(fields, 'id')) Reflect.set(instance, 'id', subject);

@@ -19,6 +19,9 @@ export interface MongoReadModelsOptions<T extends Document, I> {
      * it is served, and field projections are rejected.
      */
     readonly readModel?: ClassType;
-    /** The compliance subject of a document (default: its string or numeric `_id`). Requires `readModel`. */
+    /**
+     * The compliance subject of a document (default: the `__subject` Chronicle stored, otherwise its string or
+     * numeric `_id`). Requires `readModel`.
+     */
     readonly subjectFor?: (document: WithId<T>) => string;
 }

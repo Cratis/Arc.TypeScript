@@ -11,7 +11,12 @@ describe('when releasing raw MongoDB documents of a protected read model', given
         data = (await context.query(await context.mongo.find(context.context, {}))).data as object;
         released = context.release.firstCall.args[1] as { id: string; name: string };
     });
-    it('should serve the released document with its key', () => { data.should.deep.equal([{ _id: 'subject-1', name: 'plain' }]); });
+    it('should serve the released document with its key and without kernel bookkeeping', () => {
+        data.should.deep.equal([{ _id: 'subject-1', name: 'plain' }]);
+    });
     it('should release it for the declared subject', () => { released.id.should.equal('subject-1'); });
     it('should pass the stored value to Chronicle', () => { released.name.should.equal('ciphertext'); });
+    it('should not pass the kernel bookkeeping to Chronicle', () => {
+        Object.keys(released).filter(name => name.startsWith('__')).length.should.equal(0);
+    });
 }));

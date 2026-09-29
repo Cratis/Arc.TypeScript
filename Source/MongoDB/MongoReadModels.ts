@@ -29,10 +29,13 @@ export class MongoReadModels<T extends Document, I> {
         const model = this.options.readModel;
         if (!model) return document;
         const id: unknown = document._id;
+        // Chronicle stamps the subject it encrypted with as __subject; the release checks any explicit subject against it.
+        const stored: unknown = (document as Document).__subject;
         const subject = this.options.subjectFor ? this.options.subjectFor(document) :
-            typeof id === 'string' || typeof id === 'number' && Number.isFinite(id) ? String(id) : undefined;
+            typeof stored === 'string' && stored ? stored :
+                typeof id === 'string' || typeof id === 'number' && Number.isFinite(id) ? String(id) : undefined;
         if (typeof subject !== 'string' || !subject)
-            throw new Error(`Raw ${model.name} document has no subject; use a string _id or subjectFor`);
+            throw new Error(`Raw ${model.name} document has no subject; use a string __subject or _id, or subjectFor`);
         return markRawReadModelDocument(document, { model, tenantId: context.tenantId!, subject });
     }
 
