@@ -60,7 +60,7 @@ When the application shuts down, Arc stops accepting new deliveries, aborts `cur
 
 ## Use the activator directly
 
-`chronicleArtifactActivator(server, eventStore)` from `@cratis/arc.chronicle` is the activator this option installs. It returns an SDK `ClientArtifactsActivator`, so you can pass it as `artifactActivator` when you create a Chronicle client yourself. This also requires `@cratis/chronicle` 6.17.0 or later; on an older SDK an event delivery fails instead of running with the wrong correlation.
+`chronicleArtifactActivator(server, eventStore)` from `@cratis/arc.chronicle` is the activator this option installs. It returns an SDK `ClientArtifactsActivator`, so you can pass it as `artifactActivator` when you create a Chronicle client yourself. This also requires `@cratis/chronicle` 6.17.0 or later. On 6.16 an event delivery fails instead of running with the wrong correlation; SDKs before 6.16 ignore `artifactActivator` and construct artifacts themselves, and Arc cannot detect that for a client you create.
 
 ```typescript title="main.ts (excerpt)"
 import { ChronicleClient, ChronicleOptions } from '@cratis/chronicle';
