@@ -12,10 +12,12 @@ export class ArcApplicationServices {
     readonly registrations: ServiceRegistration<unknown>[] = [];
     readonly #fallbacks = new Map<symbol, ServiceClass<unknown>>();
     /**
-     * Record a scoped class registration that is added at build time only when no explicit registration,
-     * `options.services` entry or decorated lifetime claims the same token. Repeated calls are idempotent.
+     * Record a scoped class registration as a fallback. The registration is deferred: it is added when the
+     * application is built, and only when no registration in these services, `options.services` entry or
+     * decorated lifetime claims the same token. Repeated calls are idempotent. Nothing is added when the
+     * application uses a caller-supplied `ServiceRegistry`, and calls after the application is built have no effect.
      */
-    tryAddScoped<T>(type: ServiceClass<T>): this {
+    addScopedFallback<T>(type: ServiceClass<T>): this {
         const key = normalizeServiceToken(type).key;
         if (!this.#fallbacks.has(key)) this.#fallbacks.set(key, type);
         return this;
