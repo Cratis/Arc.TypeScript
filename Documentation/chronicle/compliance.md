@@ -5,7 +5,7 @@ description: What the experimental Chronicle integration does for personal data,
 
 Events are immutable, yet a person can ask for their personal data to be erased. Chronicle resolves that tension by keying personal data to a **subject** and managing encryption keys per subject; destroying the key makes the data unreadable while the events stay. The [Chronicle compliance guide](/chronicle/compliance/) explains that side.
 
-An Arc application meets compliance at two points: when a command appends events, and when a query serves the read models built from them. Chronicle (the kernel, or the SDK for reducer read models) releases read models on Chronicle reads. Arc releases protected models decoded into their exact read-model class from a direct collection read at its query edge.
+An Arc application meets compliance at two points: when a command appends events, and when a query serves the read models built from them. Chronicle (the kernel, or the SDK for reducer read models) releases read models on Chronicle reads. At its query edge, Arc releases protected models decoded into their exact read-model class from a direct collection read. It also releases raw MongoDB documents that you have explicitly typed as a protected read model.
 
 ## What the integration does
 
@@ -14,7 +14,7 @@ An Arc application meets compliance at two points: when a command appends events
 | Record the subject on appended events | Supported. `getSubject()`, a `@subject()` field, `@eventSubject(...)`, or a routed event's `subject`, falling back to the event source ID. See [Subject](commands/subject.md). |
 | Keep command values out of the causation chain | Supported. `@notAudited()`, the SDK's `@pii()` on a command field or class, and secret-looking field names. See [Causation and auditing](commands/causation.md#keep-a-value-out). |
 | Mark event or read-model data as personal | Done with the SDK's `@pii()` from `@cratis/chronicle/compliance`. Arc passes your event classes to the SDK unchanged. |
-| Release encrypted values when a query serves a read model | Kernel reads through Chronicle already return plaintext. Arc releases a protected Chronicle read model read directly from its materialized MongoDB collection, including items in snapshots, arrays, pages, and observable emissions. |
+| Release encrypted values when a query serves a read model | Kernel reads through Chronicle already return plaintext. Arc releases a protected Chronicle read model read directly from its materialized MongoDB collection, including items in snapshots, arrays, pages, and observable emissions. This covers decoded instances and raw `MongoReadModels` documents typed with `readModel`. |
 | Release encrypted values in a command's read model | The Chronicle kernel releases read models before `commandReadModel(Type)` or a Chronicle validator read-model lookup returns them; null remains null. |
 | Erase a subject's key | Not part of Arc. Use Chronicle's own tooling or the SDK's PII manager. |
 
@@ -30,13 +30,45 @@ Arc registers a scoped interceptor for Chronicle read-model classes with complia
 
 On direct reads, release uses the model's `@subject()` property or `id`. It must match the subject used when appending the event: the kernel encrypts with the event's subject, stored as `__subject`. A mismatch fails release and therefore fails the query. A directly read model with only `@encrypted()` fields also needs `@subject()` or `id` in the TypeScript SDK; without either, release cannot identify the key and fails.
 
+### Release raw MongoDB documents
+
+`MongoReadModels` returns raw driver documents, not class instances. To have Arc release them, name the read model they hold:
+
+```ts
+const people = new MongoReadModels<Document, PeopleInput>({
+    client, databaseForTenant, filterFor,
+    readModel: PersonView
+}, 'personViews');
+```
+
+Each returned document is marked with the model, the request's tenant, and a subject. By default, the subject is the document's string or numeric `_id`. Use `subjectFor(document)` when the model's `@subject()` property holds another value. If a document has no usable subject, the read fails. When the query returns these documents directly, in an array, or in `queryPage`, Arc releases each one before serving it. This covers snapshots, pages, and observable emissions. Arc passes the document to `store.readModels.release` and serves `_id` plus the same fields with Chronicle's released values.
+
+The query fails rather than serving stored values when:
+
+- the document has a field the read model's schema does not declare, including a name that differs only by case or naming policy;
+- a value is not JSON: BSON `ObjectId`, `Binary`, `Decimal128`, and `Long` are rejected, although `Date` is accepted;
+- an object or array does not have a declared schema;
+- the document's `id` or `@subject()` value differs from the marked subject;
+- the request's tenant differs from the marked tenant;
+- Chronicle fails to release the document or omits a field;
+- a typed raw document is nested inside another returned shape, such as `MongoReadModels.page()`'s `MongoPage`. Return `queryPage` instead.
+
+The typed `find`, `findById`, `page`, and `queryPage` calls reject a MongoDB `projection`, because partial documents are DTO projections.
+
 ### What Arc does not release
 
-The boundary matches **exact read-model classes** registered in the Chronicle artifact catalog. `MongoReadModels` returns raw driver documents, not decoded class instances. Those documents, other raw driver documents, derived subtypes selected by the codec, and DTOs or mapped objects are served as stored. Applications must call the tenant store's `readModels.release` explicitly for these paths before serving protected data.
+On the typed path, the boundary covers **exact read-model classes** and **raw documents typed with `readModel`**, when the model is registered in the Chronicle artifact catalog. Arc serves these as stored:
+
+- untyped `MongoReadModels` documents and other raw driver documents;
+- derived subtypes selected by the codec;
+- DTOs, mapped objects, and copies of typed raw documents, because a copy loses its marking;
+- typed raw documents of a model that is not registered with `withChronicle`, because Arc cannot tell whether such a model is protected.
+
+For these paths, call the tenant store's `readModels.release` before serving protected data.
 
 In-memory sorting of a directly read array by an encrypted field orders by ciphertext; database-side sorting on encrypted fields is inherently meaningless.
 
-The live integration check inspects raw MongoDB storage for ciphertext and verifies plaintext through Chronicle HTTP snapshots, observable emissions, command injection, and an Arc query using `MongoCollection` to decode the materialized collection into the exact class.
+The live integration check inspects raw MongoDB storage for ciphertext and verifies plaintext through Chronicle HTTP snapshots, observable emissions, command injection, and an Arc query using `MongoCollection` to decode the materialized collection into the exact class. The raw `MongoReadModels` path is checked by specs that use a Chronicle substitute to serve snapshots, pages, and observable SSE through Express, Fastify, and Hono. It has not been checked against a live kernel's stored documents.
 
 :::caution[Release is not authorization]
 Decide separately who may read a person's data.

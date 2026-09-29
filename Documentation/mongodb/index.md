@@ -34,6 +34,8 @@ Arc selects a tenant from the execution context, and the collection selects that
 
 The original `MongoReadModels<T, I>` remains for low-level `defineQuery` users. It takes a caller-owned client, `databaseForTenant`, and a trusted `filterFor(input, context)`. Its `queryPage` accepts Arc sorting only for fields listed in `sortableFields`, and caps pages at 100 by default. It has no change streams or field codecs; use the model-bound collection for those.
 
+`MongoReadModels` returns raw driver documents. When they hold a protected Chronicle read model, set `readModel` to that class so Arc can release them. See [Release raw MongoDB documents](../chronicle/compliance.md#release-raw-mongodb-documents).
+
 ## Current boundaries
 
 This integration does not supply cross-store transactions or a durable change-stream checkpoint. The watcher shares a stream **within a tenant scope**, not across the process. Recognized transient reads retry at most twice; writes are not retried. Arc-owned clients expose OpenTelemetry MongoDB metrics, but caller-owned clients are not instrumented. Do not infer .NET's process-wide watcher or general-purpose resilience interceptors from these narrower guarantees. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has the parity details.
