@@ -13,7 +13,7 @@ import type { QueryOptions } from './QueryOptions.js';
 import type { QueryResult } from './QueryResult.js';
 import { renderQueryData } from './queryRendering.js';
 import type { ReadModelInterceptor } from './ReadModelInterceptor.js';
-import { assertNoUnreleasedRawDocuments, interceptReadModel } from './interceptReadModel.js';
+import { assertNoUnreleasedReadModels, interceptReadModel } from './interceptReadModel.js';
 
 /** Run provider rendering and exact-type interception inside the current query scope, for every emission. */
 export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput'> & { wireOutput?: boolean; wireType?: WireType }, data: unknown,
@@ -48,7 +48,12 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
     throwIfCanceled(context, 'Query canceled');
     if (page && !page.isSuccess) return page;
     if (page) data = page.data;
-    const intercept = (item: unknown): Promise<unknown> => interceptReadModel(item, interceptors, context);
+    const intercepted = new WeakSet<object>();
+    const intercept = async (item: unknown): Promise<unknown> => {
+        const result = await interceptReadModel(item, interceptors, context);
+        if (result !== null && typeof result === 'object') intercepted.add(result);
+        return result;
+    };
     if (isQueryPage(data)) {
         const items = [];
         for (const item of data.items) items.push(await intercept(item));
@@ -59,7 +64,7 @@ export async function renderQuery(definition: Pick<DescriptorBase, 'clientOutput
         data = items;
     } else data = await intercept(data);
     throwIfCanceled(context, 'Query canceled');
-    assertNoUnreleasedRawDocuments(data, interceptors);
+    assertNoUnreleasedReadModels(data, interceptors, intercepted);
     if (page) {
         const output = definition.wireOutput ? encode(data, definition.wireType, definition.wireType) : data;
         throwIfCanceled(context, 'Query canceled');

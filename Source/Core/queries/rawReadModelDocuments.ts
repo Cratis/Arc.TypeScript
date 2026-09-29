@@ -28,3 +28,8 @@ export function markRawReadModelDocument<T extends object>(document: T, provenan
 export function rawReadModelProvenance(document: object): RawReadModelProvenance | undefined {
     return registry.get(document);
 }
+
+/** Forget the provenance of a document an interceptor has handled, so it is served as that interceptor returned it. */
+export function forgetRawReadModelDocument(document: object): void {
+    registry.delete(document);
+}
