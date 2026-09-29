@@ -59,7 +59,7 @@ Arc's `@readModel()` exposes the queries. Chronicle infers the same class as its
 
 ## Where the read model is stored
 
-Chronicle stores the projected read model in a container, a MongoDB collection by default. When the application also uses `withMongoDB` and Arc creates the Chronicle client, the container is the collection Arc's MongoDB integration reads for the class, so `Author` is stored in `Authors` under the default naming policy. Without `withMongoDB`, the container is the read model identifier. `ChronicleReadModels` asks the kernel for the read model, so your queries never spell the name. See [Choose where read models are stored](../registration-options.md#choose-where-read-models-are-stored) for overrides and for a client you create yourself.
+Chronicle stores the projected read model in a container, a MongoDB collection by default. When the application also uses `withMongoDB` and Arc creates the Chronicle client, a class listed in its `readModels` is stored in the collection Arc's MongoDB integration reads, so `Author` is stored in `Authors` under the default naming policy. Any other read model, and every read model without `withMongoDB`, is stored under its identifier. `ChronicleReadModels` asks the kernel for the read model, so your queries never spell the name. See [Choose where read models are stored](../registration-options.md#choose-where-read-models-are-stored) for overrides and for a client you create yourself.
 
 ## Consistency
 
