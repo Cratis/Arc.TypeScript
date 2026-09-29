@@ -25,7 +25,7 @@ subscription.unsubscribe();
 await scope.dispose();
 ```
 
-`changes` returns an RxJS `Observable<ChangeStreamDocument<Document>>`. Updates use MongoDB's `updateLookup` full-document option; deletes have a document key but no full document. Do not persist a resume token from this API or use it as an exactly-once feed.
+`changes` returns an RxJS `Observable<ChangeStreamDocument<Document>>`. Updates use MongoDB's `updateLookup` full-document option; deletes have a document key but no full document. Do not persist a resume token from this API or use it as an exactly-once feed. Arc does not release `fullDocument`: for a protected Chronicle read model it holds the stored ciphertext. See [What Arc does not release](../chronicle/compliance.md#what-arc-does-not-release).
 
 ## Scope and failure
 

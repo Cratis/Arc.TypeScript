@@ -41,9 +41,9 @@ export class a_projection {
     readonly arrayModel = ArrayView;
     readonly classLevelModel = ClassLevelView;
     readonly encryptedModel = EncryptedView;
-    readonly privateView = new PrivateView();
+    readonly privateView = Object.assign(new PrivateView(), { id: 'subject-1', name: 'ciphertext' });
     readonly publicView = new PublicView();
-    readonly reducedView = new ReducedView();
+    readonly reducedView = Object.assign(new ReducedView(), { id: 'subject-1', name: 'ciphertext' });
     readonly release = sinon.stub().callsFake(async (_type: typeof PrivateView, model: PrivateView) => {
         const result = new PrivateView();
         Object.assign(result, model, { name: 'plain' });
@@ -59,7 +59,7 @@ export class a_projection {
             getInstances: this.getInstances, watch: this.watch } }) as unknown as IEventStore);
     readonly context: ExecutionContext = { tenantId: 'tenant-a', correlationId: crypto.randomUUID(), principal: undefined,
         signal: new AbortController().signal, allowedSeverity: Severity.Warning };
-    readonly runtime = { getStore: this.getStore } as unknown as ChronicleRuntime;
+    readonly runtime = { getStore: this.getStore, artifacts: this.artifacts } as unknown as ChronicleRuntime;
     constructor() {
         for (const type of [Created, PrivateView, PublicView, ReducedViewReducer]) this.artifacts.register(type);
     }
