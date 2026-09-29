@@ -1,5 +1,5 @@
 {
-  "version": "6.17.0",
+  "version": "6.29.0",
   "exports": {
     "@cratis/chronicle": [
       "AddBuilder",
@@ -343,9 +343,18 @@
       "reducer"
     ],
     "@cratis/chronicle/testing": [
+      "EventScenario",
+      "EventScenarioGiven",
+      "EventScenarioGivenBuilder",
+      "EventScenarioWhen",
+      "EventScenarioWhenBuilder",
+      "ReactorScenario",
       "ReadModelScenario",
       "ReadModelScenarioGiven",
-      "ReadModelScenarioGivenBuilder"
+      "ReadModelScenarioGivenBuilder",
+      "UnsupportedEventSequenceOperation",
+      "UnsupportedProjectionOperation",
+      "UnsupportedReactorOperation"
     ],
     "@cratis/chronicle/seeding": [
       "EventSeeding",

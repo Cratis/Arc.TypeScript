@@ -1,8 +1,8 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { ArcApplicationBuilder, Severity } from '@cratis/arc.core';
-import type { ArcOptions, ServiceIdentifier, ServiceRegistration, ServiceScope } from '@cratis/arc.core';
-import type { IChronicleClient } from '@cratis/chronicle';
+import { ArcApplicationBuilder, readModelCollectionNameResolver, Severity } from '@cratis/arc.core';
+import type { ArcOptions, ReadModelCollectionName, ServiceIdentifier, ServiceRegistration, ServiceScope } from '@cratis/arc.core';
+import type { IChronicleClient, ReadModelNamingPolicy } from '@cratis/chronicle';
 import { withChronicle } from '../../../withChronicle.js';
 
 type BuiltApplication = Awaited<ReturnType<ArcApplicationBuilder['build']>>;
@@ -19,8 +19,14 @@ export class a_chronicle_builder {
     /** Opt in to scoped activation over an Arc-owned connection; building never connects. */
     withScopedActivation(): this { return this.withArcOwnedConnection(true); }
     /** Use an Arc-owned connection; building never connects. */
-    withArcOwnedConnection(activateArtifactsInScopes: boolean): this {
-        withChronicle(this.builder, { connectionString: 'chronicle://localhost:35000', eventStore: 'Fallbacks', activateArtifactsInScopes });
+    withArcOwnedConnection(activateArtifactsInScopes: boolean, readModelNamingPolicy?: ReadModelNamingPolicy): this {
+        withChronicle(this.builder, { connectionString: 'chronicle://localhost:35000', eventStore: 'Fallbacks', activateArtifactsInScopes,
+            ...readModelNamingPolicy ? { readModelNamingPolicy } : {} });
+        return this;
+    }
+    /** Register the collection rule a storage integration such as withMongoDB provides. */
+    withCollectionNameRule(rule: ReadModelCollectionName): this {
+        this.builder.services.addSingleton(readModelCollectionNameResolver, () => rule);
         return this;
     }
     async build(): Promise<BuiltApplication> { this.application = await this.builder.build(); return this.application; }

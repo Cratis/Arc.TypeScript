@@ -104,15 +104,18 @@ __metadata:
   resolution: "@cratis/arc.chronicle@workspace:Source/Chronicle"
   dependencies:
     "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.mongodb": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.19.0"
+    "@cratis/chronicle": "npm:6.29.0"
     "@cratis/fundamentals": "npm:7.19.6"
+    "@opentelemetry/api": "npm:^1.9.0"
+    mongodb: "npm:^6.21.0"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
     "@cratis/arc.core": ^0.52.0
     "@cratis/arc.testing": ^0.52.0
-    "@cratis/chronicle": ^6.17.0
+    "@cratis/chronicle": ^6.29.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
     zod: ^4.1.0
@@ -271,7 +274,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@cratis/arc.mongodb@workspace:Source/MongoDB":
+"@cratis/arc.mongodb@workspace:Source/MongoDB, @cratis/arc.mongodb@workspace:^":
   version: 0.0.0-use.local
   resolution: "@cratis/arc.mongodb@workspace:Source/MongoDB"
   dependencies:
@@ -344,7 +347,7 @@ __metadata:
     "@cratis/arc.express": "workspace:^"
     "@cratis/arc.react": "npm:22.19.1"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.19.0"
+    "@cratis/chronicle": "npm:6.29.0"
     "@cratis/components": "npm:4.6.0"
     "@cratis/fundamentals": "npm:7.19.6"
     "@testing-library/dom": "npm:^10.4.2"
@@ -393,9 +396,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.19.0":
-  version: 6.19.0
-  resolution: "@cratis/chronicle@npm:6.19.0"
+"@cratis/chronicle@npm:6.29.0":
+  version: 6.29.0
+  resolution: "@cratis/chronicle@npm:6.29.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.15.0"
     "@cratis/chronicle.contracts": "npm:19.6.1"
@@ -408,7 +411,7 @@ __metadata:
     undici: "npm:^8.10.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.19.2
-  checksum: 10c0/6de0b9b55eb4a32aa0f0386f559a599f75120d4e65c4d05839b858597b83c7a12642bc5a328230d76c03bd44848edaa12abd399739c60bab4c4ccd4ce1b97f15
+  checksum: 10c0/4dc269f68904be93f549826904f1bdfa7726d2b58bb1955c37686ddbb973dfff555e697c97b2acc80c2fee639033d919a76b86e166bb8a621eec20a268b50e81
   languageName: node
   linkType: hard
 
@@ -446,12 +449,12 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.19.0"
+    "@cratis/chronicle": "npm:6.29.0"
     "@cratis/fundamentals": "npm:7.19.6"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"
   peerDependencies:
-    "@cratis/chronicle": ^6.17.0
+    "@cratis/chronicle": ^6.29.0
     "@cratis/fundamentals": ^7.19.6
     rxjs: ^7.8.2
     zod: ^4.1.0

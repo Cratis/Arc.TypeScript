@@ -21,7 +21,7 @@ builder.withChronicle({
 });
 ```
 
-Scoped activation requires `@cratis/chronicle` 6.17.0 or later, the lowest version `@cratis/arc.chronicle` accepts as a peer. To use a Chronicle client you create yourself, see [Use a caller-owned client](#use-a-caller-owned-client).
+Scoped activation requires `@cratis/chronicle` 6.29.0 or later, the lowest version `@cratis/arc.chronicle` accepts as a peer. To use a Chronicle client you create yourself, see [Use a caller-owned client](#use-a-caller-owned-client).
 
 With the option set, Chronicle-only artifacts that `discover(...)` found before `withChronicle` was called are registered with Chronicle too. Without it, registration is unchanged.
 

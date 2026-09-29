@@ -15,6 +15,9 @@ describe('when loading the public Arc barrels', () => {
     it('should expose failure tracking to hosting integrations', () => {
         hosting.recordFailure.should.be.a('function');
     });
+    it('should share the read model collection rule token between the Node and Fetch roots', () => {
+        node.readModelCollectionNameResolver.should.equal(fetch.readModelCollectionNameResolver);
+    });
     it('should retain branded command outcomes on the root', () => {
         node.tuple.should.be.a('function');
         node.rejected.should.be.a('function');

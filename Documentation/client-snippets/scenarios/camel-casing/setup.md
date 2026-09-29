@@ -1,6 +1,7 @@
 ```typescript
 import { field, Guid } from '@cratis/fundamentals';
 import { ArcApplication, key } from '@cratis/arc.core';
+import '@cratis/arc.chronicle';
 import { camelCaseMongoNamingPolicy } from '@cratis/arc.mongodb';
 
 // Users/User.ts
@@ -16,13 +17,11 @@ builder.withMongoDB({
     server: 'mongodb://localhost:27017',
     database: 'my-app',
     readModels: [User],
-    namingPolicy: camelCaseMongoNamingPolicy,
-    // Chronicle's TypeScript client stores a projected read model in a collection named after its
-    // identifier: the class name, unpluralized (User), unless @readModel gives it another id. Both
-    // built-in policies pluralize (users), so read the collection Chronicle writes. Return the
-    // @readModel id instead for a read model that sets one.
-    collectionName: type => type.name
+    namingPolicy: camelCaseMongoNamingPolicy
 });
+// The Chronicle client Arc creates stores a projected User in the collection this policy reads (users),
+// because withMongoDB is configured. No collectionName override is needed.
+builder.withChronicle({ connectionString: 'chronicle://localhost:35000', eventStore: 'my-app' });
 const app = await builder.build();
 await app.run();
 ```
