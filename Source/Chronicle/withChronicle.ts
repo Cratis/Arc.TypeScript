@@ -29,6 +29,8 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     const registeredInterceptors = new Set<Constructor>();
     builder.addArtifactObserver(type => {
         const matched = artifacts.register(type as Constructor);
+        // Deferred scoped fallbacks: explicit, options.services and decorated lifetimes win at build time.
+        for (const artifact of [...artifacts.reactors, ...artifacts.reducers]) builder.services.addScopedFallback(artifact);
         for (const model of artifacts.readModels) {
             if (registeredInterceptors.has(model) || !hasProtectedReadModel(model)) continue;
             registeredInterceptors.add(model);

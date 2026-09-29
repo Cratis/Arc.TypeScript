@@ -17,6 +17,8 @@ Importing `@cratis/arc.chronicle` adds the `withChronicle` method to the Node bu
 
 Call it before or after `discover(...)`. The integration records the event types, projections, reducers, reactors, and constraints discovered by Arc, including artifacts discovered earlier. For Chronicle-only artifacts passed to `add(...)`, call `withChronicle` first: Arc otherwise rejects them without an Arc decorator. Arc-owned clients pass the registered artifacts to the SDK and set `discoveryPatterns: []`, so they do not depend on SDK file scanning. For a caller-owned client, import and register your artifacts explicitly or configure its `discoveryPatterns`. Since SDK 6.10.0, compiled JavaScript entry points no longer scan `.ts` files by default; explicit patterns still apply.
 
+Each recorded reactor and reducer also gets a scoped service registration in Arc, but only when nothing else registers that class. A registration in `builder.services` (before or after `withChronicle`), an entry in `options.services`, or an Arc lifetime decorator such as `@singleton()` always wins, and discovering an artifact twice does not add a second registration. With a caller-supplied `ServiceRegistry` in `options.services`, Arc adds no such registrations; register the artifacts yourself. Arc does not construct reactors or reducers through these registrations yet; the Chronicle SDK still creates them.
+
 ## Options
 
 | Option | Type | Required | Meaning |

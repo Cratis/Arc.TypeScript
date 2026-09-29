@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { ServiceLifetime } from './ServiceLifetime.js';
 import type { ServiceRegistration } from './ServiceRegistration.js';
-import type { ServiceIdentifier, ServiceClass } from './ServiceIdentifier.js';
+import { normalizeServiceToken, type ServiceIdentifier, type ServiceClass } from './ServiceIdentifier.js';
 import { reflectedParameters } from '../reflection/reflectedParameters.js';
 import { ownMetadata } from '../reflection/ownMetadata.js';
 import type { ServiceScope } from './ServiceScope.js';
@@ -10,6 +10,31 @@ import type { ServiceScope } from './ServiceScope.js';
 /** Collect class and factory registrations for a built application. */
 export class ArcApplicationServices {
     readonly registrations: ServiceRegistration<unknown>[] = [];
+    readonly #fallbacks = new Map<symbol, ServiceClass<unknown>>();
+    /**
+     * Record a scoped class registration as a fallback. The registration is deferred: it is added when the
+     * application is built, and only when no registration in these services, `options.services` entry or
+     * decorated lifetime claims the same token. Repeated calls are idempotent. Nothing is added when the
+     * application uses a caller-supplied `ServiceRegistry`, and calls after the application is built have no effect.
+     */
+    addScopedFallback<T>(type: ServiceClass<T>): this {
+        const key = normalizeServiceToken(type).key;
+        if (!this.#fallbacks.has(key)) this.#fallbacks.set(key, type);
+        return this;
+    }
+    /** @internal Materialize deferred fallbacks whose tokens are absent from the combined registration set. */
+    addFallbacks(existing: readonly ServiceRegistration<unknown>[]): void {
+        const claimed = new Set([...existing, ...this.registrations].map(registration => normalizeServiceToken(registration.token).key));
+        for (const [key, type] of this.#fallbacks) {
+            if (claimed.has(key)) continue;
+            claimed.add(key);
+            try { this.addScoped(type); }
+            catch (error) {
+                // Defer an unbindable constructor to resolution so building an application never fails on a fallback.
+                this.registrations.push({ token: type, lifetime: ServiceLifetime.Scoped, factory: () => { throw error; } });
+            }
+        }
+    }
     /** Register a service once for the lifetime of the application. */
     addSingleton<T>(token: ServiceIdentifier<T>, implementation?: ServiceClass<T> | ((scope: ServiceScope) => T | Promise<T>)): this {
         return this.add(token, ServiceLifetime.Singleton, implementation);
