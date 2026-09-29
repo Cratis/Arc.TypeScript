@@ -7,13 +7,13 @@ import { isPassive } from '@cratis/chronicle/projections';
 import type { Constructor } from '@cratis/fundamentals';
 import type { ExecutionContext } from '@cratis/arc.core';
 import { from, map, Observable } from 'rxjs';
-import { ChronicleRuntime } from './ChronicleRuntime.js';
+import type { ChronicleStoreSource } from './ChronicleStores.js';
 import { markKernelReleased } from './kernelReleasedReadModels.js';
 import { hasProtectedReadModel, hasTopLevelCompliance } from './hasProtectedReadModel.js';
 
 /** Tenant-scoped access to Chronicle read models; use as a service in Arc queries. */
 export class ChronicleReadModels {
-    constructor(private readonly runtime: ChronicleRuntime, private readonly context: ExecutionContext) {}
+    constructor(private readonly runtime: ChronicleStoreSource, private readonly context: ExecutionContext) {}
     /** Resolve the current tenant's event store. */
     getStore(): Promise<IEventStore> { return this.runtime.getStore(this.context); }
     /** Return null rather than fabricating a read model for an absent key. */

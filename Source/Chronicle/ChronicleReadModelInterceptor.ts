@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ReadModelInterceptor, ExecutionContext, RawReadModelProvenance } from '@cratis/arc.core';
 import type { Constructor } from '@cratis/fundamentals';
-import { ChronicleRuntime } from './ChronicleRuntime.js';
+import type { ChronicleStoreSource } from './ChronicleStores.js';
 import { ReadModelSubjectResolver } from '@cratis/chronicle/readModels';
 import { hasProtectedReadModel, holdsProtectedValues } from './hasProtectedReadModel.js';
 import { isKernelReleased, markKernelReleased } from './kernelReleasedReadModels.js';
@@ -10,7 +10,7 @@ import { releaseRawDocument } from './releaseRawDocument.js';
 
 /** Release protected Chronicle models read outside the kernel, within the request's tenant scope. */
 export class ChronicleReadModelInterceptor implements ReadModelInterceptor {
-    constructor(readonly model: Constructor<object>, private readonly runtime: ChronicleRuntime,
+    constructor(readonly model: Constructor<object>, private readonly runtime: ChronicleStoreSource,
         private readonly context: ExecutionContext) {}
 
     /**

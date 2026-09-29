@@ -6,6 +6,7 @@ import type { ArcServer, ExecutionContext, ServiceRegistry, ShutdownParticipant 
 // value would break loading @cratis/arc.chronicle on older SDKs even when scoped activation is off.
 import type { ArtifactDelivery, ActivatedArtifact, ArtifactActivationContext, ArtifactInvocationContext, ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
 import type { Constructor } from '@cratis/fundamentals';
+import { bindDeliveryStore } from './ChronicleStores.js';
 
 /** A Chronicle artifact activator that also takes part in Arc's coordinated shutdown. */
 export type ChronicleArtifactActivator = ClientArtifactsActivator & ShutdownParticipant;
@@ -18,6 +19,7 @@ const eventsDelivery: `${ArtifactDelivery.Events}` = 'events';
  * Each activation validates that it belongs to the expected event store, derives the tenant from the observation's
  * namespace, resolves the artifact from a fresh scope, runs every handler in that scope with the handled event's
  * correlation, and disposes the scope when the SDK completes the lease. A scope cleanup failure fails the delivery.
+ * Arc's Chronicle services resolved in the scope use the delivered event store rather than the runtime's client.
  * The activator registers itself as a shutdown participant of the server's registry on first use: shutdown stops
  * admission, cancels active leases, and waits for every admitted lease to settle before services are disposed.
  * @param server - Resolves the built Arc server.
@@ -61,6 +63,8 @@ export function chronicleArtifactActivator(server: () => ArcServer, expectedEven
         try { scope = services.createScope(identity); }
         catch (error) { settle(); throw error; }
         const created = scope;
+        // Arc's Chronicle services in this scope, and in scopes of commands the reactor returns, use the delivered store.
+        bindDeliveryStore(identity.signal, services, context.eventStore);
         // Shared by complete() and dispose() so scoped services are disposed exactly once.
         const release = (): Promise<void> => cleanup ??= created.dispose().finally(settle);
 

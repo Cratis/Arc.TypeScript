@@ -5,7 +5,7 @@ import type { ServiceToken, CommandContext } from '@cratis/arc.core';
 import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 import { getEventTypeMetadata } from '@cratis/chronicle/events';
 import { AggregateRoot, rehydrateAggregate } from './AggregateRoot.js';
-import { ChronicleRuntime } from './ChronicleRuntime.js';
+import { ChronicleScopedStore } from './ChronicleStores.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { eventRoutingFor } from './eventRouting.js';
 
@@ -23,7 +23,7 @@ export function commandAggregate<T extends AggregateRoot>(type: new () => T): Se
     });
     async function load(context: CommandContext): Promise<T> {
         if (!context.key?.trim()) throw new Error(`A command key is required for ${type.name}`);
-        const store = await (await currentServices().resolve(ChronicleRuntime)).getStore(context);
+        const store = await (await currentServices().resolve(ChronicleScopedStore)).getStore(context);
         const aggregate = new type();
         const route = eventRoutingFor((context.command as object).constructor);
         const command = context.command as { getEventStreamId?: () => string };

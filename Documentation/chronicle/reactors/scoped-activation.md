@@ -35,11 +35,12 @@ For each delivery Chronicle makes to a reactor or reducer, Arc:
 
 - rejects it unless it comes from the configured event store;
 - creates a service scope and resolves the artifact from it, so constructor dependencies are shared by every event in the batch and not by the next batch;
-- sets `currentContext()` for each handler: the tenant is the observation's namespace, the correlation is the handled event's correlation, there is no principal, the signal is cancelled when the application shuts down, and warnings are allowed;
+- sets `currentContext()` for each handler: the tenant is the observation's namespace, the correlation is the handled event's correlation, there is no principal, the signal is cancelled when Chronicle cancels the delivery or the application shuts down, and warnings are allowed;
+- pins Arc's Chronicle services in the scope to the event store Chronicle delivered from: `ChronicleReadModels`, command read models, `commandAggregate` and the events commands return all use that store, never a store the application's own Chronicle client looks up;
 - handles a replay notification in its own scope, with a newly generated correlation;
 - disposes the scope after the batch and before Chronicle acknowledges it.
 
-Commands a handler returns follow the rules in [Returning commands from a reactor](command-side-effects.md): they run in the observation's tenant with no principal, or with a system principal when the reactor uses `@executeCommandsAsSystem`. They do not receive the delivery's cancellation yet; each returned command gets its own signal, which shutdown does not abort.
+Commands a handler returns follow the rules in [Returning commands from a reactor](command-side-effects.md): they run in the observation's tenant with no principal, or with a system principal when the reactor uses `@executeCommandsAsSystem`. They run one at a time in the order returned, with the handled event's correlation, and the first failure fails the delivery without running the rest. Each command receives the delivery's signal and uses the delivery's event store. Arc checks the signal before starting each command, so a cancelled delivery runs no further commands. A command that runs in another event store or namespace than the delivery fails instead of falling back to the application's client.
 
 ### The tenant in a single-tenant application
 
@@ -78,4 +79,5 @@ The caller owns the ordering:
 
 - Build Arc before the client starts observing. A delivery that arrives earlier finds no application; the delivery fails and Chronicle retries it.
 - You register the reactors, reducers and their dependencies yourself, and Arc does not check them when building.
+- Returned commands receive the delivery's signal and event store only when you also pass `reactorCommandResultHandler(() => application!.server, 'MyArcApp')` as `reactorResultHandler`.
 - The activator joins Arc's shutdown only after its first activation. Before disposing Arc, stop the client, or call `artifactActivator.stop()` and then `await artifactActivator.drain()`, so no delivery is still using services that `application.dispose()` releases.

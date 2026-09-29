@@ -7,7 +7,7 @@ import type { AppendOptions, ConcurrencyScope, EventForEventSourceId } from '@cr
 import type { CommandContext, CommandResponseValueHandler } from '@cratis/arc.core';
 import { acknowledgeCommandCommit } from '@cratis/arc.core/hosting';
 import { checkResults } from './ChronicleCommand.js';
-import { ChronicleRuntime } from './ChronicleRuntime.js';
+import type { ChronicleStoreSource } from './ChronicleStores.js';
 import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 import { eventRoutingFor } from './eventRouting.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
@@ -21,7 +21,7 @@ function eventLike(value: unknown): boolean {
 }
 /** Consume only registered Chronicle events, leaving ordinary DTOs in the Arc response pipeline. */
 export class ChronicleResponseHandler implements CommandResponseValueHandler {
-    constructor(private readonly runtime: ChronicleRuntime) {}
+    constructor(private readonly runtime: ChronicleStoreSource) {}
     canHandle(_context: CommandContext, value: unknown): boolean {
         if (value instanceof AggregateRootCommitResult || value instanceof EventsWithConcurrencyScopes) return true;
         if (Array.isArray(value)) return value.length === 0 || value.some(eventLike);

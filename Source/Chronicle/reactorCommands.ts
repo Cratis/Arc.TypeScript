@@ -5,6 +5,7 @@ import type { ArcServer } from '@cratis/arc.core';
 import { causationManager, CausationType } from '@cratis/chronicle/auditing';
 import { Identity, identityProvider } from '@cratis/chronicle/identity';
 import type { ReactorResultHandler } from '@cratis/chronicle/reactors';
+import { currentDeliverySignal } from './ChronicleStores.js';
 
 const systemRoles = new WeakMap<object, readonly string[]>();
 /** Grant returned commands a system principal with these roles (ordinary reactor commands have no principal). */
@@ -24,11 +25,13 @@ export function reactorCommandResultHandler(server: () => ArcServer, expectedEve
         const selected = server();
         const roles = systemRoles.get(reactor);
         const principal = roles ? { id: Identity.system.subject, name: Identity.system.name, roles, isAuthenticated: true } : undefined;
+        // In a scoped delivery, returned commands share its cancellation and event store; the result-handler-only path has neither.
+        const signal = currentDeliverySignal(selected.services, eventStore, namespace) ?? new AbortController().signal;
         const run = async () => {
             for (const command of commands) {
+                signal.throwIfAborted();
                 const result = await selected.execute(command, {
-                    tenantId: namespace, correlationId: event.correlationId, principal,
-                    signal: new AbortController().signal, allowedSeverity: Severity.Warning
+                    tenantId: namespace, correlationId: event.correlationId, principal, signal, allowedSeverity: Severity.Warning
                 });
                 if (!result.isSuccess) throw new Error(`Reactor command ${command.constructor.name} failed in ${eventStore}/${namespace}: ` +
                     [...result.exceptionMessages, ...result.validationResults.map(issue => issue.message),
