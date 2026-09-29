@@ -194,7 +194,8 @@ MEMBER_CONCEPTS_FROM_SLICE = (("../MemberId", MEMBER_CONCEPTS), ("../MemberName"
 # than Arc/Documentation, so the shared Arc page scan cannot find their macros.
 # Keep these exceptions explicit so other unreferenced snippet ids still fail.
 SITE_ONLY_SNIPPETS = {
-    "guides/chronicle/event-from-command",
+    "testing-with-cratis/register-author",
+    "testing-with-cratis/register-author-spec",
     "capstone/host",
     "capstone/author-id",
     "capstone/register-author",
@@ -264,7 +265,10 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/chat/in-memory/backend": Context(fixture_imports=False, location="Chat", files=True),
     "scenarios/chat/rabbitmq/backend": Context(fixture_imports=False, location="Chat", files=True),
     "scenarios/camel-casing/setup": Context(fixture_imports=False),
-    "guides/chronicle/event-from-command": MODULE,
+    # The Testing with Cratis page: the spec imports the slice beside it, as a reader's does.
+    "testing-with-cratis/register-author": Context(fixture_imports=False),
+    "testing-with-cratis/register-author-spec": Context(
+        siblings=(("RegisterAuthor", "testing-with-cratis/register-author"),), fixture_imports=False),
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
     "understanding-the-proxy-boundary/register-author": MODULE,
