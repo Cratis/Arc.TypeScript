@@ -24,7 +24,7 @@ export class ShelfBuilder {
 }
 ```
 
-`CreateShelf` is an ordinary Arc `@command()` in your application. Register the reactor the way you register every other artifact, with `builder.add(...)` after [`withChronicle`](../add-event-sourcing.md), or with `builder.discover(...)` in either order. The Arc-owned Chronicle client starts observing it when the application builds.
+`CreateShelf` is an ordinary Arc `@command()` in your application. Register the reactor the way you register every other artifact, with `builder.add(...)` or `builder.discover(...)` after [`withChronicle`](../add-event-sourcing.md). A reactor has no Arc decorator, so one discovered before `withChronicle` is dropped unless [`activateArtifactsInScopes`](scoped-activation.md) is on. The Arc-owned Chronicle client starts observing it when the application builds.
 
 ## How a handler is found
 
