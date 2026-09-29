@@ -12,6 +12,8 @@ export { queryFilterResult } from './queryFilterResult.js';
 export { unauthorizedQueryResult } from './unauthorizedQueryResult.js';
 export type { QueryRenderer } from './QueryRenderer.js';
 export type { ReadModelInterceptor } from './ReadModelInterceptor.js';
+export { markRawReadModelDocument, rawReadModelProvenance } from './rawReadModelDocuments.js';
+export type { RawReadModelProvenance } from './rawReadModelDocuments.js';
 export { queryRenderer } from './queryRendererDecorator.js';
 export { readModelInterceptor } from './readModelInterceptorDecorator.js';
 export type { PageRequest } from './PageRequest.js';

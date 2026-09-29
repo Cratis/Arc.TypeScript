@@ -1,6 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { QueryPagingRequired, queryPage as createQueryPage, SortDirection } from '@cratis/arc.core';
+import { markRawReadModelDocument, QueryPagingRequired, queryPage as createQueryPage, SortDirection } from '@cratis/arc.core';
 import type { ExecutionContext, PageRequest, QueryOptions, QueryPage } from '@cratis/arc.core';
 import { ObjectId } from 'mongodb';
 import type { CountDocumentsOptions, Document, Filter, FindOptions, WithId } from 'mongodb';
@@ -16,6 +16,27 @@ export class MongoReadModels<T extends Document, I> {
         if (!collectionName) throw new Error('A collection name is required');
         if (options.maxPageSize !== undefined && (!Number.isSafeInteger(options.maxPageSize) || options.maxPageSize <= 0))
             throw new RangeError('maxPageSize must be a positive safe integer');
+        if (options.subjectFor && !options.readModel) throw new Error('subjectFor requires readModel');
+    }
+
+    /** Typed raw documents are whole documents; a projection would hide fields from the release. */
+    private rejectProjection(options?: { projection?: unknown }): void {
+        if (this.options.readModel && options?.projection !== undefined)
+            throw new Error(`MongoDB projections are not supported for raw ${this.options.readModel.name} documents`);
+    }
+
+    private mark(context: ExecutionContext, document: WithId<T>): WithId<T> {
+        const model = this.options.readModel;
+        if (!model) return document;
+        const id: unknown = document._id;
+        // Chronicle stamps the subject it encrypted with as __subject; the release checks any explicit subject against it.
+        const stored: unknown = (document as Document).__subject;
+        const subject = this.options.subjectFor ? this.options.subjectFor(document) :
+            typeof stored === 'string' && stored ? stored :
+                typeof id === 'string' || typeof id === 'number' && Number.isFinite(id) ? String(id) : undefined;
+        if (typeof subject !== 'string' || !subject)
+            throw new Error(`Raw ${model.name} document has no subject; use a string __subject or _id, or subjectFor`);
+        return markRawReadModelDocument(document, { model, tenantId: context.tenantId!, subject });
     }
 
     private collection(context: ExecutionContext) {
@@ -27,7 +48,9 @@ export class MongoReadModels<T extends Document, I> {
 
     /** Always derive the filter through the application's typed callback. */
     async find(context: ExecutionContext, input: I, options?: FindOptions<T>): Promise<WithId<T>[]> {
-        return this.collection(context).find(this.options.filterFor(input, context), { ...options, signal: context.signal }).toArray();
+        this.rejectProjection(options);
+        const documents = await this.collection(context).find(this.options.filterFor(input, context), { ...options, signal: context.signal }).toArray();
+        return documents.map(document => this.mark(context, document));
     }
 
     /** Only primitive or BSON ObjectId identities are accepted; never interpret caller input as a filter. */
@@ -37,7 +60,8 @@ export class MongoReadModels<T extends Document, I> {
             throw new TypeError('A primitive or BSON ObjectId is required for findById');
         const collection = this.collection(context);
         const filter = this.options.filterFor(input, context);
-        return collection.findOne({ $and: [filter, { _id: id }] } as Filter<T>, { signal: context.signal });
+        const document = await collection.findOne({ $and: [filter, { _id: id }] } as Filter<T>, { signal: context.signal });
+        return document ? this.mark(context, document) : null;
     }
 
     /** Read a bounded first page when Arc has no paging; never silently ignore sorting. */
@@ -67,6 +91,7 @@ export class MongoReadModels<T extends Document, I> {
             !Number.isSafeInteger(request.page * request.pageSize))
             throw new RangeError('Paging requires a nonnegative page and positive pageSize within safe integer bounds');
         if (request.pageSize > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize);
+        this.rejectProjection(options);
         const sort = options?.sort;
         if (sort !== undefined && (typeof sort !== 'object' || sort === null || Array.isArray(sort) ||
             Object.getPrototypeOf(sort) !== Object.prototype && Object.getPrototypeOf(sort) !== null ||
@@ -84,7 +109,7 @@ export class MongoReadModels<T extends Document, I> {
         if (rejectUnpaged && totalItems > this.maxPageSize) throw new QueryPagingRequired(this.maxPageSize, true);
         const items = await collection.find(filter, { ...options, sort: orderedSort, signal: context.signal })
             .skip(request.page * request.pageSize).limit(request.pageSize).toArray();
-        return { items, paging: { page: request.page, size: request.pageSize,
+        return { items: items.map(document => this.mark(context, document)), paging: { page: request.page, size: request.pageSize,
             totalItems, totalPages: Math.ceil(totalItems / request.pageSize) } };
     }
 }

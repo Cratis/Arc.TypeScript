@@ -6,6 +6,11 @@ import { JsonSchemaGenerator } from '@cratis/chronicle/schemas';
 import type { JsonSchema } from '@cratis/chronicle/schemas';
 
 const protectedTypes = new WeakMap<Constructor, boolean>();
+const topLevelComplianceTypes = new WeakMap<Constructor, boolean>();
+
+function schemaFor(type: Constructor): JsonSchema {
+    return getReadModelMetadata(type)?.schema ?? JsonSchemaGenerator.generate(type);
+}
 
 function containsProtection(schema: JsonSchema): boolean {
     return !!schema.compliance?.length || !!schema.security?.length ||
@@ -17,8 +22,35 @@ function containsProtection(schema: JsonSchema): boolean {
 export function hasProtectedReadModel(type: Constructor): boolean {
     let protectedModel = protectedTypes.get(type);
     if (protectedModel === undefined) {
-        protectedModel = containsProtection(getReadModelMetadata(type)?.schema ?? JsonSchemaGenerator.generate(type));
+        protectedModel = containsProtection(schemaFor(type));
         protectedTypes.set(type, protectedModel);
     }
     return protectedModel;
+}
+
+function holdsProtected(schema: JsonSchema, value: unknown): boolean {
+    if (value === undefined || value === null || value === '') return false;
+    if (schema.compliance?.length || schema.security?.length) return true;
+    if (Array.isArray(value)) return !!schema.items && value.some(item => holdsProtected(schema.items!, item));
+    if (typeof value !== 'object') return false;
+    return Object.entries(schema.properties ?? {})
+        .some(([key, property]) => holdsProtected(property, (value as Record<string, unknown>)[key]));
+}
+
+/** Whether an instance holds a value, at any depth, in a property the model's schema marks as protected. */
+export function holdsProtectedValues(type: Constructor, instance: object): boolean {
+    return holdsProtected(schemaFor(type), instance);
+}
+
+/**
+ * Whether a model has compliance metadata on a top-level property: the only case in which the Chronicle SDK
+ * releases reducer-model reads itself (its `schemaHasComplianceMetadata`).
+ */
+export function hasTopLevelCompliance(type: Constructor): boolean {
+    let result = topLevelComplianceTypes.get(type);
+    if (result === undefined) {
+        result = Object.values(schemaFor(type).properties ?? {}).some(property => !!property.compliance?.length);
+        topLevelComplianceTypes.set(type, result);
+    }
+    return result;
 }

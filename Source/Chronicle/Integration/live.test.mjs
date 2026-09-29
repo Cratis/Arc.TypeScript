@@ -16,7 +16,7 @@ import { cratisArc as expressArc } from '@cratis/arc.express';
 import { cratisArc as fastifyArc } from '@cratis/arc.fastify';
 import { cratisArc as honoArc } from '@cratis/arc.hono';
 import { ArcApplication, defineQuery, serviceToken } from '@cratis/arc.core';
-import { MongoCollection } from '@cratis/arc.mongodb';
+import { MongoCollection, MongoReadModels } from '@cratis/arc.mongodb';
 import { z } from 'zod';
 import { context, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
@@ -66,6 +66,9 @@ const builder = ArcApplication.createBuilder({ development: true,
                 database, PrivateLiveView, execution);
             return models.findById(id);
         }
+    }), defineQuery({ name: 'ByPrivateRawMongoId', schema: z.object({ id: z.string() }),
+        perform: ({ id }, execution) => new MongoReadModels({ client: mongo, databaseForTenant: tenant => `${storeName}+${tenant}`,
+            filterFor: () => ({}), readModel: PrivateLiveView }, 'ArcTypeScriptPrivateLiveView').findById(execution, {}, id)
     })],
     readModelInterceptors: [interceptor],
     tenancy: { resolve: request => request.headers.get('x-test-tenant') ?? undefined } });
@@ -183,6 +186,15 @@ try {
                 });
                 assert.equal((await mongoQuery.json()).data.name, privateName,
                     'Arc releases a MongoDB-read Chronicle model at the query edge');
+                assert.equal(storedPrivate.__subject, privateId, 'the kernel stamps the subject it encrypted with');
+                assert.ok('__lastHandledEventSequenceNumber' in storedPrivate, 'the kernel stamps its bookkeeping');
+                const rawQuery = await globalThis.fetch(`${listener.url}/api/by-private-raw-mongo-id?id=${privateId}`, {
+                    headers: { 'x-test-tenant': tenant }
+                });
+                const raw = await rawQuery.json();
+                assert.equal(raw.isSuccess, true, JSON.stringify(raw));
+                assert.deepEqual(raw.data, { _id: privateId, name: privateName },
+                    'Arc releases a raw MongoReadModels document and strips kernel bookkeeping');
                 const privateQuery = await globalThis.fetch(`${listener.url}/api/by-private-id?id=${privateId}`, {
                     headers: { 'x-test-tenant': tenant }
                 });
