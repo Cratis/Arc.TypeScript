@@ -16,8 +16,7 @@ import type { ChronicleRegistration } from './ChronicleOptions.js';
 import { runChronicleCommand } from './runChronicleCommand.js';
 import { ChronicleCommandScope } from './ChronicleCommandScope.js';
 import { hasProtectedReadModel } from './hasProtectedReadModel.js';
-import { chronicleArtifactActivator } from './chronicleArtifactActivator.js';
-import { requireScopedActivationSupport } from './requireScopedActivationSupport.js';
+import { chronicleArtifactActivator, chronicleArtifactActivatorEventStore } from './chronicleArtifactActivator.js';
 
 /** Register Chronicle without changing core Arc's optional dependency boundary. */
 export function withChronicle(builder: ArcApplicationBuilder, options: Partial<ChronicleRegistration> = {}): ArcApplicationBuilder {
@@ -29,13 +28,16 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     const artifacts = new ChronicleArtifacts();
     let server: ArcServer | undefined;
     builder.addBuiltObserver(built => { server = built; });
-    if (registration.activateArtifactsInScopes && registration.client)
-        throw new Error('Chronicle activateArtifactsInScopes requires an Arc-owned connection; pass chronicleArtifactActivator to your client instead');
-    const activator = registration.activateArtifactsInScopes ? chronicleArtifactActivator(() => {
+    // A caller-owned client is never changed: its creator installs the activator, and Arc only checks that it did.
+    const callerActivator = registration.client?.options?.artifactActivator;
+    if (registration.activateArtifactsInScopes && registration.client &&
+        chronicleArtifactActivatorEventStore(callerActivator) !== registration.eventStore)
+        throw new Error(`Chronicle activateArtifactsInScopes with a caller-owned client requires creating it with artifactActivator: chronicleArtifactActivator(server, '${
+            registration.eventStore}') and reactorResultHandler: reactorCommandResultHandler(server, '${registration.eventStore}')`);
+    const activator = !registration.activateArtifactsInScopes ? undefined : registration.client ? callerActivator : chronicleArtifactActivator(() => {
         if (!server) throw new Error('Arc must be built before Chronicle artifacts can be activated');
         return server;
-    }, registration.eventStore) : undefined;
-    if (activator) requireScopedActivationSupport(registration.connectionString!, activator);
+    }, registration.eventStore);
     // Arc constructs activated artifacts, so their registrations must be resolvable when the application is built.
     if (activator) builder.addBuiltObserver(built => {
         for (const artifact of [...artifacts.reactors, ...artifacts.reducers]) {
@@ -64,7 +66,7 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
     builder.services.addSingleton(ChronicleRuntime, () => new ChronicleRuntime(registration as ChronicleRegistration, artifacts, () => {
         if (!server) throw new Error('Arc must be built before Chronicle reactor commands can run');
         return server;
-    }, activator));
+    }, registration.client ? undefined : activator));
     builder.services.addScoped(ChronicleScopedStore, async scope => new ChronicleScopedStore(await scope.resolve(ChronicleRuntime), scope));
     builder.services.addScoped(ChronicleReadModels, async scope =>
         new ChronicleReadModels(await scope.resolve(ChronicleScopedStore), scope.identity!));

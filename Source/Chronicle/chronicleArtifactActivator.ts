@@ -2,16 +2,21 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { normalizeCorrelationId, Severity } from '@cratis/arc.core';
 import type { ArcServer, ExecutionContext, ServiceRegistry, ShutdownParticipant } from '@cratis/arc.core';
-// Type-only: ArtifactDelivery is a runtime export only from @cratis/chronicle 6.16, above the peer floor. Importing it as a
-// value would break loading @cratis/arc.chronicle on older SDKs even when scoped activation is off.
-import type { ArtifactDelivery, ActivatedArtifact, ArtifactActivationContext, ArtifactInvocationContext, ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
+import { ArtifactDelivery } from '@cratis/chronicle/artifacts';
+import type { ActivatedArtifact, ArtifactActivationContext, ArtifactInvocationContext, ClientArtifactsActivator } from '@cratis/chronicle/artifacts';
 import type { Constructor } from '@cratis/fundamentals';
 import { bindDeliveryStore } from './ChronicleStores.js';
 
 /** A Chronicle artifact activator that also takes part in Arc's coordinated shutdown. */
 export type ChronicleArtifactActivator = ClientArtifactsActivator & ShutdownParticipant;
 
-const eventsDelivery: `${ArtifactDelivery.Events}` = 'events';
+const eventsDelivery = ArtifactDelivery.Events;
+const expectedEventStores = new WeakMap<object, string>();
+
+/** @internal The event store an activator created by {@link chronicleArtifactActivator} accepts, if the value is one. */
+export function chronicleArtifactActivatorEventStore(value: unknown): string | undefined {
+    return typeof value === 'function' ? expectedEventStores.get(value) : undefined;
+}
 
 /**
  * Activate Chronicle reactors and reducers in an Arc service scope, one scope per delivery.
@@ -100,5 +105,6 @@ export function chronicleArtifactActivator(server: () => ArcServer, expectedEven
             while (active.size) await Promise.allSettled([...active]);
         }
     });
+    expectedEventStores.set(activator, expectedEventStore);
     return activator;
 }
