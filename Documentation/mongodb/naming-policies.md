@@ -52,6 +52,23 @@ builder.withMongoDB({ client, database: 'library', readModels: [Person],
 
 The function receives each registered model class and must return a nonempty name for all of them, or the request that resolves the collection fails with `MongoDB collection name is required`.
 
+## Chronicle-projected read models
+
+When Chronicle projects a read model into MongoDB, the collection name has to match the one Arc reads. If the Chronicle client is created by [`withChronicle`](../chronicle/registration-options.md) with a `connectionString` and the application also calls `withMongoDB`, Arc gives that client a naming policy that applies this page's rule to the read model class: `collectionName?.(model) ?? namingPolicy.collectionName(model)`. A projected `User` lands in `Users` under the default policy and in `users` under `camelCaseMongoNamingPolicy`, with no extra setup. The same collection name is used whether `withMongoDB` is called before or after `withChronicle`.
+
+The policy changes only the collection name. A read model that Chronicle knows only by identifier, such as a projection with a custom `.containerName(...)`, keeps that identifier as its collection name. The database must still match: Chronicle writes the default namespace's read models to a database named after the event store, and to `<event store>+<namespace>` for any other namespace. `withMongoDB` uses `<database>` and `<database>+<tenantId>`, so set `database` to the event store name.
+
+Two cases are not wired automatically:
+
+- **You pass your own Chronicle `client`.** Arc never changes a client it does not own. Create it with `ChronicleOptions.fromConnectionString(connectionString, { readModelNamingPolicy })` and return the name you want, for example `(identifier, readModelType) => readModelType ? resolveMongoCollectionName(mongoOptions, readModelType) : identifier`. `resolveMongoCollectionName`, exported from `@cratis/arc.mongodb`, is the function Arc itself uses, and `mongoOptions` is an object with the same `namingPolicy` and `collectionName` you pass to `withMongoDB`. Passing `readModelNamingPolicy` to `withChronicle` together with a `client` throws.
+- **You pass `readModelNamingPolicy` to `withChronicle`.** Your policy replaces the automatic one.
+
+Without `withMongoDB`, Arc sets no policy and Chronicle names the collection after the read model identifier. The automatic policy needs `@cratis/chronicle` 6.29.0 or later, which is the lowest version `@cratis/arc.chronicle` accepts.
+
+:::caution[Upgrading]
+Before this behavior, a projected read model was stored in a collection named after its identifier, such as `User`, which the default `withMongoDB` policy never read. A workaround was `collectionName: model => model.name`. That workaround still gives `User`, so an application that uses it keeps its collection. An application on the default policy now has Chronicle register `Users` instead. The kernel does not move data out of the old collection, so replay the projection to fill the new one from the event log. Until then, reads through `ChronicleReadModels` also come from the new collection, because they go through the kernel's current definition.
+:::
+
 ## Write a custom policy
 
 A `MongoNamingPolicy` is two functions:

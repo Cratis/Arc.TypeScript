@@ -27,6 +27,7 @@ Each recorded reactor and reducer also gets a scoped service registration in Arc
 | `connectionString` | `string` | One of `connectionString` and `client` | Arc creates, connects, and disposes the SDK client |
 | `client` | `IChronicleClient` from `@cratis/chronicle` | One of `connectionString` and `client` | You own the client; see [Choose who owns the client](#choose-who-owns-the-client) |
 | `completionTimeoutMs` | positive integer, milliseconds | No; no wait by default | After each successful append, wait until Chronicle's observers have processed it before the command answers. See [Choose Chronicle read consistency](../queries/read-consistency.md) |
+| `readModelNamingPolicy` | `(identifier, readModelType?) => string` | No | Only with `connectionString`. Names the container each read model is stored in. Defaults to Arc's MongoDB collection name when `withMongoDB` is configured, otherwise to the read model identifier. See [Choose where read models are stored](#choose-where-read-models-are-stored) |
 | `activateArtifactsInScopes` | `boolean` | No; off by default | Preview. Resolve reactors and reducers from Arc's container, one scope per delivery. With `client`, registration verifies only that the client was created with `chronicleArtifactActivator`; passing `reactorCommandResultHandler` as `reactorResultHandler` is up to you. See [Scoped activation](reactors/scoped-activation.md) |
 
 Registration throws `Chronicle requires eventStore and exactly one of connectionString or client` when the event store is missing, or when neither or both of a connection string and a client are set.
@@ -52,7 +53,7 @@ Every append and read uses the current execution's tenant as the Chronicle names
 }
 ```
 
-With that file, call `builder.withChronicle({})`. Keys are case-insensitive. To override the file in a deployment, set `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`. Only these two keys are read from configuration; `client` and `completionTimeoutMs` are set in code.
+With that file, call `builder.withChronicle({})`. Keys are case-insensitive. To override the file in a deployment, set `Cratis__Chronicle__ConnectionString` and `Cratis__Chronicle__EventStore`. Only these two keys are read from configuration; `client`, `completionTimeoutMs`, and `readModelNamingPolicy` are set in code.
 
 Values follow this precedence:
 
@@ -68,6 +69,17 @@ Values follow this precedence:
 | `{ client, eventStore }` | You pass a caller-owned `IChronicleClient`. Arc never disposes it; your host calls `client.dispose()`. The client must already have an artifact provider that registers the event types, projections, reducers, and reactors you use |
 
 An Arc-owned client is also wired so that [reactors can return Arc commands](reactors/command-side-effects.md). A caller-owned client needs that handler passed to the SDK before it connects; the reactor page shows how. To use [scoped activation](reactors/scoped-activation.md#use-a-caller-owned-client) with a caller-owned client, also pass `chronicleArtifactActivator` as its `artifactActivator`. Dispose the Arc application before the client, so deliveries still running finish while the connection is open.
+
+## Choose where read models are stored
+
+A projected read model is stored in a container, which is a MongoDB collection by default. The Chronicle SDK names it after the read model identifier unless it is given a `readModelNamingPolicy`, a function of the identifier and, when the SDK knows it, the read model class. It changes only the container name.
+
+- **With `withMongoDB`.** An Arc-owned client gets a policy that returns the collection Arc's MongoDB integration reads for the class, so a projected read model lands where your queries look with no configuration. A read model known only by identifier keeps its identifier. This holds whichever of `withMongoDB` and `withChronicle` you call first. See [Naming policies](../mongodb/naming-policies.md#chronicle-projected-read-models) for the rule and for upgrading.
+- **With your own `readModelNamingPolicy`.** It replaces the automatic policy. Return the identifier when `readModelType` is undefined.
+- **Without `withMongoDB`.** Arc adds no policy, and the SDK default, the identifier, applies.
+- **With a caller-owned `client`.** Arc never changes the client, so it sets no policy, and `withChronicle` throws if you also pass `readModelNamingPolicy`. Set the policy in the `ChronicleOptions` you create the client with.
+
+The option needs `@cratis/chronicle` 6.29.0 or later.
 
 ## Related
 

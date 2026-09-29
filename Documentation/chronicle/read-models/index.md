@@ -57,6 +57,10 @@ Arc's `@readModel()` exposes the queries. Chronicle infers the same class as its
 
 `observeAll` keys the list by each model's `id`. Pass a key selector when your model names its identity differently, or when `id` is a concept, as `allAuthors` does with `author.id.toString()`. Unsubscribe, or let Arc end the subscription, to stop watching. SDK 6.9.1 and later omit the empty subscription marker from `watch()`; Arc also filters empty keys for older SDKs in its peer range.
 
+## Where the read model is stored
+
+Chronicle stores the projected read model in a container, a MongoDB collection by default. When the application also uses `withMongoDB` and Arc creates the Chronicle client, the container is the collection Arc's MongoDB integration reads for the class, so `Author` is stored in `Authors` under the default naming policy. Without `withMongoDB`, the container is the read model identifier. `ChronicleReadModels` asks the kernel for the read model, so your queries never spell the name. See [Choose where read models are stored](../registration-options.md#choose-where-read-models-are-stored) for overrides and for a client you create yourself.
+
 ## Consistency
 
 - **Active projections are eventually consistent by default.** A command can succeed before its read model has updated. A client that reads right after a command can see the old state. An observable query catches up on its own. For a passive on-demand read or a bounded observer wait after a command, see [Read consistency](../../queries/read-consistency.md).
