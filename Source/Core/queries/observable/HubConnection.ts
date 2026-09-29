@@ -27,6 +27,10 @@ export class HubConnection {
     readonly ownerKey: string;
     readonly #keepAlive: HubKeepAlive;
     #closing: Promise<void> | undefined;
+    #transportClosing: Promise<void> | undefined;
+    #delivery: Promise<void> | undefined;
+    #released = false;
+    #closingSubscriptions: readonly HubSubscription[] = [];
 
     constructor(
         readonly server: ArcServer,
@@ -48,7 +52,7 @@ export class HubConnection {
     get context(): ExecutionContext { return this.#context; }
     get subscriptionCount(): number { return this.#states.activeCount; }
     get subscriptions(): readonly HubSubscription[] { return [...this.#subscriptions.values()]; }
-    get closed(): boolean { return this.#closing !== undefined; }
+    get closed(): boolean { return this.#closing !== undefined || this.#transportClosing !== undefined; }
 
     /** Advertise revisions promptly, including when a WS client sent a legacy Subscribe on open. */
     async connect(): Promise<void> {
@@ -140,8 +144,50 @@ export class HubConnection {
         catch { /* Cleanup was already recorded; a failing logger must not orphan the connection. */ }
     }
 
-    close(): Promise<void> {
-        if (this.#closing) return this.#closing;
+    /** @internal Stop keepalives, output and admission without joining delivery. */
+    releaseTransport(): Promise<void> {
+        if (this.#transportClosing) return this.#transportClosing;
+        // An uncoordinated close already owns output and subscriptions; the work phase joins it.
+        if (this.#closing) return Promise.resolve();
+        this.#keepAlive.stop();
+        this.#closingSubscriptions = [...this.#subscriptions.values()];
+        this.#subscriptions.clear();
+        for (const subscription of this.#closingSubscriptions) subscription.controller.abort();
+        let resolve!: () => void;
+        let reject!: (error: unknown) => void;
+        this.#transportClosing = new Promise<void>((done, failed) => { resolve = done; reject = failed; });
+        void this.#transportClosing.catch(() => {});
+        try { this.output.close(); resolve(); }
+        catch (error) { reject(error); }
+        this.onChange();
+        return this.#transportClosing;
+    }
+
+    /** @internal Join every admitted subscription after the participants drain. */
+    joinDelivery(): Promise<void> {
+        if (this.#delivery) return this.#delivery;
+        if (this.#closing && !this.#transportClosing) return this.#delivery = this.#closing;
+        this.releaseTransport();
+        this.#delivery = (async () => {
+            try {
+                const outcomes = await Promise.allSettled(this.#closingSubscriptions.map(async subscription => {
+                    try {
+                        await subscription.session?.close();
+                        await subscription.admission;
+                        await subscription.delivery;
+                    } catch (error) { await this.recordCleanupFailure(subscription, error); }
+                }));
+                const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+                if (failures.length === 1) throw failures[0];
+                if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
+            } finally { this.releaseConnection(); }
+        })();
+        void this.#delivery.catch(() => {});
+        return this.#delivery;
+    }
+
+    /** The original close, used whenever no shutdown transaction released this connection first. */
+    private closeUncoordinated(): Promise<void> {
         this.#keepAlive.stop();
         this.#closing = Promise.resolve().then(async () => {
             this.output.close();
@@ -168,11 +214,45 @@ export class HubConnection {
                 for (const result of results) if (result.status === 'rejected') errors.push(result.reason);
             } catch (error) { errors.push(error); }
             finally { if (timer) clearTimeout(timer); }
+            this.#released = true;
             this.onClose();
             this.onChange();
             if (errors.length === 1) throw errors[0];
             if (errors.length) throw new AggregateError(errors, 'Observable hub shutdown failed');
         });
+        return this.#closing;
+    }
+
+    private releaseConnection(): void {
+        if (this.#released) return;
+        this.#released = true;
+        this.onClose();
+        this.onChange();
+    }
+
+    close(): Promise<void> {
+        if (this.#closing) return this.#closing;
+        if (!this.#transportClosing) return this.closeUncoordinated();
+        const transport = this.releaseTransport();
+        const delivery = this.joinDelivery();
+        this.#closing = (async () => {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const deadline = new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('Observable hub shutdown timed out')),
+                    this.server.observableLimits.shutdownTimeoutMs);
+            });
+            let outcomes: PromiseSettledResult<void>[];
+            try { outcomes = await Promise.race([Promise.allSettled([transport, delivery]), deadline]); }
+            finally {
+                if (timer) clearTimeout(timer);
+                // Release the hub admission slot once the deadline settles, even when delivery is still pending.
+                this.releaseConnection();
+            }
+            const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+            if (failures.length === 1) throw failures[0];
+            if (failures.length) throw new AggregateError(failures, 'Observable hub shutdown failed');
+        })();
+        void this.#closing.catch(() => {});
         return this.#closing;
     }
 

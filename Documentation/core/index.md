@@ -34,7 +34,7 @@ This is the [Tasks sample entry point](https://github.com/Cratis/Arc.TypeScript/
 | --- | --- |
 | `app.run(options?)` | Start, then wait for a signal or `stop()`; closes gracefully |
 | `app.start(options?)` | Start listening and return; the caller decides when to stop |
-| `app.stop()` | Close the listener, then dispose the server and its singleton services |
+| `app.stop()` | Coordinate participant shutdown with listener closure, then dispose services |
 | `app.dispose()` | Same as `stop()`, whether or not a listener was started |
 | `app.server` | The `ArcServer`, for direct calls, adapters, and introspection |
 
@@ -58,7 +58,7 @@ A stopped or disposed application cannot start again.
 
 ## Host a low-level server
 
-If you build an `ArcServer` directly from low-level definitions, `runArc(server, options)` takes the same options and returns `{ server, close }`:
+If you build an `ArcServer` directly from low-level definitions, `runArc(server, options)` takes the same options and returns `{ server, close, shutdown }`:
 
 ```typescript title="server.ts"
 import { ArcServer, defineCommand, runArc } from '@cratis/arc.core';
@@ -73,15 +73,17 @@ const arc = new ArcServer({ commands: [echo] });
 const host = await runArc(arc, { port: 3000, host: '127.0.0.1' });
 
 process.once('SIGINT', () => {
-    void host.close().then(() => arc.dispose());
+    void host.shutdown();
 });
 ```
 
-`curl -X POST http://127.0.0.1:3000/api/echo -d '{"value":"hello"}'` answers with `"response":"hello"`. `runArc` never disposes the server; close the host first, then dispose Arc, as above.
+`curl -X POST http://127.0.0.1:3000/api/echo -d '{"value":"hello"}'` answers with `"response":"hello"`. `host.close()` closes only the listener; `host.shutdown()` coordinates listener closure and Arc disposal. If you supplied a caller-owned registry, pass it explicitly as `host.shutdown({ registry })`. Neither `close()` nor a plain `server.dispose()` takes ownership of a caller-owned registry.
 
 ## Shut down without dropping work
 
-`close({ timeoutMs })` stops accepting HTTP connections first, closes Arc WebSockets, ends live server-sent-event streams (including ones that finish opening during shutdown), and waits up to 30 seconds by default for ordinary requests and WebSockets to drain. At the deadline it closes the remaining connections and rejects if shutdown is incomplete. WebSocket cleanup has its own `query.observableShutdownTimeoutMs` bound in [configuration](../configuration/index.md); an earlier host deadline can reject before that cleanup finishes.
+Use `host.shutdown({ timeoutMs, registry? })` for coordinated shutdown. With participants, it closes Arc admission before initiating listener and transport closure; producer release and transport closure finish before participant stop. Drains finish before delivery work and scopes are disposed. Without participants, it retains the original host-first order. Repeated shutdown joins the first outcome. If you supplied a caller-owned registry, pass that **same** registry explicitly; Arc never disposes it implicitly. Without it, shutdown closes the listener and performs local server cleanup only, and the registry and its participants stay with their owner. For other hosts, import `shutdownArcHost(server, () => closeListener(), registry?)` from `@cratis/arc.core/hosting` and pass the borrowed registry only when its owner authorizes disposal.
+
+`close({ timeoutMs })` remains listener-only. It stops accepting HTTP connections, closes Arc WebSockets and ends live server-sent-event streams, then waits up to 30 seconds by default for ordinary requests and WebSockets to drain. At the deadline it closes remaining connections and rejects if shutdown is incomplete. WebSocket cleanup has its own `query.observableShutdownTimeoutMs` bound in [configuration](../configuration/index.md); an earlier host deadline can reject before that cleanup finishes. A producer that ignores cancellation, or whose cleanup waits for a later participant phase, cannot complete coordinated shutdown; Arc does not dispose its live dependencies on a timeout.
 
 ## Bring your own Node server
 
@@ -90,7 +92,7 @@ When you already own a `node:http` server, use `createArcNodeHandler` as its req
 ```typescript title="server.ts"
 import { createServer } from 'node:http';
 import { createArcNodeHandler } from '@cratis/arc.core';
-import { attachNodeWebSockets } from '@cratis/arc.core/hosting';
+import { attachNodeWebSockets, shutdownArcHost } from '@cratis/arc.core/hosting';
 import { app } from './app.js';
 
 const listener = createServer(createArcNodeHandler(app.server));
@@ -98,9 +100,10 @@ const closeSockets = attachNodeWebSockets(listener, app.server);
 listener.listen(3000, '127.0.0.1');
 
 process.once('SIGTERM', async () => {
-    await closeSockets();
-    await new Promise<void>(resolve => listener.close(() => resolve()));
-    await app.dispose();
+    await shutdownArcHost(app.server, async () => {
+        await closeSockets();
+        await new Promise<void>(resolve => listener.close(() => resolve()));
+    });
 });
 ```
 

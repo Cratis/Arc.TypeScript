@@ -17,7 +17,8 @@ import { ServiceDisposalState } from './ServiceDisposalState.js';
 const singletonCapability = Symbol('singleton scope');
 const borrowableCapability = Symbol('borrowable scope');
 const internals = new WeakMap<ServiceScope, { registry: ServiceRegistry; close: () => Promise<void>; disposeCreated: () => Promise<void>;
-    authority: () => ExecutionContext | undefined; borrowable: () => boolean; createdForBorrowing: boolean }>();
+    authority: () => ExecutionContext | undefined; borrowable: () => boolean; createdForBorrowing: boolean;
+    onClosed: (callback: () => void) => void }>();
 const disposal = new AsyncLocalStorage<ServiceDisposalFrame>();
 /** Package-private shutdown entry points; never methods on the public scope. */
 export function createSingletonServiceScope(registry: ServiceRegistry): ServiceScope {
@@ -32,6 +33,8 @@ export function createOwnedServiceScope(registry: ServiceRegistry, identity: Exe
     return new ServiceScope(registry, identity);
 }
 export function closeServiceScope(scope: ServiceScope): Promise<void> { return internals.get(scope)!.close(); }
+/** @internal Observe closure even when registry shutdown closes the scope directly. */
+export function onServiceScopeClosed(scope: ServiceScope, callback: () => void): void { internals.get(scope)!.onClosed(callback); }
 export function disposeCreatedServices(scope: ServiceScope): Promise<void> { return internals.get(scope)!.disposeCreated(); }
 export function serviceScopeRegistry(scope: ServiceScope): ServiceRegistry { return internals.get(scope)!.registry; }
 /** Check unshadowable scope state before borrowing an admitted scope. */
@@ -79,6 +82,7 @@ export class ServiceScope {
     readonly #pending = new Set<Promise<unknown>>();
     readonly #cache = new Map<symbol, Promise<unknown>>();
     readonly #nodes = new Map<symbol, ServiceResolutionNode>();
+    readonly #onClosed = new Set<() => void>();
     #state = ServiceScopeState.Open;
     #closing: Promise<void> | undefined;
     readonly #singleton: boolean;
@@ -119,7 +123,8 @@ export class ServiceScope {
         else registry.admitScope(this);
         internals.set(this, { registry, close: () => this.#closeInternal(), disposeCreated: () => this.#disposeCreated(),
             authority: () => !this.#singleton && this.#state === ServiceScopeState.Open ? this.#borrowedAuthority : undefined,
-            borrowable: () => this.#borrowable, createdForBorrowing: capability[0] === borrowableCapability });
+            borrowable: () => this.#borrowable, createdForBorrowing: capability[0] === borrowableCapability,
+            onClosed: callback => { if (this.#state === ServiceScopeState.Closed) callback(); else this.#onClosed.add(callback); } });
     }
     get singleton(): boolean { return this.#singleton; }
     get registry(): ServiceRegistry { return this.#registry; }
@@ -220,6 +225,12 @@ export class ServiceScope {
         const settled = (): void => {
             this.#state = ServiceScopeState.Closed;
             this.#registry.release(this);
+            // Only coordinated shutdown registers callbacks; without them this is the original settlement.
+            const callbacks = [...this.#onClosed];
+            this.#onClosed.clear();
+            for (const callback of callbacks) {
+                try { callback(); } catch { /* A closure observer must not become an unhandled settlement failure. */ }
+            }
         };
         void completion.then(settled, settled);
         return completion;

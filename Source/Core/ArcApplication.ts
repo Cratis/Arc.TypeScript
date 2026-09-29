@@ -8,6 +8,7 @@ import { configurationEnvironment, loadConfiguration } from './configuration/loa
 import { NodeArcApplicationBuilder } from './NodeArcApplicationBuilder.js';
 import { runArc } from './http/runArc.js';
 import type { ArcNodeRunOptions } from './http/ArcNodeRunOptions.js';
+import { shutdownArcHost } from './http/shutdownArcHost.js';
 
 /** A built Arc server with optional ownership of a standalone Node listener. */
 export class ArcApplication extends FetchArcApplication {
@@ -76,6 +77,13 @@ export class ArcApplication extends FetchArcApplication {
         this.#disposed = true;
         const listener = this.#listener;
         this.#listener = undefined;
+        if (this.server.ownsServices && this.server.services.hasShutdownParticipants) {
+            try { await shutdownArcHost(this.server, () => listener?.close() ?? Promise.resolve());
+                this.#onStopped?.();
+            } catch (error) { this.#onStopped?.(error); throw error; }
+            return;
+        }
+        // Without participants, keep the original listener-first shutdown.
         const failures: unknown[] = [];
         try { await listener?.close(); } catch (error) { failures.push(error); }
         try { await this.server.dispose(); } catch (error) { failures.push(error); }

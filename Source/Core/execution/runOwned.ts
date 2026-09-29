@@ -28,7 +28,9 @@ export function runOwned<T>(services: ServiceRegistry, metadata: ReadonlyMap<Cla
                 result = fail(new Error('Service registry is disposed'), result);
         };
         checkAvailability();
-        if (services.singletonFailed && !hasLivingAncestor) {
+        // A participant may be draining this operation's complete promise. Joining that
+        // shutdown here would make the operation and the participant await each other.
+        if (services.singletonFailed && !hasLivingAncestor && !services.hasShutdownParticipants) {
             try { await services.dispose(); }
             catch (error) { result = fail(error, result); }
         }

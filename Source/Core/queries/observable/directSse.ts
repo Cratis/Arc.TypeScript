@@ -15,48 +15,70 @@ export function directSse(session: ObservableQuerySession, headers: Headers): Re
     const iterator = session.results();
     let pending: Promise<IteratorResult<QueryResult>> | undefined;
     let closed = false;
+    let output: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const delivery = new Set<Promise<void>>();
+    const track = (work: Promise<void>): Promise<void> => {
+        delivery.add(work);
+        void work.then(() => delivery.delete(work), () => delivery.delete(work));
+        return work;
+    };
     const body = new ReadableStream<Uint8Array>({
-        async pull(controller) {
-            if (closed) return;
-            pending ??= iterator.next();
-            let timer: ReturnType<typeof setTimeout> | undefined;
-            try {
-                const outcome = await Promise.race([
-                    pending.then(value => ({ kind: 'result' as const, value })),
-                    new Promise<{ kind: 'keepalive' }>(resolve => {
-                        timer = setTimeout(() => resolve({ kind: 'keepalive' }), 15_000);
-                    })
-                ]);
+        start(controller) { output = controller; },
+        pull(controller) {
+            return track((async () => {
                 if (closed) return;
-                if (outcome.kind === 'keepalive') {
-                    controller.enqueue(encoder.encode(': keepalive\n\n'));
-                    return;
-                }
-                pending = undefined;
-                if (outcome.value.done) { closed = true; controller.close(); return; }
-                controller.enqueue(encoder.encode(`data: ${stringifyWire(outcome.value.value)}\n\n`));
-                if (!outcome.value.value.isAuthorized || outcome.value.value.hasExceptions || !outcome.value.value.isValid) {
+                pending ??= iterator.next();
+                let timer: ReturnType<typeof setTimeout> | undefined;
+                try {
+                    const outcome = await Promise.race([
+                        pending.then(value => ({ kind: 'result' as const, value })),
+                        new Promise<{ kind: 'keepalive' }>(resolve => {
+                            timer = setTimeout(() => resolve({ kind: 'keepalive' }), 15_000);
+                        })
+                    ]);
+                    if (closed) return;
+                    if (outcome.kind === 'keepalive') {
+                        controller.enqueue(encoder.encode(': keepalive\n\n'));
+                        return;
+                    }
+                    pending = undefined;
+                    if (outcome.value.done) { closed = true; controller.close(); return; }
+                    controller.enqueue(encoder.encode(`data: ${stringifyWire(outcome.value.value)}\n\n`));
+                    if (!outcome.value.value.isAuthorized || outcome.value.value.hasExceptions || !outcome.value.value.isValid) {
+                        closed = true;
+                        await session.close();
+                        await iterator.return(undefined);
+                        controller.close();
+                    }
+                } catch (error) {
                     closed = true;
-                    await session.close();
-                    await iterator.return(undefined);
-                    controller.close();
+                    try { controller.error(error); }
+                    finally {
+                        try { await session.reportTransportFailure(error); }
+                        finally { await session.close(); }
+                    }
+                } finally {
+                    if (timer) clearTimeout(timer);
                 }
-            } catch (error) {
-                closed = true;
-                try { controller.error(error); }
-                finally {
-                    try { await session.reportTransportFailure(error); }
-                    finally { await session.close(); }
-                }
-            } finally {
-                if (timer) clearTimeout(timer);
-            }
+            })());
         },
-        async cancel() {
-            closed = true;
-            try { await session.close(); }
-            finally { await iterator.return(undefined); }
+        cancel() {
+            return track((async () => {
+                closed = true;
+                try { await session.close(); }
+                finally { await iterator.return(undefined); }
+            })());
         }
     });
+    session.attachTransport(
+        async () => {
+            closed = true;
+            try { output?.close(); } catch { /* A canceled response has already closed its controller. */ }
+        },
+        async () => {
+            const outcomes = await Promise.allSettled([...delivery]);
+            const failures = outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason);
+            if (failures.length) throw new AggregateError(failures, 'Observable SSE delivery failed');
+        });
     return new Response(body, { status: 200, headers });
 }

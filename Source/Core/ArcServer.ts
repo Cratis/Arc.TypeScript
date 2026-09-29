@@ -37,6 +37,8 @@ import type { ObservableSocket } from './queries/observable/ObservableSocket.js'
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
 import { observe } from './execution/observability.js';
+import type { ShutdownTransaction } from './dependencyInjection/ShutdownTransaction.js';
+import { coordinateUpgradedSockets } from './queries/observable/upgradedSockets.js';
 /** Get the execution context for the current request, if one exists. */
 export function currentContext(): ExecutionContext | undefined { return requestContext.getStore(); }
 enum OperationMode { Execute, Validate }
@@ -59,12 +61,21 @@ export class ArcServer {
     /** @internal Hosting transport budgets. */
     readonly observableLimits: ObservableLimits;
     readonly #ownsServices: boolean;
+    readonly #removeShutdownResource: () => void;
     /** @internal Optional Node WebSocket bridge shutdown. */
     closeWebSockets?: () => Promise<void>;
+    /** @internal Register Node WebSocket transport and delivery with the shutdown owner. */
+    coordinateWebSockets?: (transaction: ShutdownTransaction) => void;
+    /** @internal A borrowed registry is never implicitly disposed by Arc. */
+    get ownsServices(): boolean { return this.#ownsServices; }
+    /** @internal A coordinated shutdown has started; host-upgraded sockets are no longer admitted. */
+    get coordinatedShutdownStarted(): boolean { return this.#transaction !== undefined; }
     readonly #identitySchema: Record<string, unknown> | undefined;
     readonly #hub: ObservableQueryHub;
     readonly #sessions: ObservableSessions;
     readonly #generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>;
+    #transaction: ShutdownTransaction | undefined;
+    #closing: Promise<void> | undefined;
 
     /** Initialize the server and its command, query, and observable pipelines. */
     constructor(options: ArcOptions, generatedMetadata?: ReadonlyMap<ClassType, ArtifactMetadata>) {
@@ -87,6 +98,15 @@ export class ArcServer {
         this.#hub = new ObservableQueryHub(this);
         this.#sessions = new ObservableSessions(options, this.services, this.observableLimits, () => this.#queriesByName);
         registerObservableCleanup(this, this.#sessions);
+        this.#removeShutdownResource = this.services.addShutdownResource(transaction => {
+            this.#transaction = transaction;
+            this.#sessions.coordinateShutdown(transaction);
+            this.#hub.coordinateShutdown(transaction);
+            if (this.coordinateWebSockets) this.coordinateWebSockets(transaction);
+            else if (this.closeWebSockets) transaction.release(Promise.resolve().then(() => this.closeWebSockets!()));
+            // Fastify and Hono upgrade sockets themselves; close those transports before participant stop too.
+            coordinateUpgradedSockets(this, transaction);
+        });
     }
 
     /**
@@ -137,8 +157,49 @@ export class ArcServer {
         return operation.kind === 'command' ? CommandOperationBoundary.command(this, execute) : execute();
     }
 
-    /** Close observable sessions and owned services. */
-    async dispose(): Promise<void> {
+    /** Close observable sessions and owned services; a borrowed registry stays caller-owned. */
+    dispose(): Promise<void> {
+        if (this.#ownsServices) {
+            try { this.services.assertCanDispose(); }
+            catch (error) {
+                // Without participants, owned work keeps the original order: transport teardown, then the self-join rejection.
+                if (!this.#transaction && !this.services.hasShutdownParticipants) return this.disposeUncoordinated();
+                return Promise.reject(error);
+            }
+        }
+        else if (this.#transaction && !this.services.inShutdownParticipant) {
+            // A borrowed server joins its registry's shutdown; reject a self-join without caching it.
+            try { this.services.assertCanDispose(); }
+            catch (error) { return Promise.reject(error); }
+        }
+        if (this.#closing) return this.#closing;
+        // Only an owned registry's shutdown starts here; a borrowed registry stays open for its owner.
+        const participants = this.#ownsServices && this.services.freezeShutdownParticipants();
+        if (this.#transaction && !this.#ownsServices) {
+            if (!this.services.inShutdownParticipant) return this.#closing = this.services.dispose();
+            const failures: unknown[] = [];
+            const sessions = this.#sessions.coordinatedSessions.map(session => session.close());
+            return this.#closing = Promise.all([
+                this.#transaction.settle('release', error => { failures.push(error); }),
+                Promise.allSettled(sessions).then(outcomes => {
+                    failures.push(...outcomes.filter(outcome => outcome.status === 'rejected').map(outcome => outcome.reason));
+                })
+            ]).then(() => {
+                if (failures.length === 1) throw failures[0];
+                if (failures.length) throw new AggregateError(failures, 'Observable query shutdown failed');
+            });
+        }
+        if (this.#transaction || this.#ownsServices && participants)
+            return this.#closing = this.services.dispose();
+        // With no participants, run the original transport-first teardown.
+        const local = this.disposeUncoordinated();
+        if (this.#ownsServices) return this.#closing = local;
+        // A locally disposed server no longer participates in its borrowed registry's shutdown.
+        void local.then(this.#removeShutdownResource, this.#removeShutdownResource);
+        return this.#closing = local;
+    }
+    /** The original dispose, kept verbatim (including its async wrapper) for shutdown without participants. */
+    private async disposeUncoordinated(): Promise<void> {
         return disposeObservableServer(this.#hub, this.#sessions,
             this.closeWebSockets ? () => this.closeWebSockets?.() ?? Promise.resolve() : undefined, this.services, this.#ownsServices);
     }
