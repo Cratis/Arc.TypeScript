@@ -12,12 +12,8 @@ import type { ChronicleArtifacts } from './ChronicleArtifacts.js';
 export class ChronicleRuntime {
     readonly #client;
     readonly #owned;
-<<<<<<< HEAD
-    constructor(readonly options: ChronicleRegistration, artifacts: ChronicleArtifacts, server: () => ArcServer,
+    constructor(readonly options: ChronicleRegistration, readonly artifacts: ChronicleArtifacts, server: () => ArcServer,
         artifactActivator?: ClientArtifactsActivator) {
-=======
-    constructor(readonly options: ChronicleRegistration, readonly artifacts: ChronicleArtifacts, server: () => ArcServer) {
->>>>>>> origin/main
         if (!options.eventStore) throw new Error('A Chronicle event store is required');
         this.#owned = !options.client;
         this.#client = options.client ?? new ChronicleClient(ChronicleOptions.fromConnectionString(options.connectionString!, {
