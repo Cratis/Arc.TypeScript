@@ -14,6 +14,9 @@ import { ServiceResolutionState } from './ServiceResolutionState.js';
 import { ServiceExecutionState } from './ServiceExecutionState.js';
 import { ServiceRegistryState } from './ServiceRegistryState.js';
 import type { SingletonServiceContext } from './SingletonServiceContext.js';
+import type { ShutdownParticipant } from './ShutdownParticipant.js';
+import type { ShutdownParticipantFrame } from './ShutdownParticipantFrame.js';
+import { ShutdownTransaction } from './ShutdownTransaction.js';
 
 const serviceInstances = new WeakMap<ServiceRegistry, WeakSet<object>>();
 /** @internal Only the container owns instances supplied by registration or claimed by a factory. */
@@ -27,6 +30,9 @@ export class ServiceRegistry {
     readonly #scopes = new Set<ServiceScope>();
     readonly #executions = new Set<Promise<void>>();
     readonly #activeExecution = new AsyncLocalStorage<ServiceExecutionFrame>();
+    readonly #activeParticipant = new AsyncLocalStorage<ShutdownParticipantFrame>();
+    readonly #participants = new Set<ShutdownParticipant>();
+    readonly #shutdownResources = new Set<(transaction: ShutdownTransaction) => void>();
     readonly #waits = new Map<ServiceResolutionNode, Map<ServiceResolutionNode, number>>();
     readonly #owners = new WeakMap<object, ServiceScope | null>();
     readonly #singletons: ServiceScope;
@@ -34,6 +40,7 @@ export class ServiceRegistry {
     readonly #singletonContext: SingletonServiceContext = Object.freeze({ signal: this.#lifetime.signal });
     #state = ServiceRegistryState.Running;
     #singletonFailed = false;
+    #frozenParticipants: readonly ShutdownParticipant[] | undefined;
     #closing: Promise<void> | undefined;
 
     constructor(registrations: readonly ServiceRegistration<unknown>[] = []) {
@@ -61,6 +68,33 @@ export class ServiceRegistry {
     }
     get disposed(): boolean { return this.#state !== ServiceRegistryState.Running; }
     get singletonFailed(): boolean { return this.#singletonFailed; }
+    /** @internal Whether shutdown has participants whose work may depend on an admitted operation. */
+    get hasShutdownParticipants(): boolean { return (this.#frozenParticipants ?? [...this.#participants]).length > 0; }
+    /** @internal Freeze only participant registration; ordinary admission remains open until registry disposal. */
+    freezeShutdownParticipants(): boolean {
+        this.#frozenParticipants ??= [...this.#participants];
+        return this.#frozenParticipants.length > 0;
+    }
+    /**
+     * Register a shutdown participant while admission is open. Its stop runs before any drain;
+     * all drains settle before scopes and singletons close. Remove an unused participant by
+     * calling the returned function; removal after shutdown begins does not affect that shutdown.
+     */
+    addShutdownParticipant(participant: ShutdownParticipant): () => void {
+        this.assertLive();
+        if (!participant || typeof participant.stop !== 'function' || typeof participant.drain !== 'function')
+            throw new ServiceDependencyError('Invalid shutdown participant');
+        this.assertLive();
+        if (this.#frozenParticipants) throw new ServiceDependencyError('Service registry is disposed');
+        this.#participants.add(participant);
+        return () => { if (!this.#frozenParticipants) this.#participants.delete(participant); };
+    }
+    /** @internal Register resources with the registry-owned shutdown transaction; a started shutdown ignores them. */
+    addShutdownResource(register: (transaction: ShutdownTransaction) => void): () => void {
+        if (this.#closing) return () => {};
+        this.#shutdownResources.add(register);
+        return () => { this.#shutdownResources.delete(register); };
+    }
     /** @internal Registry-lifetime context for singleton factories. */
     get singletonContext(): SingletonServiceContext { return this.#singletonContext; }
     /** @internal Poison the registry after a singleton factory failure. */
@@ -173,9 +207,19 @@ export class ServiceRegistry {
     admitScope(scope: ServiceScope): void { this.assertLive(); this.#scopes.add(scope); }
     release(scope: ServiceScope): void { this.#scopes.delete(scope); }
     assertLive(): void { if (this.#state !== ServiceRegistryState.Running || this.#singletonFailed) throw new ServiceDependencyError('Service registry is disposed'); }
+    /** @internal A participant may close borrowed server resources but must not join its own registry. */
+    get inShutdownParticipant(): boolean {
+        return this.#activeParticipant.getStore()?.state === ServiceExecutionState.Running;
+    }
+    /** @internal Reject self-joins before a server begins or joins its own teardown. */
+    assertCanDispose(): void {
+        if (this.hasLivingExecution() || hasLivingServiceResolution(this) || hasLivingServiceDisposal(this) ||
+            this.#activeParticipant.getStore()?.state === ServiceExecutionState.Running)
+            throw new ServiceDependencyError('Cannot await service registry disposal from owned work');
+    }
     dispose(): Promise<void> {
-        if (this.hasLivingExecution() || hasLivingServiceResolution(this) || hasLivingServiceDisposal(this))
-            return Promise.reject(new ServiceDependencyError('Cannot await service registry disposal from owned work'));
+        try { this.assertCanDispose(); }
+        catch (error) { return Promise.reject(error); }
         return this.beginShutdown();
     }
     private beginShutdown(): Promise<void> {
@@ -183,24 +227,85 @@ export class ServiceRegistry {
         this.#state = ServiceRegistryState.Draining;
         const executions = [...this.#executions];
         const scopes = [...this.#scopes];
-        const completion = Promise.resolve().then(async () => {
-            const errors: unknown[] = [];
-            try {
-                await Promise.allSettled(executions);
-                for (const scope of scopes) {
-                    try { await closeServiceScope(scope); } catch (error) { errors.push(error); }
+        this.freezeShutdownParticipants();
+        const participants = this.#frozenParticipants!;
+        // Without participants, run the original shutdown unchanged; only participants use the transaction.
+        const completion = participants.length ? this.coordinatedShutdown(participants, executions, scopes) :
+            Promise.resolve().then(async () => {
+                const errors: unknown[] = [];
+                try {
+                    await Promise.allSettled(executions);
+                    for (const scope of scopes) {
+                        try { await closeServiceScope(scope); } catch (error) { errors.push(error); }
+                    }
+                    try { await closeServiceScope(this.#singletons); } catch (error) { errors.push(error); }
+                    // Factories have settled; background work returned by a singleton may now stop.
+                    this.#lifetime.abort();
+                    try { await disposeCreatedServices(this.#singletons); } catch (error) { errors.push(error); }
+                } finally {
+                    this.#state = ServiceRegistryState.Closed;
+                    this.#waits.clear();
                 }
-                try { await closeServiceScope(this.#singletons); } catch (error) { errors.push(error); }
+                if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
+            });
+        this.#closing = completion;
+        return completion;
+    }
+    private coordinatedShutdown(participants: readonly ShutdownParticipant[], executions: readonly Promise<void>[],
+        scopes: readonly ServiceScope[]): Promise<void> {
+        const transaction = new ShutdownTransaction();
+        const errors: unknown[] = [];
+        // Ownership is established before a host can close its listener in the same tick.
+        for (const register of this.#shutdownResources) {
+            try { register(transaction); } catch (error) { errors.push(error); }
+        }
+        return Promise.resolve().then(async () => {
+            const reported = new Set<unknown>();
+            const record = (error: unknown): void => {
+                let repeated = false;
+                const leaves = (value: unknown): unknown[] => {
+                    const reference = value !== null && (typeof value === 'object' || typeof value === 'function');
+                    if (reference && reported.has(value)) { repeated = true; return []; }
+                    if (reference) reported.add(value);
+                    return value instanceof AggregateError && value.errors.length ? value.errors.flatMap(leaves) : [value];
+                };
+                const unseen = leaves(error);
+                if (unseen.length) errors.push(repeated ? new AggregateError(unseen, 'Service disposal failed') : error);
+            };
+            try {
+                await transaction.settle('release', record);
+                // A stop continuation inherits its participant frame. Keep it live through drain.
+                const frames = participants.map((): ShutdownParticipantFrame => ({ state: ServiceExecutionState.Running }));
+                const stops: Promise<unknown>[] = [];
+                for (const [index, participant] of participants.entries()) {
+                    try {
+                        // Normalize stop results inside the participant frame, including native Promise then getters.
+                        stops.push(this.#activeParticipant.run(frames[index]!, () => new Promise<void>((resolve, reject) => {
+                            Promise.resolve(participant.stop()).then(resolve, reject);
+                        })));
+                    } catch (error) { record(error); }
+                }
+                const stopped = await Promise.allSettled(stops);
+                for (const outcome of stopped) if (outcome.status === 'rejected') record(outcome.reason);
+                const drains = await Promise.allSettled(participants.map((participant, index) =>
+                    this.#activeParticipant.run(frames[index]!, () => Promise.resolve().then(() => participant.drain()))));
+                for (const outcome of drains) if (outcome.status === 'rejected') record(outcome.reason);
+                for (const frame of frames) frame.state = ServiceExecutionState.Drained;
+                await transaction.settle('work', record);
+                await Promise.allSettled(executions);
+                await transaction.settle('scopes', record);
+                for (const scope of scopes) {
+                    try { await closeServiceScope(scope); } catch (error) { record(error); }
+                }
+                try { await closeServiceScope(this.#singletons); } catch (error) { record(error); }
                 // Factories have settled; background work returned by a singleton may now stop.
                 this.#lifetime.abort();
-                try { await disposeCreatedServices(this.#singletons); } catch (error) { errors.push(error); }
+                try { await disposeCreatedServices(this.#singletons); } catch (error) { record(error); }
             } finally {
                 this.#state = ServiceRegistryState.Closed;
                 this.#waits.clear();
             }
             if (errors.length) throw new AggregateError(errors, 'Service registry disposal failed');
         });
-        this.#closing = completion;
-        return completion;
     }
 }

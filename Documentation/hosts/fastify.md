@@ -10,6 +10,7 @@ description: Mount an Arc application in Fastify 5 as an encapsulated plugin, an
 ```typescript title="server.ts"
 import Fastify from 'fastify';
 import cratisArc from '@cratis/arc.fastify';
+import { shutdownArcHost } from '@cratis/arc.core/hosting';
 import { arc } from './arc.js';
 
 const app = Fastify();
@@ -18,11 +19,11 @@ app.get('/health', async () => 'ok');
 await app.listen({ port: 3000, host: '127.0.0.1' });
 
 process.once('SIGTERM', () => {
-    void app.close().then(() => arc.dispose());
+    void shutdownArcHost(arc.server, () => app.close());
 });
 ```
 
-`arc` is the built application from [Host adapters](index.md#before-you-start).
+`arc` is the built application from [Host adapters](index.md#before-you-start). `shutdownArcHost` starts participant shutdown before closing the listener; host-first closure can dispose live subscription scopes too early. If the registry belongs to your host, pass it as the third argument to explicitly transfer shutdown ownership. See [Shutdown participants](../dependency-injection.md#scopes-and-disposal).
 
 Fastify loads plugins lazily, so Arc's routes exist once the application is ready: after `listen`, `ready`, or the first `inject`. Do not register your own routes on Arc's paths; Fastify rejects the duplicate when it loads the plugin.
 

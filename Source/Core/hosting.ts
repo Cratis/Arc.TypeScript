@@ -9,6 +9,7 @@ export function serverOf(application: ArcServer | { readonly server: ArcServer }
 
 /** Node hosting integration points; adapters own trusted native context resolution. */
 export { attachNodeWebSockets } from './queries/observable/attachNodeWebSockets.js';
+export { shutdownArcHost } from './http/shutdownArcHost.js';
 export { serveUpgradedSocket } from './queries/observable/serveUpgradedSocket.js';
 export { observableLimits } from './queries/observable/observableHosting.js';
 export type { NodeWebSocketLike } from './queries/observable/NodeWebSocketLike.js';

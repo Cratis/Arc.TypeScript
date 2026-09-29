@@ -6,6 +6,7 @@ import type { ServiceRegistry } from '../../dependencyInjection/ServiceRegistry.
 import type { ServiceToken } from '../../dependencyInjection/ServiceToken.js';
 import type { ObservableEmissionGuard } from './ObservableEmissionGuard.js';
 import type { ObservableOperation } from './ObservableOperation.js';
+import type { ObservableQuerySession } from './ObservableQuerySession.js';
 
 /** Internal ownership and failure reporting supplied when opening one subscription. */
 export interface ObservableSessionConfig {
@@ -20,4 +21,5 @@ export interface ObservableSessionConfig {
     readonly reportFailure: (error: unknown) => Promise<void>;
     readonly onRelease: () => void;
     readonly onClose: () => void;
+    readonly onCreate: (session: ObservableQuerySession) => void;
 }

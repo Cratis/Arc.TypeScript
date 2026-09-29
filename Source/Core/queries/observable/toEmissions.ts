@@ -22,10 +22,13 @@ async function releaseIterator<T>(iterator: AsyncIterator<T>): Promise<void> {
 
 /** Convert a structural observable or async iterable into a cancellable, bounded stream. */
 export async function* toEmissions<T>(source: ObservableSource<T>, signal: AbortSignal,
-    maximumPending = 256): AsyncGenerator<T> {
+    maximumPending = 256, onProducer?: (release: () => Promise<void>) => void): AsyncGenerator<T> {
     if (signal.aborted) return;
     if (Symbol.asyncIterator in source) {
         const iterator = (source as AsyncIterable<T>)[Symbol.asyncIterator]();
+        let closing: Promise<void> | undefined;
+        const release = (): Promise<void> => closing ??= releaseIterator(iterator);
+        onProducer?.(release);
         try {
             while (!signal.aborted) {
                 const next = await new Promise<IteratorResult<T>>((resolve, reject) => {
@@ -36,7 +39,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
                 if (next.done) return;
                 yield next.value;
             }
-        } finally { await releaseIterator(iterator); }
+        } finally { await release(); }
         return;
     }
     const pending: T[] = [];
@@ -68,6 +71,7 @@ export async function* toEmissions<T>(source: ObservableSource<T>, signal: Abort
         } catch (error) { failure = error; }
     };
     const cancel = (): void => { finished = true; unsubscribe(); notify(); };
+    onProducer?.(async () => { cancel(); });
     signal.addEventListener('abort', cancel, { once: true });
     if (signal.aborted) cancel();
     try {

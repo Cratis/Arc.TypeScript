@@ -19,7 +19,8 @@ describe('when an operation fails with no commit', given(an_operation_command, c
         (result.response === undefined).should.equal(true);
         result.recovery!.status.should.equal('Completed');
         result.recovery!.startedCount.should.equal(2);
-        JSON.stringify(result).should.not.contain('recovery');
-        JSON.stringify(result).should.not.contain('operationOutcomes');
+        const serialized = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
+        serialized.should.not.have.property('recovery');
+        serialized.should.not.have.property('operationOutcomes');
     });
 }));

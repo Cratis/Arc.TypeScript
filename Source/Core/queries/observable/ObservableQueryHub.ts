@@ -20,6 +20,7 @@ import type { ResolvedConnectionContext } from './ResolvedConnectionContext.js';
 import { correlation } from '../../execution/correlation.js';
 import { SseHubTransport } from './SseHubTransport.js';
 import type { ObservableSocket } from './ObservableSocket.js';
+import type { ShutdownTransaction } from '../../dependencyInjection/ShutdownTransaction.js';
 
 const ssePath = '/.cratis/queries/sse';
 const subscribePath = `${ssePath}/subscribe`;
@@ -31,13 +32,14 @@ export class ObservableQueryHub {
     readonly #healthChanged = new CurrentValueSubject(0);
     #healthVersion = 0;
     #disposed = false;
+    #stopping = false;
 
     constructor(readonly server: ArcServer) {}
 
     get connections(): readonly HubConnection[] { return [...this.#connections.values()]; }
 
     canAdmit(context: ExecutionContext): boolean {
-        if (this.#disposed || this.#connections.size >= this.server.observableLimits.hubConnections) return false;
+        if (this.#disposed || this.#stopping || this.#connections.size >= this.server.observableLimits.hubConnections) return false;
         const key = observableCallerKey(context);
         return this.connections.filter(connection => connection.ownerKey === key).length <
             this.server.observableLimits.hubConnectionsPerCaller;
@@ -92,6 +94,20 @@ export class ObservableQueryHub {
         if (request.method !== 'POST') return this.methodNotAllowed('POST');
         if (path === subscribePath || path === unsubscribePath) return this.control(request, path, native);
         return new Response(null, { status: 404 });
+    }
+
+    /** Reject new connections before participant drain; existing connections close during cleanup. */
+    stopAdmission(): void { this.#stopping = true; }
+
+    /** @internal Register transport and delivery as independent transaction phases. */
+    coordinateShutdown(transaction: ShutdownTransaction): void {
+        this.#disposed = true;
+        this.stopAdmission();
+        this.#healthChanged.complete();
+        for (const connection of this.connections) {
+            transaction.release(connection.releaseTransport());
+            transaction.work(() => connection.joinDelivery());
+        }
     }
 
     async dispose(): Promise<void> {

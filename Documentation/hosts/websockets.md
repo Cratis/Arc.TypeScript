@@ -25,7 +25,7 @@ Call `middleware.injectWebSocket(listener, native?)` on the listener returned by
 
 Call `await app.register(cratisArc, { arc })` before listening (`webSockets` defaults to `true`; `cratisArc` comes from `@cratis/arc.fastify`). A shared `@fastify/websocket` can be registered before or after Arc; real upgrade checks cover both orders. A `prefix` in the registration scopes HTTP and WebSocket paths without changing Arc's generated routes.
 
-Fastify's `onRequest`, `preValidation`, and `preHandler` hooks run before the upgrade. `app.close()` disposes Arc-owned sockets and subscriptions, **not** the Arc application or its services; call `await arc.dispose()` separately.
+Fastify's `onRequest`, `preValidation`, and `preHandler` hooks run before the upgrade. `app.close()` closes the listener but does **not** dispose the Arc application or its services. Use `shutdownArcHost(arc.server, () => app.close())` from `@cratis/arc.core/hosting` to coordinate participant shutdown before socket closure; see [Fastify](fastify.md).
 
 ## Hono
 

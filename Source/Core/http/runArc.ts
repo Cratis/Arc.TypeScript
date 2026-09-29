@@ -8,11 +8,14 @@ import type { ArcServer } from '../ArcServer.js';
 import type { ArcNodeRunOptions } from './ArcNodeRunOptions.js';
 import { nodeHandler } from './createArcNodeHandler.js';
 import { attachNodeWebSockets } from '../queries/observable/attachNodeWebSockets.js';
+import { shutdownArcHost } from './shutdownArcHost.js';
+import type { ServiceRegistry } from '../dependencyInjection/ServiceRegistry.js';
 
 /** Start listening; shutdown drains ordinary requests for up to 30 seconds, then closes connections. ArcServer remains caller-owned. */
 export async function runArc(
     server: ArcServer, options: ArcNodeRunOptions = {}
-): Promise<{ server: HttpServer | HttpsServer; close(options?: { timeoutMs?: number }): Promise<void> }> {
+): Promise<{ server: HttpServer | HttpsServer; close(options?: { timeoutMs?: number }): Promise<void>;
+    shutdown(options?: { timeoutMs?: number; registry?: ServiceRegistry }): Promise<void> }> {
     const streams = new Set<ServerResponse>();
     let closing = false;
     const handler = nodeHandler(server, options, stream => {
@@ -42,7 +45,7 @@ export async function runArc(
         catch (error) { listener.off('error', onError); listener.off('listening', onListening); reject(error); }
     }); } catch (error) { await closeWebSockets(); throw error; }
     let pendingClose: Promise<void> | undefined;
-    return { server: listener, close: ({ timeoutMs = 30_000 } = {}) => {
+    const close = ({ timeoutMs = 30_000 }: { timeoutMs?: number } = {}): Promise<void> => {
         if (pendingClose) return pendingClose;
         if (!Number.isFinite(timeoutMs) || timeoutMs < 0) return Promise.reject(Error('Invalid shutdown timeout'));
         closing = true;
@@ -69,5 +72,7 @@ export async function runArc(
             } finally { if (timer) clearTimeout(timer); }
         })();
         return pendingClose;
-    } };
+    };
+    return { server: listener, close,
+        shutdown: ({ timeoutMs, registry } = {}) => shutdownArcHost(server, () => close({ timeoutMs }), registry) };
 }
