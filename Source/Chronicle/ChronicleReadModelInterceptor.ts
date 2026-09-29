@@ -3,7 +3,8 @@
 import type { ReadModelInterceptor, ExecutionContext, RawReadModelProvenance } from '@cratis/arc.core';
 import type { Constructor } from '@cratis/fundamentals';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
-import { hasProtectedReadModel } from './hasProtectedReadModel.js';
+import { ReadModelSubjectResolver } from '@cratis/chronicle/readModels';
+import { hasProtectedReadModel, holdsProtectedValues } from './hasProtectedReadModel.js';
 import { isKernelReleased, markKernelReleased } from './kernelReleasedReadModels.js';
 import { releaseRawDocument } from './releaseRawDocument.js';
 
@@ -12,8 +13,18 @@ export class ChronicleReadModelInterceptor implements ReadModelInterceptor {
     constructor(readonly model: Constructor<object>, private readonly runtime: ChronicleRuntime,
         private readonly context: ExecutionContext) {}
 
+    /**
+     * Release through Chronicle, which needs the model's `@subject()` or `id`. An instance without a subject, such as
+     * a masked copy that dropped its `id`, is served only when it holds no value in a protected property.
+     */
     async intercept(model: object): Promise<object> {
         if (!hasProtectedReadModel(this.model) || isKernelReleased(model)) return model;
+        if (ReadModelSubjectResolver.resolveFrom(this.model, model) === undefined) {
+            if (holdsProtectedValues(this.model, model))
+                throw new Error(`Cannot release a ${this.model.name} without a subject: keep its @subject() property ` +
+                    'or id, or clear its protected values');
+            return markKernelReleased(model);
+        }
         const store = await this.runtime.getStore(this.context);
         return markKernelReleased(await store.readModels.release(this.model, model));
     }

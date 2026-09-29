@@ -28,6 +28,20 @@ export function hasProtectedReadModel(type: Constructor): boolean {
     return protectedModel;
 }
 
+function holdsProtected(schema: JsonSchema, value: unknown): boolean {
+    if (value === undefined || value === null || value === '') return false;
+    if (schema.compliance?.length || schema.security?.length) return true;
+    if (Array.isArray(value)) return !!schema.items && value.some(item => holdsProtected(schema.items!, item));
+    if (typeof value !== 'object') return false;
+    return Object.entries(schema.properties ?? {})
+        .some(([key, property]) => holdsProtected(property, (value as Record<string, unknown>)[key]));
+}
+
+/** Whether an instance holds a value, at any depth, in a property the model's schema marks as protected. */
+export function holdsProtectedValues(type: Constructor, instance: object): boolean {
+    return holdsProtected(schemaFor(type), instance);
+}
+
 /**
  * Whether a model has compliance metadata on a top-level property: the only case in which the Chronicle SDK
  * releases reducer-model reads itself (its `schemaHasComplianceMetadata`).

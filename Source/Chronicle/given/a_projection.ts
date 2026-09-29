@@ -41,9 +41,9 @@ export class a_projection {
     readonly arrayModel = ArrayView;
     readonly classLevelModel = ClassLevelView;
     readonly encryptedModel = EncryptedView;
-    readonly privateView = new PrivateView();
+    readonly privateView = Object.assign(new PrivateView(), { id: 'subject-1', name: 'ciphertext' });
     readonly publicView = new PublicView();
-    readonly reducedView = new ReducedView();
+    readonly reducedView = Object.assign(new ReducedView(), { id: 'subject-1', name: 'ciphertext' });
     readonly release = sinon.stub().callsFake(async (_type: typeof PrivateView, model: PrivateView) => {
         const result = new PrivateView();
         Object.assign(result, model, { name: 'plain' });

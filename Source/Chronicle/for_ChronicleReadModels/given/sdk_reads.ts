@@ -25,6 +25,8 @@ export class EncryptedReduced { @field(String) id = ''; @field(String) @encrypte
 export class TopLevelReduced { @field(String) id = ''; @field(String) @pii() name = ''; }
 @readModel() @fromEvent(Happened)
 export class ProjectedView { @field(String) id = ''; @field(String) @pii() name = ''; }
+/** Model with no protected data. */
+export class Unprotected { @field(String) id = ''; @field(String) name = ''; }
 @reducer('nested-reduced', undefined, NestedReduced) class NestedReducer {}
 @reducer('encrypted-reduced', undefined, EncryptedReduced) class EncryptedReducer {}
 @reducer('top-level-reduced', undefined, TopLevelReduced) class TopLevelReducer {}
@@ -37,7 +39,9 @@ export class sdk_reads {
         findInstanceById: async (type: Constructor) => new type(),
         getInstances: async (type: Constructor) => [new type()],
         watch: async function* (this: sdk_reads, type: Constructor) {
-            yield { key: '1', readModel: new type(), removed: this.removed };
+            // A removal carries the last state, which the kernel releases for projections.
+            const readModel = this.removed ? Object.assign(new type(), { name: 'last' }) : new type();
+            yield { key: '1', readModel, removed: this.removed };
         }.bind(this)
     } } as unknown as IEventStore;
     readonly runtime = { getStore: async () => this.store, artifacts: this.artifacts } as unknown as ChronicleRuntime;
