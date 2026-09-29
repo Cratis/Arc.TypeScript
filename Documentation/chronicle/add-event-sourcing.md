@@ -89,7 +89,7 @@ const app = await builder.build();
 await app.run({ port: Number(process.env.PORT ?? 3000) });
 ```
 
-Importing `@cratis/arc.chronicle` adds `withChronicle` to the builder. Call it before or after `discover`: the integration records each discovered event type and projection, including those discovered earlier, and hands them to Chronicle when it connects. The application connects when a command or query first needs Chronicle, and Chronicle creates the `MyArcApp` event store then. Events and read models go to the namespace of the request's tenant; this application resolves no tenant, so they go to the `Default` namespace.
+Importing `@cratis/arc.chronicle` adds `withChronicle` to the builder. Call it before `discover`: the integration records each discovered event type and projection and hands them to Chronicle when it connects. Classes with Arc metadata are recorded either way, but a Chronicle-only class discovered before `withChronicle` is dropped unless `activateArtifactsInScopes` is on. The application connects when a command or query first needs Chronicle, and Chronicle creates the `MyArcApp` event store then. Events and read models go to the namespace of the request's tenant; this application resolves no tenant, so they go to the `Default` namespace.
 
 Call `withChronicle` before `add()` for Chronicle-only artifacts: without an Arc decorator, `add()` rejects them until Chronicle is registered. `chronicle://localhost:35000` without credentials uses the SDK's development client and accepts the kernel's self-signed certificate. That fits a local kernel only. [Registration options](registration-options.md) shows how to read the connection from `appsettings.json` or environment variables, and how to pass a client you create yourself.
 
