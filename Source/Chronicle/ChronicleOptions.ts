@@ -9,16 +9,20 @@ export type ChronicleRegistration = {
     readonly completionTimeoutMs?: number;
     readonly client: IChronicleClient;
     readonly connectionString?: never;
-    /** Not supported with a caller-owned client yet; pass `chronicleArtifactActivator` to the client instead. */
-    readonly activateArtifactsInScopes?: never;
+    /**
+     * Preview: construct reactors and reducers in an Arc service scope per delivery. The client must have been created with
+     * `artifactActivator: chronicleArtifactActivator(...)` for this event store; registration verifies only that. Passing
+     * `reactorResultHandler: reactorCommandResultHandler(...)` is the caller's responsibility; without it, returned commands
+     * are not executed through Arc. Arc never changes or disposes the client.
+     */
+    readonly activateArtifactsInScopes?: boolean;
 } | {
     readonly eventStore: string;
     /** Opt in to waiting for kernel observer completion after each committed command (milliseconds). */
     readonly completionTimeoutMs?: number;
     /**
      * Preview: construct reactors and reducers in an Arc service scope per delivery, with the observation's tenant
-     * and correlation. Requires an Arc-owned connection and @cratis/chronicle 6.17.0 or later; registration fails on
-     * older SDKs.
+     * and correlation.
      */
     readonly activateArtifactsInScopes?: boolean;
     readonly connectionString: string;

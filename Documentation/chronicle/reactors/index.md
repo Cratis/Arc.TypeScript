@@ -53,7 +53,7 @@ Returning commands and events together in one array fails the handler. Anything 
 
 A handler that throws, or a returned side effect that fails, marks the observer partition for that event source as failed, with the error message. Chronicle's failed-partition handling decides when that event is delivered again. Nothing that already happened is undone, so write handlers that are safe to run twice for the same event.
 
-Since SDK 6.9.0, reactors run on replay by default. For effects such as returned commands, use `@onceOnly()` on the class to skip all handlers during replay, or on individual methods to skip only those handlers. `@replay()` selects a separate handler for a replayed event. See [Chronicle once-only reactors](/chronicle/reactors/once-only/). These markers do not prevent ordinary re-delivery after a failed partition recovers. Keep the effects safe to repeat; SDK 6.7.x and 6.8.x cannot exclude replay.
+Reactors run on replay by default. For effects such as returned commands, mark the class with `@onceOnly()` so Chronicle never replays the reactor at all, neither a full replay nor a partition replay; a `@replay()` handler on such a class therefore never runs. Mark individual methods with `@onceOnly()` instead to skip only those handlers during a replay, and use `@replay()` to select a separate handler for a replayed event. See [Chronicle once-only reactors](/chronicle/reactors/once-only/). These markers do not prevent ordinary re-delivery after a failed partition recovers, so keep the effects safe to repeat.
 
 ## Topics
 

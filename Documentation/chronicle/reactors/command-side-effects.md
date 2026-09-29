@@ -5,7 +5,7 @@ description: Return Arc commands from a Chronicle reactor so they run through va
 
 When a book is added to the catalog, the search index should follow. The indexing command already exists, with its validation and its role check. Instead of calling a service from the reactor and repeating those checks, return the command, and Arc runs it through the same pipeline an HTTP caller would use.
 
-This relies on the SDK's reactor result hook, available in the Chronicle SDK 6.7.0 and later.
+This relies on the SDK's reactor result hook.
 
 ## Return a command
 
@@ -83,9 +83,9 @@ Do not mix commands with events or other values in one array. Arc rejects the mi
 
 A returned command that fails, whether rejected by authorization or validation or by throwing, fails the handler with a message naming the command, the event store, and the namespace. Chronicle marks the observer partition as failed rather than acknowledging a partial side effect. When Chronicle delivers the event again, the handler returns the commands again, including any that succeeded the first time.
 
-On SDK 6.9.0 and later, reactors accept explicit and kernel-initiated replays by default. Mark the class with `@onceOnly()` when all its handlers cause non-replayable effects, or mark individual handlers if only some do. Chronicle skips them during replay; `@replay()` can supply an alternate replay handler. See [Chronicle once-only reactors](/chronicle/reactors/once-only/). Marking a reactor once-only does **not** prevent re-delivery when a failed partition is recovered.
+Reactors accept explicit and kernel-initiated replays by default. Mark the class with `@onceOnly()` when all its handlers cause non-replayable effects: Chronicle then never replays the reactor at all, neither a full replay nor a partition replay, so a `@replay()` handler on that class never runs. If only some handlers cause such effects, mark those methods with `@onceOnly()` instead; Chronicle skips only them during a replay, and `@replay()` can supply an alternate replay handler. See [Chronicle once-only reactors](/chronicle/reactors/once-only/). Marking a reactor once-only does **not** prevent re-delivery when a failed partition is recovered.
 
-Make the commands safe to repeat even with `@onceOnly()`. Key them by the triggering event source, check current state in [`provide()` or a read model](../read-models/injecting-into-commands.md), or rely on a Chronicle constraint to reject the duplicate. SDK 6.7.x and 6.8.x do not support replay exclusion.
+Make the commands safe to repeat even with `@onceOnly()`. Key them by the triggering event source, check current state in [`provide()` or a read model](../read-models/injecting-into-commands.md), or rely on a Chronicle constraint to reject the duplicate.
 
 No transaction spans the triggering event and the commands. The triggering event is already committed when the reactor runs.
 
