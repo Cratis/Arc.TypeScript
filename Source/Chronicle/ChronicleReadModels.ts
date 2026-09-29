@@ -9,6 +9,7 @@ import type { ExecutionContext } from '@cratis/arc.core';
 import { from, map, Observable } from 'rxjs';
 import { ChronicleRuntime } from './ChronicleRuntime.js';
 import { markKernelReleased } from './kernelReleasedReadModels.js';
+import { hasProtectedReadModel, hasTopLevelCompliance } from './hasProtectedReadModel.js';
 
 /** Tenant-scoped access to Chronicle read models; use as a service in Arc queries. */
 export class ChronicleReadModels {
@@ -19,18 +20,29 @@ export class ChronicleReadModels {
     async findInstanceById<T>(type: Constructor<T>, id: string,
         consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T | null> {
         this.checkConsistency(type, consistency);
-        return markKernelReleased(await (await this.getStore()).readModels.findInstanceById(type, id));
+        return this.released(type, await (await this.getStore()).readModels.findInstanceById(type, id));
     }
     /** Fetch all instances of a read model in the current tenant. */
     async getAll<T extends object>(type: Constructor<T>,
         consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T[]> {
         this.checkConsistency(type, consistency);
-        return (await (await this.getStore()).readModels.getInstances(type)).map(markKernelReleased);
+        return (await (await this.getStore()).readModels.getInstances(type)).map(model => this.released(type, model));
     }
     /** Fetch one read model by its event-source ID, or null if it does not exist. */
     getById<T extends object>(type: Constructor<T>, id: string,
         consistency: ChronicleReadConsistency = ChronicleReadConsistency.Default): Promise<T | null> {
         return this.findInstanceById(type, id, consistency);
+    }
+    /**
+     * Mark a read result as released only when Chronicle actually released it: the model holds nothing protected,
+     * the kernel serves it from a projection, or the SDK releases it (reducer models with top-level compliance
+     * metadata). Anything else, such as a reducer model protected only in nested or encrypted values, stays unmarked
+     * so Arc releases it in a slot and fails the query if it is nested.
+     */
+    private released<T>(type: Constructor<T>, model: T): T {
+        const released = !hasProtectedReadModel(type as Constructor) || hasTopLevelCompliance(type as Constructor) ||
+            this.runtime.artifacts.hasProjectionFor(type as Constructor);
+        return released ? markKernelReleased(model) : model;
     }
     private checkConsistency<T>(type: Constructor<T>, consistency: ChronicleReadConsistency): void {
         if (consistency !== ChronicleReadConsistency.Default &&
@@ -86,7 +98,15 @@ export class ChronicleReadModels {
         for await (const change of (await this.getStore()).readModels.watch(type)) {
             // Older Chronicle SDKs can emit an empty-key subscription marker before the first change.
             if (!change.key) continue;
-            markKernelReleased(change.readModel);
+            // The kernel releases projection changesets, removals included, but the SDK never releases a removed
+            // reducer changeset. For a protected reducer model a removal therefore carries only its key, with an
+            // empty instance that holds no protected data.
+            if (change.removed && hasProtectedReadModel(type as Constructor) &&
+                !this.runtime.artifacts.hasProjectionFor(type as Constructor)) {
+                yield { ...change, readModel: markKernelReleased(Object.create(type.prototype) as T) };
+                continue;
+            }
+            this.released(type, change.readModel);
             yield change;
         }
     }
