@@ -204,6 +204,9 @@ SITE_ONLY_SNIPPETS = {
     "scenarios/vertical-slices/translator/member-registration",
     "scenarios/vertical-slices/translator/unique-member-name",
     "scenarios/vertical-slices/translator/hr-integration",
+    "scenarios/chat/in-memory/backend",
+    "scenarios/chat/rabbitmq/backend",
+    "scenarios/camel-casing/setup",
 }
 
 # The checked-in inventory: shared Arc page ids plus site-owned page ids.
@@ -247,6 +250,11 @@ SNIPPETS: dict[str, Context | None] = {
     "scenarios/vertical-slices/translator/hr-integration": Context(
         siblings=(*MEMBER_CONCEPTS_FROM_SLICE, ("../Registration/Registration", MEMBER_REGISTRATION)),
         fixture_imports=False, location="Members/HRIntegration"),
+    # The Real-Time Chat pages show each chat backend whole, from the application's Chat folder;
+    # check-state-view-discovery.py runs the in-memory one in process.
+    "scenarios/chat/in-memory/backend": Context(fixture_imports=False, location="Chat"),
+    "scenarios/chat/rabbitmq/backend": Context(fixture_imports=False, location="Chat"),
+    "scenarios/camel-casing/setup": Context(fixture_imports=False),
     "guides/chronicle/event-from-command": MODULE,
     "understanding-identity-and-access/identity-provider": MODULE,
     "understanding-identity-and-access/authorization": MODULE,
