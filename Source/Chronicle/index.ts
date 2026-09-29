@@ -12,6 +12,8 @@ export { ChronicleReadModels } from './ChronicleReadModels.js';
 export { ChronicleReadConsistency } from './ChronicleReadConsistency.js';
 export { ChronicleReadModelForCommandResolver } from './ChronicleReadModelForCommandResolver.js';
 export { ChronicleArtifacts } from './ChronicleArtifacts.js';
+export { chronicleArtifactActivator } from './chronicleArtifactActivator.js';
+export type { ChronicleArtifactActivator } from './chronicleArtifactActivator.js';
 export { eventSourceType, eventStreamType, eventStreamId, eventSubject } from './eventRouting.js';
 export { notAudited } from './notAudited.js';
 export { EventsWithConcurrencyScopes, eventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
