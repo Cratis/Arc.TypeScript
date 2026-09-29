@@ -9,7 +9,7 @@ export function parseSourceOptions(values: readonly string[], usage: string):
     const options: Record<string, string | boolean> = {};
     const flags = ['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers',
         '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces', '--watch', '--check-metadata',
-        '--use-generated-metadata'];
+        '--use-generated-metadata', '--skip-react-hooks'];
     const arguments_ = ['--project', '--artifacts', '--output', '--metadata', '--segments-to-skip', '--api-prefix', '--root-namespace'];
     const repeatable = '--type-mapping';
     const typeMappings: string[] = [];
@@ -47,6 +47,7 @@ export function parseSourceOptions(values: readonly string[], usage: string):
         skipIndexGeneration: options['--skip-index-generation'] === true,
         skipOutputDeletion: options['--skip-output-deletion'] === true,
         emitInterfaces: options['--emit-interfaces'] === true,
+        skipReactHooks: options['--skip-react-hooks'] === true,
         typeMappings: typeMappings.length ? parseTypeMappingOptions(typeMappings) : undefined
     };
     return { configuration, watch: options['--watch'] === true, checkMetadata: options['--check-metadata'] === true };

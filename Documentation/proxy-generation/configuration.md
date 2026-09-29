@@ -34,6 +34,7 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 | `--use-proxy-file-suffix` | Off for a dedicated output folder; required for co-located output | Name files `*.proxy.ts` instead of `*.ts` |
 | `--js-import-specifiers` | Off | Use `.js` extensions in local imports, for native Node ESM; extensionless imports suit Vite and other bundlers |
 | `--emit-interfaces` | Off | Emit undecorated interfaces instead of model classes; model constructors in proxies become `Object`, so choose this only when you do not need decorated model hydration |
+| `--skip-react-hooks` | Off | Emit server-only proxies: no `@cratis/arc.react` import and no static `use*`/`when` hooks on commands and queries, so a project that only needs the typed HTTP client does not need React installed. The generated classes still work with `@cratis/arc` directly. Programmatic option: `skipReactHooks` |
 | `--skip-index-generation` | Off for a dedicated output folder; automatic for co-located output | Do not write `index.ts` barrels |
 | `--skip-output-deletion` | Off | Keep stale generated files instead of removing them |
 | `--metadata <file>` | Off | Generate server artifact metadata at the given absolute path and infer undecorated bindings |
