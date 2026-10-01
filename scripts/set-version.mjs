@@ -22,7 +22,7 @@ try {
         writeVersion(root, plan);
         execFileSync('yarn', ['install'], { cwd: root, stdio: 'inherit' });
     }
-    console.log(`${check ? 'Checked' : 'Set'} version ${plan.version}: ${plan.packages} versioned packages, ${plan.unversioned} unversioned workspaces, ${plan.ranges} internal non-workspace ranges, ${plan.statements} documentation statements${check ? '' : `, ${plan.edits.length} files updated; yarn.lock refreshed`}.`);
+    console.log(`${check ? 'Checked' : 'Set'} version ${plan.version}: ${plan.packages} versioned packages, ${plan.unversioned} unversioned workspaces, ${plan.ranges} internal non-workspace ranges, ${plan.statements} documentation statements, ${plan.constants} generated version constants${check ? '' : `, ${plan.edits.length} files updated; yarn.lock refreshed`}.`);
 } catch (error) {
     console.error(`Version ${process.argv.includes('--check') ? 'check' : 'update'} failed: ${error.message}`);
     process.exitCode = 1;

@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { context, metrics, SpanKind, SpanStatusCode, trace, type Attributes } from '@opentelemetry/api';
-import packageMetadata from '../package.json' with { type: 'json' };
+import { packageVersion } from '../Version.js';
 import { WellKnownTelemetryNames } from './WellKnownTelemetryNames.js';
 
 const instruments = new WeakMap<object, ReturnType<typeof createHistograms>>();
@@ -18,7 +18,7 @@ function createHistograms(meter: ReturnType<typeof metrics.getMeter>) {
     };
 }
 function histograms() {
-    const meter = metrics.getMeter(WellKnownTelemetryNames.scope, packageMetadata.version);
+    const meter = metrics.getMeter(WellKnownTelemetryNames.scope, packageVersion);
     let existing = instruments.get(meter);
     if (!existing) {
         existing = createHistograms(meter);
@@ -30,7 +30,7 @@ function histograms() {
 /** Observe the lifetime of a subscription without holding an active span across unrelated callbacks. */
 export function beginSubscription(queryName: string, correlationId: string): { end: () => void; run: <T>(callback: () => T) => T } {
     const started = performance.now();
-    const span = trace.getTracer(WellKnownTelemetryNames.scope, packageMetadata.version).startSpan('cratis.arc.query.subscribe', { attributes: {
+    const span = trace.getTracer(WellKnownTelemetryNames.scope, packageVersion).startSpan('cratis.arc.query.subscribe', { attributes: {
         query_name: queryName, 'cratis.arc.query.name': queryName, 'cratis.correlation_id': correlationId
     } });
     return {
@@ -50,7 +50,7 @@ export async function observe<T>(name: string, correlationId: string, attributes
     const entityAttributes: Attributes = {};
     if (attributes.command_type !== undefined) entityAttributes['cratis.arc.command.type'] = attributes.command_type;
     if (attributes.query_name !== undefined) entityAttributes['cratis.arc.query.name'] = attributes.query_name;
-    return trace.getTracer(WellKnownTelemetryNames.scope, packageMetadata.version).startActiveSpan(name, { kind, attributes: {
+    return trace.getTracer(WellKnownTelemetryNames.scope, packageVersion).startActiveSpan(name, { kind, attributes: {
         ...attributes, ...entityAttributes, 'cratis.correlation_id': correlationId
     } }, async span => {
         try {
