@@ -5,7 +5,7 @@ description: Read the signed-in user and typed identity details with @cratis/arc
 
 Your backend now answers `/.cratis/me`. On the React side you want three things: the user's name in the header, controls hidden from people who cannot use them, and a way to pick up changes without a full reload. The published `@cratis/arc.react` client already does the fetching and caching. You connect it to the details class your backend declares.
 
-This page uses `@cratis/arc` and `@cratis/arc.react` 22.19.1, the client versions the [proxy generator](../proxy-generation/getting-started.md) targets.
+This page uses `@cratis/arc` and `@cratis/arc.react` 22.44.0, the client versions the [proxy generator](../proxy-generation/getting-started.md) targets.
 
 ## Give the client your details type
 

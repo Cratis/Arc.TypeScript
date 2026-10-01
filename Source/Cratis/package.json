@@ -37,8 +37,8 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "@cratis/chronicle": "6.29.0",
-    "@cratis/fundamentals": "7.19.6",
+    "@cratis/chronicle": "6.31.2",
+    "@cratis/fundamentals": "7.20.0",
     "rxjs": "^7.8.2",
     "zod": "^4.1.0"
   }

@@ -100,7 +100,7 @@ test('published .NET and built TypeScript HTTP contract', async t => {
     });
     let typescript;
     try {
-        assert.equal(dotnet.readiness.package, 'Cratis.Arc 22.23.0', 'published .NET reference package');
+        assert.equal(dotnet.readiness.package, 'Cratis.Arc 22.44.0', 'published .NET reference package');
         assert.equal(dotnet.readiness.runtime, '10.0.11', 'pinned .NET runtime');
         typescript = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'], {
             cwd: root, kind: 'typescript-http-fixture-ready'
@@ -419,9 +419,8 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('model-bound query binds a named GET argument', 'GET', '/api/model-bound-title?TITLE=readable', undefined, {
             status: 200, body: query(200, { data: { title: 'readable' } })
         });
-        await divergence('numeric concept query argument: .NET fixture returns 500, TypeScript binds it', 'GET',
+        await parity('numeric concept query argument binds on both runtimes', 'GET',
             '/api/rate-lookup?RATE=12.5', undefined,
-            { status: 500, body: query(500, { exceptionMessages: ['An internal error occurred while processing the request. See server logs for details.'] }) },
             { status: 200, body: query(200, { data: { value: 12.5 } }) });
         await parity('observable current-value snapshot returns 200', 'GET', '/api/fixture-stream/current', undefined, {
             status: 200, body: query(200, { data: { value: 'ready' } })
@@ -452,9 +451,11 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             '/api/by-id?id=11111111-1111-4111-8111-111111111111', undefined, {
                 status: 200, body: query(200, { data: { value: correlationId } })
             });
-        await divergence('invalid conventional GUID: .NET binds Guid.Empty, TypeScript rejects', 'GET',
+        await divergence('invalid conventional GUID: both reject with different messages and members', 'GET',
             '/api/by-id?id=not-a-guid', undefined,
-            { status: 200, body: query(200, { data: { value: '00000000-0000-0000-0000-000000000000' } }) },
+            { status: 400, body: query(400, { validationResults: [{ severity: 3,
+                message: "Invalid argument 'id' of type 'Guid' when performing query 'HttpFixture.ModelBoundLookup.ById'",
+                members: ['id'], reason: 'malformedRequest' }] }) },
             { status: 400, body: query(400, { validationResults: [malformedTypeScript] }) });
         await parity('tuple response validation consumes the response', 'POST', '/api/tuple-echo', { value: 'candidate' }, {
             status: 400, body: command(400, { validationResults: [{ severity: 3, message: 'Cannot echo', members: ['value'], reason: 'rule' }] })
@@ -586,9 +587,8 @@ test('published .NET and built TypeScript HTTP contract', async t => {
         await parity('QUERY second page carries totals', 'QUERY', '/api/items', { paging: { page: 1, pageSize: 2 } }, {
             status: 200, body: query(200, { data: [items[2]], paging: paging(1, 2, 3, 2) }), headers: { 'cache-control': 'no-store' }
         }, {}, ['cache-control']);
-        await divergence('GET sort: .NET fixture ignores descending sort, TypeScript applies it', 'GET',
+        await parity('GET sorts descending and pages on both runtimes', 'GET',
             '/api/items?page=0&pageSize=2&sortBy=name&sortDirection=desc', undefined,
-            { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }) },
             { status: 200, body: query(200, { data: [items[2], items[1]], paging: paging(0, 2, 3, 2) }) });
         await queryCount('item query count before rejected requests', 6);
         await parity('GET ignores negative page when pageSize is nonnumeric', 'GET',
@@ -678,9 +678,8 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             { status: 400, body: netReaderFailure, headers: { 'cache-control': 'no-store' } },
             { status: 200, body: query(200, { data: items.slice(0, 2), paging: paging(0, 2, 3, 2) }),
                 headers: { 'cache-control': 'no-store' } }, {}, ['cache-control']);
-        await divergence('GET sort: .NET 22.23.0 ignores even an invalid direction (#2758); TypeScript rejects it', 'GET',
+        await parity('GET rejects invalid sort direction with owning member on both runtimes', 'GET',
             '/api/items?sortBy=name&sortDirection=sideways', undefined,
-            { status: 200, body: query(200, { data: items }) },
             { status: 400, body: badDirection('sortDirection') });
         await parity('anonymous override on authorized read model', 'GET', '/api/auth-override/public', undefined,
             { status: 200, body: query(200, { data: { value: 'public' } }) });

@@ -74,7 +74,7 @@ Every answer carries `Cache-Control: no-store`. A 200 also sets `.cratis-identit
 
 The server never reads `.cratis-identity`. Each call to `/.cratis/me` authenticates the request, resolves the tenant, and runs `provide` again (`Source/Core/http/handleRequest.ts`). The cookie is a display cache for the browser client, and commands and queries authorize against the verified principal only.
 
-Arc on .NET works differently, and Arc for TypeScript deliberately does not copy it. In Arc 22.23.0, the .NET `/.cratis/me` endpoint returns a nonempty `.cratis-identity` cookie's content before it consults the provider (`Source/DotNET/Arc.Core/Identity/IdentityProvider.cs`), and `IIdentityProvider.ModifyDetails` rewrites that cookie. Because the cookie is unsigned and editable by JavaScript, that path lets a browser choose what `/.cratis/me` reports. Arc for TypeScript has no such path, and no server-side way to modify details. To store a user preference, send a command, keep the value in your own storage, and return it from `provide`.
+Arc on .NET works differently, and Arc for TypeScript deliberately does not copy it. In Arc 22.44.0, the .NET `/.cratis/me` endpoint returns a nonempty `.cratis-identity` cookie's content before it consults the provider (`Source/DotNET/Arc.Core/Identity/IdentityProvider.cs`), and `IIdentityProvider.ModifyDetails` rewrites that cookie. Because the cookie is unsigned and editable by JavaScript, that path lets a browser choose what `/.cratis/me` reports. Arc for TypeScript has no such path, and no server-side way to modify details. To store a user preference, send a command, keep the value in your own storage, and return it from `provide`.
 
 ## Compared with Arc on .NET
 
