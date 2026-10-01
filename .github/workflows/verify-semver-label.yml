@@ -1,0 +1,32 @@
+# Copyright (c) Cratis. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+name: Verify Semver Label
+
+# Installed through a reviewed change: the organization bootstrap ignores this repository.
+# Correct Dependabot's dependency-version labels before reading the live release intent.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependabot-labels:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    uses: Cratis/Workflows/.github/workflows/normalize-dependabot-labels.yml@main
+    permissions:
+      pull-requests: write
+
+  release-intent:
+    needs: dependabot-labels
+    if: ${{ !cancelled() }}
+    uses: Cratis/Workflows/.github/workflows/verify-release-intent.yml@main
+    permissions:
+      contents: read
+      pull-requests: read
