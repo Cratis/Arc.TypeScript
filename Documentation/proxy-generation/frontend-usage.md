@@ -3,7 +3,7 @@ title: Use generated proxies in React
 description: Execute generated commands, show live queries with Cratis Components, and pass query arguments from co-located React slices.
 ---
 
-The [Library sample](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Library) registers authors, lists them live, and shows each author's books. Its React components sit beside the backend slices under `Features/`; `Web/src` holds the app shell. None of the components contains a URL, a `fetch` call, or a hand-written response type. The snippets below omit the license header and use `@cratis/arc` and `@cratis/arc.react` 22.19.1 with `@cratis/components` 4.6.0.
+The [Library sample](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Library) registers authors, lists them live, and shows each author's books. Its React components sit beside the backend slices under `Features/`; `Web/src` holds the app shell. None of the components contains a URL, a `fetch` call, or a hand-written response type. The snippets below omit the license header and use `@cratis/arc` and `@cratis/arc.react` 22.44.0 with `@cratis/components` 4.22.1.
 
 ```text
 Features/Authors/Registration/

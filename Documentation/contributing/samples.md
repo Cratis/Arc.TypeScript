@@ -24,7 +24,7 @@ Commit the regenerated files with the source change. Do not hand-edit generated 
 
 Arc for .NET exercises its hosts with two test applications in the Arc repository: `TestApps/ArcCore`, a standalone Arc.Core host, and `TestApps/AspNetCore`, an ASP.NET Core host with MongoDB and Swagger. Both share their features from `TestApps/Shared`. This repository has no test-app folders of the same name. Each behavior is covered by a sample, an adapter suite, or a contract check instead:
 
-| Behavior | .NET reference (Arc 22.23.0) | Arc for TypeScript | Checked by |
+| Behavior | .NET reference (Arc 22.44.0) | Arc for TypeScript | Checked by |
 | --- | --- | --- | --- |
 | Standalone host without a web framework | `TestApps/ArcCore/Program.cs` | `Samples/Tasks/main.ts` with `app.run()` | `yarn build`, `yarn check:metadata` |
 | Route prefix, skipped namespace segments, and command name in route | `ArcCore/Program.cs` options | `generatedApis` options | `Source/Core/for_ArcApplicationBuilder/when_building_model_bound_routes` |

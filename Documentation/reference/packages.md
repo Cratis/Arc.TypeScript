@@ -21,7 +21,7 @@ Every package in this repository is at version 0.52.0, the version of the source
 | `@cratis/arc.testing` | `Source/Testing` | `CommandScenario`, `QueryScenario`, `ObservableQueryScenario`, `ArcScenario`, `given`, `shouldHaveRuleFailure` | |
 | `@cratis/arc.mongodb` | `Source/MongoDB` | `withMongoDB`, `mongoCollection`, `MongoCollection`, naming policies, `MongoReadModels` | `@cratis/arc.core`, `@cratis/fundamentals`, `mongodb` `^6.21.0` |
 | `@cratis/arc.drizzle` | `Source/Drizzle` | `withDrizzle`, `drizzleReadModel`, `drizzleDatabase`, `DrizzleReadModels`, column codecs | `@cratis/arc.core`, `@cratis/fundamentals`, `drizzle-orm` `^0.45.0` |
-| `@cratis/arc.chronicle` | `Source/Chronicle` | Experimental: `withChronicle`, `commandAggregate`, `reactorCommandResultHandler`, `executeCommandsAsSystem`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` and `ChronicleKernelScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.29.0` (tested with 6.29.0), `@cratis/fundamentals`, `zod` |
+| `@cratis/arc.chronicle` | `Source/Chronicle` | Experimental: `withChronicle`, `commandAggregate`, `reactorCommandResultHandler`, `executeCommandsAsSystem`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` and `ChronicleKernelScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.29.0` (peer-floor exports checked against 6.29.0), `@cratis/fundamentals`, `zod` |
 | `@cratis/cratis` | `Source/Cratis` | Experimental composition, the counterpart of the C# `Cratis` package: `CratisApplication.createBuilder`, `builder.addCratis`; re-exports Arc, Chronicle and testing (`./testing`); no implicit authentication handler | Arc core, Arc Chronicle, Arc testing, Chronicle SDK, Fundamentals, `zod` |
 
 `@cratis/cratis` is experimental, like the Chronicle integration it composes, and is not published to npm yet. Unlike C# `AddCratis`, the TS composition does not install Microsoft identity automatically: for protected routes, explicitly choose an authentication handler (such as `microsoftIdentityPlatform()`) or your own trusted host principal; public routes need neither. It composes the client, not the event-store engine. See [The Cratis package](../chronicle/cratis-package.md).
@@ -38,6 +38,8 @@ Every package in this repository is at version 0.52.0, the version of the source
 The core, adapter, MongoDB, and Drizzle packages need Node.js 22 or later. Building the workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## The client packages
+
+The workspace pins `@cratis/arc` and `@cratis/arc.react` to 22.44.0, `@cratis/components` to 4.22.1, and `@cratis/fundamentals` to 7.20.0 (peer range `^7.19.6`). Chronicle development and sample dependencies use 6.31.2; the Chronicle peer floor remains `^6.29.0`.
 
 `@cratis/arc`, `@cratis/arc.react`, and `@cratis/arc.react.mvvm` are Arc's existing TypeScript **client** packages, built and published from the [Arc repository](https://github.com/Cratis/Arc). This repository does not replace, rename, or republish them. They are the compatibility target for this server's wire behavior, and generated proxies import them in your frontend. The server packages never depend on them.
 

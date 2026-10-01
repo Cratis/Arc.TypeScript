@@ -80,9 +80,9 @@ The generated files and React components live in `Features/`, not `Web/`. Instal
 
 ```sh
 cd path/to/package-containing-Features
-npm install @cratis/arc@22.19.1 @cratis/arc.react@22.19.1 @cratis/fundamentals react react-dom reflect-metadata
+npm install @cratis/arc@22.44.0 @cratis/arc.react@22.44.0 @cratis/fundamentals react react-dom reflect-metadata
 # If your slices use Cratis Components:
-npm install @cratis/components@4.6.0
+npm install @cratis/components@4.22.1
 ```
 
 Also declare the dependencies imported by the web app in its own package. Installing packages only in a sibling `Web/node_modules` does **not** make them resolvable from `Features/`; including the slices in `Web/tsconfig.json` does not change that. The Library sample declares these dependencies in [`Samples/Library/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/package.json) for its slices and in [`Web/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Library/Web/package.json) for its app shell. Generated commands and queries import both `@cratis/arc` and the React hooks from `@cratis/arc.react`, even when you only use the classes. Models use `@field` from `@cratis/fundamentals`. `@cratis/arc.react` accepts React 18 or 19.
