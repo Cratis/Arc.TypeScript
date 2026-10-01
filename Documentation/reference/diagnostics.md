@@ -93,7 +93,7 @@ The HTTP status follows the [HTTP contract reference](http-contract.md#status-co
 | `GET /.cratis/identity-details/schema` | The identity details schema |
 | `GET /openapi.json` | The OpenAPI 3.1 document; see [OpenAPI](../open-api/index.md) |
 | `GET /.cratis/queries/health` | The authenticated caller's own observable hub connections, when `query.enableObservableHealth` is on; see [Query health](../queries/query-health.md) |
-| OpenTelemetry | Spans such as `cratis.arc.command.execute` and the `cratis.arc.operation.duration` histogram from the `Cratis.Arc` source; see [Observability](../observability.md) |
+| OpenTelemetry | Spans such as `cratis.arc.command.execute` and the `cratis.arc.command.duration` / `cratis.arc.query.duration` histograms in seconds from the versioned `Cratis.Arc` scope; `cratis.arc.operation.duration` remains emitted but is deprecated; see [Observability](../observability.md) |
 | `logger(error, correlationId)` | Every failure with its correlation ID, and unknown configuration keys |
 
 Every response carries its correlation ID, in `X-Correlation-ID` unless you renamed the header. Search your logs and traces by it.
