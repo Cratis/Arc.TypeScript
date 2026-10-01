@@ -57,7 +57,7 @@ cd ../my-arc-app
 Install it together with the Chronicle SDK and RxJS:
 
 ```bash
-npm install ../arc-packages/arc.chronicle.tgz @cratis/chronicle@~6.29.0 rxjs@^7.8.2
+npm install ../arc-packages/arc.chronicle.tgz @cratis/chronicle@~6.31.2 rxjs@^7.8.2
 ```
 
 | Package | What it gives you |
