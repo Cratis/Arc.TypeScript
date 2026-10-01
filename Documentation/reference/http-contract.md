@@ -48,20 +48,18 @@ A result is 200 when successful, then 403 for authorization failures, 400 for va
 | Anonymous caller on a protected operation | 403 | 401 when handlers are configured |
 | Malformed request message | Framework message | `Malformed request` |
 | Redacted exception message | Framework message | `An unexpected error occurred` |
-| Invalid GUID query argument | Binds `Guid.Empty`, 200 | 400 `malformedRequest` |
+| Invalid GUID query argument | 400 `malformedRequest` with argument details | 400 `malformedRequest` with a generic message |
 | SSE hub | Anonymous controls allowed | Requires an authenticated principal |
 | Query health | Anonymous, cross-caller | Opt-in, caller-scoped |
 | `waitForFirstResultTimeout` | Larger values accepted; unknown booleans ignored | At most 120 seconds; unknown booleans rejected |
 
-The suite also pins three differences observed in the .NET reference host that are not choices of Arc for TypeScript:
+Numeric concept GET arguments bind successfully on both runtimes. Both apply GET sorting and reject invalid sort directions. The suite also pins a host-specific difference that is not a choice of Arc for TypeScript:
 
-| Request | Arc on .NET 22.23.0 | Arc for TypeScript |
+| Request | Arc on .NET 22.44.0 | Arc for TypeScript |
 | --- | --- | --- |
-| A numeric concept query argument on GET | Redacted 500 ([Cratis/Arc#2757](https://github.com/Cratis/Arc/issues/2757)) | Binds the value, 200 |
-| GET with `sortBy` and `sortDirection` | Ignores the sort ([Cratis/Arc#2758](https://github.com/Cratis/Arc/issues/2758)); the equivalent `QUERY` request sorts identically on both | Applies the sort |
 | An unknown path under Express | Empty 404 with a correlation header | Express's own HTML 404, without an Arc correlation header |
 
-The paired `yarn test:conformance` suite pins these differences against a .NET host on `Cratis.Arc` 22.23.0; see [How parity is checked](capabilities.md#how-parity-is-checked).
+The paired `yarn test:conformance` suite pins these differences against a .NET host on `Cratis.Arc` 22.44.0; see [How parity is checked](capabilities.md#how-parity-is-checked).
 
 ## Related
 

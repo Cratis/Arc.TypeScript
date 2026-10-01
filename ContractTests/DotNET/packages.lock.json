@@ -4,13 +4,13 @@
     "net10.0": {
       "Cratis.Arc": {
         "type": "Direct",
-        "requested": "[22.23.0, 22.23.0]",
-        "resolved": "22.23.0",
-        "contentHash": "428iq+QyJ2PupazMtPuOgpbJu3bqcGUQzwlUmeUSKzlPprt7g4RXTA8KXyI2aWZjTseFMYuKo6aw0tKenyIodg==",
+        "requested": "[22.44.0, 22.44.0]",
+        "resolved": "22.44.0",
+        "contentHash": "qYYRTSis5pYPQgS2eUXIoR8ylqThXCGNK6bn+x+WgqfNByAMWkh6zi2FVsfco60PY8PkPBsrDxSkAtBWIGIBLQ==",
         "dependencies": {
-          "Cratis.Arc.Core": "22.23.0",
-          "Cratis.Fundamentals": "7.19.3",
-          "Cratis.Metrics.Roslyn": "7.19.3",
+          "Cratis.Arc.Core": "22.44.0",
+          "Cratis.Fundamentals": "7.19.6",
+          "Cratis.Metrics.Roslyn": "7.19.4",
           "FluentValidation": "12.1.1",
           "Microsoft.Extensions.DependencyModel": "10.0.12",
           "Microsoft.Extensions.Telemetry": "10.10.0",
@@ -19,12 +19,12 @@
       },
       "Cratis.Arc.Core": {
         "type": "Transitive",
-        "resolved": "22.23.0",
-        "contentHash": "cc67BF2qW4lEKXxR6HiWwanpI46IbkJAkTL3ccd3PsuyOGIIR7XhT272XRAo7UNw0aGqM+4XZ9Xc37t5jBnTdQ==",
+        "resolved": "22.44.0",
+        "contentHash": "eUQPQmPMeJb9CKmBhEYYILkEkNazyMoFYI19URmbATiQyl3EaXJ7qOokHRTw8PPgI74nigV9HGBdgrPUqD5g4A==",
         "dependencies": {
-          "Cratis.Arc.Core.CodeAnalysis": "22.23.0",
-          "Cratis.Fundamentals": "7.19.3",
-          "Cratis.Metrics.Roslyn": "7.19.3",
+          "Cratis.Arc.Core.CodeAnalysis": "22.44.0",
+          "Cratis.Fundamentals": "7.19.6",
+          "Cratis.Metrics.Roslyn": "7.19.4",
           "FluentValidation": "12.1.1",
           "Microsoft.Extensions.DependencyModel": "10.0.12",
           "Microsoft.Extensions.Telemetry": "10.10.0",
@@ -33,26 +33,26 @@
       },
       "Cratis.Arc.Core.CodeAnalysis": {
         "type": "Transitive",
-        "resolved": "22.23.0",
-        "contentHash": "YCAZ5iOeOuU2WIR4xCaCkx47rPz5N7vNWCD8Qk5ICG/Nf4Rm5CtvzY0mWjfFFAMbBuJIzSB0StZlrRjLbObfQw=="
+        "resolved": "22.44.0",
+        "contentHash": "2iELBMXCRQdhg4opYmVq7s0alpkHgnElxeMP2ad4wN3pxo/+3EWz5s8pI+lRo04zICuOaMijXLN/N1UZrqE8zg=="
       },
       "Cratis.Fundamentals": {
         "type": "Transitive",
-        "resolved": "7.19.3",
-        "contentHash": "t9Wh0DhqAQ1mB+zSrKAnmD1EZlK3Gm6m5RYKq4aY2NyXtimvOgSMBB0LKKAZRaWUsNtnSQU0eMXDYO5JG1c6tA==",
+        "resolved": "7.19.6",
+        "contentHash": "/Gmt2GvQnlD35ru1w0OZSAkrtGCCAinEEE9r7Yw0vPoehC9ZGLDjMuVz6KLWtP05GbZatBBs55gl40aZugyOeQ==",
         "dependencies": {
           "Humanizer": "3.0.10",
           "Microsoft.Extensions.DependencyModel": "10.0.12",
           "OneOf": "3.0.271",
           "OneOf.SourceGenerator": "3.0.271",
-          "OpenTelemetry": "1.18.0",
+          "OpenTelemetry": "1.19.1",
           "System.Reactive": "7.0.0"
         }
       },
       "Cratis.Metrics.Roslyn": {
         "type": "Transitive",
-        "resolved": "7.19.3",
-        "contentHash": "xg8Uis5F5OJLMTmIpByi62ng9tC9hE80F8TcgZFmh4sDQxRxKaiARSJPaCxFhLCLh1jSh5bm/It1IQfxgpaIcg=="
+        "resolved": "7.19.4",
+        "contentHash": "KGheR9VYws1ME8aohVjAAP3G59gmKaxwxsmDBMIWQcBEz0+zXUbKbc75gKKjI5zadf4pZDUq5NidjBLErHluhg=="
       },
       "FluentValidation": {
         "type": "Transitive",
@@ -580,23 +580,23 @@
       },
       "OpenTelemetry": {
         "type": "Transitive",
-        "resolved": "1.18.0",
-        "contentHash": "13AKxycK+olOLe061MjliPTNBR/DUkjyRr0b9zwUhKyMjFS8lXS7G31R85rkbM55up2YFmdykWdAw2giBDJpiQ==",
+        "resolved": "1.19.1",
+        "contentHash": "6ywhc3upf+dq8EsOohj7I7zS3l4yX9vfbtFkvyEC8xIUY4Z9iDIOVuke356eCAzIZaWtmwmmyl2UXYCp5n7I3Q==",
         "dependencies": {
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.18.0"
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.19.1"
         }
       },
       "OpenTelemetry.Api": {
         "type": "Transitive",
-        "resolved": "1.18.0",
-        "contentHash": "Dhzm5oughIY9EWckt2J1yXcEbXpki5WCL2q7prJoYxzH6C7jdkfGtPMTkUVZZ4AhjJKzQnlC+kLSIlmIVwC4Vw=="
+        "resolved": "1.19.1",
+        "contentHash": "9JKIH+xrV0HNTFjQC8zrx9gZpDOMEljN5Htg/U0VE2IvO3N+7bKALCCsGy5tp09marX5dd8UkrgQFoLaulIBRw=="
       },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
-        "resolved": "1.18.0",
-        "contentHash": "io6A6PJFp3vIObRGf6oPjdHsdglkinXt/0SpTDJHrVnsLxUtOzwh/QwTsnhBJ43wJ6QcGMkyNzsSSY8XEB1Q5Q==",
+        "resolved": "1.19.1",
+        "contentHash": "HtGe72B/IhzKqdU0a3fNE5osax/Cegwxd+p4u6lOFy20nsgmeaFuP2NRyFs1WvrOv/bpkII3IvvBkKoZXG8BLg==",
         "dependencies": {
-          "OpenTelemetry.Api": "1.18.0"
+          "OpenTelemetry.Api": "1.19.1"
         }
       },
       "System.Reactive": {
