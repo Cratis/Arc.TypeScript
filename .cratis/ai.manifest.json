@@ -1,5 +1,5 @@
 {
-  "SourceRevision": "cc847418c99ad8ba62d6372cace683d8d4a47db9",
+  "SourceRevision": "4bdf4be2c621c433e293abeb854b2ddec73c1096",
   "Files": [
     {
       "Source": "agents/backend-developer.md",
@@ -54,7 +54,7 @@
     {
       "Source": "agents/slice-implementer.md",
       "Destination": "agents/slice-implementer.md",
-      "Hash": "FD0044C71902BBB3A7198F07598840043F42932161318D6F14A1A72CA285F84F"
+      "Hash": "86AAA35760B9FBAE4D7ADDA2F30405902CA2D8D119FAD25735A58AA8CAA96AE5"
     },
     {
       "Source": "agents/spec-writer.md",
@@ -119,7 +119,7 @@
     {
       "Source": "harnesses/opencode/agents/slice-implementer.md",
       "Destination": "harnesses/opencode/agents/slice-implementer.md",
-      "Hash": "A2A0359472D78721567EDFD585DFCEFA1BE8D491870EB91D14D41D7861871FA1"
+      "Hash": "C05F0230D95436DFDCAA5D377492F263424E29E5C50D5E0958D2925D5722FA67"
     },
     {
       "Source": "harnesses/opencode/agents/spec-writer.md",
@@ -289,7 +289,7 @@
     {
       "Source": "hooks/README.md",
       "Destination": "hooks/README.md",
-      "Hash": "7E6D15FCB27210070424FF0C3C29D8EC86810CC7A3E6A26695D9F4C9BAF43069"
+      "Hash": "C5B6E291FCE9DF6617F8CD52F59420BDE95C6EE553D033CEEC261311D2D294A1"
     },
     {
       "Source": "hooks/agent-stop.md",
@@ -329,7 +329,7 @@
     {
       "Source": "hooks/scripts/cratis-quality-gate.sh",
       "Destination": "hooks/scripts/cratis-quality-gate.sh",
-      "Hash": "9E59C975C2DBBDC26795421963D3259B410C043E11ECC7D02B42A5E566CC35CE"
+      "Hash": "1869DEB708F793AEA3EC7F6E69EC703D32D4F8B4C3665B092FAE75100797D6A9"
     },
     {
       "Source": "hooks/scripts/cratis-store-mutations.json",
@@ -344,7 +344,7 @@
     {
       "Source": "hooks/scripts/quality-gates.json",
       "Destination": "hooks/scripts/quality-gates.json",
-      "Hash": "4B47A74659733DA211BA24195C8DAE178F196681A30F1B70301CE79A46461C27"
+      "Hash": "230D92BBEEC2E4B58C3B44FFB1B5CAF3E0240E2677E4844503BC09E98B08F6C4"
     },
     {
       "Source": "hooks/scripts/type-references-allowlist.txt",
@@ -379,37 +379,37 @@
     {
       "Source": "profile-catalog.json",
       "Destination": "profile-catalog.json",
-      "Hash": "465E60D02E0546129C07960C771A7FADB3CD68810A9587BB87773B463B9B7DA6"
+      "Hash": "E84C724ED25C8B264A52E7198C6113D2AA83E9DB090F218E3E1B6BF03683959F"
     },
     {
       "Source": "prompts/add-business-rule.prompt.md",
       "Destination": "prompts/add-business-rule.prompt.md",
-      "Hash": "463CCED6B82FF09989861B6BB33F26BB9CAB6FEBB583CD021D659AF30C6C5949"
+      "Hash": "AB7DB051799958E4E7806F717376C826947806A4098FAD8C9E5513A001F64157"
     },
     {
       "Source": "prompts/add-concept.prompt.md",
       "Destination": "prompts/add-concept.prompt.md",
-      "Hash": "662D846189D381805A98503A85C02D53BE95D569E9B7E5D8C64A4B9E02B3DA85"
+      "Hash": "A17517AF4B5AC2C0DED148878B9E46F401E3A3E5DC13C1338D5727401F7A27D3"
     },
     {
       "Source": "prompts/add-ef-migration.prompt.md",
       "Destination": "prompts/add-ef-migration.prompt.md",
-      "Hash": "2DE328CE27A072AE6785A3F75507373B0FB8847CAAB43B24A9B176DF04FB1513"
+      "Hash": "9DBAB6B6170C5365E68D019A9DB482B4E346504EFAB3C0991CD943E333034F89"
     },
     {
       "Source": "prompts/add-projection.prompt.md",
       "Destination": "prompts/add-projection.prompt.md",
-      "Hash": "A288007608654FE84BF613F2EDEEAAB019A2EDFF496421F6D80F7DE81EE7AF5C"
+      "Hash": "5B18E1780021A22AB0142F32BD3F18E4A79B87466E8CD0A97A0BACAB37C63D58"
     },
     {
       "Source": "prompts/add-reactor.prompt.md",
       "Destination": "prompts/add-reactor.prompt.md",
-      "Hash": "EB58E4288E46A2B5752F0F0A6C490FF6C761AA6D2EF33707B0145A7BDBF4FCD3"
+      "Hash": "F3B00A09EA51807DD1664DA53B9840578BDA93E0641F600625A8AA3BB030D2AD"
     },
     {
       "Source": "prompts/add-reducer.prompt.md",
       "Destination": "prompts/add-reducer.prompt.md",
-      "Hash": "565285224057F0BDAA84CA9A99E9000812FB429C27749A4A655AF4B9DD1AF295"
+      "Hash": "991564352BFD684CE06944CC537EBF3E07ECFBC042E0D5A84FE3E98FFE72318F"
     },
     {
       "Source": "prompts/audit-hooks.prompt.md",
@@ -434,7 +434,7 @@
     {
       "Source": "prompts/new-vertical-slice.prompt.md",
       "Destination": "prompts/new-vertical-slice.prompt.md",
-      "Hash": "61721719C85181332074547EA5466B6442A34197A4369E451DAB8C5163220A19"
+      "Hash": "251E78CDD4ADFBA8D0B9A648691CD4301C76F5C1E3C4D8B74BA0B14428E6374F"
     },
     {
       "Source": "prompts/review-pr.prompt.md",
@@ -449,7 +449,7 @@
     {
       "Source": "prompts/scaffold-feature.prompt.md",
       "Destination": "prompts/scaffold-feature.prompt.md",
-      "Hash": "1D813AC78D7C26636BB5FD6B89F993853686EA4770063B71D0FCEC75EBD6F009"
+      "Hash": "C30B71D7150B66E4365061F96DEAF555C36B431C704EC46637F01D190F8AF61B"
     },
     {
       "Source": "prompts/ship-changes.prompt.md",
@@ -469,7 +469,7 @@
     {
       "Source": "prompts/write-specs.prompt.md",
       "Destination": "prompts/write-specs.prompt.md",
-      "Hash": "D0F9AFFF2E166E000282A848EE58EFD0BEE5E82A8954FFB1E92EA3C733F2296B"
+      "Hash": "DA033222DC35AD0E9594C76F932CF0F424D1E645ECC15E9668B5AD5CFB9CCF6C"
     },
     {
       "Source": "rules/ai-distribution.md",
@@ -529,7 +529,7 @@
     {
       "Source": "rules/framework.md",
       "Destination": "rules/framework.md",
-      "Hash": "8D5DF1A80D4735E033A7489B5AC3CD8D50B8C778BE87F49D95925D8722D153EC"
+      "Hash": "B850ADA6A884C3ED64FB0EED13101BDA9847F5B3B6928229C38CC6DB441AA548"
     },
     {
       "Source": "rules/general.md",
@@ -584,7 +584,7 @@
     {
       "Source": "rules/profiles.md",
       "Destination": "rules/profiles.md",
-      "Hash": "0147BEB4788AF092DE1FC53EABD0F0C22730BD4ECD6E04CF5EA6069382396569"
+      "Hash": "9026C942C012F6C081F717F1D0E74807CA76EE21C77575BDC1C2924A6C0251CF"
     },
     {
       "Source": "rules/pull-requests.md",
@@ -599,7 +599,7 @@
     {
       "Source": "rules/specs.csharp.md",
       "Destination": "rules/specs.csharp.md",
-      "Hash": "08F62A454CA45EE666D175EC152C491EFD15F1662EAE590CD546828CB8D59C68"
+      "Hash": "EDAFBF16C7285504BB1E5C4DA1B6E2B04173F7CF01A2AB09434F45BEEBD5034D"
     },
     {
       "Source": "rules/specs.md",
@@ -654,32 +654,37 @@
     {
       "Source": "skills/cratis-arc-authentication-authorization-and-identity/SKILL.md",
       "Destination": "skills/cratis-arc-authentication-authorization-and-identity/SKILL.md",
-      "Hash": "52348DC9A43D2B7C9DDD7BB869A718A6581FC478ADD8877D4A1357145D760E87"
+      "Hash": "6CE084AD19D821E3AAED7FF02B0AD5A6554D96E1ED190CB45CE5E6D6083D30C6"
     },
     {
       "Source": "skills/cratis-arc-authentication-authorization-and-identity/references/authentication.md",
       "Destination": "skills/cratis-arc-authentication-authorization-and-identity/references/authentication.md",
-      "Hash": "F8CB60F2D8118C7B86F54B7A8E90CBBD7295B960A9181EE1817EAC882E7A06E8"
+      "Hash": "9DEF54D82BBE4C91861565513E512E862E50731EE7B0AB2F7004AE06AFDF51F6"
     },
     {
       "Source": "skills/cratis-arc-authentication-authorization-and-identity/references/authorization.md",
       "Destination": "skills/cratis-arc-authentication-authorization-and-identity/references/authorization.md",
-      "Hash": "CC9E3FCE71D6F641F97191B5BE2F1C6BFE35CC83545644D8744545072B5D8850"
+      "Hash": "A9C51BA75977BC3A59C45EDA0CE0B64725ACF64900B93CA1E24ABE60C254F235"
     },
     {
       "Source": "skills/cratis-arc-authentication-authorization-and-identity/references/frontend.md",
       "Destination": "skills/cratis-arc-authentication-authorization-and-identity/references/frontend.md",
-      "Hash": "539E69B83A6E55A25D02DF4A348C1C4B0F4ED00F92A9569E6B7D1791854A8DCF"
+      "Hash": "26A5F652423F181DB096946907560D44EA02F2BAA9ADE83AC9A7EC6F07BF5888"
     },
     {
       "Source": "skills/cratis-arc-authentication-authorization-and-identity/references/local-development.md",
       "Destination": "skills/cratis-arc-authentication-authorization-and-identity/references/local-development.md",
-      "Hash": "FB4A37DE2A88CB6D38775F6396365EB68150F800F24B24DCEE07915C8455CFFB"
+      "Hash": "1E48DB3FEBD2FB3B4174E2DE562A5BF64E15EFE734BEFD41206C1B581992FA23"
+    },
+    {
+      "Source": "skills/cratis-arc-authentication-authorization-and-identity/references/observable-emission-guards.md",
+      "Destination": "skills/cratis-arc-authentication-authorization-and-identity/references/observable-emission-guards.md",
+      "Hash": "BDBCF57ADCC524FB989DB0AAFB9D71A1FDCB4655D633A390C609E0B2E0A59D8E"
     },
     {
       "Source": "skills/cratis-arc-authentication-authorization-and-identity/references/tenancy.md",
       "Destination": "skills/cratis-arc-authentication-authorization-and-identity/references/tenancy.md",
-      "Hash": "6D8515295E6306EFC3F6C17513D5681A119C1102B4729C70AD79E2D2B99F5DA8"
+      "Hash": "6DB4060D2F94D89EE70EEBB15ACE63094514CE5C1D907E71ED5C3DE45D1A51CB"
     },
     {
       "Source": "skills/cratis-arc-command-execution/LICENSE",
@@ -794,7 +799,7 @@
     {
       "Source": "skills/cratis-chronicle-cli-operations/SKILL.md",
       "Destination": "skills/cratis-chronicle-cli-operations/SKILL.md",
-      "Hash": "545DF95A736CF1BD42ACFE3F9EA2EA4E811A97802286746F309BE2E39EED004F"
+      "Hash": "71433D310F2B90567F0BC239255B01DC9AA3ED995A84B92372D534DA53DAF821"
     },
     {
       "Source": "skills/cratis-chronicle-client-typescript/LICENSE",
@@ -869,7 +874,7 @@
     {
       "Source": "skills/cratis-chronicle-reactor/SKILL.md",
       "Destination": "skills/cratis-chronicle-reactor/SKILL.md",
-      "Hash": "9C1D17036006DF56675EEA6BB5CEB59E6DCF79764AEECEA90D285183FC9F7046"
+      "Hash": "BA6793AE4577D5538BD2CF4E87BAB05F79B49E96E4D5DEB89277D7A8E0608B18"
     },
     {
       "Source": "skills/cratis-chronicle-read-model/LICENSE",
