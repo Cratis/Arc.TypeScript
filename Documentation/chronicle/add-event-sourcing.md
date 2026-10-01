@@ -42,7 +42,7 @@ curl --insecure --silent --fail --retry 60 --retry-all-errors --retry-delay 1 ht
 
 The second command prints `Healthy` once the kernel accepts connections, usually within 30 seconds. The development image generates a self-signed certificate, which is why the check passes `--insecure`. The port is published on `127.0.0.1` only, because the development image accepts well-known development credentials.
 
-`latest-development` follows the newest development build. For repeatable runs, pin a released development tag instead, such as `cratis/chronicle:19.6.1-development`.
+`latest-development` follows the newest development build. For repeatable runs, pin a released development tag instead, such as `cratis/chronicle:19.26.2-development`.
 
 ## Install the Chronicle packages
 
