@@ -14,7 +14,7 @@ Every package in this repository is at version 0.52.0, the version of the source
 
 | Package | Folder | Exports | Peer dependencies |
 | --- | --- | --- | --- |
-| `@cratis/arc.core` | `Source/Core` | `ArcApplication`, the artifact, field, authorization, and service decorators, validators, `ArcServer`, `define*`, results, authentication, identity, tenancy, introspection, `exportClientManifest`, `runArc`, `createArcNodeHandler`; `@cratis/arc.core/hosting` for WebSocket hosting primitives; Node builder loads `appsettings.json` and `Cratis__...` environment keys | `@cratis/fundamentals` `^7.20.0`, `@opentelemetry/api` `^1.9.0`; depends on `zod` 4 |
+| `@cratis/arc.core` | `Source/Core` | `ArcApplication`, the artifact, field, authorization, and service decorators, validators, `ArcServer`, `define*`, results, authentication, identity, tenancy, introspection, `exportClientManifest`, `runArc`, `createArcNodeHandler`; `@cratis/arc.core/hosting` for WebSocket hosting primitives; Node builder loads `appsettings.json` and `Cratis__...` environment keys | `@cratis/fundamentals` `^7.19.6`, `@opentelemetry/api` `^1.9.0`; depends on `zod` 4 |
 | `@cratis/arc.express` | `Source/Express` | `cratisArc` middleware with `.injectWebSocket` | `express` `^5.0.0` |
 | `@cratis/arc.fastify` | `Source/Fastify` | `cratisArc` plugin | `fastify` `^5.0.0` |
 | `@cratis/arc.hono` | `Source/Hono` | `cratisArc` middleware, `serveCratisArc` Node helper, `createHonoWebSockets` for shared Node helpers | `hono` `^4.0.0`; optional `@hono/node-server` `^1.19.11` |
@@ -39,7 +39,7 @@ The core, adapter, MongoDB, and Drizzle packages need Node.js 22 or later. Build
 
 ## The client packages
 
-The workspace pins `@cratis/arc` and `@cratis/arc.react` to 22.44.0, `@cratis/components` to 4.22.1, and `@cratis/fundamentals` to 7.20.0. Chronicle development and sample dependencies use 6.31.2; the Chronicle peer floor remains `^6.29.0`.
+The workspace pins `@cratis/arc` and `@cratis/arc.react` to 22.44.0, `@cratis/components` to 4.22.1, and `@cratis/fundamentals` to 7.20.0 (peer range `^7.19.6`). Chronicle development and sample dependencies use 6.31.2; the Chronicle peer floor remains `^6.29.0`.
 
 `@cratis/arc`, `@cratis/arc.react`, and `@cratis/arc.react.mvvm` are Arc's existing TypeScript **client** packages, built and published from the [Arc repository](https://github.com/Cratis/Arc). This repository does not replace, rename, or republish them. They are the compatibility target for this server's wire behavior, and generated proxies import them in your frontend. The server packages never depend on them.
 
