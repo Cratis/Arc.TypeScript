@@ -176,7 +176,7 @@ The first five span names and the identity-resolution span use the .NET pipeline
 | `cratis.arc.operation.duration` (deprecated) | `s` | Each pipeline stage and operation, tagged with `operation` and the original type, name, or route tags |
 | `cratis.arc.subscription.duration` | `s` | How long each observable subscription stayed open, tagged with `query_name` |
 
-All four instruments are histograms with descriptions, recorded in seconds under the `Cratis.Arc` meter. The tracer and meter scope version is the `@cratis/arc.core` package version, imported as static JSON and included in the build. No application version or hard-coded version is used.
+All four instruments are histograms with descriptions, recorded in seconds under the `Cratis.Arc` meter. Their explicit bucket boundary advice is `[0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10]` seconds, matching Arc for .NET's pipeline duration buckets rather than the OpenTelemetry JavaScript SDK's millisecond-scale defaults. Your SDK's views can override this advice. The tracer and meter scope version is the `@cratis/arc.core` package version, imported as static JSON and included in the build. No application version or hard-coded version is used.
 
 The new command and query histograms measure completed executions, including failed executions. They do not count filter stages, validate-only commands, or observable emissions as additional executions. Their attributes match the canonical span keys and contain only registered command types or query names—never correlation IDs, tenant IDs, or payloads.
 

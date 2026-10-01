@@ -22,6 +22,18 @@ describe('when measuring a query with an SDK', given(a_telemetry_sdk, context =>
         metric.descriptor.description.length.should.be.greaterThan(0);
         metric.dataPoints[0]!.value.should.have.property('sum', 0.25);
     });
+    it('should export second-scale buckets for query and deprecated operation durations', () => {
+        for (const name of [WellKnownTelemetryNames.queryDuration, WellKnownTelemetryNames.operationDuration]) {
+            const metric = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
+                .find(metric => metric.descriptor.name === name)!;
+            metric.dataPoints.length.should.be.greaterThan(0);
+            for (const point of metric.dataPoints) {
+                point.value.should.have.nested.property('buckets.boundaries').that.deep.equals([
+                    0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10
+                ]);
+            }
+        }
+    });
     it('should use only the canonical query name attribute shared with spans', () => {
         const metric = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
             .find(metric => metric.descriptor.name === WellKnownTelemetryNames.queryDuration)!;

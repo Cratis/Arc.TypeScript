@@ -12,7 +12,7 @@ import pino from 'pino';
 import { AggregationTemporality, DataPointType, InMemoryMetricExporter, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import packageMetadata from '../Source/Core/package.json' with { type: 'json' };
 
-const metricExporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+const metricExporter = new InMemoryMetricExporter(AggregationTemporality.DELTA);
 const metricReader = new PeriodicExportingMetricReader({ exporter: metricExporter, exportIntervalMillis: 60_000 });
 const exporter = new InMemorySpanExporter();
 const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)],
@@ -104,6 +104,8 @@ async function verify(name, start) {
             assert.equal(metric.dataPointType, DataPointType.HISTOGRAM);
             assert.equal(metric.descriptor.unit, 's');
             assert.ok(metric.descriptor.description.length > 0);
+            assert.equal(metric.dataPoints.length, 1, `${name} must export one duration point`);
+            assert.equal(metric.dataPoints[0].value.count, 1, `${name} must record its own execution`);
             assert.deepEqual(metric.dataPoints[0].attributes, attributes);
             assert.ok(metric.dataPoints[0].value.sum >= 0);
             const legacy = scope.metrics.find(metric => metric.descriptor.name === WellKnownTelemetryNames.operationDuration);

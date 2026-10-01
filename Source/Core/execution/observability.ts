@@ -4,16 +4,18 @@ import { context, metrics, SpanKind, SpanStatusCode, trace, type Attributes } fr
 import packageMetadata from '../package.json' with { type: 'json' };
 import { WellKnownTelemetryNames } from './WellKnownTelemetryNames.js';
 
+const durationBucketBoundaries = [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10];
 const instruments = new WeakMap<object, ReturnType<typeof createHistograms>>();
 function createHistograms(meter: ReturnType<typeof metrics.getMeter>) {
+    const advice = { explicitBucketBoundaries: durationBucketBoundaries };
     return {
-        subscription: meter.createHistogram(WellKnownTelemetryNames.subscriptionDuration, { unit: 's',
+        subscription: meter.createHistogram(WellKnownTelemetryNames.subscriptionDuration, { unit: 's', advice,
             description: 'Lifetime of an Arc observable subscription' }),
-        operation: meter.createHistogram(WellKnownTelemetryNames.operationDuration, { unit: 's',
+        operation: meter.createHistogram(WellKnownTelemetryNames.operationDuration, { unit: 's', advice,
             description: 'Duration of an Arc operation (deprecated; use command and query duration)' }),
-        command: meter.createHistogram(WellKnownTelemetryNames.commandDuration, { unit: 's',
+        command: meter.createHistogram(WellKnownTelemetryNames.commandDuration, { unit: 's', advice,
             description: 'Duration of an Arc command execution' }),
-        query: meter.createHistogram(WellKnownTelemetryNames.queryDuration, { unit: 's',
+        query: meter.createHistogram(WellKnownTelemetryNames.queryDuration, { unit: 's', advice,
             description: 'Duration of an Arc query execution' })
     };
 }
