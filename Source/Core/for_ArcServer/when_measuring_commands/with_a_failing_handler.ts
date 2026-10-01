@@ -25,7 +25,7 @@ describe('when measuring a command with a failing handler', given(a_telemetry_sd
         metrics.should.have.lengthOf(1);
         const points = metrics[0]!.dataPoints;
         points.should.have.lengthOf(1);
-        points[0]!.attributes.should.deep.equal({ 'cratis.arc.command.type': 'Fail' });
+        points[0]!.attributes.should.deep.equal({ 'cratis.arc.command.type': 'Fail', 'cratis.arc.command.outcome': 'error' });
         points[0]!.value.should.have.property('count', 1);
         points[0]!.value.should.have.property('sum', 0.25);
     });

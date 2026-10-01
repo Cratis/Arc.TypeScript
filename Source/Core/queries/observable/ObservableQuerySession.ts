@@ -13,6 +13,8 @@ import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
 import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
 import { clonePrincipal } from './clonePrincipal.js';
 import { beginSubscription, observe } from '../../execution/observability.js';
+import { observeOperation } from '../../execution/observeOperation.js';
+import { WellKnownTelemetryNames } from '../../execution/WellKnownTelemetryNames.js';
 import type { ShutdownTransaction } from '../../dependencyInjection/ShutdownTransaction.js';
 
 /** An opened pipeline and scope owned by one live subscription (or snapshot request). */
@@ -52,8 +54,8 @@ export class ObservableQuerySession {
         try {
             const start = (): Promise<QueryResult<ObservableSource<unknown>>> =>
                 config.operation.run(config.input, session.#context, config.options) as Promise<QueryResult<ObservableSource<unknown>>>;
-            const result = await session.run(() => observe('cratis.arc.query.perform', session.#context.correlationId,
-                { query_name: config.operation.fullyQualifiedName }, start, undefined, result => result.hasExceptions));
+            const result = await session.run(() => observeOperation(WellKnownTelemetryNames.queryPerformSpan, session.#context,
+                config.operation.fullyQualifiedName, start, true));
             session.#result = result;
             await session.reportResult(result);
             if (result.isSuccess && !(session.#transaction && session.#context.signal.aborted)) session.#source = result.data;
@@ -86,7 +88,7 @@ export class ObservableQuerySession {
             value = source.value;
         }
         if (!present) return undefined;
-        const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
+        const result = await this.run(() => observe(WellKnownTelemetryNames.queryEmissionSpan, this.#context.correlationId,
             { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
                 this.#context, this.config.options, value), undefined, result => result.hasExceptions));
         await this.reportResult(result);
@@ -199,7 +201,7 @@ export class ObservableQuerySession {
                     if (this.#transaction && this.#context.signal.aborted) void this.releaseProducer().catch(() => {});
                 })) {
                 if (this.#transaction && this.#context.signal.aborted) return;
-                const result = await this.run(() => observe('cratis.arc.query.emission', this.#context.correlationId,
+                const result = await this.run(() => observe(WellKnownTelemetryNames.queryEmissionSpan, this.#context.correlationId,
                     { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
                         this.#context, this.config.options, value), undefined, result => result.hasExceptions));
                 await this.reportResult(result);

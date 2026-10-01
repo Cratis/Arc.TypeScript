@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { observe } from '../execution/observability.js';
+import { WellKnownTelemetryNames } from '../execution/WellKnownTelemetryNames.js';
 import type { ArcServer } from '../ArcServer.js';
 import type { NativeRequestContext } from './NativeRequestContext.js';
 import type { Operation } from './Operation.js';
@@ -147,7 +148,7 @@ export async function handleRequest(server: ArcServer, bindings: RequestBindings
     const header = server.options.correlationId?.httpHeader ?? 'X-Correlation-ID';
     const correlationId = correlation(request.headers.get(header));
     const response = new EndpointResponse(new Headers({ [header]: correlationId }));
-    return observe('cratis.arc.http.handle', correlationId, { 'http.request.method': request.method,
+    return observe(WellKnownTelemetryNames.httpHandleSpan, correlationId, { 'http.request.method': request.method,
         'http.route': operation?.route ?? path },
     () => executeRequest({ server, bindings, request, native, path, operation, response, correlationId }),
     undefined, result => result !== null && result.status >= 500);

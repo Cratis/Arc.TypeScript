@@ -22,6 +22,7 @@ import { prepareCommandResponse } from './prepareCommandResponse.js';
 import { completedCommandResponse, flattenCommandResponse } from './processCommandResponse.js';
 import { setCommandRecovery } from './commandRecovery.js';
 import { observe } from '../execution/observability.js';
+import { WellKnownTelemetryNames } from '../execution/WellKnownTelemetryNames.js';
 import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
 import { ReadModelForCommandError } from './ReadModelForCommandError.js';
 
@@ -57,7 +58,7 @@ async function preflight<S extends z.ZodType, T>(definition: CommandDefinition<S
         throwIfCanceled(context, 'Command canceled');
         await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
         throwIfCanceled(context, 'Command canceled');
-        const issues = await observe('cratis.arc.command.filter', context.correlationId,
+        const issues = await observe(WellKnownTelemetryNames.commandFilterSpan, context.correlationId,
             { command_type: fullyQualifiedName(definition) }, () =>
                 validate([definition.validate, ...(definition.filters ?? [])], value, context));
         throwIfCanceled(context, 'Command canceled');

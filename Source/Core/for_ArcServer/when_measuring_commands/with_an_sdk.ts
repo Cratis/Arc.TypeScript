@@ -24,12 +24,22 @@ describe('when measuring a command with an SDK', given(a_telemetry_sdk, context 
         metric.descriptor.description.length.should.be.greaterThan(0);
         metric.dataPoints[0]!.value.should.have.property('sum', 0.25);
     });
-    it('should use only the canonical command type attribute shared with spans', () => {
+    it('should use only the canonical command type and outcome attributes shared with spans', () => {
         const metric = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
             .find(metric => metric.descriptor.name === WellKnownTelemetryNames.commandDuration)!;
-        metric.dataPoints[0]!.attributes.should.deep.equal({ 'cratis.arc.command.type': 'Echo' });
+        metric.dataPoints[0]!.attributes.should.deep.equal({ 'cratis.arc.command.type': 'Echo', 'cratis.arc.command.outcome': 'success' });
         context.spanExporter.getFinishedSpans().find(span => span.name === 'cratis.arc.command.execute')!
             .attributes['cratis.arc.command.type']!.should.equal('Echo');
+    });
+    it('should count one successful command with the same attributes as its duration', () => {
+        const metrics = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics);
+        const counter = metrics.find(metric => metric.descriptor.name === WellKnownTelemetryNames.commandOutcomes)!;
+        counter.descriptor.name.should.equal('cratis.arc.command.outcomes');
+        counter.descriptor.unit.should.equal('{command}');
+        counter.descriptor.description.length.should.be.greaterThan(0);
+        counter.dataPointType.should.equal(DataPointType.SUM);
+        counter.dataPoints[0]!.value.should.equal(1);
+        counter.dataPoints[0]!.attributes.should.deep.equal({ 'cratis.arc.command.type': 'Echo', 'cratis.arc.command.outcome': 'success' });
     });
     it('should continue recording the deprecated duration with its original attributes', () => {
         const legacy = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)

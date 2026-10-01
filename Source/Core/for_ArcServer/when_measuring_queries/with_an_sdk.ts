@@ -22,10 +22,12 @@ describe('when measuring a query with an SDK', given(a_telemetry_sdk, context =>
         metric.descriptor.description.length.should.be.greaterThan(0);
         metric.dataPoints[0]!.value.should.have.property('sum', 0.25);
     });
-    it('should use only the canonical query name attribute shared with spans', () => {
+    it('should use only the canonical query name transport and outcome attributes shared with spans', () => {
         const metric = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
             .find(metric => metric.descriptor.name === WellKnownTelemetryNames.queryDuration)!;
-        metric.dataPoints[0]!.attributes.should.deep.equal({ 'cratis.arc.query.name': 'Items' });
+        metric.dataPoints[0]!.attributes.should.deep.equal({
+            'cratis.arc.query.name': 'Items', 'cratis.arc.query.transport': 'snapshot', 'cratis.arc.query.outcome': 'success'
+        });
         context.spanExporter.getFinishedSpans().find(span => span.name === 'cratis.arc.query.perform')!
             .attributes['cratis.arc.query.name']!.should.equal('Items');
     });

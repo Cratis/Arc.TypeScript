@@ -165,26 +165,50 @@ The HTTP response is redacted outside development (explicitly set here). `yarn c
 
 Command spans also carry `cratis.arc.command.type`; query spans, including subscriptions and emissions, also carry `cratis.arc.query.name`. These canonical attributes and the retained `command_type` and `query_name` tags contain registered qualified names, not payloads.
 
-The first five span names and the identity-resolution span use the .NET pipeline names. The HTTP, emission, and subscription spans are Node-specific: .NET uses ASP.NET request instrumentation and does not have a per-emission span.
+The command execution, validation, and filter spans and the query-perform span use the .NET pipeline names. The HTTP, emission, and subscription spans are Node-specific: .NET uses ASP.NET request instrumentation and does not have a per-emission span.
 
 ## Metrics
 
 | Instrument | Unit | What it measures |
 | --- | --- | --- |
-| `cratis.arc.command.duration` | `s` | Full command execution, tagged with `cratis.arc.command.type` |
-| `cratis.arc.query.duration` | `s` | Snapshot query execution or observable source open, tagged with `cratis.arc.query.name` |
+| `cratis.arc.command.duration` | `s` | Full command execution; `cratis.arc.command.type`, `cratis.arc.command.outcome` |
+| `cratis.arc.command.outcomes` | `{command}` | One count per command execution; the same attributes as command duration |
+| `cratis.arc.query.duration` | `s` | Snapshot query execution or observable source open; `cratis.arc.query.name`, `cratis.arc.query.transport`, `cratis.arc.query.outcome` |
 | `cratis.arc.operation.duration` (deprecated) | `s` | Each pipeline stage and operation, tagged with `operation` and the original type, name, or route tags |
-| `cratis.arc.subscription.duration` | `s` | How long each observable subscription stayed open, tagged with `query_name` |
+| `cratis.arc.subscription.duration` | `s` | Observable subscription lifetime; `cratis.arc.query.name` and deprecated `query_name` |
 
-All four instruments are histograms with descriptions, recorded in seconds under the `Cratis.Arc` meter. The tracer and meter scope version is the `@cratis/arc.core` package version, compiled from a generated `Version.ts` constant. `yarn set-version` updates Core's and CodeAnalysis's constants with the manifests; `yarn set-version --check` detects missing or stale constants. Runtime code does not import or bundle the package manifest, and builds no longer emit `dist/package.json`.
+The four duration instruments are histograms in seconds; `cratis.arc.command.outcomes` is a monotonic counter. All have descriptions and use the `Cratis.Arc` meter. The tracer and meter scope version is the `@cratis/arc.core` package version, compiled from a generated `Version.ts` constant. `yarn set-version` updates Core's and CodeAnalysis's constants with the manifests; `yarn set-version --check` detects missing or stale constants. Runtime code does not import or bundle the package manifest, and builds no longer emit `dist/package.json`.
 
-The new command and query histograms measure completed executions, including failed executions. They do not count filter stages, validate-only commands, or observable emissions as additional executions. Their attributes match the canonical span keys and contain only registered command types or query names—never correlation IDs, tenant IDs, or payloads.
+The new command and query histograms measure completed executions, including failed executions. They do not count filter stages, validate-only commands, or observable emissions as additional executions. Their attributes match the canonical span keys and contain registered command types or query names and fixed outcome/transport values—never correlation IDs, tenant IDs, or payloads. Each meter retains at most 1,000 distinct command types and 1,000 query names; further names become `_other`, as in .NET. Query and subscription metrics share the query-name limit. Legacy metric names and routes are bounded too. Unknown direct command/query names are rejected before the TypeScript pipeline opens and produce no execution metric; unlike .NET, they do not produce a query metric labeled `_other`.
 
-`cratis.arc.operation.duration` is deprecated and remains emitted alongside the new instruments for one minor release. Migrate command and query latency dashboards to the new names and canonical attribute keys before it is removed; do not sum the old and new metrics, which overlap. The old instrument retains its original measurements and attributes during this transition.
+`cratis.arc.operation.duration` is deprecated and remains emitted alongside the new instruments for one minor release. Migrate command and query latency dashboards to the new names and canonical attribute keys before it is removed; do not sum the old and new metrics, which overlap. The old instrument retains its original measurements and attribute keys during this transition, with name overflow folded into `_other`. Subscription duration now records `cratis.arc.query.name` alongside `query_name`; the old key remains for one minor release.
 
-Unlike Arc for .NET, Arc for TypeScript does not yet record outcome or transport attributes or a command outcome counter; this gap is tracked in [issue #153](https://github.com/Cratis/Arc.TypeScript/issues/153).
+### Outcomes and transports
 
-Import `WellKnownTelemetryNames` from `@cratis/arc.core` to use the public constants: `scope`, `commandDuration`, `queryDuration`, `operationDuration` (deprecated), and `subscriptionDuration`.
+Outcome classification follows Arc for .NET's result classifier in this order:
+
+1. Unauthorized results use `authorization`, even if they also contain exceptions or validation failures.
+2. Exception results (or thrown failures without a result) use `cancelled` if the execution's `AbortSignal` is aborted, otherwise `error`. An `AbortError` alone does not imply cancellation.
+3. Results without validation issues use `success`, even if the signal was subsequently aborted.
+4. Validation with `constraintViolation` or `concurrencyViolation` reasons uses `append_rejected`; other validation uses `validation`. Chronicle append rejections already carry these reasons. Messages, members, and arbitrary reason values never become metric labels.
+
+Commands use all six values. Queries normally use `success`, `validation`, `authorization`, `cancelled`, and `error`; as with .NET's shared classifier, a custom query filter returning a constraint/concurrency validation reason is classified as `append_rejected`. The outcome is also recorded on execute/validate/perform spans. Existing TypeScript span error-status behavior is unchanged: exception results still mark spans as errors, including cancellation; .NET marks only the `error` outcome as a failed span.
+
+`cratis.arc.query.transport` uses exactly the .NET values:
+
+- `snapshot`: an ordinary query result, including successful null/undefined data.
+- `observable`: an observable source returned by the query pipeline. This includes current-value snapshots, SSE, WebSocket, and multiplexed-hub subscriptions; those delivery protocols do not get separate metric values.
+- `unknown`: a failed result without data, or an exception without a result, including authorization or validation rejection before a source opens.
+
+Transport describes the returned result, not the requested protocol. Both TypeScript observable sources and .NET subjects/async enumerables map to `observable`. Emissions and subscription closure do not add query-duration measurements or change the source-open outcome. Validate-only commands do not increment the command counter.
+
+### Public constants
+
+Import `WellKnownTelemetryNames`, `OperationOutcome`, and `QueryTransport` from `@cratis/arc.core`. The enums expose the values above. `WellKnownTelemetryNames` exposes:
+
+- Scope and instruments: `scope`, `commandDuration`, `commandOutcomes`, `queryDuration`, `operationDuration` (deprecated), `subscriptionDuration`.
+- Attributes: `commandType`, `commandOutcome`, `queryName`, `queryOutcome`, `queryTransport`.
+- Spans: `commandExecuteSpan`, `commandValidateSpan`, `commandFilterSpan`, `queryPerformSpan`, `queryFilterSpan`, `queryEmissionSpan`, `querySubscribeSpan`, `httpHandleSpan`, `identityResolveSpan`.
 
 ## What Arc does not instrument
 

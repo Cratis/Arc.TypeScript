@@ -36,7 +36,8 @@ import { ObservableQueryHub } from './queries/observable/ObservableQueryHub.js';
 import type { ObservableSocket } from './queries/observable/ObservableSocket.js';
 import type { ResolvedConnectionContext } from './queries/observable/ResolvedConnectionContext.js';
 import { registerObservableCleanup } from './queries/observable/observableCleanupFailures.js';
-import { observe } from './execution/observability.js';
+import { observeOperation } from './execution/observeOperation.js';
+import { WellKnownTelemetryNames } from './execution/WellKnownTelemetryNames.js';
 import type { ShutdownTransaction } from './dependencyInjection/ShutdownTransaction.js';
 import { coordinateUpgradedSockets } from './queries/observable/upgradedSockets.js';
 /** Get the execution context for the current request, if one exists. */
@@ -145,11 +146,9 @@ export class ArcServer {
             recordFailure(result, error, previous);
             return result;
         });
-        const name = operation.kind === 'query' ? 'cratis.arc.query.perform' :
-            mode === OperationMode.Validate ? 'cratis.arc.command.validate' : 'cratis.arc.command.execute';
-        const qualified = operation.fullyQualifiedName;
-        const attributes = operation.kind === 'command' ? { command_type: qualified } : { query_name: qualified };
-        const traced = () => observe(name, context.correlationId, attributes, run, undefined, result => result.hasExceptions);
+        const name = operation.kind === 'query' ? WellKnownTelemetryNames.queryPerformSpan :
+            mode === OperationMode.Validate ? WellKnownTelemetryNames.commandValidateSpan : WellKnownTelemetryNames.commandExecuteSpan;
+        const traced = () => observeOperation(name, context, operation.fullyQualifiedName, run);
         const execute = () => withLateFailureReporter(error => {
             try { Promise.resolve(this.options.logger?.(error, context.correlationId)).catch(() => {}); }
             catch { /* A failing logger must not cause an unhandled late cleanup failure. */ }
