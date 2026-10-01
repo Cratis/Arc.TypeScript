@@ -35,7 +35,7 @@ Every package in this repository is at version 0.52.0, the version of the source
 
 ## Node.js
 
-The core, adapter, MongoDB, and Drizzle packages need Node.js 22 or later. Building the workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Core needs Node.js 22.12 or later, where JSON module imports are stable. The adapter, MongoDB, and Drizzle package manifests declare Node.js 22 or later, but applications using Core must meet Core's 22.12 minimum. Building the workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## The client packages
 

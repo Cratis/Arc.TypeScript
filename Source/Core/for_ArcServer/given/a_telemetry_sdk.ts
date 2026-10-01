@@ -5,7 +5,7 @@ import { AggregationTemporality, InMemoryMetricExporter, MeterProvider, Periodic
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import sinon from 'sinon';
 import { z } from 'zod';
-import { ArcServer, defineCommand, defineQuery } from '../../index.js';
+import { ArcServer, CurrentValueSubject, defineCommand, defineObservableQuery, defineQuery } from '../../index.js';
 
 export class a_telemetry_sdk {
     spanExporter!: InMemorySpanExporter;
@@ -28,8 +28,13 @@ export class a_telemetry_sdk {
             })] });
             metrics.setGlobalMeterProvider(this.meterProvider);
             this.server = new ArcServer({
-                commands: [defineCommand({ name: 'Echo', schema: z.object({}), handle: () => { this.clock += 250; return 'ok'; } })],
-                queries: [defineQuery({ name: 'Items', schema: z.object({}), perform: () => { this.clock += 250; return [1]; } })]
+                commands: [
+                    defineCommand({ name: 'Echo', schema: z.object({}), handle: () => { this.clock += 250; return 'ok'; } }),
+                    defineCommand({ name: 'Fail', schema: z.object({}), handle: () => { this.clock += 250; throw new Error('Handler failed'); } })
+                ],
+                queries: [defineQuery({ name: 'Items', schema: z.object({}), perform: () => { this.clock += 250; return [1]; } })],
+                observableQueries: [defineObservableQuery({ name: 'Watch', schema: z.object({}),
+                    observe: () => { this.clock += 250; return CurrentValueSubject.of([1]); } })]
             });
         });
         afterEach(async () => {

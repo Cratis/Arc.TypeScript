@@ -1,6 +1,6 @@
 ---
 title: Observe Arc requests
-description: Subscribe to Arc for TypeScript tracing and operation durations with an application-owned OpenTelemetry SDK.
+description: Subscribe to Arc for TypeScript tracing and command and query duration histograms with an application-owned OpenTelemetry SDK.
 ---
 
 A slow command in production is hard to explain from logs alone. Was the time spent in validation, in your handler, or in the HTTP layer? Arc for TypeScript emits spans for its pipeline stages and command and query duration histograms through `@opentelemetry/api`, so the tracing backend you already run can answer that.
@@ -153,14 +153,14 @@ The HTTP response is redacted outside development (explicitly set here). `yarn c
 
 | Span | Boundary | Attributes |
 | --- | --- | --- |
-| `cratis.arc.command.execute` | Command execution | `command_type`, `cratis.correlation_id` |
-| `cratis.arc.command.validate` | Validate-only pipeline | `command_type`, `cratis.correlation_id` |
-| `cratis.arc.command.filter` | Command validation/filter stage | `command_type`, `cratis.correlation_id` |
-| `cratis.arc.query.perform` | Snapshot query or observable source open | `query_name`, `cratis.correlation_id` |
-| `cratis.arc.query.filter` | Query validation/filter stage | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.command.execute` | Command execution | `cratis.arc.command.type`, `command_type`, `cratis.correlation_id` |
+| `cratis.arc.command.validate` | Validate-only pipeline | `cratis.arc.command.type`, `command_type`, `cratis.correlation_id` |
+| `cratis.arc.command.filter` | Command validation/filter stage | `cratis.arc.command.type`, `command_type`, `cratis.correlation_id` |
+| `cratis.arc.query.perform` | Snapshot query or observable source open | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.filter` | Query validation/filter stage | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.http.handle` | Recognized Arc HTTP endpoint (INTERNAL) | `http.request.method`, `http.route`, `cratis.correlation_id` |
-| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `query_name`, `cratis.correlation_id` |
-| `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.identity.resolve` | Identity details provider resolution | `cratis.correlation_id` |
 
 Command spans also carry `cratis.arc.command.type`; query spans, including subscriptions and emissions, also carry `cratis.arc.query.name`. These canonical attributes and the retained `command_type` and `query_name` tags contain registered qualified names, not payloads.
@@ -181,6 +181,8 @@ All four instruments are histograms with descriptions, recorded in seconds under
 The new command and query histograms measure completed executions, including failed executions. They do not count filter stages, validate-only commands, or observable emissions as additional executions. Their attributes match the canonical span keys and contain only registered command types or query names—never correlation IDs, tenant IDs, or payloads.
 
 `cratis.arc.operation.duration` is deprecated and remains emitted alongside the new instruments for one minor release. Migrate command and query latency dashboards to the new names and canonical attribute keys before it is removed; do not sum the old and new metrics, which overlap. The old instrument retains its original measurements and attributes during this transition.
+
+Unlike Arc for .NET, Arc for TypeScript does not yet record outcome or transport attributes or a command outcome counter; this gap is tracked in [issue #153](https://github.com/Cratis/Arc.TypeScript/issues/153).
 
 Import `WellKnownTelemetryNames` from `@cratis/arc.core` to use the public constants: `scope`, `commandDuration`, `queryDuration`, `operationDuration` (deprecated), and `subscriptionDuration`.
 
