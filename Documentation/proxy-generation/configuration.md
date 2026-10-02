@@ -41,11 +41,22 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 | `--use-generated-metadata` | Off | Infer the same bindings for client-only generation without publishing a metadata module |
 | `--check-metadata` | Off | Read-only check that a module passed with `--metadata` matches current source |
 | `--type-mapping <Type>=<package>[#<export>]` | None | Import a type from another package instead of generating it; repeat for several types. See [Map types to another package](#map-types-to-another-package) |
-| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; ignores co-located `*.proxy.ts` writes, a dedicated nested output folder, and the generated metadata module. Backend edits inside a co-located nested output folder trigger regeneration. Stdout reports `Watch ready` after the initial generation and watcher registration, then `Watch change detected` when an edit schedules regeneration; referenced external files are also polled to recover missed directory notifications |
+| `--watch` | Off | Debounce edits under the artifacts root or in referenced local source files and regenerate; ignores co-located `*.proxy.ts` writes, a dedicated nested output folder, and the generated metadata module. Backend edits inside a co-located nested output folder trigger regeneration. Stdout reports `Watch ready` after the initial generation, source snapshot, and watcher registration, then `Watch change detected` when an edit schedules regeneration. See [Watch mode](#watch-mode) for notification recovery and polling costs |
+| `--watch-poll-interval <ms>` | `1000` on macOS; `5000` elsewhere | Minimum delay between fallback source scans; `0` disables periodic scans. Requires `--watch`; accepts integers from `0` to `2147483647` |
 
 Output is co-located when it equals or contains the artifacts root, or when a nested output folder contains a discovered backend contributor: a command, read model, validator, resolved concept/model/enum, or class emitted in generated metadata (for example, `--artifacts src --output src/Features` with a validator in `Features`). An unrelated helper alone does not make a nested output co-located. Co-located output requires `--use-proxy-file-suffix` (generation fails without it) and writes no generated barrels. A handwritten `*.proxy.ts` collision fails before any files are published. Stale deletion affects only generator-owned files, not backend modules or components. Runtime discovery ignores the proxy suffix and `.tsx` components.
 
 A genuinely dedicated output folder nested inside the artifacts root (for example, `--artifacts src --output src/generated` with no analyzed backend contributors in `generated`) retains separate-output behavior: barrels are written by default, the suffix is optional, and generated files are excluded from artifact analysis and watch regeneration. If the server also discovers the artifacts root at runtime, place dedicated output outside that root or use `--use-proxy-file-suffix` so runtime discovery does not import generated proxy modules.
+
+## Watch mode
+
+Native notifications naming a source file check only that file. Notifications for generated proxies, metadata, dedicated output, and unrelated files do not scan the tree. Recent files also get a content fingerprint so equal-sized edits on coarse-timestamp filesystems are not mistaken for duplicate notifications.
+
+A fallback scan discovers source additions, deletions, and edits missed by native notifications. It uses at most 32 concurrent filesystem operations. The next scan starts after a delay of at least `--watch-poll-interval` or four times the last scan's duration, whichever is longer. Scans never overlap; large trees automatically scan less often. macOS defaults to 1,000 ms because directory notifications can be missed; other platforms default to 5,000 ms to retain recovery with lower idle overhead.
+
+Set `--watch-poll-interval 0` to rely entirely on native notifications after the initial snapshot. This saves periodic scanning but cannot recover missing or unnamed notifications. Programmatic watch configuration uses `SourceGeneratorOptions.watchPollInterval`; `generateFromSource()` remains a one-shot operation.
+
+Files and child directories that disappear, are temporarily busy, or cannot be read are skipped. Permission and other entry failures are reported at most once per path; a later scan can recover them. An unreadable or missing artifacts root ends watch mode, including during the initial snapshot.
 
 ## Map types to another package
 
