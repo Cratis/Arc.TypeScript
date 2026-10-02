@@ -34,7 +34,7 @@ The gate checks three things:
   read-model schema, and runs their commands and reactors in process.
 
 Module resolution is `Bundler`, matching the repository's example applications.
-Fundamentals 7.20.0 also resolves under NodeNext; `--self-test` plants a concept
+Fundamentals 7.22.0 also resolves under NodeNext; `--self-test` plants a concept
 type error to prove the configured compiler sees the actual declaration types.
 
 Usage:

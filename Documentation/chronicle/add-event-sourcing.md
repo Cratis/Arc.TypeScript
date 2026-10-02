@@ -42,7 +42,7 @@ curl --insecure --silent --fail --retry 60 --retry-all-errors --retry-delay 1 ht
 
 The second command prints `Healthy` once the kernel accepts connections, usually within 30 seconds. The development image generates a self-signed certificate, which is why the check passes `--insecure`. The port is published on `127.0.0.1` only, because the development image accepts well-known development credentials.
 
-`latest-development` follows the newest development build. For repeatable runs, pin a released development tag instead, such as `cratis/chronicle:19.26.2-development`.
+`latest-development` follows the newest development build. For repeatable runs, pin a released development tag instead, such as `cratis/chronicle:19.26.3-development`.
 
 ## Install the Chronicle packages
 
@@ -57,7 +57,7 @@ cd ../my-arc-app
 Install it together with the Chronicle SDK and RxJS:
 
 ```bash
-npm install ../arc-packages/arc.chronicle.tgz @cratis/chronicle@~6.31.2 rxjs@^7.8.2
+npm install ../arc-packages/arc.chronicle.tgz @cratis/chronicle@~6.35.0 rxjs@^7.8.2
 ```
 
 | Package | What it gives you |

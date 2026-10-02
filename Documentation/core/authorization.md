@@ -148,7 +148,7 @@ Do not confuse a named policy with an authentication scheme: a policy decides, a
 
 ## Compared with Arc on .NET
 
-Arc on .NET 22.44.0 evaluates named policies through scoped `IAuthorizationPolicy` implementations; an unknown name throws `InvalidAuthorizationConfiguration`. Its policy context holds a principal, a reflected command type or query method (`Target`), and a command or query context (`Resource`). The TypeScript class form receives an operation definition and `{ input, execution }` instead, and a function form is also available. Node schemes select Arc handlers, not ASP.NET Core authentication with its challenge and forbid composition.
+Arc on .NET 22.45.0 evaluates named policies through scoped `IAuthorizationPolicy` implementations; an unknown name throws `InvalidAuthorizationConfiguration`. Its policy context holds a principal, a reflected command type or query method (`Target`), and a command or query context (`Resource`). The TypeScript class form receives an operation definition and `{ input, execution }` instead, and a function form is also available. Node schemes select Arc handlers, not ASP.NET Core authentication with its challenge and forbid composition.
 
 ## Related
 

@@ -4,11 +4,11 @@
     "net10.0": {
       "Cratis.Arc": {
         "type": "Direct",
-        "requested": "[22.44.0, 22.44.0]",
-        "resolved": "22.44.0",
-        "contentHash": "qYYRTSis5pYPQgS2eUXIoR8ylqThXCGNK6bn+x+WgqfNByAMWkh6zi2FVsfco60PY8PkPBsrDxSkAtBWIGIBLQ==",
+        "requested": "[22.45.0, 22.45.0]",
+        "resolved": "22.45.0",
+        "contentHash": "n4PPO/3lWVrMSO1+fEtGtUfEgiPqm+qGEAxdpOSjQ1Z/f39pfhRMxrCkdmV/xRqIM/kWJo/LhLdIMeHZ7Zyj0g==",
         "dependencies": {
-          "Cratis.Arc.Core": "22.44.0",
+          "Cratis.Arc.Core": "22.45.0",
           "Cratis.Fundamentals": "7.19.6",
           "Cratis.Metrics.Roslyn": "7.19.4",
           "FluentValidation": "12.1.1",
@@ -19,10 +19,10 @@
       },
       "Cratis.Arc.Core": {
         "type": "Transitive",
-        "resolved": "22.44.0",
-        "contentHash": "eUQPQmPMeJb9CKmBhEYYILkEkNazyMoFYI19URmbATiQyl3EaXJ7qOokHRTw8PPgI74nigV9HGBdgrPUqD5g4A==",
+        "resolved": "22.45.0",
+        "contentHash": "jE6oMlZV9C0Whutc20W8Jlvwc3BCZsWgEFi7EuI3OwrHObfSubGQimndR6xG4Q9Ixl5Rx8jJgocbbXt7wu6O1Q==",
         "dependencies": {
-          "Cratis.Arc.Core.CodeAnalysis": "22.44.0",
+          "Cratis.Arc.Core.CodeAnalysis": "22.45.0",
           "Cratis.Fundamentals": "7.19.6",
           "Cratis.Metrics.Roslyn": "7.19.4",
           "FluentValidation": "12.1.1",
@@ -33,8 +33,8 @@
       },
       "Cratis.Arc.Core.CodeAnalysis": {
         "type": "Transitive",
-        "resolved": "22.44.0",
-        "contentHash": "2iELBMXCRQdhg4opYmVq7s0alpkHgnElxeMP2ad4wN3pxo/+3EWz5s8pI+lRo04zICuOaMijXLN/N1UZrqE8zg=="
+        "resolved": "22.45.0",
+        "contentHash": "CcF1B8IklUYRYJnQfVS8h/x/bHIBQ7jrjis9rrUCS8lVu2EmtePwXjUbUVOmHET0l8uWbNO9v1rN7tztyIZASw=="
       },
       "Cratis.Fundamentals": {
         "type": "Transitive",

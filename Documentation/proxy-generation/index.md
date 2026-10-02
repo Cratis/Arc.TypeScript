@@ -38,7 +38,7 @@ It walks the artifacts folder with the same rules as `builder.discover()`, so `f
 
 ## Compatibility
 
-The generated proxies target `@cratis/arc` and `@cratis/arc.react` 22.44.0 with `@cratis/fundamentals`, compiled in strict `Bundler` mode with `skipLibCheck: false`.
+The generated proxies target `@cratis/arc` and `@cratis/arc.react` 22.45.0 with `@cratis/fundamentals`, compiled in strict `Bundler` mode with `skipLibCheck: false`.
 
 Imports between generated files are extensionless by default, which suits Vite and other bundlers. Use `--js-import-specifiers` for native Node ESM after compilation. `NodeNext` consumer compilation is not supported with the published client declarations.
 

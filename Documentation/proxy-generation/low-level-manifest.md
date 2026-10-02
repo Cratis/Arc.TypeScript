@@ -58,7 +58,7 @@ The exported routes come from the server's resolved operation graph, including n
 
 ## Use the generated proxies
 
-Compile the emitted `.proxy.ts` files in a strict ESNext/Bundler frontend against `@cratis/arc` 22.44.0, `@cratis/fundamentals` 7.20.0, and `rxjs` 7.8.2, the versions the client contract tests pin. Set a **real listening server origin** on each instance:
+Compile the emitted `.proxy.ts` files in a strict ESNext/Bundler frontend against `@cratis/arc` 22.45.0, `@cratis/fundamentals` 7.22.0, and `rxjs` 7.8.2, the versions the client contract tests pin. Set a **real listening server origin** on each instance:
 
 ```js
 import { Sales_CreateWidget } from './generated/Sales_CreateWidget.proxy.js';

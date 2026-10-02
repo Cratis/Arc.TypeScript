@@ -13,7 +13,7 @@ In this lesson you create a small Vite and React app beside your clone, generate
 
 Finish [Get started](index.md) first, and keep the Tasks server running on `127.0.0.1:3000`. You also need `npm`.
 
-The browser side uses the published client packages `@cratis/arc` and `@cratis/arc.react` 22.44.0, the same versions the Library sample uses. They are the Arc frontend packages, released from the Arc repository; the generator in this repository targets them.
+The browser side uses the published client packages `@cratis/arc` and `@cratis/arc.react` 22.45.0, the same versions the Library sample uses. They are the Arc frontend packages, released from the Arc repository; the generator in this repository targets them.
 
 ## Create the web app
 
@@ -36,9 +36,9 @@ Create `package.json`:
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@cratis/arc": "22.44.0",
-    "@cratis/arc.react": "22.44.0",
-    "@cratis/fundamentals": "7.20.0",
+    "@cratis/arc": "22.45.0",
+    "@cratis/arc.react": "22.45.0",
+    "@cratis/fundamentals": "7.22.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "reflect-metadata": "0.2.2",

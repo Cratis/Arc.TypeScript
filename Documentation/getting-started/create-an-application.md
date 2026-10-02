@@ -357,7 +357,7 @@ Inside a clone, the root `package.json` makes every folder under `Samples/` a Ya
   },
   "dependencies": {
     "@cratis/arc.core": "workspace:^",
-    "@cratis/fundamentals": "7.20.0",
+    "@cratis/fundamentals": "7.22.0",
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {

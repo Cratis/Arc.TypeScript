@@ -279,14 +279,13 @@ void [configureIntegrations, configureCratis, ChronicleCommandScenario, CratisCo
         { cwd: consumer, encoding: 'utf8' });
     if (strictIntegrations.error) throw strictIntegrations.error;
     const diagnostics = `${strictIntegrations.stdout}${strictIntegrations.stderr}`.split('\n').filter(line => /error TS\d+:/.test(line));
-    const external = diagnostics.filter(line => /^node_modules\/(?:@cratis\/chronicle(?:\.contracts)?|drizzle-orm)\//.test(line));
+    const external = diagnostics.filter(line => /^node_modules\/drizzle-orm\//.test(line));
     const unexpected = diagnostics.filter(line => !external.includes(line));
     if (strictIntegrations.status !== 2 || unexpected.length ||
-        !external.some(line => line.includes('@cratis/chronicle.contracts/') && line.includes('TS2834')) ||
         !external.some(line => line.includes('drizzle-orm/') && line.includes('TS2420'))) {
         throw new Error(`Unrecognized installed declaration diagnostics (status ${strictIntegrations.status}):\n${strictIntegrations.stdout}${strictIntegrations.stderr}`);
     }
-    // Only the two integration graphs have external declaration failures; their consumer source is still checked.
+    // Only Drizzle has external declaration failures; both integrations' consumer source is still checked.
     console.log(`Upstream declaration errors (${external.length}); no Arc declaration or consumer errors:`);
     console.log(strictIntegrations.stdout.trimEnd());
     if (strictIntegrations.stderr) console.error(strictIntegrations.stderr.trimEnd());

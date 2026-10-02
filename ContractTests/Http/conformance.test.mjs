@@ -100,7 +100,7 @@ test('published .NET and built TypeScript HTTP contract', async t => {
     });
     let typescript;
     try {
-        assert.equal(dotnet.readiness.package, 'Cratis.Arc 22.44.0', 'published .NET reference package');
+        assert.equal(dotnet.readiness.package, 'Cratis.Arc 22.45.0', 'published .NET reference package');
         assert.equal(dotnet.readiness.runtime, '10.0.11', 'pinned .NET runtime');
         typescript = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'], {
             cwd: root, kind: 'typescript-http-fixture-ready'
@@ -190,8 +190,21 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             assert.equal(ts.headers[correlationHeader], correlationId);
             context.diagnostic('UNSUPPORTED PARITY: .NET trusts the display cookie before authentication; TypeScript never does');
         });
-        await t.test('identity schema describes the required greeting on both runtimes', async () => {
+        await t.test('anonymous identity schema: .NET requires authentication, TypeScript serves the schema', async context => {
             const [net, ts] = await send('GET', '/.cratis/identity-details/schema');
+            assert.equal(net.status, 401);
+            assert.equal(net.body, '');
+            assert.equal(net.headers['content-type'], undefined);
+            assert.equal(net.headers[correlationHeader], correlationId);
+            assert.equal(ts.status, 200);
+            assert.deepEqual(ts.body.required, ['greeting']);
+            assert.equal(ts.body.properties.greeting.type, 'string');
+            assert.equal(ts.headers['content-type'], 'application/json; charset=utf-8');
+            assert.equal(ts.headers[correlationHeader], correlationId);
+            context.diagnostic('UNSUPPORTED PARITY: .NET 22.45.0 protects identity discovery outside Development; TypeScript serves description endpoints anonymously');
+        });
+        await t.test('authenticated identity schema describes the required greeting on both runtimes', async () => {
+            const [net, ts] = await send('GET', '/.cratis/identity-details/schema', undefined, { 'X-Fixture-Role': 'Admin' });
             for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
                 assert.equal(actual.status, 200, label);
                 assert.deepEqual(actual.body.required, ['greeting'], label);
