@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.drizzle",
-  "version": "0.52.0",
+  "version": "0.53.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -29,7 +29,7 @@
     "README.md"
   ],
   "peerDependencies": {
-    "@cratis/arc.core": "^0.52.0",
+    "@cratis/arc.core": "^0.53.0",
     "@cratis/fundamentals": "^7.19.6",
     "drizzle-orm": "^0.45.0",
     "rxjs": "^7.8.2"
@@ -37,7 +37,7 @@
   "devDependencies": {
     "@cratis/arc.core": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
-    "@cratis/fundamentals": "7.19.6",
+    "@cratis/fundamentals": "7.20.0",
     "@types/pg": "^8.0.0",
     "@types/sql.js": "^1.4.11",
     "drizzle-orm": "^0.45.0",

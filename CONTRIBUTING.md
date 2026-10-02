@@ -32,7 +32,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 
 ## Set up
 
-You need Node.js 22.19 or later and Corepack; Node.js 24 LTS is recommended. The root workspace declares Node.js `>=22.19.0` because it installs the Chronicle SDK, whose dependencies need it. The core, host adapter, and MongoDB packages declare Node.js 22 or later on their own. The repository pins Yarn 4 in `package.json`, and Corepack selects that version. If `corepack` is not available with your Node.js installation, install it with `npm install --global corepack`.
+You need Node.js 22.19 or later and Corepack; Node.js 24 LTS is recommended. The root workspace declares Node.js `>=22.19.0` because it installs the Chronicle SDK, whose dependencies need it. Core, host adapters, MongoDB, and Drizzle need Node.js 22 or later. The repository pins Yarn 4 in `package.json`, and Corepack selects that version. If `corepack` is not available with your Node.js installation, install it with `npm install --global corepack`.
 
 ```bash
 corepack enable
@@ -70,7 +70,7 @@ Run a single step while you work, and the whole gate before you push. Add or upd
 
 Two checks need more than Node.js and are not part of `yarn ci`. Run them when you change what they cover:
 
-- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the paired HTTP checks against `Cratis.Arc` 22.23.0, described in [How parity is checked](Documentation/reference/capabilities.md#how-parity-is-checked). It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
+- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the paired HTTP checks against `Cratis.Arc` 22.44.0, described in [How parity is checked](Documentation/reference/capabilities.md#how-parity-is-checked). It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
 - `bash Source/MongoDB/run-integration.sh` runs the live MongoDB spec in a disposable Docker container. It exits with 2 when Docker is not available, which means the check did not run.
 
 A hosted run does not replace local verification. The hosted CI workflow also supports manual runs.

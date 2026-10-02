@@ -8,7 +8,7 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, then keeping all of it in step with the frontend. With it, commands and queries run through one pipeline that owns those concerns, the wire behavior follows Arc on .NET, and the proxy generator writes the typed frontend client from your source.
 
 :::caution[Source preview, no full parity]
-No package is published to npm; the manifests are at version 0.52.0 for a source preview. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
+No package is published to npm; the manifests are at version 0.53.0 for a source preview. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
 :::
 
 ## What it looks like
@@ -58,7 +58,7 @@ Arc's TypeScript **client** packages, `@cratis/arc`, `@cratis/arc.react`, and `@
 
 ## One wire contract
 
-Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification. Arc for TypeScript matches that observable behavior in idiomatic TypeScript; it does not port .NET mechanics such as attribute reflection or dependency injection containers. A [paired suite](reference/capabilities.md#how-parity-is-checked) sends the same requests to a .NET host on `Cratis.Arc` 22.23.0 and pins the known differences. The largest deliberate one: an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass. See the [HTTP contract reference](reference/http-contract.md).
+Arc on .NET is the reference implementation, and the language-neutral [Arc HTTP contract](/arc/http-contract/) is the specification. Arc for TypeScript matches that observable behavior in idiomatic TypeScript; it does not port .NET mechanics such as attribute reflection or dependency injection containers. A [paired suite](reference/capabilities.md#how-parity-is-checked) sends the same requests to a .NET host on `Cratis.Arc` 22.44.0 and pins the known differences. The largest deliberate one: an HTTP client cannot use `X-Allowed-Severity: 3` to let error-severity validation results pass. See the [HTTP contract reference](reference/http-contract.md).
 
 ## On the shared Arc pages
 

@@ -3,7 +3,7 @@ title: Chronicle code analysis
 description: Arc on .NET's Chronicle diagnostics mapped to TypeScript lint rules, runtime checks, and inapplicable C# patterns.
 ---
 
-Arc on .NET v22.23.0 ships ten Chronicle analyzers (`ARCCHR0001`–`ARCCHR0010`).
+As of .NET v22.23.0, Arc shipped ten Chronicle analyzers (`ARCCHR0001`–`ARCCHR0010`); this mapping covers that set.
 Five have bounded TypeScript ESLint analogs in `@cratis/eslint-plugin-arc-core`.
 Configure the plugin as described in [Code analysis](../code-analysis/index.md).
 Both presets enable `arcchr0003`, `arcchr0007`, and `arcchr0009`.
@@ -55,7 +55,7 @@ ESLint reports enabled rules as errors, including analogs of .NET warnings.
   Guid variables and `Guid.parse(...)`; it does not infer plain strings, indirect event factories,
   inherited event-type decorators, or other tuple shapes.
 
-There is no ARCCHR analyzer for nullable event properties or past-tense event names in .NET v22.23.0;
+As of .NET v22.23.0, there was no ARCCHR analyzer for nullable event properties or past-tense event names;
 this mapping does not add either rule.
 
 ## What to check in review

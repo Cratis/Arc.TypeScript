@@ -51,8 +51,8 @@
     "ci": "yarn tsc -b Source/Core Source/Testing Source/Chronicle Source/Tools/ProxyGenerator && yarn check:metadata && yarn workspace @cratis/arc.core.sample.tasks generate-proxies && yarn workspace @cratis/arc.sample.library generate-proxies && yarn check:proxies && yarn build && yarn check:declarations && yarn check:declarations:self-test && yarn check:consumers && yarn check:chronicle-peer-floor:self-test && yarn check:chronicle-peer-floor && yarn check:fetch && yarn check:node-test && yarn check:observability-recipes && yarn workspace @cratis/arc.sample.library.web build && yarn lint && yarn typecheck && yarn lint:tasks:arc && yarn test:client-generation:verify && yarn test && yarn workspace @cratis/arc.sample.library test:e2e && yarn test:legacy-decorators && yarn test:decorator-types && yarn docs:lint && yarn docs:snippets:self-test && yarn docs:snippets && yarn docs:examples:self-test && yarn docs:examples && node --test scripts/for_release/*.test.mjs && node --test scripts/classify-changes.test.mjs && yarn set-version --check"
   },
   "devDependencies": {
-    "@cratis/arc.react": "22.19.1",
-    "@cratis/fundamentals": "7.19.6",
+    "@cratis/arc.react": "22.44.0",
+    "@cratis/fundamentals": "7.20.0",
     "@eslint/js": "^10.0.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.0.0",

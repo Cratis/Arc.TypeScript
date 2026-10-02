@@ -57,7 +57,7 @@ Run the generator again with the same options. While you develop, keep it runnin
 
 ### NodeNext or Bundler?
 
-Server code that imports `@cratis/arc.core` and `@cratis/fundamentals` 7.19.6 type-checks with `module` and `moduleResolution` set to `NodeNext`, or with `ESNext` and `Bundler` as the Tasks sample does. With NodeNext and native ESM, keep `.js` extensions on relative imports.
+Server code that imports `@cratis/arc.core` and `@cratis/fundamentals` 7.20.0 type-checks with `module` and `moduleResolution` set to `NodeNext`, or with `ESNext` and `Bundler` as the Tasks sample does. With NodeNext and native ESM, keep `.js` extensions on relative imports.
 
 Generated frontend proxies are different: the published `@cratis/arc` client declarations use extensionless imports, so compile proxies in `Bundler` mode. `NodeNext` consumer compilation of generated proxies is not supported. See [Proxy generation](proxy-generation/index.md#compatibility).
 

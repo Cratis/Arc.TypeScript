@@ -25,8 +25,8 @@ const require = createRequire(import.meta.url);
 const arcPath = require.resolve('@cratis/arc/package.json');
 const fundamentalsPath = require.resolve('@cratis/fundamentals/package.json');
 test('pinned published client exports and dependency graph share one Fundamentals instance', () => {
-    assert.equal(require('@cratis/arc/package.json').version, '22.19.1');
-    assert.equal(require('@cratis/fundamentals/package.json').version, '7.19.6');
+    assert.equal(require('@cratis/arc/package.json').version, '22.44.0');
+    assert.equal(require('@cratis/fundamentals/package.json').version, '7.20.0');
     assert.equal(require('rxjs/package.json').version, '7.8.2');
     assert.equal(require.resolve('@cratis/fundamentals/package.json', { paths: [arcPath] }), fundamentalsPath);
 });
