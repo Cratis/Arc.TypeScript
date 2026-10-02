@@ -22,17 +22,17 @@ export class ValidationProbe {
     constructed = 0;
     allowMissing = false;
     validated: (State | null)[] = [];
-    prepared: State[] = [];
-    handled: State[] = [];
+    prepared: (State | null)[] = [];
+    handled: (State | null)[] = [];
 }
 @command()
 export class ChangeState {
     @field(String) @key() id = '';
     @field(String) name = '';
-    @inject(commandReadModel(State), ValidationProbe)
-    provide(state: State, probe: ValidationProbe): State { probe.prepared.push(state); return state; }
-    @inject(commandReadModel(State), ValidationProbe)
-    handle(prepared: State, state: State, probe: ValidationProbe): boolean {
+    @inject(commandReadModel(State, { optional: true }), ValidationProbe)
+    provide(state: State | null, probe: ValidationProbe): State | null { probe.prepared.push(state); return state; }
+    @inject(commandReadModel(State, { optional: true }), ValidationProbe)
+    handle(prepared: State | null, state: State | null, probe: ValidationProbe): boolean {
         probe.handled.push(state);
         return prepared === state;
     }
