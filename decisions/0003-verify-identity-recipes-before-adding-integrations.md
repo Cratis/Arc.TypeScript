@@ -6,18 +6,22 @@ stage: none
 class: contract
 reversibility: costly
 decided: 2026-10-02
-decider: Sindre Alstad Wilting (delegated to the maintainer's AI orchestrator session)
+decider: Sindre Alstad Wilting
 applies-to:
   - Source/Core/authentication/**
   - Source/Core/identity/**
+  - Source/Core/http/createRouteTable.ts
   - Source/Core/package.json
   - Documentation/core/authentication.md
+  - Documentation/core/authorization.md
   - Documentation/hosts/native-principal.md
   - Documentation/identity/**
 ---
 
 <!-- Copyright (c) Cratis. All rights reserved. -->
 <!-- Licensed under the MIT license. See LICENSE file in the project root for full license information. -->
+
+> **2026-10-02 — clarification.** Sindre Alstad Wilting made and owns this decision; the decider attribution is corrected. The authorization documentation and route-table enforcement are added to the evidence and scope for the existing observable-scheme limit. The choice is unchanged.
 
 ## Context
 
@@ -62,7 +66,9 @@ Applications gain verified guidance without new core dependencies or an export m
 Paths below refer to the inspected tags, not moving branch heads.
 
 - Arc.TypeScript **v0.57.0**: [`Source/Core/authentication/jwtBearer.ts`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Source/Core/authentication/jwtBearer.ts) — existing JWT verification helper.
-- Arc.TypeScript **v0.57.0**: [`Documentation/core/authentication.md`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Documentation/core/authentication.md) — authentication handlers, policies and transport limits.
+- Arc.TypeScript **v0.57.0**: [`Documentation/core/authentication.md`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Documentation/core/authentication.md) — authentication handlers and trust boundaries.
+- Arc.TypeScript **v0.57.0**: [`Documentation/core/authorization.md`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Documentation/core/authorization.md) — named policies and the observable authentication-scheme limit.
+- Arc.TypeScript **v0.57.0**: [`Source/Core/http/createRouteTable.ts`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Source/Core/http/createRouteTable.ts) — rejection of scheme-protected observable queries.
 - Arc.TypeScript **v0.57.0**: [`Documentation/hosts/native-principal.md`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Documentation/hosts/native-principal.md) and [`Documentation/identity/contracts.md`](https://github.com/Cratis/Arc.TypeScript/blob/v0.57.0/Documentation/identity/contracts.md) — host principal and identity-enrichment boundaries.
 - Arc **v22.45.0**: [`Source/DotNET/Arc/MicrosoftIdentityPlatformIdentityServiceCollectionExtensions.cs`](https://github.com/Cratis/Arc/blob/v22.45.0/Source/DotNET/Arc/MicrosoftIdentityPlatformIdentityServiceCollectionExtensions.cs) — forwarded Microsoft identity integration.
 - Arc **v22.45.0**: [`Documentation/backend/csharp/asp-net-core/microsoft-identity.md`](https://github.com/Cratis/Arc/blob/v22.45.0/Documentation/backend/csharp/asp-net-core/microsoft-identity.md) — EasyAuth and AuthProxy protocol documentation.

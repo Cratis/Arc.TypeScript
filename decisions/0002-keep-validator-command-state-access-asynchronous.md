@@ -6,7 +6,7 @@ stage: none
 class: contract
 reversibility: costly
 decided: 2026-10-02
-decider: Sindre Alstad Wilting (delegated to the maintainer's AI orchestrator session)
+decider: Sindre Alstad Wilting
 applies-to:
   - Source/Core/validation/**
   - Source/Core/commands/modelBound/**
@@ -16,6 +16,8 @@ applies-to:
 
 <!-- Copyright (c) Cratis. All rights reserved. -->
 <!-- Licensed under the MIT license. See LICENSE file in the project root for full license information. -->
+
+> **2026-10-02 — clarification.** Sindre Alstad Wilting made and owns this decision; the decider attribution is corrected. The choice is unchanged.
 
 ## Context
 
