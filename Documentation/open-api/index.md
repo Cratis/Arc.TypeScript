@@ -45,7 +45,7 @@ For the Tasks sample, with its generated metadata registered, the `RegisterTask`
 
 The summary is the JSDoc comment on the `RegisterTask` class. `TaskId` and `TaskTitle` are concepts, so they appear as the UUID string and the string they wrap. Fetch the document from your running server to see the responses in full.
 
-Nothing about this needs setup: the route exists as soon as the application runs. The document is public, and the endpoint does not run authentication handlers. Arc does not bundle a Swagger or Scalar UI; point one you host at `/openapi.json` if you want a browsable page.
+Arc generates the document without extra registration, but HTTP access follows the [discovery access policy](../introspection/index.md#production-access): anonymous only in Development by default, authenticated elsewhere, and unmapped outside Development without authentication configured. Arc does not bundle a Swagger or Scalar UI; point one you host at `/openapi.json` and configure its credentials if you want a browsable page.
 
 ## What each operation contains
 
@@ -115,7 +115,7 @@ Arc cannot infer the protocol of a custom handler, so it never advertises one as
 
 ## Recap
 
-- `GET /openapi.json` is always on, public, and generated from the same schemas that bind requests.
+- `GET /openapi.json` is generated from the same schemas that bind requests and follows the shared [discovery access policy](../introspection/index.md#production-access).
 - Register generated metadata to get summaries and typed results.
 - Set `generatedApis.openApiVersion` to advertise your version.
 

@@ -31,7 +31,7 @@ const query = z.object({ keepAliveIntervalMs: interval.optional(),
 const hosting = z.object({ applicationUrl: z.string().min(1).optional(), maxBodyBytes: integer(1).optional() });
 const introspection = z.object({ requireAuthentication: boolean.optional(), roles: z.string().optional() });
 const arc = z.object({ development: boolean.optional(), exposeExceptionDetails: boolean.optional(),
-    environmentName: z.string().optional(), introspection: introspection.optional(),
+    introspection: introspection.optional(),
     correlationId: z.object({ httpHeader: z.string().min(1).optional() }).optional(), tenancy: tenancy.optional(),
     generatedApis: generatedApis.optional(), query: query.optional(), hosting: hosting.optional() });
 const chronicle = z.object({ connectionString: z.string().min(1).optional(), eventStore: z.string().min(1).optional() });
@@ -50,7 +50,7 @@ const names: Record<string, string> = {
     cratis: 'Cratis', arc: 'Arc', chronicle: 'Chronicle', mongodb: 'MongoDB', generatedapis: 'generatedApis',
     connectionstring: 'connectionString', eventstore: 'eventStore', server: 'server', database: 'database',
     development: 'development', exposeexceptiondetails: 'exposeExceptionDetails', correlationid: 'correlationId',
-    environmentname: 'environmentName', introspection: 'introspection', requireauthentication: 'requireAuthentication', roles: 'roles',
+    introspection: 'introspection', requireauthentication: 'requireAuthentication', roles: 'roles',
     tenancy: 'tenancy', query: 'query', hosting: 'hosting', httpheader: 'httpHeader',
     resolvertype: 'resolverType', basedomain: 'baseDomain', queryparameter: 'queryParameter', claimtype: 'claimType',
     fixedtenantid: 'fixedTenantId', developmenttenantid: 'fixedTenantId', required: 'required',

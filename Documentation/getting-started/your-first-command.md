@@ -124,7 +124,7 @@ Generated metadata binds `id` from the query string and `Tasks` from the service
 
 The [Tasks entry point](index.md#see-what-started-the-server) registers the service, installs generated metadata, discovers the decorated classes, and starts the host. Get started shows the complete `main.ts`; use it to see how the sample starts.
 
-`discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` to enable development discovery. Exception details instead follow `Cratis:Arc:ExposeExceptionDetails`, which defaults on only in a Development environment; keep it off on public hosts.
+`discover()` imports every exported class under `Features/` and picks up commands, read models, and validators by their decorators. `build()` checks the whole graph (every injected service registered, no lifetime mismatches, no misplaced decorators) before a listener opens. The sample binds `Cratis:Arc:Development` to enable fixture providers. Its Yarn start script sets `DOTNET_ENVIRONMENT=Development` for local anonymous discovery; the flag alone does not bypass the [discovery access policy](../introspection/index.md#production-access). Exception details instead follow `Cratis:Arc:ExposeExceptionDetails`, which defaults on only in a Development environment; keep it off on public hosts.
 
 :::caution[The discovery folder must not contain the entry point]
 `discover()` refuses a folder that contains the module currently calling it. Keep your artifacts in a dedicated folder such as `Features/`, as the sample does.

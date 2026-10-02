@@ -100,7 +100,7 @@ import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
 import { metadata } from './Features/generatedMetadata.js';
 
-// The workspace command runs from Samples/Tasks and binds Development from appsettings.json.
+// The Yarn start script selects Development; appsettings.json only opts into fixture providers.
 const builder = ArcApplication.createBuilder();
 builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);
@@ -122,13 +122,13 @@ Each line has one job:
 
 If you forget to register `Tasks`, `build()` throws `Missing service: Tasks` at startup, instead of the first request failing in production.
 
-The sample's [`appsettings.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/appsettings.json) sets `Cratis:Arc:Development` to `true`. Development mode is for a local machine; do not enable it on an exposed host. [Configuration](../configuration/index.md) lists every setting.
+The sample's [`appsettings.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/appsettings.json) sets `Cratis:Arc:Development` to `true` to enable fixture providers. The `start` script separately sets `DOTNET_ENVIRONMENT=Development` using Yarn 4's cross-platform script shell. That environment enables anonymous discovery and exception details for local development; do not use this start script on an exposed host. [Configuration](../configuration/index.md) lists every setting.
 
 To serve the same artifacts from Express, Fastify, or Hono instead of the standalone host, you keep the builder and hand its routes to the framework's adapter; see the [hosting overview](../overview.md).
 
 ## Look at what the server describes
 
-A running Arc application describes itself. `GET /.cratis/commands` and `GET /.cratis/queries` list every operation with its route and the JSON Schema of its input, and `GET /openapi.json` returns an OpenAPI 3.1 document:
+The sample's Development host describes itself anonymously. `GET /.cratis/commands` and `GET /.cratis/queries` list every operation with its route and the JSON Schema of its input, and `GET /openapi.json` returns an OpenAPI 3.1 document. Outside Development these endpoints follow the [discovery access policy](../introspection/index.md#production-access):
 
 ```bash
 curl http://127.0.0.1:3000/.cratis/commands

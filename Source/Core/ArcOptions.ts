@@ -47,7 +47,7 @@ export interface ArcOptions {
     hosting?: HostingOptions;
     /** Expose exception messages and stacks to HTTP callers; defaults to true only in Development environments. */
     exposeExceptionDetails?: boolean;
-    /** Host environment for discovery defaults; otherwise DOTNET_ENVIRONMENT, ASPNETCORE_ENVIRONMENT, then NODE_ENV. */
+    /** Code-only discovery environment override; otherwise DOTNET_ENVIRONMENT, ASPNETCORE_ENVIRONMENT, then NODE_ENV. Does not change exception exposure. */
     environmentName?: string;
     /** Discovery endpoint access; anonymous only in Development by default. */
     introspection?: IntrospectionOptions;

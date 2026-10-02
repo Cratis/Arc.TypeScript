@@ -21,11 +21,15 @@ receive 401. A host with no authentication leaves the discovery endpoints unmapp
 404) and logs one startup warning. Explicitly requiring authentication without configuring it
 fails startup instead.
 
-Development means `environmentName: 'Development'` (case-insensitive), or, when absent,
-the first defined value of `DOTNET_ENVIRONMENT`, `ASPNETCORE_ENVIRONMENT`, and `NODE_ENV`.
+Development means the code-only option `environmentName: 'Development'` (case-insensitive),
+which overrides the environment variables, or, when absent, the first defined value of
+`DOTNET_ENVIRONMENT`, `ASPNETCORE_ENVIRONMENT`, and `NODE_ENV`. There is no
+`Cratis:Arc:EnvironmentName` configuration key.
 No environment means non-Development. The Node builder honors `configuration.env`; fetch
 runtimes without `process` can set `environmentName` explicitly. `development: true` only
-enables fixture providers and does not bypass this policy.
+enables fixture providers and does not bypass this policy. The discovery-only `environmentName`
+override does not change exception exposure: `exposeExceptionDetails` still defaults from
+the host environment, including a supplied Node `configuration.env`, and can be set explicitly.
 
 ## Restore access
 
