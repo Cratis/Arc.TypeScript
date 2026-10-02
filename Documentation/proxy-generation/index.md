@@ -46,7 +46,11 @@ Imports between generated files are extensionless by default, which suits Vite a
 
 The repository's [paired-generator comparison](https://github.com/Cratis/Arc.TypeScript/tree/main/ContractTests/ProxyComparison) captures actual `Cratis.Arc.ProxyGenerator.Build` 22.45.0 output for equivalent command, snapshot-query, observable-query, nested/derived model, enum and validation fixtures. Both outputs compile against the pinned browser client and exercise routes, descriptors, hydration, validation and hook signatures.
 
-This is a compatibility check, not a byte-equality promise. TypeScript retains its type-only imports, source enum member names and result-field sorting helpers; the pinned .NET output uses camel-cased enum names and query-parameter sorting helpers. Formatting and provenance differences are recorded too. Regeneration rejects unreviewed bytes, normalizing only the generated header's timestamp. See the [contract-test guide](https://github.com/Cratis/Arc.TypeScript/blob/main/ContractTests/README.md#compare-proxy-generators) for the reviewed difference inventory and how to regenerate it.
+This is a compatibility check, not a byte-equality promise. Intentional differences include type-only imports, source enum member names (rather than .NET's camel-cased names), formatting and provenance. The pinned .NET model-bound generator's query-parameter sorting helpers are a [known defect](https://github.com/Cratis/Arc/issues/2998), not an intentional API difference: TypeScript follows the documented contract that `sortBy` names a read-model field.
+
+Both generators have a [known limitation](https://github.com/Cratis/Arc.TypeScript/issues/174) when emitting result-field helpers: complex fields such as `detail` and `notice` are included despite not being sortable scalars. These fixture objects sort as no-ops on the TypeScript server and throw on .NET `IQueryable`. Prefer scalar fields such as `name` and `status`.
+
+The inventory separates intentional differences, known defects and known limitations. Regeneration rejects unreviewed bytes, normalizing only the generated header's timestamp; offline checks also reject changed C# fixture or .NET option fingerprints. See the [contract-test guide](https://github.com/Cratis/Arc.TypeScript/blob/main/ContractTests/README.md#compare-proxy-generators) for the inventory, behavioral sorting checks and recapture instructions.
 
 ## Limits
 

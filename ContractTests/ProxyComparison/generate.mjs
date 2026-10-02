@@ -9,6 +9,8 @@ import { generateFromSource } from '@cratis/arc.proxygenerator';
 export const root = resolve(import.meta.dirname, '../..');
 export const fixture = join(root, 'ContractTests/ProxyComparison');
 export const dotnetOptions = ['0', '--exclude-namespace=HttpFixture*'];
+export const dotnetSource = 'ContractTests/DotNET/ProxyComparison/Fixtures.cs';
+export const recaptureCommand = 'dotnet restore ContractTests/DotNET/HttpFixture.csproj --locked-mode && dotnet build ContractTests/DotNET/HttpFixture.csproj -c Debug --no-restore && node ContractTests/ProxyComparison/compare.mjs --capture';
 export const typescriptOptions = { rootNamespace: 'ProxyComparison' };
 
 export function run(command, args) {

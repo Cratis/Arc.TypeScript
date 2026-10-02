@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { generateFromSource } from '@cratis/arc.proxygenerator';
 import { clientTest, scratch } from '../Client/scratch.mjs';
-import { dotnetOptions, fixture, generateBoth, root, run, typescriptOptions } from './generate.mjs';
+import { dotnetOptions, dotnetSource, fixture, generateBoth, recaptureCommand, root, run, typescriptOptions } from './generate.mjs';
 
 const require = createRequire(import.meta.url);
 const snapshots = join(fixture, 'Snapshots');
@@ -60,13 +60,31 @@ async function verifyInventory(dotnet, typescript) {
         if (!stableBytes(await readFile(join(dotnet, file))).equals(stableBytes(await readFile(join(typescript, file))))) different.push(file);
     }
     assert.deepEqual(Object.keys(inventory.files).sort(), different, 'Every non-timestamp difference needs an inventory entry');
-    for (const ids of Object.values(inventory.files)) {
+    for (const [id, reason] of Object.entries(inventory.reasons)) {
+        assert.ok(['intentional', 'knownDefect', 'knownLimitation'].includes(reason.category), `Missing category for ${id}`);
+        assert.ok(reason.description?.length > 20, `Missing reason for ${id}`);
+        if (reason.category !== 'intentional') assert.match(reason.issue, /^https:\/\/github\.com\/Cratis\/[\w.]+\/issues\/\d+$/);
+    }
+    for (const ids of [...Object.values(inventory.files), inventory.limitations]) {
         assert.ok(ids.length > 0);
-        for (const id of ids) assert.ok(inventory.reasons[id]?.length > 20, `Missing reason for ${id}`);
+        for (const id of ids) assert.ok(inventory.reasons[id], `Missing reason for ${id}`);
+    }
+    for (const id of inventory.limitations) assert.equal(inventory.reasons[id].category, 'knownLimitation');
+}
+
+/** Hash exact source bytes and the ordered generator argument array, not incidental script formatting. */
+export function fingerprintDotnetInputs(source, options) {
+    const sha256 = value => createHash('sha256').update(value).digest('hex');
+    return { sourceSha256: sha256(source), optionsSha256: sha256(JSON.stringify(options)) };
+}
+
+export function verifyDotnetInputs(recorded, current) {
+    for (const key of ['sourceSha256', 'optionsSha256']) {
+        assert.equal(recorded[key], current[key], `.NET snapshot ${key} is stale. Recapture with .NET: ${recaptureCommand}`);
     }
 }
 
-async function compileAndExercise(directory) {
+async function compileAndExercise(directory, regenerateDotnet) {
     // Same strict browser-client compilation as ContractTests/Client. The .NET template uses value imports
     // for types, so verbatimModuleSyntax is deliberately off; these sources are compiled without rewriting.
     for (const family of ['DotNET', 'TypeScript']) {
@@ -85,7 +103,7 @@ async function compileAndExercise(directory) {
         const bundle = join(directory, 'dist', `${family}.js`);
         await build({ entryPoints: [join(directory, 'src', family, 'ProxyComparison/index.ts')], outfile: bundle,
             bundle: true, platform: 'node', format: 'esm', packages: 'external', target: 'es2022' });
-        run(process.execPath, [join(fixture, 'runtime.mjs'), bundle, family]);
+        run(process.execPath, [join(fixture, 'runtime.mjs'), bundle, family, ...(regenerateDotnet ? ['--dotnet-server'] : [])]);
     }
 }
 
@@ -94,59 +112,69 @@ export async function compare({ regenerateDotnet = true, capture = false } = {})
     assert.equal(require('@cratis/arc/package.json').version, '22.45.0');
     assert.equal(require('@cratis/arc.react/package.json').version, '22.45.0');
     assert.equal(require('@cratis/fundamentals/package.json').version, '7.22.0');
+    const fingerprints = fingerprintDotnetInputs(await readFile(join(root, dotnetSource)), dotnetOptions);
+    const recorded = capture ? undefined : JSON.parse(await readFile(join(fixture, 'provenance.json'), 'utf8'));
+    // Fail before allocating scratch or compiling: offline CI cannot regenerate changed C# inputs.
+    if (recorded) verifyDotnetInputs(recorded.dotnet, fingerprints);
     const directory = await scratch();
     const output = join(directory, 'src');
-    await mkdir(output);
-    const dotnet = join(output, 'DotNET');
-    const typescript = join(output, 'TypeScript');
-    let log;
-    if (regenerateDotnet) ({ log } = await generateBoth(output));
-    else {
-        await cp(join(snapshots, 'DotNET'), dotnet, { recursive: true });
-        await mkdir(typescript);
-        await generateFromSource({ project: join(fixture, 'TypeScript/tsconfig.json'), artifacts: join(fixture, 'TypeScript'),
-            output: typescript, ...typescriptOptions });
-    }
-    // Keep the raw diff even on failure; the original generated trees remain in scratch on failure too.
     const evidence = join(root, '.ai-work/keep/proxy-comparison');
-    await mkdir(evidence, { recursive: true });
-    const patch = await rawDiff(dotnet, typescript);
-    await writeFile(join(evidence, `${basename(directory)}.diff`), patch);
-    if (log) await writeFile(join(evidence, `${basename(directory)}.log`), log);
-    for (const family of ['DotNET', 'TypeScript']) {
-        const generated = join(output, family);
-        assert.deepEqual(await filesIn(generated), expectedFiles, `${family} output inventory changed`);
-        if (!capture) {
-            assert.deepEqual(await filesIn(join(snapshots, family)), expectedFiles);
-            for (const file of expectedFiles) assert.deepEqual(stableBytes(await readFile(join(generated, file))),
-                stableBytes(await readFile(join(snapshots, family, file))), `${family}/${file}: unreviewed bytes; inspect ${evidence}`);
+    let log;
+    let patch;
+    try {
+        await mkdir(output);
+        const dotnet = join(output, 'DotNET');
+        const typescript = join(output, 'TypeScript');
+        if (regenerateDotnet) ({ log } = await generateBoth(output));
+        else {
+            await cp(join(snapshots, 'DotNET'), dotnet, { recursive: true });
+            await mkdir(typescript);
+            await generateFromSource({ project: join(fixture, 'TypeScript/tsconfig.json'), artifacts: join(fixture, 'TypeScript'),
+                output: typescript, ...typescriptOptions });
         }
+        patch = await rawDiff(dotnet, typescript);
+        for (const family of ['DotNET', 'TypeScript']) {
+            const generated = join(output, family);
+            assert.deepEqual(await filesIn(generated), expectedFiles, `${family} output inventory changed`);
+            if (!capture) {
+                assert.deepEqual(await filesIn(join(snapshots, family)), expectedFiles);
+                for (const file of expectedFiles) assert.deepEqual(stableBytes(await readFile(join(generated, file))),
+                    stableBytes(await readFile(join(snapshots, family, file))), `${family}/${file}: unreviewed bytes; inspect ${evidence}`);
+            }
+        }
+        await verifyInventory(dotnet, typescript);
+        await compileAndExercise(directory, regenerateDotnet);
+        const provenance = {
+            dotnet: { package: 'Cratis.Arc.ProxyGenerator.Build', version: '22.45.0', framework: 'net10.0',
+                executable: 'tasks/net10.0/Cratis.Arc.ProxyGenerator.Build.dll',
+                input: 'ContractTests/DotNET/bin/Debug/net10.0/Arc.TypeScript.HttpFixture.dll', options: dotnetOptions,
+                source: dotnetSource, ...fingerprints, lock: 'ContractTests/DotNET/packages.lock.json' },
+            typescript: { package: '@cratis/arc.proxygenerator', version: JSON.parse(await readFile(join(root, 'Source/Tools/ProxyGenerator/package.json'), 'utf8')).version,
+                entryPoint: 'generateFromSource', project: 'ContractTests/ProxyComparison/TypeScript/tsconfig.json',
+                artifacts: 'ContractTests/ProxyComparison/TypeScript', options: typescriptOptions },
+            client: { '@cratis/arc': '22.45.0', '@cratis/arc.react': '22.45.0', '@cratis/fundamentals': '7.22.0' }
+        };
+        if (capture) {
+            for (const family of ['DotNET', 'TypeScript']) await cp(join(output, family), join(snapshots, family), { recursive: true });
+            await writeFile(join(fixture, 'raw.diff'), patch);
+            await writeFile(join(fixture, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
+        } else {
+            // TypeScript's package version advances independently of these snapshots. Its captured version is
+            // provenance, not a requirement to rewrite snapshots during every unrelated release.
+            provenance.typescript.version = recorded.typescript.version;
+            assert.deepEqual(recorded, provenance);
+            assert.equal(await readFile(join(fixture, 'raw.diff'), 'utf8'), await rawDiff(join(snapshots, 'DotNET'), join(snapshots, 'TypeScript')));
+        }
+    } catch (error) {
+        // Successful runs leave no accumulating evidence; failures retain unique diffs/logs and scratch.
+        if (patch !== undefined || log !== undefined) {
+            await mkdir(evidence, { recursive: true });
+            if (patch !== undefined) await writeFile(join(evidence, `${basename(directory)}.diff`), patch, { flag: 'wx' });
+            if (log !== undefined) await writeFile(join(evidence, `${basename(directory)}.log`), log, { flag: 'wx' });
+        }
+        throw error;
     }
-    await verifyInventory(dotnet, typescript);
-    await compileAndExercise(directory);
-    const provenance = {
-        dotnet: { package: 'Cratis.Arc.ProxyGenerator.Build', version: '22.45.0', framework: 'net10.0',
-            executable: 'tasks/net10.0/Cratis.Arc.ProxyGenerator.Build.dll',
-            input: 'ContractTests/DotNET/bin/Debug/net10.0/Arc.TypeScript.HttpFixture.dll', options: dotnetOptions,
-            lock: 'ContractTests/DotNET/packages.lock.json' },
-        typescript: { package: '@cratis/arc.proxygenerator', version: JSON.parse(await readFile(join(root, 'Source/Tools/ProxyGenerator/package.json'), 'utf8')).version,
-            entryPoint: 'generateFromSource', project: 'ContractTests/ProxyComparison/TypeScript/tsconfig.json',
-            artifacts: 'ContractTests/ProxyComparison/TypeScript', options: typescriptOptions },
-        client: { '@cratis/arc': '22.45.0', '@cratis/arc.react': '22.45.0', '@cratis/fundamentals': '7.22.0' }
-    };
-    if (capture) {
-        for (const family of ['DotNET', 'TypeScript']) await cp(join(output, family), join(snapshots, family), { recursive: true });
-        await writeFile(join(fixture, 'raw.diff'), patch);
-        await writeFile(join(fixture, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
-    } else {
-        const recorded = JSON.parse(await readFile(join(fixture, 'provenance.json'), 'utf8'));
-        // TypeScript's package version advances independently of these snapshots. Its captured version is
-        // provenance, not a requirement to rewrite snapshots during every unrelated release.
-        provenance.typescript.version = recorded.typescript.version;
-        assert.deepEqual(recorded, provenance);
-        assert.equal(await readFile(join(fixture, 'raw.diff'), 'utf8'), await rawDiff(join(snapshots, 'DotNET'), join(snapshots, 'TypeScript')));
-    }
-    console.log(`Proxy comparison: 9 files per generator; bytes, inventory, compilation, hooks, routes, descriptors, hydration and validation passed (${regenerateDotnet ? 'regenerated .NET' : 'captured .NET'}).`);
+    console.log(`Proxy comparison: 9 files per generator; bytes, inventory, compilation, hooks, routes, descriptors, hydration, validation and sorting passed (${regenerateDotnet ? 'regenerated .NET with live sorting checks' : 'captured .NET; live .NET sorting skipped'}).`);
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

@@ -48,7 +48,18 @@ public sealed class RegisterValidator : CommandValidator<Register>
 [ReadModel]
 public record Listing(string Name, Detail Detail, Notice Notice, Status Status)
 {
-    public static Listing[] All(Guid id) => [];
+    [Cratis.Arc.Authorization.AllowAnonymous]
+    [Cratis.Arc.Queries.ModelBound.Path("/api/proxy-comparison/all")]
+    public static IQueryable<Listing> All(Guid id) => Rows(id).AsQueryable();
 
-    public static ISubject<Listing[]> Observe(Guid id) => new BehaviorSubject<Listing[]>([]);
+    [Cratis.Arc.Authorization.AllowAnonymous]
+    [Cratis.Arc.Queries.ModelBound.Path("/api/proxy-comparison/observe")]
+    public static ISubject<Listing[]> Observe(Guid id) => new BehaviorSubject<Listing[]>(Rows(id));
+
+    static Listing[] Rows(Guid id) =>
+    [
+        new("charlie", new(id, DateTimeOffset.Parse("2026-01-03T03:04:05Z")), new Notice("third"), Status.Draft),
+        new("alpha", new(id, DateTimeOffset.Parse("2026-01-01T03:04:05Z")), new Notice("first"), Status.Published),
+        new("bravo", new(id, DateTimeOffset.Parse("2026-01-02T03:04:05Z")), new Notice("second"), Status.Draft)
+    ];
 }

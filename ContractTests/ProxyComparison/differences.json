@@ -1,13 +1,41 @@
 {
   "reasons": {
-    "layout": "Blank lines, compact getters and readonly sorting fields versus private fields/getters differ. They are not wire behavior; every byte remains snapshot-gated rather than formatting-normalized.",
-    "imports": "TypeScript marks type-only imports explicitly and orders/merges imports differently. This supports verbatimModuleSyntax without changing runtime constructors. .NET output needs normal type-import elision.",
-    "command-suppression": "The .NET command hook contains a ts-ignore comment. TypeScript does not need that suppression with the pinned browser client; both public signatures are checked independently.",
-    "query-source": "The .NET provenance source identifies the read-model type; TypeScript identifies the query method as well. Only the timestamp is variable-normalized; source and body hash remain gated.",
-    "sorting": "For this parameterized model-bound query .NET 22.45.0 emits sortBy.id from the query input. TypeScript emits sortBy.name/detail/notice/status from the result model. Preserve result-oriented TypeScript sorting instead of copying the .NET behavior; this is an intentional API difference, not parity.",
-    "enum-names": ".NET camel-cases enum members to draft/published. TypeScript preserves source names Draft/Published. Numeric wire values 0/1 and numeric hydration agree, so changing source names would be an unnecessary API break.",
-    "barrel-ownership": "TypeScript marks the barrel with a provenance/body-hash header for safe owned-file regeneration. The .NET barrel is unmarked. Exports are identical; destructive .NET cleanup is not adopted."
+    "layout": {
+      "category": "intentional",
+      "description": "Blank lines, compact getters and readonly sorting fields versus private fields/getters differ. They are not wire behavior; every byte remains snapshot-gated rather than formatting-normalized."
+    },
+    "imports": {
+      "category": "intentional",
+      "description": "TypeScript marks type-only imports explicitly and orders/merges imports differently. This supports verbatimModuleSyntax without changing runtime constructors. .NET output needs normal type-import elision."
+    },
+    "command-suppression": {
+      "category": "intentional",
+      "description": "The .NET command hook contains a ts-ignore comment. TypeScript does not need that suppression with the pinned browser client; both public signatures are checked independently."
+    },
+    "query-source": {
+      "category": "intentional",
+      "description": "The .NET provenance source identifies the read-model type; TypeScript identifies the query method as well. Only the timestamp is variable-normalized; source and body hash remain gated."
+    },
+    "sorting": {
+      "category": "knownDefect",
+      "issue": "https://github.com/Cratis/Arc/issues/2998",
+      "description": ".NET 22.45.0 model-bound queries incorrectly emit sortBy.id from the query input rather than the response model. TypeScript's name/detail/notice/status helpers follow the documented read-model-field contract, as does .NET controller-based generation. The browser client sends the field unchanged; id is not a Listing field and fails on .NET IQueryable. This is a .NET defect, not an intentional API difference."
+    },
+    "complex-sorting": {
+      "category": "knownLimitation",
+      "issue": "https://github.com/Cratis/Arc.TypeScript/issues/174",
+      "description": "Both generators emit helpers for complex result fields when generating result-oriented helpers (TypeScript here; .NET controller-based queries). Fields such as detail and notice are not sortable scalars: these fixture objects sort as no-ops on the TypeScript server and throw on .NET IQueryable. The model-bound .NET snapshot's query-parameter defect masks this separate limitation."
+    },
+    "enum-names": {
+      "category": "intentional",
+      "description": ".NET camel-cases enum members to draft/published. TypeScript preserves source names Draft/Published. Numeric wire values 0/1 and numeric hydration agree, so changing source names would be an unnecessary API break."
+    },
+    "barrel-ownership": {
+      "category": "intentional",
+      "description": "TypeScript marks the barrel with a provenance/body-hash header for safe owned-file regeneration. The .NET barrel is unmarked. Exports are identical; destructive .NET cleanup is not adopted."
+    }
   },
+  "limitations": ["complex-sorting"],
   "files": {
     "ProxyComparison/All.ts": ["layout", "imports", "query-source", "sorting"],
     "ProxyComparison/Detail.ts": ["layout", "imports"],
