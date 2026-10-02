@@ -16,6 +16,8 @@
   href: hosts/toc.yml
 - name: Configuration
   href: configuration/toc.yml
+- name: Migrating to secure discovery defaults
+  href: upgrading/secure-defaults.md
 - name: Commands
   href: commands/toc.yml
 - name: Queries
