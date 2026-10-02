@@ -29,8 +29,15 @@ function isScalarSortValue(value: unknown): boolean {
 }
 
 function compareValues(left: unknown, right: unknown): number {
+    while (left instanceof ConceptAs) left = left.value;
+    while (right instanceof ConceptAs) right = right.value;
     if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime();
     if (left == null || right == null) return left == null ? right == null ? 0 : -1 : 1;
+    if (left instanceof DateOnly && right instanceof DateOnly)
+        return left.year - right.year || left.month - right.month || left.day - right.day;
+    if (left instanceof TimeOnly && right instanceof TimeOnly)
+        return left.hour - right.hour || left.minute - right.minute || left.second - right.second || left.millisecond - right.millisecond;
+    if (left instanceof TimeSpan && right instanceof TimeSpan) return left.ticks - right.ticks;
     if (typeof left === 'number' && typeof right === 'number') return left - right;
     if (typeof left === 'bigint' && typeof right === 'bigint') return left < right ? -1 : left > right ? 1 : 0;
     if (typeof left === 'boolean' && typeof right === 'boolean') return Number(left) - Number(right);
