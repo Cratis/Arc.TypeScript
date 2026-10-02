@@ -18,6 +18,7 @@ const cases = [
     { kind: 'time only', values: ['12:00:00', '08:01:00', '08:00:01', '08:00:00.001', '08:00:00'].map(TimeOnly.parse), order: [4, 3, 2, 1, 0] },
     { kind: 'time span', values: ['10.00:00:00', '2.00:00:00', '12:00:00', '00:00:00.0000001', '00:00:00', '-01:00:00', '-02:00:00'].map(TimeSpan.parse), order: [6, 5, 4, 3, 2, 1, 0] },
     { kind: 'null and undefined', values: [2, null, undefined, 1], order: [1, 2, 3, 0], descendingOrder: [0, 3, 1, 2] },
+    { kind: 'nullable concept', values: [new ScalarConcept(2), new ScalarConcept(null), new ScalarConcept(1)], order: [1, 2, 0] },
     { kind: 'mixed scalar kinds', values: [2, '10', 1], order: [2, 1, 0] },
     { kind: 'existing bigint comparison', values: [10n, 2n], order: [1, 0] }
 ];
