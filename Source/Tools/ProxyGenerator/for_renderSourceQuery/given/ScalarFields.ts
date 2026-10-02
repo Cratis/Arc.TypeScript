@@ -5,6 +5,10 @@ import { ConceptAs, DateOnly, field, Guid, TimeOnly, TimeSpan } from '@cratis/fu
 export enum Status { Draft, Published }
 export enum Label { First = 'first', Last = 'last' }
 export class Name extends ConceptAs<string> {}
+export class DerivedName extends Name {}
+export class GenericConcept<T> extends ConceptAs<T> {}
+export class GenericIntermediate<T> extends GenericConcept<T> {}
+export class GenericName extends GenericIntermediate<string> {}
 export class Amount extends ConceptAs<number> {}
 export class Enabled extends ConceptAs<boolean> {}
 export class Timestamp extends ConceptAs<Date> {}
@@ -26,6 +30,8 @@ export class ScalarFields {
     @field(Number) status!: Status;
     @field(String) label!: Label;
     @field(Name) conceptName!: Name;
+    @field(DerivedName) derivedName!: DerivedName;
+    @field(GenericName) genericName!: GenericName;
     @field(Amount) conceptAmount!: Amount;
     @field(Enabled) conceptEnabled!: Enabled;
     @field(Timestamp) conceptTimestamp!: Timestamp;

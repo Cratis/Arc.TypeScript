@@ -71,17 +71,8 @@ export class SourceTypeResolver {
             if (resolved.enumerable || resolved.void || resolved.nullable) return this.unsupported(type, location);
             return { ...resolved, text: resolved.text.includes(' | ') ? `(${resolved.text})[]` : `${resolved.text}[]`, enumerable: true, nullable };
         }
-        if (type.getBaseTypes()?.some(base => isTypeFrom(this.checker, base, 'ConceptAs', '@cratis/fundamentals')) ||
-            isTypeFrom(this.checker, type, 'ConceptAs', '@cratis/fundamentals')) {
-            const base = type.getBaseTypes()?.find(candidate => isTypeFrom(this.checker, candidate, 'ConceptAs', '@cratis/fundamentals'));
-            const argument = this.checker.getTypeArguments(type as ts.TypeReference)[0] ??
-                (base && this.checker.getTypeArguments(base as ts.TypeReference)[0]);
-            if (argument) {
-                const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
-                if (declaration) this.contribute(declaration);
-                return this.resolve(argument, location, optional);
-            }
-        }
+        const conceptValue = this.conceptValueType(type, location);
+        if (conceptValue) return this.resolve(conceptValue, location, optional);
         const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
         if (symbol?.declarations?.some(ts.isEnumDeclaration)) return this.resolveEnum(symbol, type, location, nullable);
         if (declaration && name && !declaration.getSourceFile().isDeclarationFile) {
@@ -135,6 +126,28 @@ export class SourceTypeResolver {
             return { ...primitive(name, name), model: name, modelKey: key, nullable };
         }
         return this.unsupported(type, location);
+    }
+    private conceptValueType(type: ts.Type, location: ts.Node): ts.Type | undefined {
+        const pending = [type];
+        const visited = new Set<ts.Type>();
+        while (pending.length) {
+            const candidate = pending.pop()!;
+            if (visited.has(candidate)) continue;
+            visited.add(candidate);
+            if (isTypeFrom(this.checker, candidate, 'ConceptAs', '@cratis/fundamentals')) {
+                for (const ancestor of visited) {
+                    const declaration = ancestor.getSymbol()?.declarations?.find(ts.isClassDeclaration);
+                    if (declaration && !declaration.getSourceFile().isDeclarationFile) this.contribute(declaration);
+                }
+                // Read from the original instantiated type so generic intermediate bases retain their substitutions.
+                const value = this.checker.getPropertyOfType(type, 'value');
+                return value && this.checker.getTypeOfSymbolAtLocation(value, location);
+            }
+            const reference = candidate.flags & ts.TypeFlags.Object && (candidate as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
+                ? candidate as ts.TypeReference : undefined;
+            pending.push(...candidate.getBaseTypes() ?? reference?.target.getBaseTypes() ?? []);
+        }
+        return undefined;
     }
     private resolveEnum(symbol: ts.Symbol, type: ts.Type, location: ts.Node, nullable: boolean): SourceType {
         const declaration = symbol.declarations?.find(ts.isEnumDeclaration);

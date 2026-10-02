@@ -82,13 +82,9 @@ try {
         assert.equal(model.status, 1);
         assert.deepEqual(JSON.parse(JsonSerializer.serialize(model)), wire);
         // Arc#2998: .NET's query-parameter helper is a defect, not an intentional API difference.
-        const sortNames = family === 'DotNET' ? ['id'] : ['name', 'status'];
+        const sortNames = family === 'DotNET' ? ['id'] : ['name', 'detail', 'notice', 'status'];
         for (const name of sortNames) { assert.ok(query.sortBy[name]); assert.ok(Query.sortBy[name]); }
         assert.equal(query.sortBy[family === 'DotNET' ? 'name' : 'id'], undefined);
-        if (family === 'TypeScript') for (const name of ['detail', 'notice']) {
-            assert.equal(query.sortBy[name], undefined);
-            assert.equal(Query.sortBy[name], undefined);
-        }
         for (const hook of ['use', 'useWithPaging', 'useSuspense', 'useSuspenseWithPaging', 'when']) assert.equal(typeof Query[hook], 'function');
 
         // Send the generated Sorting through the real browser client and TS HTTP query pipeline.
@@ -113,7 +109,7 @@ try {
             assert.equal(status, 200, JSON.stringify(control));
             assert.equal(control.isSuccess, true);
             assert.deepEqual(control.data.map(row => row.name), ['alpha', 'bravo', 'charlie']);
-            for (const name of [...sortNames, 'detail', 'notice']) {
+            for (const name of new Set([...sortNames, 'detail', 'notice'])) {
                 for (const direction of ['ascending', 'descending']) {
                     const sorting = (Query.sortBy[name] ?? new SortingActions(name))[direction];
                     assert.equal(sorting.field, name);

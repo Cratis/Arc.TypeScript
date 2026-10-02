@@ -20,10 +20,11 @@ describe('when emitting sort helpers with scalar fields', () => {
         output = renderSourceQuery(a_query, 'All.ts', new Map([['Listing', 'Listing.ts']]), '/api/all', resolver.models.get('ScalarFields'));
     });
     for (const name of ['name', 'amount', 'enabled', 'timestamp', 'identifier', 'day', 'time', 'duration', 'status', 'label',
-        'conceptName', 'conceptAmount', 'conceptEnabled', 'conceptTimestamp', 'conceptIdentifier', 'conceptDay', 'conceptTime', 'conceptDuration', 'conceptStatus']) {
+        'conceptName', 'derivedName', 'genericName', 'conceptAmount', 'conceptEnabled', 'conceptTimestamp', 'conceptIdentifier', 'conceptDay', 'conceptTime', 'conceptDuration', 'conceptStatus']) {
         it(`should retain static and instance sorting for ${name}`, () => {
             output.should.contain(`readonly ${name} = new SortingActions('${name}')`);
             output.should.contain(`this.${name} = new SortingActionsForQuery<Listing[]>('${name}', query)`);
+            output.should.not.contain('@deprecated');
         });
     }
 });

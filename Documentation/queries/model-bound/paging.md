@@ -54,7 +54,7 @@ Invalid directions answer 400 with `malformedRequest` and the `sortDirection` (G
 
 In-memory sorting requires the field on every item, or the request answers 400. Dates compare by time, numbers and bigints numerically, `false` before `true`, and `null` or `undefined` before any value in ascending order. Other scalar values compare as strings with `localeCompare`, which is not .NET invariant-culture collation; sort in the data source when a stable cross-platform order matters.
 
-In-memory array sorting rejects present, non-null complex values with the existing `malformedRequest` validation result (HTTP 400 for snapshots; a validation result if streaming has already started), without changing provider-owned sorting.
+In-memory array sorting rejects present, non-null complex values with the existing `malformedRequest` validation result (HTTP 400 for snapshots; a validation result if streaming has already started), without changing provider-owned sorting; raw BSON scalars remain accepted with string comparison.
 
 A query that returns something other than an array answers 400 when the request asks for paging or sorting.
 

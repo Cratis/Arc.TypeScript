@@ -24,14 +24,18 @@ describe('when emitting sort helpers with complex fields', () => {
             'All.ts', new Map([['Listing', 'Listing.ts']]), '/api/all', { name: 'Listing', namespace: '', kind: 'model', fields }));
     });
     for (const { name } of fields) {
-        it(`should omit static and instance sorting for ${name}`, () => {
+        it(`should preserve and deprecate static and instance sorting for ${name}`, () => {
             for (const output of outputs) {
-                output.should.not.contain(`readonly ${name}`);
-                output.should.not.contain(`this.${name} =`);
+                output.should.match(new RegExp(`/\\*\\* @deprecated [^\\n]+\\*/\\n    readonly ${name}: SortingActions`));
+                output.should.match(new RegExp(`/\\*\\* @deprecated [^\\n]+\\*/\\n    readonly ${name} = new SortingActions`));
+                output.should.contain(`this.${name} =`);
             }
         });
     }
-    it('should omit unused sorting action imports', () => {
-        for (const output of outputs) output.should.not.contain('SortingActions');
+    it('should explain the provider distinction and migration', () => {
+        for (const output of outputs) {
+            output.should.contain('In-memory sorting on this field is rejected; database providers sort it by their own order.');
+            output.should.contain('This helper will be removed in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177). Sort on a scalar field instead.');
+        }
     });
 });

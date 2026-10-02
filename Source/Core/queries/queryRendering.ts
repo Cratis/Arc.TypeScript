@@ -21,6 +21,8 @@ function safeOffset(page: number, size: number): number | undefined {
 
 function isScalarSortValue(value: unknown): boolean {
     if (value instanceof ConceptAs) return isScalarSortValue(value.value);
+    if (value !== null && typeof value === 'object' && '_bsontype' in value && typeof value._bsontype === 'string' &&
+        ['ObjectId', 'Decimal128', 'Long', 'Int32', 'Double', 'Binary', 'UUID', 'Timestamp'].includes(value._bsontype)) return true;
     return value == null || ['string', 'number', 'boolean', 'bigint'].includes(typeof value) ||
         value instanceof Date || value instanceof Guid || value instanceof DateOnly ||
         value instanceof TimeOnly || value instanceof TimeSpan;

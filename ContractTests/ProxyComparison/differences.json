@@ -19,12 +19,12 @@
     "sorting": {
       "category": "knownDefect",
       "issue": "https://github.com/Cratis/Arc/issues/2998",
-      "description": ".NET 22.45.0 model-bound queries incorrectly emit sortBy.id from the query input rather than the response model. TypeScript's name/status helpers follow the documented read-model-field contract, as does .NET controller-based generation. The browser client sends the field unchanged; id is not a Listing field and fails on .NET IQueryable. This is a .NET defect, not an intentional API difference."
+      "description": ".NET 22.45.0 model-bound queries incorrectly emit sortBy.id from the query input rather than the response model. TypeScript's name/detail/notice/status helpers follow the documented read-model-field contract, as does .NET controller-based generation. The browser client sends the field unchanged; id is not a Listing field and fails on .NET IQueryable. This is a .NET defect, not an intentional API difference."
     },
     "complex-sorting": {
       "category": "knownLimitation",
       "issue": "https://github.com/Cratis/Arc.TypeScript/issues/174",
-      "description": "The .NET controller-based generator still emits helpers for complex result fields, which throw on .NET IQueryable; its model-bound snapshot's query-parameter defect masks that limitation. TypeScript emits only scalar helpers (name/status here), omits detail/notice, and rejects in-memory sorting on these complex fields with the existing malformedRequest validation result."
+      "description": "The .NET controller-based generator still emits helpers for complex result fields, which throw on .NET IQueryable; its model-bound snapshot's query-parameter defect masks that limitation. TypeScript retains detail/notice helpers for compatibility but deprecates them for removal in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177), and rejects in-memory sorting on these complex fields with the existing malformedRequest validation result. Database providers retain their own ordering; scalar helpers are unchanged."
     },
     "enum-names": {
       "category": "intentional",
@@ -38,8 +38,8 @@
   "limitations": ["complex-sorting"],
   "files": {
     "ProxyComparison/All.ts": {
-      "pairSha256": "f90f7636c86fdda4f832c5d2e662b474dd94227e287f9168931f3204d7db959c",
-      "reasons": ["layout", "imports", "query-source", "sorting"]
+      "pairSha256": "d8e61bfa0dd8347d4b70abe98d60161de95cf1307046d02626e8bf2bd5c10592",
+      "reasons": ["layout", "imports", "query-source", "sorting", "complex-sorting"]
     },
     "ProxyComparison/Detail.ts": {
       "pairSha256": "80d080af34fba46f349ebfc4821d5d6f3a82eeb57f48787bf7a1fc228ee29dfd",
@@ -50,8 +50,8 @@
       "reasons": ["layout"]
     },
     "ProxyComparison/Observe.ts": {
-      "pairSha256": "5993144694d6ca10f84d56ec3c7870f2b788757d00c2f02da942d58af92479f7",
-      "reasons": ["layout", "imports", "query-source", "sorting"]
+      "pairSha256": "3cf3ce2d59571f12b9164791985f40f0a7bacbddf4f503955cd7f4547ccbdd76",
+      "reasons": ["layout", "imports", "query-source", "sorting", "complex-sorting"]
     },
     "ProxyComparison/Register.ts": {
       "pairSha256": "a624987ea1833732cbc7169c96c1ca68f7159bd74bb44e3014a1f010e11d07dc",
