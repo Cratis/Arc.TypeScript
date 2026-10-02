@@ -49,7 +49,7 @@ export function renderSourceQuery(operation: SourceOperation, path: string, dest
     if (!skipReactHooks) hooks.push(`    static when(condition: boolean): ${when}<${name}, ${generic}> {\n        return new ${when}<${name}, ${generic}>(${name}, condition);\n    }`);
     const scalarConstructors = ['String', 'Number', 'Boolean', 'Date', 'Guid', 'DateOnly', 'TimeOnly', 'TimeSpan'];
     const sortFields = modelDefinition?.fields ?? [];
-    const deprecation = (field: SourceField): string => !field.type.enumerable &&
+    const deprecation = (field: SourceField): string => field.scalarSortConcept || !field.type.enumerable &&
         field.type.model !== field.type.constructor && scalarConstructors.includes(field.type.constructor) ? '' :
         '    /** @deprecated In-memory sorting on this field is rejected; database providers sort it by their own order. This helper will be removed in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177). Sort on a scalar field instead. */\n';
     const coreImports = [base, 'QueryResultWithState', ...(validation ? ['QueryValidator'] : []), ...(array ? ['Sorting', 'Paging'] : []),
