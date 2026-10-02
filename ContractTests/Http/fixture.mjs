@@ -179,6 +179,7 @@ const authentication = request => {
     } };
 };
 const builder = ArcApplication.createBuilder({
+    environmentName: 'Production',
     commands: [echo, adminEcho, policyEcho, throwFailure, tupleEcho, echoMetric, inputCases],
     queries: [echoCount, queryCount, tenantEcho, inputCaseCount, queryCaseCount, queryCase, filterParityQuery, filterParityObservations, throwingQuery,
         byId, all, privateItems], tenancy,
