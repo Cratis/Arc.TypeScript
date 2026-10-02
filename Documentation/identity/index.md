@@ -80,6 +80,9 @@ The same response sets `.cratis-identity=<base64>; Path=/; SameSite=Lax`. The `i
 | --- | --- |
 | [How identity details are served](provider-flow.md) | Registration choices, every `/.cratis/me` answer, the cookie format, and how caching works |
 | [Identity contracts](contracts.md) | The provider contract, the principal it receives, the `/.cratis/me` shape, and the differences from Arc on .NET |
+| [Entra API bearer tokens](entra-bearer.md) | Tenant-specific JWT verification, app roles and delegated scopes |
+| [AuthProxy and EasyAuth](authproxy-easyauth.md) | Forwarded principals, ingress isolation and durable user keys |
+| [Observable transport authentication](observable-authentication.md) | Credentials on WebSocket upgrades and SSE requests, without named schemes |
 | [Show identity in a React frontend](frontend.md) | `useIdentity`, `RequireRole`, typed details, and refreshing after a change |
 | [Identity across services](topologies.md) | One service, several services behind a gateway, or a dedicated identity service |
 | [Simulate a signed-in user locally](local-development.md) | Try different users, roles, and tenants on a loopback development host |

@@ -89,4 +89,7 @@ Register `authenticationSchemes: { Verified: handler }` to keep a handler out of
 
 - [Authorizing commands and queries](../authorizing-commands-and-queries.md)
 - [Authorization policies and schemes](authorization.md)
+- [Entra API bearer recipe](../identity/entra-bearer.md)
+- [AuthProxy and EasyAuth recipe](../identity/authproxy-easyauth.md)
+- [Observable transport authentication](../identity/observable-authentication.md)
 - [WebSockets](../hosts/websockets.md) for authenticating upgrades

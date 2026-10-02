@@ -4,6 +4,12 @@
   href: provider-flow.md
 - name: Identity contracts
   href: contracts.md
+- name: Authenticate an API with Microsoft Entra ID
+  href: entra-bearer.md
+- name: Accept AuthProxy or EasyAuth identity headers
+  href: authproxy-easyauth.md
+- name: Authenticate observable query transports
+  href: observable-authentication.md
 - name: Show identity in a React frontend
   href: frontend.md
 - name: Identity across services
