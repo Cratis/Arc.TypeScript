@@ -42,7 +42,7 @@ Use HTTPS/WSS. Keep exact allowed Origins configured for browser connections; ab
 
 Authentication captures a principal when the connection opens. A new token sent on a later SSE control request proves ownership; it does not replace the connection's captured principal or update its roles. Reconnect after sign-in, sign-out, token renewal or permission changes.
 
-`jwtBearer()` checks expiry when it authenticates the request. It does **not** schedule the live connection to close at token expiry, continuously refresh tokens, or detect provider revocation. For sensitive streams, implement an [observable emission guard](../queries/observable-queries.md) that checks current permission/session validity and denies further delivery, and define a server-enforced connection lifetime. A client-only reconnect timer is not a revocation control.
+`jwtBearer()` checks expiry when it authenticates the request. It does **not** schedule the live connection to close at token expiry, continuously refresh tokens, or detect provider revocation. For sensitive streams, implement an [observable emission guard](../queries/observable-query-emission-guards.md) that checks current permission/session validity and denies further delivery, and define a server-enforced connection lifetime. A client-only reconnect timer is not a revocation control.
 
 These boundaries are implemented by `createRouteTable`, `prepareObservableUpgrade`, `resolveConnectionContext`, `ObservableQueryHub` and `ObservableQuerySession` in Arc.Core. They are not properties of a particular identity provider.
 

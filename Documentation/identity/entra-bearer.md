@@ -71,9 +71,13 @@ For v1 tokens, change **all three** issuer, JWKS URI and audience settings to th
 
 ## Access tokens are not ID tokens
 
-Send the API access token as `Authorization: Bearer <access-token>`. An ID token establishes a client application's sign-in session; it is not an API credential. Microsoft documents that an [ID token's audience is the client application ID](https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference). Separate API and frontend registrations let the API reject the frontend's ID token by audience, even when issuer, signing key and role names match.
+Send the API access token as `Authorization: Bearer <access-token>`. An ID token establishes a client application's sign-in session; it is not an API credential. Microsoft documents that an [ID token's audience is the client application ID](https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference). Separate API and frontend registrations let the API reject the frontend's ID token by audience, even when issuer, signing key and role names match. Separate registrations alone are not enough: the API's own app registration must not be usable for interactive sign-in. Configure no redirect URIs, disable public-client flows and implicit ID-token issuance, and keep interactive sign-in on the separate client registration so no ID token can carry the API's audience.
 
-**Signature verification alone cannot distinguish them.** Both token kinds can have `typ: JWT`, and ID tokens can contain `roles`. `jwtBearer()` is a generic verifier, not an Entra token-purpose detector: if you reuse the same registration/audience for the client and API, it can accept an otherwise valid ID token. Do not rely on `typ`, the presence of `roles`, or a nonce heuristic to prevent that confusion. Keep the registrations separate and require the intended permission on each operation.
+**Signature verification alone cannot distinguish them.** Both token kinds can have `typ: JWT`, and ID tokens can contain `roles`. `jwtBearer()` is a generic verifier, not an Entra token-purpose detector: if you reuse the same registration/audience for the client and API, it can accept an otherwise valid ID token. Do not rely on `typ`, the presence of `roles`, or a nonce heuristic to prevent that confusion. Keep the registrations separate, prevent interactive sign-in on the API registration, and require the intended permission on each operation.
+
+:::caution[Authentication is not API authorization]
+Pinning issuer, audience and signature authenticates any caller in the tenant that holds a valid token for the API. This includes app-only client-credentials tokens with neither `roles` nor `scp`. `authenticated: true` alone is not authorization for an Entra API: require an app role or a delegated scope policy on every operation. Consider enabling **Assignment required** on the API's enterprise application as an additional restriction; it does not replace operation-level permission checks.
+:::
 
 ## Keep app roles and scopes separate
 
