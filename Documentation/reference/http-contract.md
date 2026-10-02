@@ -24,6 +24,8 @@ The language-neutral [Arc HTTP contract](/arc/http-contract/) is the specificati
 
 The catalogs, identity schema, users, tenants, and `/openapi.json` are anonymous only in Development by default. Elsewhere they run the configured authentication handlers and require an authenticated principal (401 anonymous, 403 missing a configured role). Without authentication they are unmapped; explicitly requiring it without handlers fails startup. See [Discovery access](../introspection/index.md#production-access) for environment detection, roles, and the anonymous opt-out. Methods that reach Arc but are not accepted answer 405 with an `Allow` header. Route shapes are explained in [Endpoint mapping](../core/endpoint-mapping.md).
 
+`introspection.enabled` defaults to `true`. Setting it to `false` (Node configuration: `Cratis:Arc:Introspection:Enabled`) leaves `/.cratis/commands`, `/.cratis/queries`, and `/openapi.json` unmapped in every environment, normally returning 404. Identity discovery and in-process `openApi()` / `exportClientManifest` are unchanged. See [Turn discovery off](../introspection/index.md#turn-discovery-off), including the authentication-warning interaction and TypeScript's extension of the switch to HTTP OpenAPI.
+
 ## Headers
 
 | Header | Direction | Meaning |

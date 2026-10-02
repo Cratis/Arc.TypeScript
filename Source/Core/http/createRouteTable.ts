@@ -85,6 +85,8 @@ export function createRouteTable(options: ArcOptions, discoveryAccess: Discovery
         const reserved = new Set([...endpoints.keys(), '/.cratis/me']);
         if (!discoveryAccess.mapped) for (const path of ['/.cratis/commands', '/.cratis/queries',
             '/.cratis/identity-details/schema', '/.cratis/users', '/.cratis/tenants', '/openapi.json']) endpoints.delete(path);
+        if (options.introspection?.enabled === false) for (const path of ['/.cratis/commands', '/.cratis/queries', '/openapi.json'])
+            endpoints.delete(path);
         for (const operation of [...commands, ...queries]) {
             const name = `${operation.namespace ?? ''}.${operation.name}`.toLowerCase();
             if (names.has(name)) throw new Error(`Duplicate Arc operation: ${name}`);

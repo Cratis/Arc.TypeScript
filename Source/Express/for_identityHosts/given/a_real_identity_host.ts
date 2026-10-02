@@ -7,7 +7,7 @@ import express from 'express';
 import Fastify from 'fastify';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { ArcServer, type NativeRequestContext } from '@cratis/arc.core';
+import { ArcServer, type ArcApplication, type NativeRequestContext } from '@cratis/arc.core';
 import { cratisArc as expressArc } from '../../index.js';
 import { cratisArc as fastifyArc } from '../../../Fastify/index.js';
 import { cratisArc as honoArc } from '../../../Hono/index.js';
@@ -38,7 +38,7 @@ async function closed(server: Server): Promise<void> {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
 }
 
-export async function startHost(host: HostName, arc: ArcServer, options: {
+export async function startHost(host: HostName, arc: ArcServer | ArcApplication, options: {
     secure?: boolean; native?: () => unknown; decorated?: boolean
 } = {}): Promise<{ port: number; close(): Promise<void> }> {
     const secure = options.secure ?? false;

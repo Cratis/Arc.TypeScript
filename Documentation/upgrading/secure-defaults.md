@@ -37,6 +37,8 @@ Prefer authenticating deployed tools using your existing handlers. Run a local b
 HTTP description consumer against a Development host. Source-based proxy generation needs
 no running HTTP host and is unchanged.
 
+If deployed tools do not need catalogs or HTTP OpenAPI, an alternative is to set `Cratis__Arc__Introspection__Enabled=false` in the deployment, or `Cratis:Arc:Introspection:Enabled` to `false` in `appsettings.Production.json`. The catalogs and `/openapi.json` then stay unmapped even with authentication configured. Local discovery can stay enabled. Identity discovery keeps its access policy and startup authentication diagnostics; in-process `openApi()` and `exportClientManifest` are unaffected. See [Turn discovery off](../introspection/index.md#turn-discovery-off).
+
 If you deliberately want the old anonymous behavior, set the option in the Node builder
 (or pass the same option to `ArcServer` or the fetch builder):
 

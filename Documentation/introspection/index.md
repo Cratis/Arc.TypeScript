@@ -37,6 +37,7 @@ The same policy covers `/.cratis/commands`, `/.cratis/queries`, `/.cratis/identi
 
 | Option | Default and meaning |
 | --- | --- |
+| `introspection.enabled` | `true`: map catalogs and HTTP OpenAPI, subject to the access policy. `false`: leave them unmapped in every environment. Identity discovery is unchanged. |
 | `introspection.requireAuthentication` | Unset: environment default. `true`: require authentication even in Development. `false`: explicitly allow anonymous discovery everywhere. |
 | `introspection.roles` | Optional comma-separated roles; any one grants access. Roles are trimmed and case-sensitive. Setting roles implies authentication in every environment. Empty roles or combining roles with `requireAuthentication: false` fails startup. |
 | `environmentName` | Code-only discovery environment override, otherwise `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `NODE_ENV`. Only `Development` (case-insensitive) selects anonymous discovery. Missing or unknown names are not Development. |
@@ -48,6 +49,49 @@ Outside Development, a host without default Arc authentication handlers or `nati
 The Node configuration keys are `Cratis:Arc:Introspection:RequireAuthentication` and `Cratis:Arc:Introspection:Roles`, for example `Cratis__Arc__Introspection__RequireAuthentication=false`. Code options override corresponding configuration fields. An anonymous opt-out outside Development logs a startup warning too.
 
 For build-time tools fetching descriptions, run the local host in Development or supply valid credentials. Source-based proxy generation and the in-process `server.openApi()` API do not make HTTP requests and are unaffected. See [Migrating to secure discovery defaults](../upgrading/secure-defaults.md) before upgrading a deployed anonymous consumer.
+
+## Turn discovery off
+
+If deployed tools do not need command/query catalogs or HTTP OpenAPI, set `Cratis:Arc:Introspection:Enabled` to `false`. Arc leaves `/.cratis/commands`, `/.cratis/queries`, and `/openapi.json` unmapped on Express, Fastify, Hono, and fetch. Requests fall through to the host, normally returning 404, even for authenticated callers.
+
+To disable those endpoints everywhere, put this in `appsettings.json`:
+
+```json
+{
+  "Cratis": {
+    "Arc": {
+      "Introspection": { "Enabled": false }
+    }
+  }
+}
+```
+
+To keep local discovery but turn it off only in deployed environments, put the same block in `appsettings.Production.json` instead and run the deployment with `DOTNET_ENVIRONMENT=Production`. Alternatively, set this environment variable **in the deployment**, not in your local environment:
+
+```bash
+Cratis__Arc__Introspection__Enabled=false
+```
+
+Or pass the same switch programmatically, overriding file and environment configuration:
+
+```typescript
+import { ArcApplication } from '@cratis/arc.core';
+
+const builder = ArcApplication.createBuilder({
+    introspection: { enabled: false }
+});
+const app = await builder.build();
+```
+
+The same `introspection: { enabled: false }` option works with the Node or fetch `ArcApplicationBuilder` constructor, the fetch `ArcApplication.createBuilder()`, `CratisApplication.createBuilder()`, and `new ArcServer(options)`. There is no separate fluent discovery setting or general `configure` callback. `runArc(server)` and `createArcNodeHandler(server)` use the options of the supplied server; Express, Fastify, and Hono helpers use the supplied server or built application. Their transport options do not accept another `introspection` override.
+
+The default is `true`. Node configuration accepts boolean values (and case-insensitive `true`/`false` strings); invalid values fail setup. Code takes precedence per field: `introspection: { enabled: false }` overrides file and environment values. Fetch builders and `new ArcServer(...)` take that code option directly; they do not bind configuration files or `Cratis__...` variables.
+
+This switch does not disable command/query execution, observable transports, `/.cratis/me`, or identity discovery. `/.cratis/identity-details/schema`, `/.cratis/users`, and `/.cratis/tenants` retain the access policy above; user/tenant data still requires opt-in development providers. In-process `server.openApi()`, `exportClientManifest(server)`, and source-based proxy generation keep working.
+
+Like Arc for .NET's ASP.NET Core and Arc.Core hosts, disabled catalogs can be combined with `requireAuthentication: true` or roles **when authentication is configured**. Without authentication, explicit requirements still fail startup for identity discovery; the default non-Development missing-authentication warning also remains. Disabling catalogs does not excuse invalid roles or roles combined with `requireAuthentication: false`. The anonymous opt-out warning remains too. .NET skips the catalog mapper's authentication check when disabled, but its identity mapper still resolves the policy.
+
+TypeScript also disables `/openapi.json` deliberately: it belongs to the same HTTP discovery group as the catalogs. This extends .NET's catalog switch; .NET does not serve that route through its catalog mapper. It does not affect the in-process OpenAPI API.
 
 ## How it relates to OpenAPI and proxies
 
