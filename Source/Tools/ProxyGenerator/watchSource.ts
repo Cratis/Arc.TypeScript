@@ -1,12 +1,13 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-import { watch, watchFile, unwatchFile } from 'node:fs';
+import { watch, type FSWatcher } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { basename, dirname, resolve, sep } from 'node:path';
 import type ts from 'typescript';
 import { sourceProgram } from './sourceProgram.js';
 import { analyzeSource } from './analyzeSource.js';
 import { isColocatedOutput } from './isColocatedOutput.js';
+import { sourceWatchSnapshot } from './sourceWatchSnapshot.js';
 import type { SourceGeneratorOptions } from './generateFromSource.js';
 
 async function canonicalPath(path: string): Promise<string> {
@@ -46,29 +47,37 @@ export async function watchSource(configuration: SourceGeneratorOptions, generat
             pending = pending.then(generate).catch(error => { console.error(error); process.exitCode = 1; });
         }, 150);
     };
-    const watchers = [watch(root, { recursive: true }, (_, filename) => {
-        if (!filename) return schedule();
-        const file = resolve(root, filename);
-        if (file !== metadata && !file.endsWith('.proxy.ts') && !(separateOutput && file.startsWith(outputRoot + sep)) &&
-            file.endsWith('.ts') && !file.endsWith('.d.ts') && file.startsWith(root + sep)) schedule();
-    }), ...[...new Set([...watched].map(dirname))].map(directory => watch(directory, (_, filename) => {
-        if (filename && watched.has(resolve(directory, filename))) schedule();
-    }))];
-    // Directory notifications may be coalesced or missed on macOS; stat watched external files as a fallback.
-    const fileChanges = new Map([...watched].map(file => [file, (current: import('node:fs').Stats, previous: import('node:fs').Stats) => {
-        if (current.mtimeMs !== previous.mtimeMs || current.ctimeMs !== previous.ctimeMs ||
-            current.size !== previous.size || current.ino !== previous.ino) schedule();
-    }]));
-    for (const [file, listener] of fileChanges) watchFile(file, { interval: 250 }, listener);
-    const watchFailure = new Promise<void>((_, reject) => {
-        for (const watcher of watchers) watcher.on('error', reject);
-    });
-    process.stdout.write(`Watching artifact sources (${watchers.length} directories)\nWatch ready\n`);
-    try { await watchFailure; }
-    finally {
-        if (timer) clearTimeout(timer);
+    const snapshot = () => sourceWatchSnapshot(root, watched, path => path === metadata || path.endsWith('.proxy.ts') ||
+        separateOutput && (path === outputRoot || path.startsWith(outputRoot + sep)));
+    // Establish the polling baseline before announcing readiness, not on the first asynchronous poll.
+    let previous = await snapshot();
+    let polling: NodeJS.Timeout | undefined, checking: Promise<void> | undefined;
+    const watchers: FSWatcher[] = [];
+    try {
+        await new Promise<void>((_, reject) => {
+            const check = () => {
+                // Native notifications and polling reconcile the same snapshot. Late/coalesced notifications
+                // must not regenerate twice, and a slow scan must not build up a queue of overlapping scans.
+                checking ??= snapshot().then(current => {
+                    if (current.size !== previous.size || [...current].some(([file, state]) => previous.get(file) !== state)) {
+                        previous = current;
+                        schedule();
+                    }
+                }).catch(reject).finally(() => { checking = undefined; });
+            };
+            watchers.push(watch(root, { recursive: true }, check).on('error', reject));
+            for (const directory of new Set([...watched].map(dirname)))
+                watchers.push(watch(directory, check).on('error', reject));
+            // FSEvents can omit artifact-directory notifications entirely. Scan the tree as well as
+            // external dependencies so additions, removals and atomic replacements also recover.
+            polling = setInterval(check, 250);
+            process.stdout.write(`Watching artifact sources (${watchers.length} directories)\nWatch ready\n`);
+        });
+    } finally {
+        if (polling) clearInterval(polling);
         for (const watcher of watchers) watcher.close();
-        for (const [file, listener] of fileChanges) unwatchFile(file, listener);
+        await checking;
+        if (timer) clearTimeout(timer);
         await pending;
     }
 }
