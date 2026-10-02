@@ -52,7 +52,9 @@ With `Catalog` registered as a singleton, `GET /api/all?pageSize=2&sortBy=name&s
 
 Invalid directions answer 400 with `malformedRequest` and the `sortDirection` (GET) or `sorting.direction` (`QUERY`) member. Page offsets are clamped to the signed 32-bit maximum before slicing in memory, so large valid page and size values cannot overflow the offset. Providers that cut their own pages must apply equivalent bounds before using the offset in their data source.
 
-In-memory sorting requires the field on every item, or the request answers 400. Dates compare by time, numbers and bigints numerically, `false` before `true`, and `null` or `undefined` before any value in ascending order. Other values compare as strings with `localeCompare`, which is not .NET invariant-culture collation; sort in the data source when a stable cross-platform order matters.
+In-memory sorting requires the field on every item, or the request answers 400. Dates compare by time, numbers and bigints numerically, `false` before `true`, and `null` or `undefined` before any value in ascending order. Other scalar values compare as strings with `localeCompare`, which is not .NET invariant-culture collation; sort in the data source when a stable cross-platform order matters.
+
+In-memory array sorting rejects present, non-null complex values with the existing `malformedRequest` validation result (HTTP 400 for snapshots; a validation result if streaming has already started), without changing provider-owned sorting.
 
 A query that returns something other than an array answers 400 when the request asks for paging or sorting.
 

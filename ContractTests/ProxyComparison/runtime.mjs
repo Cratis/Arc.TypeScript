@@ -35,7 +35,6 @@ const rows = [
     { name: 'alpha', detail: { id, created: '2026-01-01T03:04:05Z' }, notice: { title: 'first' }, status: 1 },
     { name: 'bravo', detail: { id, created: '2026-01-02T03:04:05Z' }, notice: { title: 'second' }, status: 0 }
 ];
-const originalOrder = rows.map(row => row.name);
 const typescript = new ArcServer({ introspection: { enabled: false }, queries: [[All, 'All'], [Observe, 'Observe']].map(([Query, name]) => defineQuery({
     name, path: new Query().route, schema: z.object({ id: z.string() }), perform: () => structuredClone(rows)
 })) });
@@ -83,9 +82,13 @@ try {
         assert.equal(model.status, 1);
         assert.deepEqual(JSON.parse(JsonSerializer.serialize(model)), wire);
         // Arc#2998: .NET's query-parameter helper is a defect, not an intentional API difference.
-        const sortNames = family === 'DotNET' ? ['id'] : ['name', 'detail', 'notice', 'status'];
+        const sortNames = family === 'DotNET' ? ['id'] : ['name', 'status'];
         for (const name of sortNames) { assert.ok(query.sortBy[name]); assert.ok(Query.sortBy[name]); }
         assert.equal(query.sortBy[family === 'DotNET' ? 'name' : 'id'], undefined);
+        if (family === 'TypeScript') for (const name of ['detail', 'notice']) {
+            assert.equal(query.sortBy[name], undefined);
+            assert.equal(Query.sortBy[name], undefined);
+        }
         for (const hook of ['use', 'useWithPaging', 'useSuspense', 'useSuspenseWithPaging', 'when']) assert.equal(typeof Query[hook], 'function');
 
         // Send the generated Sorting through the real browser client and TS HTTP query pipeline.
@@ -110,27 +113,27 @@ try {
             assert.equal(status, 200, JSON.stringify(control));
             assert.equal(control.isSuccess, true);
             assert.deepEqual(control.data.map(row => row.name), ['alpha', 'bravo', 'charlie']);
-            for (const name of sortNames) {
+            for (const name of [...sortNames, 'detail', 'notice']) {
                 for (const direction of ['ascending', 'descending']) {
-                    const sorting = Query.sortBy[name][direction];
+                    const sorting = (Query.sortBy[name] ?? new SortingActions(name))[direction];
                     assert.equal(sorting.field, name);
-                    assert.deepEqual(query.sortBy[name][direction](), sorting, 'Instance and static helpers agree');
+                    if (query.sortBy[name]) assert.deepEqual(query.sortBy[name][direction](), sorting, 'Instance and static helpers agree');
                     query.sorting = sorting;
                     const sorted = await query.perform({ id: Guid.parse(id) });
                     assert.equal(sentField, name, 'The browser client must send the field unchanged');
-                    if (name === 'id' || backend === 'DotNET' && ['detail', 'notice'].includes(name)) {
+                    if (name === 'id' || ['detail', 'notice'].includes(name)) {
                         // Arc#2998: id is not a result field. Arc.TypeScript#174: complex fields are not comparable.
                         assert.equal(status, backend === 'DotNET' ? 500 : 400, JSON.stringify(sorted));
                         assert.equal(sorted.isSuccess, false);
                         assert.equal(sorted.hasExceptions, backend === 'DotNET');
+                        if (backend === 'TypeScript') assert.deepEqual(sorted.validationResults.map(({ message, members, reason }) => ({ message, members, reason })),
+                            [{ message: 'Malformed request', members: [], reason: 'malformedRequest' }]);
                     } else {
                         assert.equal(status, 200, JSON.stringify(sorted));
                         assert.equal(sorted.isSuccess, true);
                         const expected = name === 'name'
                             ? direction === 'ascending' ? ['alpha', 'bravo', 'charlie'] : ['charlie', 'bravo', 'alpha']
-                            : name === 'status'
-                                ? direction === 'ascending' ? ['charlie', 'bravo', 'alpha'] : ['alpha', 'charlie', 'bravo']
-                                : originalOrder; // Arc.TypeScript#174: distinct complex values currently sort as a no-op.
+                            : direction === 'ascending' ? ['charlie', 'bravo', 'alpha'] : ['alpha', 'charlie', 'bravo'];
                         assert.deepEqual(sorted.data.map(row => row.name), expected, `${family}/${Query.name} ${backend} ${name} ${direction}`);
                     }
                 }

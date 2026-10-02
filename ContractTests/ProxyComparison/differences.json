@@ -19,12 +19,12 @@
     "sorting": {
       "category": "knownDefect",
       "issue": "https://github.com/Cratis/Arc/issues/2998",
-      "description": ".NET 22.45.0 model-bound queries incorrectly emit sortBy.id from the query input rather than the response model. TypeScript's name/detail/notice/status helpers follow the documented read-model-field contract, as does .NET controller-based generation. The browser client sends the field unchanged; id is not a Listing field and fails on .NET IQueryable. This is a .NET defect, not an intentional API difference."
+      "description": ".NET 22.45.0 model-bound queries incorrectly emit sortBy.id from the query input rather than the response model. TypeScript's name/status helpers follow the documented read-model-field contract, as does .NET controller-based generation. The browser client sends the field unchanged; id is not a Listing field and fails on .NET IQueryable. This is a .NET defect, not an intentional API difference."
     },
     "complex-sorting": {
       "category": "knownLimitation",
       "issue": "https://github.com/Cratis/Arc.TypeScript/issues/174",
-      "description": "Both generators emit helpers for complex result fields when generating result-oriented helpers (TypeScript here; .NET controller-based queries). Fields such as detail and notice are not sortable scalars: these fixture objects sort as no-ops on the TypeScript server and throw on .NET IQueryable. The model-bound .NET snapshot's query-parameter defect masks this separate limitation."
+      "description": "The .NET controller-based generator still emits helpers for complex result fields, which throw on .NET IQueryable; its model-bound snapshot's query-parameter defect masks that limitation. TypeScript emits only scalar helpers (name/status here), omits detail/notice, and rejects in-memory sorting on these complex fields with the existing malformedRequest validation result."
     },
     "enum-names": {
       "category": "intentional",
@@ -38,7 +38,7 @@
   "limitations": ["complex-sorting"],
   "files": {
     "ProxyComparison/All.ts": {
-      "pairSha256": "7f6c29c8163e0a4f1f4cb891d3cbcc27cab70dd8b7a244c9c6851d1282854687",
+      "pairSha256": "f90f7636c86fdda4f832c5d2e662b474dd94227e287f9168931f3204d7db959c",
       "reasons": ["layout", "imports", "query-source", "sorting"]
     },
     "ProxyComparison/Detail.ts": {
@@ -50,7 +50,7 @@
       "reasons": ["layout"]
     },
     "ProxyComparison/Observe.ts": {
-      "pairSha256": "a2a3cf002cb13ab725443374c48b0b66d93bf380345af43869c136b54ab5c65e",
+      "pairSha256": "5993144694d6ca10f84d56ec3c7870f2b788757d00c2f02da942d58af92479f7",
       "reasons": ["layout", "imports", "query-source", "sorting"]
     },
     "ProxyComparison/Register.ts": {
