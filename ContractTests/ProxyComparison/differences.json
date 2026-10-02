@@ -24,7 +24,7 @@
     "complex-sorting": {
       "category": "knownLimitation",
       "issue": "https://github.com/Cratis/Arc.TypeScript/issues/174",
-      "description": "Both generators emit helpers for complex result fields when generating result-oriented helpers (TypeScript here; .NET controller-based queries). Fields such as detail and notice are not sortable scalars: these fixture objects sort as no-ops on the TypeScript server and throw on .NET IQueryable. The model-bound .NET snapshot's query-parameter defect masks this separate limitation."
+      "description": "The .NET controller-based generator still emits helpers for complex result fields, which throw on .NET IQueryable; its model-bound snapshot's query-parameter defect masks that limitation. TypeScript retains detail/notice helpers for compatibility but deprecates them for removal in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177), and rejects in-memory sorting on these complex fields with the existing malformedRequest validation result. Database providers retain their own ordering; scalar helpers are unchanged."
     },
     "enum-names": {
       "category": "intentional",
@@ -38,8 +38,8 @@
   "limitations": ["complex-sorting"],
   "files": {
     "ProxyComparison/All.ts": {
-      "pairSha256": "7f6c29c8163e0a4f1f4cb891d3cbcc27cab70dd8b7a244c9c6851d1282854687",
-      "reasons": ["layout", "imports", "query-source", "sorting"]
+      "pairSha256": "d8e61bfa0dd8347d4b70abe98d60161de95cf1307046d02626e8bf2bd5c10592",
+      "reasons": ["layout", "imports", "query-source", "sorting", "complex-sorting"]
     },
     "ProxyComparison/Detail.ts": {
       "pairSha256": "80d080af34fba46f349ebfc4821d5d6f3a82eeb57f48787bf7a1fc228ee29dfd",
@@ -50,8 +50,8 @@
       "reasons": ["layout"]
     },
     "ProxyComparison/Observe.ts": {
-      "pairSha256": "a2a3cf002cb13ab725443374c48b0b66d93bf380345af43869c136b54ab5c65e",
-      "reasons": ["layout", "imports", "query-source", "sorting"]
+      "pairSha256": "3cf3ce2d59571f12b9164791985f40f0a7bacbddf4f503955cd7f4547ccbdd76",
+      "reasons": ["layout", "imports", "query-source", "sorting", "complex-sorting"]
     },
     "ProxyComparison/Register.ts": {
       "pairSha256": "a624987ea1833732cbc7169c96c1ca68f7159bd74bb44e3014a1f010e11d07dc",

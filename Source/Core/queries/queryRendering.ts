@@ -1,5 +1,6 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { ConceptAs, DateOnly, Guid, TimeOnly, TimeSpan } from '@cratis/fundamentals';
 import { SortDirection } from './SortDirection.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
 import type { DescriptorBase } from '../http/DescriptorBase.js';
@@ -16,6 +17,15 @@ function safeOffset(page: number, size: number): number | undefined {
     if (!Number.isInteger(page) || !Number.isInteger(size) || page < 0 || size < 0 ||
         page > maxInt32 || size > maxInt32) return undefined;
     return size > 0 && page > Math.floor(maxInt32 / size) ? maxInt32 : page * size;
+}
+
+function isScalarSortValue(value: unknown): boolean {
+    if (value instanceof ConceptAs) return isScalarSortValue(value.value);
+    if (value !== null && typeof value === 'object' && '_bsontype' in value && typeof value._bsontype === 'string' &&
+        ['ObjectId', 'Decimal128', 'Long', 'Int32', 'Double', 'Binary', 'UUID', 'Timestamp'].includes(value._bsontype)) return true;
+    return value == null || ['string', 'number', 'boolean', 'bigint'].includes(typeof value) ||
+        value instanceof Date || value instanceof Guid || value instanceof DateOnly ||
+        value instanceof TimeOnly || value instanceof TimeSpan;
 }
 
 function compareValues(left: unknown, right: unknown): number {
@@ -49,7 +59,8 @@ export function renderQueryData<T>(definition: Pick<DescriptorBase, 'clientOutpu
         const sorted = [...wire];
         if (options.sorting) {
             const { field, direction } = options.sorting;
-            if (sorted.some((item: unknown) => !item || typeof item !== 'object' || !Object.hasOwn(item, field)))
+            if (sorted.some((item: unknown) => !item || typeof item !== 'object' || !Object.hasOwn(item, field) ||
+                !isScalarSortValue(Reflect.get(item, field))))
                 return queryResult(context, { validationResults: malformed(context) });
             sorted.sort((left: unknown, right: unknown) => {
                 const first = left && typeof left === 'object' ? Reflect.get(left, field) as unknown : undefined;

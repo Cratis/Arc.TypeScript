@@ -77,7 +77,7 @@ export class BooksForAuthor extends ObservableQueryFor<Book[], BooksForAuthorPar
 | Base class | `QueryFor<TResult, TParameters>` for a snapshot, `ObservableQueryFor<TResult, TParameters>` when the method returns an observable source |
 | `queryName` | The fully qualified name the server uses for hub subscriptions |
 | `defaultValue` | What `result.data` holds before the first answer: `[]` for a list, `{} as TModel` for a single model |
-| `sortBy` | For list results, one sort helper per model field, as a static and an instance property |
+| `sortBy` | For list results, one sort helper per model field, as a static and an instance property; complex-field helpers are deprecated for removal in the next major release |
 | `parameterDescriptors`, `requiredRequestParameters` | The arguments, so the client can wait until required ones are set |
 | `validation` | A `QueryValidator` when the query's arguments have client-safe rules |
 

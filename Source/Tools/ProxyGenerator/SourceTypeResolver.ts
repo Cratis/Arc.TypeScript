@@ -7,6 +7,7 @@ import type { SourceModel } from './SourceModel.js';
 import type { SourceType } from './SourceType.js';
 import { resolveTypeMappings, type ResolvedTypeMapping, type TypeMappings } from './typeMappings.js';
 import { fieldName, isPackageSymbol, isStandardType, isTypeFrom, originalSymbol } from './sourceSymbols.js';
+import { isScalarSortConcept } from './isScalarSortConcept.js';
 
 const fundamentals = new Set(['Guid', 'DateOnly', 'TimeOnly', 'TimeSpan']);
 const primitive = (text: string, constructor: string): SourceType => ({ text, constructor, enumerable: false, nullable: false, void: false });
@@ -117,7 +118,8 @@ export class SourceTypeResolver {
                     const propertyType = this.checker.getTypeAtLocation(member);
                     const nullable = decorated('nullable') || this.generatedMetadata && propertyType.isUnion() &&
                         propertyType.types.some(part => !!(part.flags & ts.TypeFlags.Null));
-                    return { name, type: this.resolve(type, member, optional || nullable), optional, nullable };
+                    return { name, type: this.resolve(type, member, optional || nullable), optional, nullable,
+                        ...(isScalarSortConcept(this.checker, type, member) ? { scalarSortConcept: true } : {}) };
                 });
                 const baseType = type.getBaseTypes()?.find(base => base.symbol?.declarations?.some(ts.isClassDeclaration) &&
                     !base.symbol.declarations.every(origin => origin.getSourceFile().isDeclarationFile));
