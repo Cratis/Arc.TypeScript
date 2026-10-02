@@ -41,6 +41,7 @@ builder.AddCratisArc(configureOptions: options =>
         case "claim": options.UseClaimTenancy(); break;
         case "subdomain": options.UseSubdomainTenancy("example.test"); break;
     }
+    options.Introspection.Enabled = Environment.GetEnvironmentVariable("ARC_FIXTURE_DISCOVERY_ENABLED") != "false";
     options.IdentityDetailsProvider = typeof(HttpFixture.FixtureIdentityProvider);
     options.ExposeExceptionDetails = false;
     options.GeneratedApis.RoutePrefix = "api";
