@@ -39,7 +39,7 @@ export async function filesIn(directory, prefix = '') {
     return files.sort();
 }
 
-/** Exit 1 is the expected 'different bytes' result, not an ignored command failure. */
+/** Informational evidence only: system diff hunk boundaries vary by platform. Exit 1 means different bytes. */
 async function rawDiff(left, right) {
     const files = [...new Set([...await filesIn(left), ...await filesIn(right)])].sort();
     let patch = '';
@@ -53,11 +53,22 @@ async function rawDiff(left, right) {
     return patch;
 }
 
-async function verifyInventory(dotnet, typescript) {
+/** Hash the JSON tuple of base64-encoded normalized bytes, in .NET/TypeScript order, without ambiguous concatenation. */
+export function contentPairHash(dotnet, typescript) {
+    return createHash('sha256').update(JSON.stringify([dotnet, typescript].map(bytes => stableBytes(bytes).toString('base64')))).digest('hex');
+}
+
+export async function verifyInventory(dotnet, typescript) {
     const inventory = JSON.parse(await readFile(join(fixture, 'differences.json'), 'utf8'));
     const different = [];
     for (const file of expectedFiles) {
-        if (!stableBytes(await readFile(join(dotnet, file))).equals(stableBytes(await readFile(join(typescript, file))))) different.push(file);
+        const left = await readFile(join(dotnet, file));
+        const right = await readFile(join(typescript, file));
+        if (!stableBytes(left).equals(stableBytes(right))) {
+            different.push(file);
+            assert.equal(inventory.files[file]?.pairSha256, contentPairHash(left, right),
+                `${file}: unreviewed difference pair; review and update differences.json`);
+        }
     }
     assert.deepEqual(Object.keys(inventory.files).sort(), different, 'Every non-timestamp difference needs an inventory entry');
     for (const [id, reason] of Object.entries(inventory.reasons)) {
@@ -65,7 +76,7 @@ async function verifyInventory(dotnet, typescript) {
         assert.ok(reason.description?.length > 20, `Missing reason for ${id}`);
         if (reason.category !== 'intentional') assert.match(reason.issue, /^https:\/\/github\.com\/Cratis\/[\w.]+\/issues\/\d+$/);
     }
-    for (const ids of [...Object.values(inventory.files), inventory.limitations]) {
+    for (const ids of [...Object.values(inventory.files).map(entry => entry.reasons), inventory.limitations]) {
         assert.ok(ids.length > 0);
         for (const id of ids) assert.ok(inventory.reasons[id], `Missing reason for ${id}`);
     }
@@ -163,7 +174,7 @@ export async function compare({ regenerateDotnet = true, capture = false } = {})
             // provenance, not a requirement to rewrite snapshots during every unrelated release.
             provenance.typescript.version = recorded.typescript.version;
             assert.deepEqual(recorded, provenance);
-            assert.equal(await readFile(join(fixture, 'raw.diff'), 'utf8'), await rawDiff(join(snapshots, 'DotNET'), join(snapshots, 'TypeScript')));
+            // raw.diff is captured evidence, not a gate: the inventory pins reviewed content independently of diff's hunk choices.
         }
     } catch (error) {
         // Successful runs leave no accumulating evidence; failures retain unique diffs/logs and scratch.

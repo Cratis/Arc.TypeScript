@@ -37,13 +37,37 @@
   },
   "limitations": ["complex-sorting"],
   "files": {
-    "ProxyComparison/All.ts": ["layout", "imports", "query-source", "sorting"],
-    "ProxyComparison/Detail.ts": ["layout", "imports"],
-    "ProxyComparison/Listing.ts": ["layout"],
-    "ProxyComparison/Observe.ts": ["layout", "imports", "query-source", "sorting"],
-    "ProxyComparison/Register.ts": ["layout", "imports", "command-suppression"],
-    "ProxyComparison/Status.ts": ["enum-names"],
-    "ProxyComparison/UrgentNotice.ts": ["imports"],
-    "ProxyComparison/index.ts": ["barrel-ownership"]
+    "ProxyComparison/All.ts": {
+      "pairSha256": "7f6c29c8163e0a4f1f4cb891d3cbcc27cab70dd8b7a244c9c6851d1282854687",
+      "reasons": ["layout", "imports", "query-source", "sorting"]
+    },
+    "ProxyComparison/Detail.ts": {
+      "pairSha256": "80d080af34fba46f349ebfc4821d5d6f3a82eeb57f48787bf7a1fc228ee29dfd",
+      "reasons": ["layout", "imports"]
+    },
+    "ProxyComparison/Listing.ts": {
+      "pairSha256": "468bfa5da8a9601b614f21ad9e6a70acb047f73533be5888d89f8267c8a4561f",
+      "reasons": ["layout"]
+    },
+    "ProxyComparison/Observe.ts": {
+      "pairSha256": "a2a3cf002cb13ab725443374c48b0b66d93bf380345af43869c136b54ab5c65e",
+      "reasons": ["layout", "imports", "query-source", "sorting"]
+    },
+    "ProxyComparison/Register.ts": {
+      "pairSha256": "a624987ea1833732cbc7169c96c1ca68f7159bd74bb44e3014a1f010e11d07dc",
+      "reasons": ["layout", "imports", "command-suppression"]
+    },
+    "ProxyComparison/Status.ts": {
+      "pairSha256": "851988175284016690b7c50f2ef3289ee80033b5eefce55d8b2d15c58b539770",
+      "reasons": ["enum-names"]
+    },
+    "ProxyComparison/UrgentNotice.ts": {
+      "pairSha256": "4d73e6b1ddd62b63a91df8b74ad4b511905786a79138cff4da071720104b10ac",
+      "reasons": ["imports"]
+    },
+    "ProxyComparison/index.ts": {
+      "pairSha256": "e2568dea3d6c3c05f0a8d199c277dea18b97b3ab3e0fe3b5131447644fa3ef90",
+      "reasons": ["barrel-ownership"]
+    }
   }
 }

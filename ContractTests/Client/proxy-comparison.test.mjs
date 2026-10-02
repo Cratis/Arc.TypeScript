@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
+import { cp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { clientTest as test } from './scratch.mjs';
-import { compare, fingerprintDotnetInputs, stableBytes, verifyDotnetInputs } from '../ProxyComparison/compare.mjs';
+import { clientTest as test, scratch } from './scratch.mjs';
+import { compare, contentPairHash, fingerprintDotnetInputs, stableBytes, verifyDotnetInputs, verifyInventory } from '../ProxyComparison/compare.mjs';
 import { dotnetOptions, dotnetSource, fixture, recaptureCommand, root } from '../ProxyComparison/generate.mjs';
 
 test('generated TypeScript and captured .NET proxies retain reviewed bytes and browser contracts without accumulating evidence', async () => {
@@ -16,6 +16,34 @@ test('generated TypeScript and captured .NET proxies retain reviewed bytes and b
     const before = await evidence();
     await compare({ regenerateDotnet: false });
     assert.deepEqual(await evidence(), before, 'Successful comparisons must not write retained evidence');
+});
+
+test('the reviewed inventory rejects injected differences in either generator even with valid provenance body hashes', async () => {
+    const output = join(await scratch(), 'src');
+    await cp(join(fixture, 'Snapshots'), output, { recursive: true });
+    const dotnet = join(output, 'DotNET');
+    const typescript = join(output, 'TypeScript');
+    await verifyInventory(dotnet, typescript);
+    // All already has reviewed differences; Notice previously agrees. Both cases need an inventory edit.
+    for (const family of ['DotNET', 'TypeScript']) {
+        for (const file of ['All.ts', 'Notice.ts']) {
+            const path = join(output, family, 'ProxyComparison', file);
+            const original = await readFile(path, 'utf8');
+            const end = original.indexOf('\n');
+            const body = `${original.slice(end + 1)}// Unreviewed change injected in scratch only.\n`;
+            const hash = createHash('sha256').update(body).digest('hex').toUpperCase();
+            const changed = Buffer.from(`${original.slice(0, end - 64)}${hash}\n${body}`);
+            assert.notDeepEqual(stableBytes(changed), stableBytes(Buffer.from(original)));
+            try {
+                await writeFile(path, changed);
+                await assert.rejects(verifyInventory(dotnet, typescript), {
+                    code: 'ERR_ASSERTION', message: new RegExp(`${file}: unreviewed difference pair; review and update differences.json`)
+                });
+            } finally {
+                await writeFile(path, original);
+            }
+        }
+    }
 });
 
 test('offline provenance rejects changed C# source or .NET options with the recapture command', async () => {
@@ -44,4 +72,6 @@ test('comparison normalizes only a valid first-line timestamp and rejects body e
     assert.throws(() => stableBytes(Buffer.from(file(before, body).toString().replace('value = 1', 'value = 2'))), /body hash/);
     const unmarked = Buffer.from('export * from "./Fixture";\n');
     assert.deepEqual(stableBytes(unmarked), unmarked);
+    assert.equal(contentPairHash(file(before, body), unmarked), contentPairHash(file(after, body), unmarked));
+    assert.notEqual(contentPairHash(file(before, body), unmarked), contentPairHash(unmarked, file(before, body)));
 });
