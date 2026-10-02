@@ -6,6 +6,9 @@ import type { DiscoveryAccess } from './DiscoveryAccess.js';
 /** Resolve and validate exposure once per server, never once per endpoint or request. */
 export function resolveDiscoveryAccess(options: ArcOptions): DiscoveryAccess {
     const configuration = options.introspection;
+    if (configuration?.enabled !== undefined && typeof configuration.enabled !== 'boolean')
+        throw new Error('Cratis:Arc:Introspection:Enabled must be a boolean.');
+    // Even with catalogs disabled, identity discovery still needs the access policy and its startup diagnostics.
     if (configuration?.requireAuthentication !== undefined && typeof configuration.requireAuthentication !== 'boolean')
         throw new Error('Cratis:Arc:Introspection:RequireAuthentication must be a boolean.');
     if (configuration?.roles !== undefined && (typeof configuration.roles !== 'string' ||

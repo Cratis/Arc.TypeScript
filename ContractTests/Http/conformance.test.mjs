@@ -246,6 +246,32 @@ test('published .NET and built TypeScript HTTP contract', async t => {
                 } finally { await Promise.all([ts?.stop(), net.stop()]); }
             });
         }
+        await t.test('disabled discovery leaves catalogs unmapped and identity discovery protected', async context => {
+            const env = { ...process.env, ARC_FIXTURE_DISCOVERY_ENABLED: 'false' };
+            const net = await startServer('dotnet', ['ContractTests/DotNET/bin/Debug/net10.0/Arc.TypeScript.HttpFixture.dll'],
+                { cwd: root, kind: 'typescript-dotnet-reference-ready', env });
+            try {
+                for (const adapter of ['express', 'fastify', 'hono']) {
+                    const ts = await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'],
+                        { cwd: root, kind: 'typescript-http-fixture-ready', env: { ...env, ARC_FIXTURE_ADAPTER: adapter } });
+                    try {
+                        for (const headers of [{}, { 'X-Fixture-Role': 'Admin' }]) {
+                            for (const path of ['/.cratis/commands', '/.cratis/queries']) {
+                                const statuses = await Promise.all([net, ts].map(async host => (await request(host.url, 'GET', path, undefined, headers)).status));
+                                assert.deepEqual(statuses, [404, 404], `${adapter}: disabled ${path} for ${JSON.stringify(headers)}`);
+                            }
+                            assert.equal((await request(ts.url, 'GET', '/openapi.json', undefined, headers)).status, 404, `${adapter}: disabled HTTP OpenAPI`);
+                            for (const path of ['/.cratis/identity-details/schema', '/.cratis/users', '/.cratis/tenants']) {
+                                const statuses = await Promise.all([net, ts].map(async host => (await request(host.url, 'GET', path, undefined, headers)).status));
+                                const expected = headers['X-Fixture-Role'] ? 200 : 401;
+                                assert.deepEqual(statuses, [expected, expected], `${adapter}: identity discovery retains its policy at ${path}`);
+                            }
+                        }
+                    } finally { await ts.stop(); }
+                }
+                context.diagnostic('HTTP OpenAPI disabling is TypeScript-only: the .NET fixture does not expose /openapi.json through its catalog mapper.');
+            } finally { await net.stop(); }
+        });
         for (const adapter of ['express', 'fastify', 'hono']) {
             const host = adapter === 'express' ? typescript : await startServer(process.execPath, ['ContractTests/Http/fixture.mjs'], {
                 cwd: root, kind: 'typescript-http-fixture-ready', env: { ...process.env, ARC_FIXTURE_ADAPTER: adapter }

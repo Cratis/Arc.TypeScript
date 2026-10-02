@@ -5,7 +5,7 @@ description: Configure Arc through its grouped ArcOptions tree, appsettings.json
 
 The same application runs on your laptop, in CI, and in production. The route prefix stays put, but the tenant source, the exception detail, and the listener address change between them. You want those differences in configuration, not in `if` statements around your startup code.
 
-Arc accepts settings through one `ArcOptions` object. The serializable settings described below can come from `appsettings.json`, environment variables, and code; options marked code-only cannot be bound from configuration, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](/arc/backend/csharp/configuration/): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
+Arc accepts settings through one `ArcOptions` object. The serializable settings described below can come from `appsettings.json`, environment variables, and code; options marked code-only cannot be bound from configuration, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](/arc/backend/csharp/configuration/): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, `Introspection`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
 
 ## What each entry point reads
 
@@ -70,6 +70,7 @@ The paths below are relative to `Cratis:Arc` in configuration and camelCase in T
 | --- | --- | --- |
 | `ExposeExceptionDetails` / `exposeExceptionDetails` | `true` only when the effective environment is Development | Include original exception messages and stack traces in serialized HTTP results; otherwise redact them. This does not enable development discovery. |
 | `Development` / `development` | `false` | Enable the development user and tenant discovery providers. TypeScript-only; it does not change exception exposure. |
+| `Introspection:Enabled` / `introspection.enabled` | `true` | Boolean. `false` unmaps command/query catalogs and HTTP OpenAPI in every environment, not identity discovery or in-process metadata. See [Turn discovery off](../introspection/index.md#turn-discovery-off). |
 | `CorrelationId:HttpHeader` / `correlationId.httpHeader` | `X-Correlation-ID` | Correlation ID request and response header. |
 | `Tenancy:ResolverType` / `tenancy.resolverType` | `header` when `tenancy` is present | Single `header`, `query`, `claim`, `subdomain`, `development`, or `fixed` source. |
 | `Tenancy:HttpHeader` / `tenancy.httpHeader` | `x-cratis-tenant-id` | Header source; also the fallback for `resolverType: TenantResolverType.Subdomain` or an ordered `[TenantResolverType.Subdomain, TenantResolverType.Header]` list. |
@@ -142,6 +143,7 @@ A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while
 | `identityDetails` | None | Registers `/.cratis/me`; see [Identity](../identity/index.md). |
 | `developmentUsers`, `developmentTenants` | None | Code-only fixture discovery providers; require `development: true`, independently of endpoint access. |
 | `environmentName` | Environment variables, otherwise non-Development | Code-only discovery environment override; no `Cratis:Arc:EnvironmentName` key. Does not affect exception exposure. See [Discovery access](../introspection/index.md#production-access) for precedence. |
+| `introspection.enabled` | `true` | `Cratis:Arc:Introspection:Enabled`, or `Cratis__Arc__Introspection__Enabled=false` in the deployment. Code wins; invalid boolean values fail setup. Disabling catalogs does not bypass identity-discovery authentication checks or warnings. |
 | `introspection.requireAuthentication` | Unset | Anonymous only in Development. `false` opts out; `true` requires authentication everywhere and fails startup without authentication configured. |
 | `introspection.roles` | None | Comma-separated nonempty roles, any one of which grants access. Implies authentication; cannot be combined with `requireAuthentication: false`. |
 
