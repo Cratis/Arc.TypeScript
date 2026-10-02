@@ -35,8 +35,8 @@ for package in core mongodb proxygenerator; do
 done
 cd "$scratch/app"
 npm install --no-audit --no-fund ../arc-packages/arc.core.tgz ../arc-packages/arc.mongodb.tgz \
-    @cratis/fundamentals@7.20.0 @opentelemetry/api@1.9.1 mongodb@6.21.0 rxjs@7.8.2 \
-    react@19.3.0 react-dom@19.3.0 @cratis/arc@22.44.0 @cratis/arc.react@22.44.0 @cratis/components@4.22.1 \
+    @cratis/fundamentals@7.22.0 @opentelemetry/api@1.9.1 mongodb@6.21.0 rxjs@7.8.2 \
+    react@19.3.0 react-dom@19.3.0 @cratis/arc@22.45.0 @cratis/arc.react@22.45.0 @cratis/components@4.23.0 \
     reflect-metadata@0.2.2 tsyringe@4.10.0
 npm install --no-audit --no-fund --save-dev ../arc-packages/arc.proxygenerator.tgz \
     typescript@npm:@typescript/typescript6@6.0.2 @types/node@22.20.4 tsx@4.23.15 vite@8.3.0 \

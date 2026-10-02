@@ -52,6 +52,7 @@ builder.AddCratisArc(configureOptions: options =>
 await using var app = builder.Build();
 app.UseRouting();
 app.UseAuthentication();
+app.UseAuthorization();
 app.UseCratisArc();
 await app.StartAsync();
 var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()
@@ -60,7 +61,7 @@ Console.WriteLine(JsonSerializer.Serialize(new
 {
     kind = "typescript-dotnet-reference-ready",
     baseUrl = addresses.Addresses.Single(),
-    package = "Cratis.Arc 22.44.0",
+    package = "Cratis.Arc 22.45.0",
     runtime = Environment.Version.ToString(),
     coreRuntimeDirectory = RuntimeEnvironment.GetRuntimeDirectory(),
     aspNetCoreAssembly = typeof(WebApplication).Assembly.Location

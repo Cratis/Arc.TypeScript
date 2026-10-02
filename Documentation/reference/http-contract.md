@@ -51,15 +51,16 @@ A result is 200 when successful, then 403 for authorization failures, 400 for va
 | Invalid GUID query argument | 400 `malformedRequest` with argument details | 400 `malformedRequest` with a generic message |
 | SSE hub | Anonymous controls allowed | Requires an authenticated principal |
 | Query health | Anonymous, cross-caller | Opt-in, caller-scoped |
+| Anonymous identity-schema discovery outside Development | 401 by default in 22.45.0 | 200; description endpoints do not run authentication handlers |
 | `waitForFirstResultTimeout` | Larger values accepted; unknown booleans ignored | At most 120 seconds; unknown booleans rejected |
 
 Numeric concept GET arguments bind successfully on both runtimes. Both apply GET sorting and reject invalid sort directions. The suite also pins a host-specific difference that is not a choice of Arc for TypeScript:
 
-| Request | Arc on .NET 22.44.0 | Arc for TypeScript |
+| Request | Arc on .NET 22.45.0 | Arc for TypeScript |
 | --- | --- | --- |
 | An unknown path under Express | Empty 404 with a correlation header | Express's own HTML 404, without an Arc correlation header |
 
-The paired `yarn test:conformance` suite pins these differences against a .NET host on `Cratis.Arc` 22.44.0; see [How parity is checked](capabilities.md#how-parity-is-checked).
+The paired `yarn test:conformance` suite pins these differences against a .NET host on `Cratis.Arc` 22.45.0; see [How parity is checked](capabilities.md#how-parity-is-checked).
 
 ## Related
 

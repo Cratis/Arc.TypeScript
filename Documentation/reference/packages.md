@@ -39,7 +39,7 @@ Core needs Node.js 22.12 or later, where JSON module imports are stable. The ada
 
 ## The client packages
 
-The workspace pins `@cratis/arc` and `@cratis/arc.react` to 22.44.0, `@cratis/components` to 4.22.1, and `@cratis/fundamentals` to 7.20.0 (peer range `^7.19.6`). Chronicle development and sample dependencies use 6.31.2; the Chronicle peer floor remains `^6.29.0`.
+The workspace pins `@cratis/arc` and `@cratis/arc.react` to 22.45.0, `@cratis/components` to 4.23.0, and `@cratis/fundamentals` to 7.22.0 (peer range `^7.19.6`). Chronicle development and sample dependencies use 6.35.0; the Chronicle peer floor remains `^6.29.0`.
 
 `@cratis/arc`, `@cratis/arc.react`, and `@cratis/arc.react.mvvm` are Arc's existing TypeScript **client** packages, built and published from the [Arc repository](https://github.com/Cratis/Arc). This repository does not replace, rename, or republish them. They are the compatibility target for this server's wire behavior, and generated proxies import them in your frontend. The server packages never depend on them.
 

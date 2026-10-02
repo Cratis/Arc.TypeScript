@@ -70,14 +70,14 @@ Run a single step while you work, and the whole gate before you push. Add or upd
 
 Two checks need more than Node.js and are not part of `yarn ci`. Run them when you change what they cover:
 
-- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the paired HTTP checks against `Cratis.Arc` 22.44.0, described in [How parity is checked](Documentation/reference/capabilities.md#how-parity-is-checked). It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
+- `yarn test:conformance` restores and builds the .NET reference host from its lock file, builds the workspace, and runs the paired HTTP checks against `Cratis.Arc` 22.45.0, described in [How parity is checked](Documentation/reference/capabilities.md#how-parity-is-checked). It needs the .NET 10 SDK and the .NET and ASP.NET Core 10.0.11 runtimes.
 - `bash Source/MongoDB/run-integration.sh` runs the live MongoDB spec in a disposable Docker container. It exits with 2 when Docker is not available, which means the check did not run.
 
 A hosted run does not replace local verification. The hosted CI workflow also supports manual runs.
 
 ### Upstream declaration errors
 
-The core, host adapters, MongoDB, testing, proxy generator, and ESLint plugin consumer files use `skipLibCheck: false`. Chronicle and Drizzle consumer files use `skipLibCheck: true` **only** for third-party declaration errors; the script first runs their NodeNext compilation with `skipLibCheck: false`, prints the upstream diagnostics, and rejects errors in Arc declarations or consumer code. At the lockfile versions, `@cratis/chronicle.contracts@19.4.0` has `dist/esm/index.d.ts(1,15)` TS2834 (an extensionless relative export); this leaves `@cratis/chronicle@6.7.0` declarations such as `dist/connection/ChronicleConnection.d.ts(2,15)` with TS2305 (missing `ConnectionServiceClient`) and `ChronicleConnection.d.ts(60,62)` with TS2694 (missing `EventStoresClient`). `drizzle-orm@0.45.3` has `gel-core/columns/date-duration.d.ts(1,35)` TS2307 (missing `gel`) and `pg-core/query-builders/query.d.ts(23,22)` TS2420 (`PgRelationalQuery` lacks `getSQL`), among other internal declaration errors. Fix these in their owning packages before removing the temporary integration exception.
+The core, host adapters, MongoDB, testing, proxy generator, and ESLint plugin consumer files use `skipLibCheck: false`. Chronicle and Drizzle consumer files use `skipLibCheck: true` **only** for third-party declaration errors; the script first runs their NodeNext compilation with `skipLibCheck: false`, prints the upstream diagnostics, and rejects errors in Arc declarations or consumer code. The pinned `@cratis/chronicle@6.35.0` and `@cratis/chronicle.contracts@19.26.2` declarations no longer require an exception; any Chronicle declaration error fails the guard. `drizzle-orm@0.45.3` has `gel-core/columns/date-duration.d.ts(1,35)` TS2307 (missing `gel`) and `pg-core/query-builders/query.d.ts(23,22)` TS2420 (`PgRelationalQuery` lacks `getSQL`), among other internal declaration errors. Fix these in their owning packages before removing the temporary integration exception.
 
 ## Conventions
 

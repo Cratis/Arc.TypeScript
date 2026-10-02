@@ -10,7 +10,7 @@ import { CreateWidget } from '../../.ai-work/client-candidate/CreateWidget.proxy
 import { GetWidgets } from '../../.ai-work/client-candidate/GetWidgets.proxy.js';
 import { QueryHttpMethod, Paging, Sorting, SortDirection } from '@cratis/arc/queries';
 
-test('published 22.44.0 client against actual Express host', async () => {
+test('published 22.45.0 client against actual Express host', async () => {
     const widgets = [];
     let handled = 0;
     const schema = z.object({ id: z.string(), name: z.string() });

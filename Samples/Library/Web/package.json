@@ -7,10 +7,10 @@
     "build": "../../../node_modules/.bin/tsc -p tsconfig.json && vite build && node check-decorators.mjs"
   },
   "dependencies": {
-    "@cratis/arc": "22.44.0",
-    "@cratis/arc.react": "22.44.0",
-    "@cratis/components": "4.22.1",
-    "@cratis/fundamentals": "7.20.0",
+    "@cratis/arc": "22.45.0",
+    "@cratis/arc.react": "22.45.0",
+    "@cratis/components": "4.23.0",
+    "@cratis/fundamentals": "7.22.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "reflect-metadata": "0.2.2",
