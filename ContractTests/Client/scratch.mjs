@@ -66,6 +66,7 @@ export async function cleanupScratch(root) {
             if (item.isDirectory()) {
                 const packageRoot = join(root, 'src/node_modules/@cratis/arc.core');
                 assert.ok(dir === root ? ['src', 'dist'].includes(entry) :
+                    path === join(root, 'src/build/generated/arc-proxies') ||
                     path === join(root, 'src/node_modules') || path === join(root, 'src/node_modules/@cratis') || path === packageRoot ||
                     path.startsWith(packageRoot + sep) && /^[A-Za-z][A-Za-z0-9_.-]*$/.test(entry) ||
                     !path.includes(`${sep}node_modules${sep}`) && (dir.includes(`${sep}src`) || dir.includes(`${sep}dist`)) && /^[A-Za-z][A-Za-z0-9_]*$/.test(entry), `foreign directory: ${path}`);
