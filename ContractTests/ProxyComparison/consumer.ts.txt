@@ -1,0 +1,49 @@
+// Copyright (c) Cratis. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+import { All, Observe, Register, type IRegister, type Listing, type AllParameters, type ObserveParameters } from './__FAMILY__/ProxyComparison';
+import type { QueryResultWithState, Sorting, ChangeSet } from '@cratis/arc/queries';
+import type { SetCommandValues, ClearCommandValues } from '@cratis/arc.react/commands';
+import type { PerformQuery, SetSorting, SetPage, SetPageSize, QueryWhen, ObservableQueryWhen } from '@cratis/arc.react/queries';
+import { Guid } from '@cratis/fundamentals';
+
+type Equal<T, U> = (<V>() => V extends T ? 1 : 2) extends (<V>() => V extends U ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+type CommandHook = Assert<Equal<typeof Register.use, (initialValues?: IRegister) => [Register, SetCommandValues<IRegister>, ClearCommandValues]>>;
+type SnapshotHook = (args?: AllParameters, sorting?: Sorting) => [QueryResultWithState<Listing[]>, PerformQuery<AllParameters>, SetSorting];
+type SnapshotPagingHook = (pageSize: number, args?: AllParameters, sorting?: Sorting) => [QueryResultWithState<Listing[]>, PerformQuery, SetSorting, SetPage, SetPageSize];
+type ObservableHook = (args?: ObserveParameters, sorting?: Sorting) => [QueryResultWithState<Listing[]>, SetSorting];
+type ObservablePagingHook = (pageSize: number, args?: ObserveParameters, sorting?: Sorting) => [QueryResultWithState<Listing[]>, SetSorting, SetPage, SetPageSize];
+type Hooks = [
+    Assert<Equal<typeof All.use, SnapshotHook>>,
+    Assert<Equal<typeof All.useSuspense, SnapshotHook>>,
+    Assert<Equal<typeof All.useWithPaging, SnapshotPagingHook>>,
+    Assert<Equal<typeof All.useSuspenseWithPaging, SnapshotPagingHook>>,
+    Assert<Equal<typeof Observe.use, ObservableHook>>,
+    Assert<Equal<typeof Observe.useSuspense, ObservableHook>>,
+    Assert<Equal<typeof Observe.useWithPaging, ObservablePagingHook>>,
+    Assert<Equal<typeof Observe.useSuspenseWithPaging, ObservablePagingHook>>,
+    Assert<Equal<typeof All.when, (condition: boolean) => QueryWhen<All, Listing[], AllParameters>>>,
+    Assert<Equal<typeof Observe.when, (condition: boolean) => ObservableQueryWhen<Observe, Listing[], ObserveParameters>>>,
+    Assert<Equal<typeof Observe.useChangeStream, (args?: ObserveParameters, getKey?: (item: Listing) => unknown, sorting?: Sorting) => ChangeSet<Listing>>>
+];
+
+// Compiled, not executed: invalid calls must remain type errors rather than silently becoming `any`.
+export function consumer() {
+    const [command, setValues] = Register.use({ id: Guid.empty, name: 'paired', quantity: 1 });
+    setValues({ quantity: 2 });
+    void command.execute();
+    const [snapshot] = All.use({ id: Guid.empty });
+    const [observable] = Observe.use({ id: Guid.empty });
+    const models: Listing[] = [...snapshot.data, ...observable.data];
+    const date: Date = models[0].detail.created;
+    const id: Guid = models[0].detail.id;
+    // @ts-expect-error Query parameters must not accept arbitrary strings as GUIDs.
+    All.use({ id: 'not-a-guid' });
+    // @ts-expect-error The observable hook keeps the same parameter contract.
+    Observe.use({ id: 1 });
+    // @ts-expect-error Command inputs remain typed.
+    setValues({ quantity: 'many' });
+    // @ts-expect-error Hydrated models are not arbitrary data.
+    const wrong: string = snapshot.data;
+    return { date, id, wrong };
+}

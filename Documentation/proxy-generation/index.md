@@ -42,6 +42,12 @@ The generated proxies target `@cratis/arc` and `@cratis/arc.react` 22.45.0 with 
 
 Imports between generated files are extensionless by default, which suits Vite and other bundlers. Use `--js-import-specifiers` for native Node ESM after compilation. `NodeNext` consumer compilation is not supported with the published client declarations.
 
+### Comparison with .NET 22.45.0
+
+The repository's [paired-generator comparison](https://github.com/Cratis/Arc.TypeScript/tree/main/ContractTests/ProxyComparison) captures actual `Cratis.Arc.ProxyGenerator.Build` 22.45.0 output for equivalent command, snapshot-query, observable-query, nested/derived model, enum and validation fixtures. Both outputs compile against the pinned browser client and exercise routes, descriptors, hydration, validation and hook signatures.
+
+This is a compatibility check, not a byte-equality promise. TypeScript retains its type-only imports, source enum member names and result-field sorting helpers; the pinned .NET output uses camel-cased enum names and query-parameter sorting helpers. Formatting and provenance differences are recorded too. Regeneration rejects unreviewed bytes, normalizing only the generated header's timestamp. See the [contract-test guide](https://github.com/Cratis/Arc.TypeScript/blob/main/ContractTests/README.md#compare-proxy-generators) for the reviewed difference inventory and how to regenerate it.
+
 ## Limits
 
 The analyzer keys generated models by namespace and class name, so two `Item` models in separate folders produce separate files, and generated references use aliased imports if those names collide in one file. An exported class marked `@identityDetailsProvider()` contributes its `detailsType` or concrete `provide()` result model without an HTTP endpoint. Source-only identity provider configuration outside the artifacts root is not analyzed.
