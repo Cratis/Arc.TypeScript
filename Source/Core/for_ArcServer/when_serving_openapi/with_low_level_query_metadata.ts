@@ -7,7 +7,7 @@ describe('when serving OpenAPI with low-level query return metadata', () => {
     let paths: Record<string, { get: { parameters: { name: string }[] } }>;
     beforeEach(async () => {
         const generatedReturn: GeneratedReturn = { cardinality: 'many', nullable: false };
-        const server = new ArcServer({
+        const server = new ArcServer({ environmentName: 'Development',
             queries: [defineQuery({ name: 'AllTasks', schema: z.object({}), generatedReturn, perform: () => [] as string[] })],
             observableQueries: [defineObservableQuery({ name: 'WatchTasks', schema: z.object({}), generatedReturn,
                 observe: async function* () { yield [] as string[]; } })]

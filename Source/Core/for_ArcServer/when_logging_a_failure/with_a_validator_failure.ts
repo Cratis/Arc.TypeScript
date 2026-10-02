@@ -17,7 +17,7 @@ describe('when logging a validator failure with a working logger', () => {
 
     beforeEach(async () => {
         logged = sinon.spy();
-        server = new ArcServer({ commands: [defineCommand({ name: 'Save', schema: z.object({}),
+        server = new ArcServer({ environmentName: 'Development', commands: [defineCommand({ name: 'Save', schema: z.object({}),
             validate: () => { throw Error('private failure detail'); }, handle: () => 'private response' })],
         logger: error => { logged(error); } });
         response = await server.handle(new Request('http://arc.invalid/api/save', { method: 'POST', body: '{}',

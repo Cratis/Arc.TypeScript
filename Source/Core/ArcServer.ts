@@ -13,6 +13,8 @@ import type { NativeRequestContext } from './http/NativeRequestContext.js';
 import { validateOptions, validateRegistryOptions, validateTransportOptions } from './validateOptions.js';
 import { handleRequest } from './http/handleRequest.js';
 import { createRouteTable } from './http/createRouteTable.js';
+import { resolveDiscoveryAccess } from './introspection/resolveDiscoveryAccess.js';
+import type { DiscoveryAccess } from './introspection/DiscoveryAccess.js';
 import { renderOpenApi } from './openApi/renderOpenApi.js';
 import type { Operation } from './http/Operation.js';
 import { commandResult } from './commands/createCommandResult.js';
@@ -55,6 +57,8 @@ export class ArcServer {
     readonly #queriesByName: ReadonlyMap<string, Operation>;
     /** All root-owned endpoints and their allowed methods. Adapters use this for raw path dispatch. */
     readonly endpoints: ReadonlyMap<string, string>;
+    /** @internal Immutable startup policy shared by every discovery endpoint. */
+    readonly discoveryAccess: DiscoveryAccess;
     /** Server configuration. */
     readonly options: ArcOptions;
     /** Root service registry. */
@@ -85,11 +89,12 @@ export class ArcServer {
         this.options = validated.options;
         this.#identitySchema = validated.identitySchema;
         this.observableLimits = validated.observableLimits;
+        this.discoveryAccess = resolveDiscoveryAccess(this.options);
         this.#ownsServices = !(options.services instanceof ServiceRegistry);
         this.services = options.services instanceof ServiceRegistry ? options.services : new ServiceRegistry(options.services);
         validateRegistryOptions(options, this.services);
         validateTransportOptions(options);
-        const table = createRouteTable(options, context => this.#hub.observeHealth(context));
+        const table = createRouteTable(options, this.discoveryAccess, context => this.#hub.observeHealth(context));
         this.commands = table.commands;
         this.queries = table.queries;
         this.#commandsByName = new Map(this.commands.map(operation => [operation.fullyQualifiedName, operation]));

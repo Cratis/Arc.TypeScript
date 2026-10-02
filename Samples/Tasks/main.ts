@@ -4,7 +4,7 @@ import { ArcApplication } from '@cratis/arc.core';
 import { Tasks } from './Features/Tasks/Tasks.js';
 import { metadata } from './Features/generatedMetadata.js';
 
-// The workspace command runs from Samples/Tasks and binds Development from appsettings.json.
+// The Yarn start script selects Development; appsettings.json only opts into fixture providers.
 const builder = ArcApplication.createBuilder();
 builder.useGeneratedMetadata(metadata);
 builder.services.addSingleton(Tasks);

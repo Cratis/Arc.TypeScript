@@ -16,7 +16,7 @@ for (const host of hosts) for (const secure of [false, true]) describe(`when ${h
     beforeEach(async () => {
         loggedIn = false;
         denied = false;
-        const arc = new ArcServer({
+        const arc = new ArcServer({ environmentName: 'Development',
             identityDetails: { schema: provider.schema, provide: () => denied ? undefined : provider.provide() },
             authentication: [request => request.headers.get('authorization') === 'Bearer valid' && loggedIn
                 ? { status: AuthenticationStatus.Authenticated, principal }

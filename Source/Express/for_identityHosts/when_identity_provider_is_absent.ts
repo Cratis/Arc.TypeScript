@@ -12,7 +12,7 @@ for (const host of hosts) describe(`when ${host} has no identity provider`, () =
     let users: string;
 
     beforeEach(async () => {
-        const listener = await startHost(host, new ArcServer({}));
+        const listener = await startHost(host, new ArcServer({ environmentName: 'Development' }));
         try {
             me = (await socket(listener.port, false, '/.cratis/me')).status;
             schema = (await socket(listener.port, false, '/.cratis/identity-details/schema')).body;

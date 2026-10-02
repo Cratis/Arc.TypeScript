@@ -1,6 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { z } from 'zod';
+import type { IntrospectionOptions } from './introspection/IntrospectionOptions.js';
 import type { GeneratedApiOptions } from './GeneratedApiOptions.js';
 import type { AuthenticationHandler } from './authentication/AuthenticationHandler.js';
 import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
@@ -46,7 +47,11 @@ export interface ArcOptions {
     hosting?: HostingOptions;
     /** Expose exception messages and stacks to HTTP callers; defaults to true only in Development environments. */
     exposeExceptionDetails?: boolean;
-    /** Enable development-only anonymous user and tenant discovery, independently of exception exposure. */
+    /** Code-only discovery environment override; otherwise DOTNET_ENVIRONMENT, ASPNETCORE_ENVIRONMENT, then NODE_ENV. Does not change exception exposure. */
+    environmentName?: string;
+    /** Discovery endpoint access; anonymous only in Development by default. */
+    introspection?: IntrospectionOptions;
+    /** Enable development-only user and tenant providers, independently of discovery access and exception exposure. */
     development?: boolean;
     /** Low-level command definitions. */
     commands?: readonly CommandDefinition<z.ZodType, unknown>[];
@@ -94,10 +99,10 @@ export interface ArcOptions {
     identityDetails?: IdentityDetailsProvider;
     /** Exclusive with authentication handlers; the adapter must supply a host-verified principal. */
     nativePrincipal?: boolean;
-    /** Development-only anonymous user discovery; never enabled by default. */
+    /** Development-only user discovery providers; never enabled by default. */
     developmentUsers?: readonly ((context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>)[] |
         ((context: ExecutionContext) => readonly DevelopmentUser[] | Promise<readonly DevelopmentUser[]>);
-    /** Development-only anonymous tenant discovery; never enabled by default. */
+    /** Development-only tenant discovery providers; never enabled by default. */
     developmentTenants?: readonly ((context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>)[] |
         ((context: ExecutionContext) => readonly DevelopmentTenant[] | Promise<readonly DevelopmentTenant[]>);
 }

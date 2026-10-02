@@ -6,7 +6,7 @@ import { SaveMessages } from '../given/SaveMessages.js';
 describe('when generating a wire schema with companion field annotations', () => {
     let payload: Record<string, unknown>;
     beforeEach(async () => {
-        const builder = ArcApplication.createBuilder();
+        const builder = ArcApplication.createBuilder({ environmentName: 'Development' });
         builder.add(SaveMessages);
         const application = await builder.build();
         try {

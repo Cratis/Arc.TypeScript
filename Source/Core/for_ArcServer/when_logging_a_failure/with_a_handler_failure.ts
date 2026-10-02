@@ -16,7 +16,7 @@ describe('when logging a handler failure with a working logger', () => {
 
     beforeEach(async () => {
         logged = sinon.spy();
-        server = new ArcServer({ commands: [defineCommand({ name: 'Save', schema: z.object({}),
+        server = new ArcServer({ environmentName: 'Development', commands: [defineCommand({ name: 'Save', schema: z.object({}),
             handle: () => { throw Error('private failure detail'); } })],
         logger: error => { logged(error); } });
         response = await server.handle(new Request('http://arc.invalid/api/save', { method: 'POST', body: '{}',

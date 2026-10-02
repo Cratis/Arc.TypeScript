@@ -5,7 +5,7 @@ description: Configure Arc through its grouped ArcOptions tree, appsettings.json
 
 The same application runs on your laptop, in CI, and in production. The route prefix stays put, but the tenant source, the exception detail, and the listener address change between them. You want those differences in configuration, not in `if` statements around your startup code.
 
-Arc reads every setting from one `ArcOptions` object. You can fill it from `appsettings.json`, environment variables, and code, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](/arc/backend/csharp/configuration/): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
+Arc accepts settings through one `ArcOptions` object. The serializable settings described below can come from `appsettings.json`, environment variables, and code; options marked code-only cannot be bound from configuration, and code always has the last word. The groups follow the same `Cratis:Arc` paths as [Arc on .NET](/arc/backend/csharp/configuration/): `CorrelationId`, `Tenancy`, `GeneratedApis`, `Query`, `Hosting`, and `ExposeExceptionDetails`, so one `appsettings.json` shape serves both. Node-specific transport limits and registration hooks live in those groups or alongside them, as noted below.
 
 ## What each entry point reads
 
@@ -48,7 +48,7 @@ const app = await builder.build();
 
 Use `{ configuration: false }` to disable file and environment binding, or `{ configuration: { file: new URL('./appsettings.json', import.meta.url), env: suppliedEnvironment } }` to choose both explicitly. A string path also works. Invalid JSON and invalid known values fail setup; unknown keys within `Cratis:Arc`, `Cratis:Chronicle`, and `Cratis:MongoDB` are reported to `logger` when configured, without including their values. Other configuration sections are ignored. Do not put real connection strings in committed files. Chronicle binds `Cratis:Chronicle:{ConnectionString,EventStore}`, and MongoDB binds `Cratis:MongoDB:{Server,Database}`; clients, handlers, tokens, and other non-serializable values belong in code.
 
-`new ArcServer(options)` uses code options only. It never reads a file or environment overrides. On a Fetch-only runtime, its default for exception exposure is false because there is no Node environment.
+`new ArcServer(options)` does not bind files or `Cratis__...` environment overrides. Its discovery and exception-detail defaults still consult the host environment variables when `process` is available. On a Fetch-only runtime without `process`, discovery defaults to requiring authentication and exception exposure defaults to false.
 
 ## Add features through the builder
 
@@ -91,7 +91,7 @@ The paths below are relative to `Cratis:Arc` in configuration and camelCase in T
 
 With no `tenancy` group at all, Arc retains its original behavior: it reads the default tenant header unchanged and does not check membership. When you supply the group, its built-in source validates and normalizes the tenant ID. `tenancy.resolve(request, principal)` is a code-only authoritative resolver; returning `undefined` does not fall back. `tenancy.sources` is a TypeScript-only ordered list of the resolver types above; the first nonempty result wins. Do not combine `sources` and `resolverType`. `tenancy.required` answers 400 when no tenant is selected, and `tenancy.membershipClaim` requires a matching own claim on an authenticated principal or answers 403. See [Tenant resolvers](../tenancy/resolvers.md).
 
-`development: true` enables **only** development user and tenant discovery providers. It does not enable exception details. Conversely, `exposeExceptionDetails: true` does not authorize development providers. On Node, the exception-detail default uses `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `NODE_ENV`; only Development (case-insensitive) exposes details by default. Set it explicitly in code or configuration if your deployment's environment differs. Keep it false on public hosts.
+`development: true` enables **only** development user and tenant discovery providers. It does not enable exception details. Conversely, `exposeExceptionDetails: true` does not authorize development providers. On Node, the exception-detail default uses `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `NODE_ENV`; only Development (case-insensitive) exposes details by default. The Node builder uses `configuration.env` when supplied. The code-only `environmentName` option overrides discovery's environment, not this exception-detail default or environment-file selection; it has no `Cratis:Arc` configuration key. Set `exposeExceptionDetails` explicitly in code or configuration if needed. Keep it false on public hosts.
 
 ## Observable query limits
 
@@ -140,7 +140,10 @@ A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while
 | `authorizationPolicies` | `{}` | Named authorization rules, also registered through `addAuthorizationPolicy`. |
 | `nativePrincipal` | `false` | Accept a host-verified principal, never a caller-supplied header; see [Native principal](../hosts/native-principal.md). |
 | `identityDetails` | None | Registers `/.cratis/me`; see [Identity](../identity/index.md). |
-| `developmentUsers`, `developmentTenants` | None | Code-only anonymous discovery providers; require `development: true`. |
+| `developmentUsers`, `developmentTenants` | None | Code-only fixture discovery providers; require `development: true`, independently of endpoint access. |
+| `environmentName` | Environment variables, otherwise non-Development | Code-only discovery environment override; no `Cratis:Arc:EnvironmentName` key. Does not affect exception exposure. See [Discovery access](../introspection/index.md#production-access) for precedence. |
+| `introspection.requireAuthentication` | Unset | Anonymous only in Development. `false` opts out; `true` requires authentication everywhere and fails startup without authentication configured. |
+| `introspection.roles` | None | Comma-separated nonempty roles, any one of which grants access. Implies authentication; cannot be combined with `requireAuthentication: false`. |
 
 ## A note on CORS
 

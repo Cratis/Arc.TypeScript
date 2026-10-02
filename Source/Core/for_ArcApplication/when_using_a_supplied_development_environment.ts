@@ -11,7 +11,7 @@ describe('when a supplied configuration environment is Development', () => {
         } }).build();
     });
     afterEach(async () => { await app.dispose(); });
-    it('should enable exception detail exposure by default without enabling discovery', () => {
+    it('should enable exception detail exposure by default without enabling fixture providers', () => {
         app.server.options.exposeExceptionDetails?.should.equal(true);
         should().equal(app.server.options.development, undefined);
     });

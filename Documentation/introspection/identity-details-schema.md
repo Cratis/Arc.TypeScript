@@ -18,7 +18,7 @@ For a `detailsType` with one `@field(String) greeting` field:
 {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"greeting":{"type":"string"}},"required":["greeting"],"additionalProperties":false}
 ```
 
-The endpoint is anonymous and does not run authentication handlers. It describes the shape only, never a user's data. The legacy `identityDetailsSchema` option cannot be combined with `identityDetails`.
+The endpoint follows the shared [discovery access policy](index.md#production-access): anonymous in Development, authenticated elsewhere by default. It describes the shape only, never a user's data. The legacy `identityDetailsSchema` option cannot be combined with `identityDetails`.
 
 ## Related
 

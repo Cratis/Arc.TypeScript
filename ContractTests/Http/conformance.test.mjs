@@ -190,19 +190,6 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             assert.equal(ts.headers[correlationHeader], correlationId);
             context.diagnostic('UNSUPPORTED PARITY: .NET trusts the display cookie before authentication; TypeScript never does');
         });
-        await t.test('anonymous identity schema: .NET requires authentication, TypeScript serves the schema', async context => {
-            const [net, ts] = await send('GET', '/.cratis/identity-details/schema');
-            assert.equal(net.status, 401);
-            assert.equal(net.body, '');
-            assert.equal(net.headers['content-type'], undefined);
-            assert.equal(net.headers[correlationHeader], correlationId);
-            assert.equal(ts.status, 200);
-            assert.deepEqual(ts.body.required, ['greeting']);
-            assert.equal(ts.body.properties.greeting.type, 'string');
-            assert.equal(ts.headers['content-type'], 'application/json; charset=utf-8');
-            assert.equal(ts.headers[correlationHeader], correlationId);
-            context.diagnostic('UNSUPPORTED PARITY: .NET 22.45.0 protects identity discovery outside Development; TypeScript serves description endpoints anonymously');
-        });
         await t.test('authenticated identity schema describes the required greeting on both runtimes', async () => {
             const [net, ts] = await send('GET', '/.cratis/identity-details/schema', undefined, { 'X-Fixture-Role': 'Admin' });
             for (const [label, actual] of [['.NET', net], ['TypeScript', ts]]) {
@@ -265,6 +252,28 @@ test('published .NET and built TypeScript HTTP contract', async t => {
             });
             try {
                 assert.equal(host.readiness.adapter, adapter, `${adapter} fixture adapter`);
+                for (const path of ['/.cratis/commands', '/.cratis/queries', '/.cratis/users', '/.cratis/tenants', '/.cratis/identity-details/schema']) {
+                    await t.test(`${adapter}: Production discovery authentication parity at ${path}`, async context => {
+                        const [net, ts] = await send('GET', path, undefined, {}, host.url);
+                        assert.equal(net.status, 401, '.NET denies anonymous discovery');
+                        assert.equal(ts.status, 401, 'TypeScript denies anonymous discovery');
+                        assert.equal(net.body, '');
+                        assert.equal(net.headers['content-type'], undefined);
+                        assert.deepEqual(ts.body, { error: 'Unauthorized' });
+                        assert.equal(ts.headers['content-type'], 'application/json; charset=utf-8');
+                        for (const actual of [net, ts]) assert.equal(actual.headers[correlationHeader], correlationId);
+                        const authenticated = await send('GET', path, undefined, { 'X-Fixture-Role': 'Admin' }, host.url);
+                        for (const actual of authenticated) {
+                            assert.equal(actual.status, 200, 'authenticated discovery succeeds');
+                            assert.equal(actual.headers[correlationHeader], correlationId);
+                        }
+                        context.diagnostic('UNSUPPORTED PARITY: discovery denial body differs (empty vs JSON error); authentication status is parity');
+                    });
+                }
+                await t.test(`${adapter}: OpenAPI uses the TypeScript discovery policy`, async () => {
+                    assert.equal((await request(host.url, 'GET', '/openapi.json')).status, 401);
+                    assert.equal((await request(host.url, 'GET', '/openapi.json', undefined, { 'X-Fixture-Role': 'Admin' })).status, 200);
+                });
                 const filterParity = (name, method, path, body, expected, headers = {}, extraHeaders = []) =>
                     parity(`${adapter}: ${name}`, method, path, body, expected, headers, extraHeaders, host.url);
                 const filterDivergence = (name, method, path, body, netExpected, tsExpected, headers = {}, extraHeaders = []) =>

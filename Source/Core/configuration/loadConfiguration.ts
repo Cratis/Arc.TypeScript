@@ -29,7 +29,9 @@ const query = z.object({ keepAliveIntervalMs: interval.optional(),
     maxObservableTombstones: integer(1).optional(), observableHandshakeTimeoutMs: integer(1).optional(),
     observableShutdownTimeoutMs: integer(1).optional(), enableObservableHealth: boolean.optional() });
 const hosting = z.object({ applicationUrl: z.string().min(1).optional(), maxBodyBytes: integer(1).optional() });
+const introspection = z.object({ requireAuthentication: boolean.optional(), roles: z.string().optional() });
 const arc = z.object({ development: boolean.optional(), exposeExceptionDetails: boolean.optional(),
+    introspection: introspection.optional(),
     correlationId: z.object({ httpHeader: z.string().min(1).optional() }).optional(), tenancy: tenancy.optional(),
     generatedApis: generatedApis.optional(), query: query.optional(), hosting: hosting.optional() });
 const chronicle = z.object({ connectionString: z.string().min(1).optional(), eventStore: z.string().min(1).optional() });
@@ -48,6 +50,7 @@ const names: Record<string, string> = {
     cratis: 'Cratis', arc: 'Arc', chronicle: 'Chronicle', mongodb: 'MongoDB', generatedapis: 'generatedApis',
     connectionstring: 'connectionString', eventstore: 'eventStore', server: 'server', database: 'database',
     development: 'development', exposeexceptiondetails: 'exposeExceptionDetails', correlationid: 'correlationId',
+    introspection: 'introspection', requireauthentication: 'requireAuthentication', roles: 'roles',
     tenancy: 'tenancy', query: 'query', hosting: 'hosting', httpheader: 'httpHeader',
     resolvertype: 'resolverType', basedomain: 'baseDomain', queryparameter: 'queryParameter', claimtype: 'claimType',
     fixedtenantid: 'fixedTenantId', developmenttenantid: 'fixedTenantId', required: 'required',
@@ -99,7 +102,7 @@ function warnUnknown(root: Section, logger?: (error: unknown, correlationId: str
         if (!isSection(section)) continue;
         for (const key of Object.keys(section)) if (!keys.includes(key)) logger(new Error(`Unknown Cratis configuration key: Cratis:${name}:${key}`), '');
         if (name !== 'Arc') continue;
-        const nestedSections = { correlationId: arc.shape.correlationId.unwrap(), tenancy, generatedApis, query, hosting };
+        const nestedSections = { correlationId: arc.shape.correlationId.unwrap(), tenancy, generatedApis, query, hosting, introspection };
         for (const [nested, childSchema] of Object.entries(nestedSections)) {
             const child = section[nested];
             if (!isSection(child)) continue;

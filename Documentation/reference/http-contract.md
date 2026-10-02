@@ -22,7 +22,7 @@ The language-neutral [Arc HTTP contract](/arc/http-contract/) is the specificati
 | `/.cratis/queries/health` | GET and `QUERY`, when enabled | Caller-scoped hub health; requires authentication |
 | `/openapi.json` | GET | OpenAPI 3.1 document |
 
-The description endpoints do not run authentication handlers. Methods that reach Arc but are not accepted answer 405 with an `Allow` header. Route shapes are explained in [Endpoint mapping](../core/endpoint-mapping.md).
+The catalogs, identity schema, users, tenants, and `/openapi.json` are anonymous only in Development by default. Elsewhere they run the configured authentication handlers and require an authenticated principal (401 anonymous, 403 missing a configured role). Without authentication they are unmapped; explicitly requiring it without handlers fails startup. See [Discovery access](../introspection/index.md#production-access) for environment detection, roles, and the anonymous opt-out. Methods that reach Arc but are not accepted answer 405 with an `Allow` header. Route shapes are explained in [Endpoint mapping](../core/endpoint-mapping.md).
 
 ## Headers
 
@@ -32,7 +32,7 @@ The description endpoints do not run authentication handlers. Methods that reach
 | `X-Allowed-Severity` | Request | `0`, `1`, or `2` on commands; `3` is capped to `2`; ignored on queries |
 | `x-cratis-tenant-id` (configurable) | Request | The requested tenant without `tenancy.resolve` or another configured tenant source |
 | `Authorization` | Request | Read only by the authentication handlers you configure |
-| `Cache-Control: no-store` | Response | On `QUERY` responses and `/.cratis/me` |
+| `Cache-Control: no-store` | Response | On `QUERY` responses, discovery responses, and `/.cratis/me` |
 | `Allow` | Response | On 405 answers |
 | `Retry-After: 1` | Response | On observable admission 503 answers |
 
@@ -51,7 +51,7 @@ A result is 200 when successful, then 403 for authorization failures, 400 for va
 | Invalid GUID query argument | 400 `malformedRequest` with argument details | 400 `malformedRequest` with a generic message |
 | SSE hub | Anonymous controls allowed | Requires an authenticated principal |
 | Query health | Anonymous, cross-caller | Opt-in, caller-scoped |
-| Anonymous discovery outside Development (command and query catalogs, users, tenants, identity schema) | 401 by default in 22.45.0; not mapped when the host has no authentication | 200; description endpoints do not run authentication handlers ([#158](https://github.com/Cratis/Arc.TypeScript/issues/158)) |
+| Discovery denial body | Empty 401/403 on the ASP.NET fixture | JSON `{ error }` with the same status |
 | `waitForFirstResultTimeout` | Larger values accepted; unknown booleans ignored | At most 120 seconds; unknown booleans rejected |
 
 Numeric concept GET arguments bind successfully on both runtimes. Both apply GET sorting and reject invalid sort directions. The suite also pins a host-specific difference that is not a choice of Arc for TypeScript:

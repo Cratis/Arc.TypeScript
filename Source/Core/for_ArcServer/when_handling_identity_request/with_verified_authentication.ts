@@ -17,7 +17,7 @@ describe('when handling an identity request with verified authentication', () =>
         const server = new ArcServer({ identityDetails, authentication: [request => request.headers.has('Authorization')
             ? { status: AuthenticationStatus.Authenticated, principal: identityPrincipal }
             : { status: AuthenticationStatus.Anonymous }] });
-        schema = await (await identityGet(server, '/.cratis/identity-details/schema'))!.json();
+        schema = await (await identityGet(server, '/.cratis/identity-details/schema', { Authorization: 'verified' }))!.json();
         const forgedResponse = (await identityGet(server, '/.cratis/me', { Cookie: `.cratis-identity=${Buffer.from('{"id":"admin"}').toString('base64')}` }))!;
         forged = { status: forgedResponse.status, cache: forgedResponse.headers.get('cache-control') };
         const good = (await identityGet(server, '/.cratis/me', { Authorization: 'verified' }))!;

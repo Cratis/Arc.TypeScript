@@ -21,7 +21,7 @@ describe('when opening an observable query with a failing emission policy', () =
         const subject = CurrentValueSubject.of(1);
         const token = serviceToken<ObservableEmissionGuard>('failing policy');
         logged = [];
-        const server = new ArcServer({ logger: error => { logged.push(error); },
+        const server = new ArcServer({ environmentName: 'Development', logger: error => { logged.push(error); },
             services: [{ token, lifetime: ServiceLifetime.Scoped, factory: (): ObservableEmissionGuard => ({
                 check: () => { throw new Error('secret'); }
             }) }], query: { observableEmissionGuards: [token] }, observableQueries: [defineObservableQuery({

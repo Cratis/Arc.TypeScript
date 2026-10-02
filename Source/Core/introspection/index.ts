@@ -8,3 +8,4 @@ export { ClientAuthentication } from './ClientAuthentication.js';
 export type { ClientContract } from './ClientContract.js';
 export type { ClientType } from './ClientType.js';
 export type { ClientField } from './ClientField.js';
+export type { IntrospectionOptions } from './IntrospectionOptions.js';

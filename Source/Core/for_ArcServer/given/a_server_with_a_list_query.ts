@@ -5,7 +5,7 @@ import { ArcServer } from '../../ArcServer.js';
 import { defineQuery } from '../../queries/defineQuery.js';
 
 export class a_server_with_a_list_query {
-    server = new ArcServer({ queries: [defineQuery({
+    server = new ArcServer({ environmentName: 'Development', queries: [defineQuery({
         name: 'List', namespace: 'Tasks',
         schema: z.object({ limit: z.number(), label: z.string().default('all') }),
         perform: ({ limit, label }) => Array.from({ length: limit }, (_, index) => ({ index, label }))

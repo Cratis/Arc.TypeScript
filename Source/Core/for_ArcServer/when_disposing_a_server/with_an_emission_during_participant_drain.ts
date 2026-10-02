@@ -15,7 +15,7 @@ describe('when an observable emits during participant drain', () => {
     beforeEach(async () => {
         logged = []; results = [];
         const subject = CurrentValueSubject.of(1);
-        const server = new ArcServer({ logger: error => { logged.push(error); },
+        const server = new ArcServer({ environmentName: 'Development', logger: error => { logged.push(error); },
             observableQueries: [defineObservableQuery({ name: 'Live', schema: z.object({}), observe: () => subject })] });
         const session = await server.openObservableQuery('Live', {}, observableExecution());
         const stream = session.results();
