@@ -28,6 +28,8 @@ export interface SourceGeneratorOptions extends SourceRenderOptions {
     readonly metadata?: string;
     /** Opt into source-inferred bindings even when this invocation does not publish metadata. */
     readonly generatedMetadata?: boolean;
+    /** Minimum fallback scan delay for watchSource, in milliseconds. Zero disables polling. */
+    readonly watchPollInterval?: number;
 }
 
 /** Analyze source once, preflight owned paths and publish only changed files. Never delete handwritten files. */

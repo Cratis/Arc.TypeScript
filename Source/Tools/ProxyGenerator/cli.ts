@@ -11,7 +11,7 @@ import { parseSourceOptions } from './parseSourceOptions.js';
 import { watchSource } from './watchSource.js';
 
 const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folder> --output <folder>' +
-    ' [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch]' +
+    ' [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch] [--watch-poll-interval <ms>]' +
     ' [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>]' +
     ' [--use-proxy-file-suffix] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces] [--skip-react-hooks]' +
     ' [--type-mapping <Type>=<package>[#<export>]]...';

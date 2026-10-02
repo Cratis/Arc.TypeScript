@@ -2,15 +2,17 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { SourceGeneratorOptions } from './generateFromSource.js';
 import { parseTypeMappingOptions } from './typeMappings.js';
+import { watchPollInterval } from './watchPollInterval.js';
 
-/** Parse the source-generation CLI options without changing its accepted switches. */
+/** Parse and validate the source-generation CLI options. */
 export function parseSourceOptions(values: readonly string[], usage: string):
     { configuration: SourceGeneratorOptions; watch: boolean; checkMetadata: boolean } {
     const options: Record<string, string | boolean> = {};
     const flags = ['--skip-command-name-in-route', '--skip-query-name-in-route', '--use-proxy-file-suffix', '--js-import-specifiers',
         '--skip-index-generation', '--skip-output-deletion', '--emit-interfaces', '--watch', '--check-metadata',
         '--use-generated-metadata', '--skip-react-hooks'];
-    const arguments_ = ['--project', '--artifacts', '--output', '--metadata', '--segments-to-skip', '--api-prefix', '--root-namespace'];
+    const arguments_ = ['--project', '--artifacts', '--output', '--metadata', '--segments-to-skip', '--api-prefix', '--root-namespace',
+        '--watch-poll-interval'];
     const repeatable = '--type-mapping';
     const typeMappings: string[] = [];
     for (let index = 0; index < values.length; index++) {
@@ -34,10 +36,14 @@ export function parseSourceOptions(values: readonly string[], usage: string):
         throw new Error(usage);
     const skip = options['--segments-to-skip'] === undefined ? 0 : Number(options['--segments-to-skip']);
     if (!Number.isSafeInteger(skip) || skip < 0) throw new Error('Invalid segments to skip');
+    const poll = options['--watch-poll-interval'];
+    if (poll !== undefined && options['--watch'] !== true) throw new Error('--watch-poll-interval requires --watch');
+    if (poll !== undefined && (typeof poll !== 'string' || !/^\d+$/.test(poll))) throw new Error('Invalid watch poll interval');
     const configuration: SourceGeneratorOptions = {
         project: options['--project'], artifacts: options['--artifacts'], output: options['--output'], segmentsToSkip: skip,
         metadata: typeof options['--metadata'] === 'string' ? options['--metadata'] : undefined,
         generatedMetadata: options['--use-generated-metadata'] === true,
+        watchPollInterval: poll === undefined ? undefined : watchPollInterval(Number(poll)),
         apiPrefix: typeof options['--api-prefix'] === 'string' ? options['--api-prefix'] : undefined,
         skipCommandNameInRoute: options['--skip-command-name-in-route'] === true,
         skipQueryNameInRoute: options['--skip-query-name-in-route'] === true,
