@@ -9,10 +9,14 @@ import { createRequire } from 'node:module';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { SpanKind } from '@opentelemetry/api';
 import pino from 'pino';
+import { AggregationTemporality, DataPointType, InMemoryMetricExporter, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import packageMetadata from '../Source/Core/package.json' with { type: 'json' };
 
+const metricExporter = new InMemoryMetricExporter(AggregationTemporality.DELTA);
+const metricReader = new PeriodicExportingMetricReader({ exporter: metricExporter, exportIntervalMillis: 60_000 });
 const exporter = new InMemorySpanExporter();
 const sdk = new NodeSDK({ spanProcessors: [new SimpleSpanProcessor(exporter)],
-    metricReaders: [], logRecordProcessors: [],
+    metricReaders: [metricReader], logRecordProcessors: [],
     instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation(), new FastifyInstrumentation()] });
 sdk.start(); // Start before loading HTTP or host modules.
 
@@ -24,7 +28,7 @@ const express = require('express');
 const Fastify = require('fastify');
 const { Hono } = await import('hono');
 const { serve } = await import('@hono/node-server');
-const { ArcServer, defineCommand } = await import('@cratis/arc.core');
+const { ArcServer, defineCommand, defineQuery, WellKnownTelemetryNames } = await import('@cratis/arc.core');
 const { cratisArc: expressArc } = await import('@cratis/arc.express');
 const { cratisArc: fastifyArc } = await import('@cratis/arc.fastify');
 const { cratisArc: honoArc } = await import('@cratis/arc.hono');
@@ -32,7 +36,8 @@ const { z } = await import('zod');
 
 function arcServer() {
     return new ArcServer({ commands: [defineCommand({ name: 'Echo', schema: z.object({ value: z.string() }),
-        handle: ({ value }) => value })] });
+        handle: ({ value }) => value })],
+        queries: [defineQuery({ name: 'Ping', schema: z.object({}), perform: () => [1] })] });
 }
 async function listen(server) {
     server.listen(0, '127.0.0.1');
@@ -44,6 +49,7 @@ async function close(server) {
 }
 async function verify(name, start) {
     exporter.reset();
+    metricExporter.reset();
     const arc = arcServer();
     let host;
     try {
@@ -81,7 +87,38 @@ async function verify(name, start) {
                 `@opentelemetry/instrumentation-${name.toLowerCase()}`),
             `${name} framework instrumentation must be in the Arc span ancestry`);
         }
-        console.log(`${name}: Arc INTERNAL span descends from HTTP SERVER span${name === 'Hono' ? '' : ' through framework instrumentation'}`);
+        const queryResponse = await fetch(host.url + '/api/ping');
+        assert.equal(queryResponse.status, 200, `${name} query HTTP response`);
+        assert.deepEqual((await queryResponse.json()).data, [1]);
+        await metricReader.forceFlush();
+        const scopes = metricExporter.getMetrics().flatMap(resource => resource.scopeMetrics);
+        for (const [metricName, operation, attributes] of [
+            [WellKnownTelemetryNames.commandDuration, 'cratis.arc.command.execute', { 'cratis.arc.command.type': 'Echo' }],
+            [WellKnownTelemetryNames.queryDuration, 'cratis.arc.query.perform', { 'cratis.arc.query.name': 'Ping' }]
+        ]) {
+            const scope = scopes.find(scope => scope.metrics.some(metric => metric.descriptor.name === metricName));
+            assert.ok(scope, `${name} must export ${metricName}`);
+            assert.equal(scope.scope.name, 'Cratis.Arc');
+            assert.equal(scope.scope.version, packageMetadata.version);
+            const metric = scope.metrics.find(metric => metric.descriptor.name === metricName);
+            assert.equal(metric.dataPointType, DataPointType.HISTOGRAM);
+            assert.equal(metric.descriptor.unit, 's');
+            assert.ok(metric.descriptor.description.length > 0);
+            assert.equal(metric.dataPoints.length, 1, `${name} must export one duration point`);
+            assert.equal(metric.dataPoints[0].value.count, 1, `${name} must record its own execution`);
+            assert.deepEqual(metric.dataPoints[0].attributes, attributes);
+            assert.ok(metric.dataPoints[0].value.sum >= 0);
+            const legacy = scope.metrics.find(metric => metric.descriptor.name === WellKnownTelemetryNames.operationDuration);
+            const legacyPoint = legacy?.dataPoints.find(point => point.attributes.operation === operation);
+            assert.ok(legacyPoint, `${name} must still export deprecated operation.duration`);
+            assert.equal(legacyPoint.value.sum, metric.dataPoints[0].value.sum);
+            const span = exporter.getFinishedSpans().find(span => span.name === operation);
+            assert.ok(span, `${name} must export ${operation}`);
+            assert.equal(span.instrumentationScope.name, 'Cratis.Arc');
+            assert.equal(span.instrumentationScope.version, packageMetadata.version);
+            for (const [key, value] of Object.entries(attributes)) assert.equal(span.attributes[key], value);
+        }
+        console.log(`${name}: HTTP ancestry; 2 duration histograms in seconds with canonical attributes and versioned scopes; deprecated metric retained`);
     } finally { if (host) await host.close(); await arc.dispose(); }
 }
 

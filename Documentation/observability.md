@@ -1,9 +1,9 @@
 ---
 title: Observe Arc requests
-description: Subscribe to Arc for TypeScript tracing and operation durations with an application-owned OpenTelemetry SDK.
+description: Subscribe to Arc for TypeScript tracing and command and query duration histograms with an application-owned OpenTelemetry SDK.
 ---
 
-A slow command in production is hard to explain from logs alone. Was the time spent in validation, in your handler, or in the HTTP layer? Arc for TypeScript emits spans for its pipeline stages and an operation-duration histogram through `@opentelemetry/api`, so the tracing backend you already run can answer that.
+A slow command in production is hard to explain from logs alone. Was the time spent in validation, in your handler, or in the HTTP layer? Arc for TypeScript emits spans for its pipeline stages and command and query duration histograms through `@opentelemetry/api`, so the tracing backend you already run can answer that.
 
 Core does not install an exporter, context manager, or SDK, so it stays usable without any tracing infrastructure. You install and start an SDK **in your application**, before you build the Arc server. Arc never sends raw exception messages to spans, including in development.
 
@@ -45,7 +45,7 @@ try {
 }
 ```
 
-You see the query result, then spans and a `cratis.arc.operation.duration` histogram from the `Cratis.Arc` source and meter. In a real host, replace the console exporters with exporters configured for your collector.
+You see the query result, then spans and a `cratis.arc.query.duration` histogram from the `Cratis.Arc` tracer and meter. Both scopes carry the installed `@cratis/arc.core` package version. In a real host, replace the console exporters with exporters configured for your collector.
 
 If the SDK starts after Arc is imported, Arc uses the API's proxy tracer. Initialize the SDK before sending requests so nothing is missed.
 
@@ -123,7 +123,7 @@ try {
 }
 ```
 
-The host's Node HTTP span is an ancestor of Arc's INTERNAL `cratis.arc.http.handle` span (with Express middleware spans between them); it is not a second Arc SERVER span. `yarn check:observability-recipes` exercises **real HTTP** with Express (HTTP and Express instrumentation), Fastify (HTTP and `@opentelemetry/instrumentation-fastify`, which is deprecated in favor of the maintained `@fastify/otel`), and Hono on its Node server (HTTP instrumentation; no Hono-specific instrumentation installed). For each host it asserts exactly one HTTP SERVER span is an ancestor of the Arc span for a command; for Express and Fastify it also requires a framework instrumentation span in the ancestry. It also checks the structured-logging recipe below. In-memory export proves local parenting, not remote collector delivery or trace-context propagation through a proxy.
+The host's Node HTTP span is an ancestor of Arc's INTERNAL `cratis.arc.http.handle` span (with Express middleware spans between them); it is not a second Arc SERVER span. `yarn check:observability-recipes` exercises **real HTTP** with Express (HTTP and Express instrumentation), Fastify (HTTP and `@opentelemetry/instrumentation-fastify`, which is deprecated in favor of the maintained `@fastify/otel`), and Hono on its Node server (HTTP instrumentation; no Hono-specific instrumentation installed). For each host it asserts exactly one HTTP SERVER span is an ancestor of the Arc span for a command; for Express and Fastify it also requires a framework instrumentation span in the ancestry. It also checks command and query duration histograms, canonical metric attributes, the deprecated histogram emitted in parallel, tracer and meter scope versions, and the structured-logging recipe below. In-memory export proves local parenting, not remote collector delivery or trace-context propagation through a proxy.
 
 ## Log errors without exposing payloads
 
@@ -153,17 +153,17 @@ The HTTP response is redacted outside development (explicitly set here). `yarn c
 
 | Span | Boundary | Attributes |
 | --- | --- | --- |
-| `cratis.arc.command.execute` | Command execution | `command_type`, `cratis.correlation_id` |
-| `cratis.arc.command.validate` | Validate-only pipeline | `command_type`, `cratis.correlation_id` |
-| `cratis.arc.command.filter` | Command validation/filter stage | `command_type`, `cratis.correlation_id` |
-| `cratis.arc.query.perform` | Snapshot query or observable source open | `query_name`, `cratis.correlation_id` |
-| `cratis.arc.query.filter` | Query validation/filter stage | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.command.execute` | Command execution | `cratis.arc.command.type`, `command_type`, `cratis.correlation_id` |
+| `cratis.arc.command.validate` | Validate-only pipeline | `cratis.arc.command.type`, `command_type`, `cratis.correlation_id` |
+| `cratis.arc.command.filter` | Command validation/filter stage | `cratis.arc.command.type`, `command_type`, `cratis.correlation_id` |
+| `cratis.arc.query.perform` | Snapshot query or observable source open | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.filter` | Query validation/filter stage | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.http.handle` | Recognized Arc HTTP endpoint (INTERNAL) | `http.request.method`, `http.route`, `cratis.correlation_id` |
-| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `query_name`, `cratis.correlation_id` |
-| `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
+| `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.identity.resolve` | Identity details provider resolution | `cratis.correlation_id` |
 
-`command_type` and `query_name` are the registered qualified names, not payloads.
+Command spans also carry `cratis.arc.command.type`; query spans, including subscriptions and emissions, also carry `cratis.arc.query.name`. These canonical attributes and the retained `command_type` and `query_name` tags contain registered qualified names, not payloads.
 
 The first five span names and the identity-resolution span use the .NET pipeline names. The HTTP, emission, and subscription spans are Node-specific: .NET uses ASP.NET request instrumentation and does not have a per-emission span.
 
@@ -171,10 +171,20 @@ The first five span names and the identity-resolution span use the .NET pipeline
 
 | Instrument | Unit | What it measures |
 | --- | --- | --- |
-| `cratis.arc.operation.duration` | Seconds | Each operation, tagged with `operation` and the applicable type, name, or route |
-| `cratis.arc.subscription.duration` | Seconds | How long each observable subscription stayed open |
+| `cratis.arc.command.duration` | `s` | Full command execution, tagged with `cratis.arc.command.type` |
+| `cratis.arc.query.duration` | `s` | Snapshot query execution or observable source open, tagged with `cratis.arc.query.name` |
+| `cratis.arc.operation.duration` (deprecated) | `s` | Each pipeline stage and operation, tagged with `operation` and the original type, name, or route tags |
+| `cratis.arc.subscription.duration` | `s` | How long each observable subscription stayed open, tagged with `query_name` |
 
-Both are recorded under the `Cratis.Arc` meter. .NET's core pipeline exposes a meter but does not record command or query durations.
+All four instruments are histograms with descriptions, recorded in seconds under the `Cratis.Arc` meter. Their explicit bucket boundary advice is `[0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10]` seconds, matching Arc for .NET's pipeline duration buckets rather than the OpenTelemetry JavaScript SDK's millisecond-scale defaults. Your SDK's views can override this advice. The tracer and meter scope version is the `@cratis/arc.core` package version, imported as static JSON and included in the build. No application version or hard-coded version is used.
+
+The new command and query histograms measure completed executions, including failed executions. They do not count filter stages, validate-only commands, or observable emissions as additional executions. Their attributes match the canonical span keys and contain only registered command types or query names—never correlation IDs, tenant IDs, or payloads.
+
+`cratis.arc.operation.duration` is deprecated and remains emitted alongside the new instruments for one minor release. Migrate command and query latency dashboards to the new names and canonical attribute keys before it is removed; do not sum the old and new metrics, which overlap. The old instrument retains its original measurements and attributes during this transition.
+
+Unlike Arc for .NET, Arc for TypeScript does not yet record outcome or transport attributes or a command outcome counter; this gap is tracked in [issue #153](https://github.com/Cratis/Arc.TypeScript/issues/153).
+
+Import `WellKnownTelemetryNames` from `@cratis/arc.core` to use the public constants: `scope`, `commandDuration`, `queryDuration`, `operationDuration` (deprecated), and `subscriptionDuration`.
 
 ## What Arc does not instrument
 

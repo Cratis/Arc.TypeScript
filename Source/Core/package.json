@@ -1,6 +1,6 @@
 {
   "name": "@cratis/arc.core",
-  "version": "0.52.0",
+  "version": "0.53.0",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -13,7 +13,7 @@
     "directory": "Source/Core"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "exports": {
     ".": {

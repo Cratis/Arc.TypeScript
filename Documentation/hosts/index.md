@@ -11,7 +11,7 @@ The adapters are not published to npm. Pack the adapter you need from a built cl
 
 ## Before you start
 
-- An ES module package (`"type": "module"`). The adapters need Node.js 22 or later; building the workspace needs 22.19 or later, and Node.js 24 LTS is recommended.
+- An ES module package (`"type": "module"`). Applications using the adapters and Core need Node.js 22.12 or later; building the workspace needs 22.19 or later, and Node.js 24 LTS is recommended.
 - A built Arc application. Keep it in its own module so every host imports the same instance:
 
 ```typescript title="arc.ts"
