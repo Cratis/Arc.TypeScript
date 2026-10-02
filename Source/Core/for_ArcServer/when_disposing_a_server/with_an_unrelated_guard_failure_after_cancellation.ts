@@ -22,7 +22,7 @@ describe('when an already-running emission guard fails after shutdown cancellati
         failure = new Error('unrelated policy failure');
         const entered = gate(); const release = gate(); const canceled = gate();
         const policy = serviceToken<ObservableEmissionGuard>('failing guard');
-        const server = new ArcServer({ logger: error => { logged.push(error); },
+        const server = new ArcServer({ environmentName: 'Development', logger: error => { logged.push(error); },
             services: [{ token: policy, lifetime: ServiceLifetime.Scoped, factory: () => ({
                 check: async (emission: ObservableEmissionContext) => { entered.release(); emission.signal.addEventListener('abort', canceled.release, { once: true });
                     await release.promise; throw failure; }

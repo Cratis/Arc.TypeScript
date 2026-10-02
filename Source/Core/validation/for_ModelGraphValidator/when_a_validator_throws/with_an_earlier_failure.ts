@@ -11,7 +11,7 @@ describe('when a validator throws with an earlier failure', given(an_application
     let logger: sinon.SinonSpy;
     beforeEach(async () => {
         logger = sinon.spy();
-        const builder = context.create({ development: true, logger });
+        const builder = context.create({ environmentName: 'Development', development: true, logger });
         builder.add(Register, ThrowingNameValidator);
         const application = await builder.build();
         const response = await application.server.handle(new Request('http://localhost/api/register/validate', {

@@ -12,7 +12,7 @@ describe('when describing an observable query in OpenAPI', () => {
     let replies: Record<string, { content: Record<string, { schema: { type: string } }>; description: string }>;
 
     beforeEach(async () => {
-        const server = new ArcServer({ observableQueries: [defineObservableQuery({
+        const server = new ArcServer({ environmentName: 'Development', observableQueries: [defineObservableQuery({
             name: 'Value', schema: z.object({}), observe: () => new CurrentValueSubject(1)
         })] });
         const response = await server.handle(new Request('http://localhost/openapi.json'));

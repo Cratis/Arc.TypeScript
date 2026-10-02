@@ -79,7 +79,7 @@ test('Library command proxies omit event responses consumed by Chronicle', async
 test('generated JSDoc summary reaches the OpenAPI HTTP document', async () => {
     const { Tasks } = await import(join(root, 'Samples/Tasks/dist/Features/Tasks/Tasks.js'));
     const { metadata } = await import(join(root, 'Samples/Tasks/dist/Features/generatedMetadata.js'));
-    const builder = ArcApplication.createBuilder();
+    const builder = ArcApplication.createBuilder({ environmentName: 'Development' });
     builder.useGeneratedMetadata(metadata);
     builder.services.addSingleton(Tasks);
     await builder.discover(pathToFileURL(join(root, 'Samples/Tasks/dist/Features/')));

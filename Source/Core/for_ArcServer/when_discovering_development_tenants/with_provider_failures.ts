@@ -12,12 +12,12 @@ describe('when discovering development tenants with provider failures', () => {
     let oversized: number;
     beforeEach(async () => {
         try { new ArcServer({ developmentTenants: () => [] }); } catch (error) { withoutDevelopment = error; }
-        const server = new ArcServer({ development: true, developmentTenants: () => [{ id: 'north', name: 'North' }] });
+        const server = new ArcServer({ environmentName: 'Development', development: true, developmentTenants: () => [{ id: 'north', name: 'North' }] });
         tenants = await (await identityGet(server, '/.cratis/tenants'))!.json();
-        const failing = new ArcServer({ development: true, developmentTenants: () => { throw Error('private tenant'); } });
+        const failing = new ArcServer({ environmentName: 'Development', development: true, developmentTenants: () => { throw Error('private tenant'); } });
         const response = (await identityGet(failing, '/.cratis/tenants'))!;
         failure = { status: response.status, body: await response.text() };
-        const tooMany = new ArcServer({ development: true, developmentTenants: () => Array.from({ length: 101 }, (_, index) => ({ id: String(index), name: 'tenant' })) });
+        const tooMany = new ArcServer({ environmentName: 'Development', development: true, developmentTenants: () => Array.from({ length: 101 }, (_, index) => ({ id: String(index), name: 'tenant' })) });
         oversized = (await identityGet(tooMany, '/.cratis/tenants'))!.status;
         await Promise.all([server.dispose(), failing.dispose(), tooMany.dispose()]);
     });

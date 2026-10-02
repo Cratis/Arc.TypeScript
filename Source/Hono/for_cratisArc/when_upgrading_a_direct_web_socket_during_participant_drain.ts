@@ -16,7 +16,7 @@ describe('when Hono receives a direct query WebSocket upgrade during participant
     beforeEach(async () => {
         status = undefined;
         logged = [];
-        const arc = new ArcServer({ logger: error => { logged.push(error); },
+        const arc = new ArcServer({ environmentName: 'Development', logger: error => { logged.push(error); },
             observableQueries: [defineObservableQuery({ name: 'Live', schema: z.object({}),
                 observe: () => CurrentValueSubject.of(1) })] });
         const app = new Hono();

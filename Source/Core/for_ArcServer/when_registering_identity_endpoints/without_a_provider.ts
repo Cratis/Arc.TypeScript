@@ -13,7 +13,7 @@ describe('when registering identity endpoints without a provider', () => {
     let tenants: unknown;
     let forgedStatus: number;
     beforeEach(async () => {
-        const server = new ArcServer({});
+        const server = new ArcServer({ environmentName: 'Development' });
         registered = server.endpoints.has('/.cratis/me');
         me = await identityGet(server, '/.cratis/me');
         schema = await (await identityGet(server, '/.cratis/identity-details/schema'))!.json();

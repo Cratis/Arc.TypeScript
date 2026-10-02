@@ -67,11 +67,13 @@ interface RoutedRequest {
 async function executeRequest({ server, bindings, request, native, path, operation, response, correlationId }: RoutedRequest): Promise<Response | null> {
     const introspection = !operation;
     if (introspection && request.method !== 'GET') return response.methodNotAllowed('GET');
-    if (introspection && path !== '/.cratis/me' && path !== '/.cratis/users' && path !== '/.cratis/tenants')
-        return handleIntrospection(server, bindings, path, response);
     const isIdentity = path === '/.cratis/me';
-    const isDiscovery = path === '/.cratis/users' || path === '/.cratis/tenants';
-    if (!operation && !isIdentity && !isDiscovery) return null;
+    const isDiscovery = introspection && !isIdentity;
+    const isProviderDiscovery = path === '/.cratis/users' || path === '/.cratis/tenants';
+    const discoveryAccess = server.discoveryAccess;
+    if (isDiscovery) response.headers.set('cache-control', 'no-store');
+    if (isDiscovery && !discoveryAccess.requireAuthentication && !isProviderDiscovery)
+        return handleIntrospection(server, bindings, path, response);
     const allowed = server.endpoints.get(path)!;
     const methodAllowed = operation?.kind === 'command' ? request.method === 'POST' :
         request.method === 'GET' || (request.method === 'QUERY' && server.options.generatedApis?.enableQueryHttpMethod !== false);
@@ -101,6 +103,12 @@ async function executeRequest({ server, bindings, request, native, path, operati
                 queryResult(context, { isAuthorized: false });
             return response.send(result, 401);
         }
+        if (isDiscovery && discoveryAccess.requireAuthentication) {
+            if (!authentication.principal?.isAuthenticated) return response.send({ error: 'Unauthorized' }, 401);
+            if (discoveryAccess.roles.length && !discoveryAccess.roles.some(role => authentication.principal!.roles.includes(role)))
+                return response.send({ error: 'Forbidden' }, 403);
+        }
+        if (isDiscovery && !isProviderDiscovery) return handleIntrospection(server, bindings, path, response);
         if (isIdentity && !authentication.principal) return response.send({ error: 'Unauthorized' }, 401);
         const tenant = await resolveTenant(server.options, request, authentication.principal, trustedNative);
         context = Object.freeze({ ...context, principal: authentication.principal, tenantId: tenant,

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import { z } from 'zod';
 import type { ArcOptions } from '../ArcOptions.js';
+import type { DiscoveryAccess } from '../introspection/DiscoveryAccess.js';
 import type { Operation } from './Operation.js';
 import { fullyQualifiedName } from './fullyQualifiedName.js';
 import type { ExecutionContext } from '../execution/ExecutionContext.js';
@@ -31,7 +32,7 @@ export function includeRouteName(item: { namespace?: string; routeNamespace?: st
     return includeName || items.filter(other => (other.routeNamespace ?? other.namespace ?? '').split('.').slice(skip).join('.') ===
         (item.routeNamespace ?? item.namespace ?? '').split('.').slice(skip).join('.')).length > 1;
 }
-export function createRouteTable(options: ArcOptions, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
+export function createRouteTable(options: ArcOptions, discoveryAccess: DiscoveryAccess, observeHealth: (context: ExecutionContext) => ObservableSource<QueryHealthSnapshot>): {
     commands: readonly Operation[]; queries: readonly Operation[]; routes: ReadonlyMap<string, Operation>; endpoints: ReadonlyMap<string, string>
 } {
         const prefix = options.generatedApis?.routePrefix ?? 'api';
@@ -82,6 +83,8 @@ export function createRouteTable(options: ArcOptions, observeHealth: (context: E
         ]);
         if (options.identityDetails) endpoints.set('/.cratis/me', 'GET');
         const reserved = new Set([...endpoints.keys(), '/.cratis/me']);
+        if (!discoveryAccess.mapped) for (const path of ['/.cratis/commands', '/.cratis/queries',
+            '/.cratis/identity-details/schema', '/.cratis/users', '/.cratis/tenants', '/openapi.json']) endpoints.delete(path);
         for (const operation of [...commands, ...queries]) {
             const name = `${operation.namespace ?? ''}.${operation.name}`.toLowerCase();
             if (names.has(name)) throw new Error(`Duplicate Arc operation: ${name}`);

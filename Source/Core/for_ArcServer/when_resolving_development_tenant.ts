@@ -9,7 +9,7 @@ describe('when resolving a development tenant', () => {
     let users: Response;
     let tenants: Response;
     beforeEach(async () => {
-        const server = new ArcServer({ development: true,
+        const server = new ArcServer({ environmentName: 'Development', development: true,
             tenancy: { sources: [TenantResolverType.Development], fixedTenantId: 'local' },
             developmentUsers: [() => [{ microsoftIdentity: { identityProvider: 'fixture', userId: 'alice', userDetails: 'Alice',
                 userRoles: [], claims: [] } }], () => []],

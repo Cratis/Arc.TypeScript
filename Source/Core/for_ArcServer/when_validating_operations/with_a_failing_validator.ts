@@ -18,7 +18,7 @@ describe('when validating operations with a failing validator', () => {
     const logged: unknown[] = [];
     beforeEach(async () => {
         logged.length = 0;
-        const server = new ArcServer({ commands: [defineCommand({ name: 'Save', schema: z.object({}), validate: () => { throw Error('secret'); }, handle: () => 1 })],
+        const server = new ArcServer({ environmentName: 'Development', commands: [defineCommand({ name: 'Save', schema: z.object({}), validate: () => { throw Error('secret'); }, handle: () => 1 })],
             queries: [defineQuery({ name: 'List', schema: z.object({}), validate: () => [validation('bad', [], 'rule', Severity.Error)], perform: () => 1 })], logger: error => { logged.push(error); } });
         const response = (await server.handle(runtimePost('/api/save', {})))!;
         status = response.status;

@@ -158,7 +158,7 @@ const records = [];
 const logger = pino({ level: 'error' }, { write: line => records.push(JSON.parse(line)) });
 const secret = 'secret-command-payload';
 const correlationId = '11111111-1111-4111-8111-111111111111';
-const arc = new ArcServer({ exposeExceptionDetails: false,
+const arc = new ArcServer({ environmentName: 'Development', exposeExceptionDetails: false,
     commands: [defineCommand({ name: 'Fail', schema: z.object({ value: z.string() }),
         handle: () => { throw Error('private handler failure'); } })],
     logger: (error, id) => logger.error({ err: error, correlationId: id }, 'Arc request failed') });

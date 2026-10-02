@@ -18,6 +18,8 @@ export class ArcApplication extends FetchArcApplication {
         const settings = configuration === false ? {} : loadConfiguration(configuration?.file, configuration?.env, code.logger);
         const environment = configurationEnvironment(configuration === false ? process.env : configuration?.env ?? process.env);
         return new NodeArcApplicationBuilder({ ...settings.Cratis?.Arc, ...code,
+            environmentName: code.environmentName ?? settings.Cratis?.Arc?.environmentName ?? environment ?? 'Production',
+            introspection: { ...settings.Cratis?.Arc?.introspection, ...code.introspection },
             exposeExceptionDetails: code.exposeExceptionDetails ?? settings.Cratis?.Arc?.exposeExceptionDetails ??
                 environment?.toLowerCase() === 'development',
             correlationId: { ...settings.Cratis?.Arc?.correlationId, ...code.correlationId },

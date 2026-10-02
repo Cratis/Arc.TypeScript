@@ -18,7 +18,7 @@ describe('when opening an observable query with a failed source', () => {
     beforeEach(async () => {
         const subject = CurrentValueSubject.of(1);
         logged = [];
-        const server = new ArcServer({ logger: error => { logged.push(error); }, observableQueries: [defineObservableQuery({
+        const server = new ArcServer({ environmentName: 'Development', logger: error => { logged.push(error); }, observableQueries: [defineObservableQuery({
             name: 'Numbers', schema: z.object({}), observe: () => subject
         })] });
         const session = await server.openObservableQuery('Numbers', {}, observableExecution());

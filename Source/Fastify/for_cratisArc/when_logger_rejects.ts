@@ -20,7 +20,7 @@ describe('when the Fastify logger rejects a handler failure', () => {
         correlationId = crypto.randomUUID();
         attempts = 0;
         app = Fastify();
-        arc = new ArcServer({
+        arc = new ArcServer({ environmentName: 'Development',
             commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () => { throw Error(secret); } })],
             logger: async () => { attempts++; throw Error('private logger failure'); }
         });

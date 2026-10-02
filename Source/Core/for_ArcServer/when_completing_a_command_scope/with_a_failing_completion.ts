@@ -15,7 +15,7 @@ describe('when completing a command scope with a failing completion', () => {
     beforeEach(async () => {
         logged.length = 0;
         order.length = 0;
-        const server = new ArcServer({ commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () => 'secret response', scopes: [
+        const server = new ArcServer({ environmentName: 'Development', commands: [defineCommand({ name: 'Save', schema: z.object({}), handle: () => 'secret response', scopes: [
             () => ({ begin: () => { order.push('first'); }, complete: () => { order.push('last'); } }),
             () => ({ begin: () => { order.push('second'); }, complete: () => { order.push('reverse'); throw new Error('sensitive error'); } })
         ] })], logger: error => { logged.push(error); } });
