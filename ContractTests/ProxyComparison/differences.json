@@ -1,0 +1,73 @@
+{
+  "reasons": {
+    "layout": {
+      "category": "intentional",
+      "description": "Blank lines, compact getters and readonly sorting fields versus private fields/getters differ. They are not wire behavior; every byte remains snapshot-gated rather than formatting-normalized."
+    },
+    "imports": {
+      "category": "intentional",
+      "description": "TypeScript marks type-only imports explicitly and orders/merges imports differently. This supports verbatimModuleSyntax without changing runtime constructors. .NET output needs normal type-import elision."
+    },
+    "command-suppression": {
+      "category": "intentional",
+      "description": "The .NET command hook contains a ts-ignore comment. TypeScript does not need that suppression with the pinned browser client; both public signatures are checked independently."
+    },
+    "query-source": {
+      "category": "intentional",
+      "description": "The .NET provenance source identifies the read-model type; TypeScript identifies the query method as well. Only the timestamp is variable-normalized; source and body hash remain gated."
+    },
+    "sorting": {
+      "category": "knownDefect",
+      "issue": "https://github.com/Cratis/Arc/issues/2998",
+      "description": ".NET 22.45.0 model-bound queries incorrectly emit sortBy.id from the query input rather than the response model. TypeScript's name/detail/notice/status helpers follow the documented read-model-field contract, as does .NET controller-based generation. The browser client sends the field unchanged; id is not a Listing field and fails on .NET IQueryable. This is a .NET defect, not an intentional API difference."
+    },
+    "complex-sorting": {
+      "category": "knownLimitation",
+      "issue": "https://github.com/Cratis/Arc.TypeScript/issues/174",
+      "description": "Both generators emit helpers for complex result fields when generating result-oriented helpers (TypeScript here; .NET controller-based queries). Fields such as detail and notice are not sortable scalars: these fixture objects sort as no-ops on the TypeScript server and throw on .NET IQueryable. The model-bound .NET snapshot's query-parameter defect masks this separate limitation."
+    },
+    "enum-names": {
+      "category": "intentional",
+      "description": ".NET camel-cases enum members to draft/published. TypeScript preserves source names Draft/Published. Numeric wire values 0/1 and numeric hydration agree, so changing source names would be an unnecessary API break."
+    },
+    "barrel-ownership": {
+      "category": "intentional",
+      "description": "TypeScript marks the barrel with a provenance/body-hash header for safe owned-file regeneration. The .NET barrel is unmarked. Exports are identical; destructive .NET cleanup is not adopted."
+    }
+  },
+  "limitations": ["complex-sorting"],
+  "files": {
+    "ProxyComparison/All.ts": {
+      "pairSha256": "7f6c29c8163e0a4f1f4cb891d3cbcc27cab70dd8b7a244c9c6851d1282854687",
+      "reasons": ["layout", "imports", "query-source", "sorting"]
+    },
+    "ProxyComparison/Detail.ts": {
+      "pairSha256": "80d080af34fba46f349ebfc4821d5d6f3a82eeb57f48787bf7a1fc228ee29dfd",
+      "reasons": ["layout", "imports"]
+    },
+    "ProxyComparison/Listing.ts": {
+      "pairSha256": "468bfa5da8a9601b614f21ad9e6a70acb047f73533be5888d89f8267c8a4561f",
+      "reasons": ["layout"]
+    },
+    "ProxyComparison/Observe.ts": {
+      "pairSha256": "a2a3cf002cb13ab725443374c48b0b66d93bf380345af43869c136b54ab5c65e",
+      "reasons": ["layout", "imports", "query-source", "sorting"]
+    },
+    "ProxyComparison/Register.ts": {
+      "pairSha256": "a624987ea1833732cbc7169c96c1ca68f7159bd74bb44e3014a1f010e11d07dc",
+      "reasons": ["layout", "imports", "command-suppression"]
+    },
+    "ProxyComparison/Status.ts": {
+      "pairSha256": "851988175284016690b7c50f2ef3289ee80033b5eefce55d8b2d15c58b539770",
+      "reasons": ["enum-names"]
+    },
+    "ProxyComparison/UrgentNotice.ts": {
+      "pairSha256": "4d73e6b1ddd62b63a91df8b74ad4b511905786a79138cff4da071720104b10ac",
+      "reasons": ["imports"]
+    },
+    "ProxyComparison/index.ts": {
+      "pairSha256": "e2568dea3d6c3c05f0a8d199c277dea18b97b3ab3e0fe3b5131447644fa3ef90",
+      "reasons": ["barrel-ownership"]
+    }
+  }
+}

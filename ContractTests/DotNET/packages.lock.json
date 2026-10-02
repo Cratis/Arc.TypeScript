@@ -17,6 +17,20 @@
           "System.Reactive": "7.0.0"
         }
       },
+      "Cratis.Arc.ProxyGenerator.Build": {
+        "type": "Direct",
+        "requested": "[22.45.0, 22.45.0]",
+        "resolved": "22.45.0",
+        "contentHash": "33LNuLmKL2ryZLC8xVYT1J+3G4Qx2Tq+2cbu0bF/Wa3+E5P35lvXUE5gEmo7HCZ5jYoSB8sM0oIYiUFMyHTmtQ==",
+        "dependencies": {
+          "Microsoft.Build.Framework": "18.9.6",
+          "Microsoft.Build.Utilities.Core": "18.9.6",
+          "Microsoft.Extensions.DependencyModel": "10.0.12",
+          "Microsoft.NET.StringTools": "18.9.6",
+          "System.Reflection.MetadataLoadContext": "10.0.12",
+          "handlebars.net": "2.4.3"
+        }
+      },
       "Cratis.Arc.Core": {
         "type": "Transitive",
         "resolved": "22.45.0",
@@ -58,6 +72,11 @@
         "type": "Transitive",
         "resolved": "12.1.1",
         "contentHash": "EPpkIe1yh1a0OXyC100oOA8WMbZvqUu5plwhvYcb7oSELfyUZzfxV48BLhvs3kKo4NwG7MGLNgy1RJiYtT8Dpw=="
+      },
+      "Handlebars.Net": {
+        "type": "Transitive",
+        "resolved": "2.4.3",
+        "contentHash": "arsZCVYV/2f39W7KBRD3jnsluHAI8cNFGGbcfmY92GRnpyXZoJHleevuS6BTXJgNE44vtSeB3FbK6udZPa7K6w=="
       },
       "Humanizer": {
         "type": "Transitive",
@@ -530,6 +549,24 @@
           "Humanizer.Core": "[3.0.10]"
         }
       },
+      "Microsoft.Build.Framework": {
+        "type": "Transitive",
+        "resolved": "18.9.6",
+        "contentHash": "P5y8IAhu6UyN6FtzfN4sCNZEQGyV6S4kSTBYldtzB9bzvgdCBBKjsS6epH5aJVFM0q1yJqa8RaTzr1iEJBwIMA==",
+        "dependencies": {
+          "Microsoft.NET.StringTools": "18.9.6"
+        }
+      },
+      "Microsoft.Build.Utilities.Core": {
+        "type": "Transitive",
+        "resolved": "18.9.6",
+        "contentHash": "BkU2irGHBdkULHzLmEObQCjOz7x+3unHkcmGa+BlTXyEFyj4wupcSAG3E0SlzpeF9s3ViSLbhjNDMHwMxC/Ugg==",
+        "dependencies": {
+          "Microsoft.Build.Framework": "18.9.6",
+          "System.Configuration.ConfigurationManager": "10.0.8",
+          "System.Security.Cryptography.ProtectedData": "10.0.8"
+        }
+      },
       "Microsoft.Extensions.AmbientMetadata.Application": {
         "type": "Transitive",
         "resolved": "10.10.0",
@@ -568,6 +605,11 @@
           "Microsoft.Extensions.Compliance.Abstractions": "10.10.0"
         }
       },
+      "Microsoft.NET.StringTools": {
+        "type": "Transitive",
+        "resolved": "18.9.6",
+        "contentHash": "CNZfh4P65tHm1Wh/uuIbYfvHlPnb0dJ9SCaIZbXRzOMn+8JEorSqSdXdGRsrDbKBDJfNG6nmgleYhnfL2pd1oQ=="
+      },
       "OneOf": {
         "type": "Transitive",
         "resolved": "3.0.271",
@@ -599,10 +641,28 @@
           "OpenTelemetry.Api": "1.19.1"
         }
       },
+      "System.Configuration.ConfigurationManager": {
+        "type": "Transitive",
+        "resolved": "10.0.8",
+        "contentHash": "QG+HHwJjLyUiRuA9axr5pDqHAxboo7FXCTRakxMABE9CUAUij/tsd/MsgQPJUEppkf+YBLT+F/P/wKIVCAIcNg==",
+        "dependencies": {
+          "System.Security.Cryptography.ProtectedData": "10.0.8"
+        }
+      },
       "System.Reactive": {
         "type": "Transitive",
         "resolved": "7.0.0",
         "contentHash": "VYaSP2Kt+45GFnr3q7c/b4awT48VvueOJV4jPjdUXi5MxC9mSUy+HkJYtm8rGZ6fC3tNHG9gBu/YwNAR/FYqhg=="
+      },
+      "System.Reflection.MetadataLoadContext": {
+        "type": "Transitive",
+        "resolved": "10.0.12",
+        "contentHash": "+DWu1fzj75I1FgdHSg3crgeZmfF2z55x1+OXF2IO2Lcq/iNgM9tL734pxAG0vo5iE82FVPHwbqUt31o8ipPBWg=="
+      },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "Transitive",
+        "resolved": "10.0.8",
+        "contentHash": "/ldVgSfImIBp6fLWS7sLH0BnmtFj0ZwGlZo4Xx2q0K3ZhJNDbW45kj2f6zPoC+L+BTINuHdMzTsopuwmkbgcNA=="
       }
     }
   }

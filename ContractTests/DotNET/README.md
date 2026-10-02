@@ -3,6 +3,8 @@
 
 # .NET HTTP reference fixture
 
+The same project also hosts [paired proxy-generation fixtures](../README.md#compare-proxy-generators). `Cratis.Arc.ProxyGenerator.Build` is pinned to 22.45.0 in its lock file; ordinary builds do not generate proxies unless an output path is supplied.
+
 A standalone ASP.NET Core host using the **public** NuGet `Cratis.Arc` **22.45.0** package, not the sibling Arc checkout. Its package graph is pinned by `packages.lock.json` and its framework runtimes are pinned to .NET / ASP.NET Core **10.0.11**. Install .NET SDK 10.x and both 10.0.11 runtimes. It has no database, Chronicle dependency, or hand-written Arc response envelopes.
 
 From the `Arc.TypeScript` repository root:

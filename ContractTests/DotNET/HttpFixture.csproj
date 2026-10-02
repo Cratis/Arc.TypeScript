@@ -15,5 +15,6 @@
   <ItemGroup>
     <FrameworkReference Update="Microsoft.AspNetCore.App" RuntimeFrameworkVersion="10.0.11" />
     <PackageReference Include="Cratis.Arc" Version="[22.45.0]" />
+    <PackageReference Include="Cratis.Arc.ProxyGenerator.Build" Version="[22.45.0]" PrivateAssets="all" />
   </ItemGroup>
 </Project>
