@@ -32,6 +32,18 @@ export class SourceWatchReader {
         });
     }
 
+    /** Distinguish a live directory from an unrelated file; undefined also allows removal of a known subtree. */
+    async isDirectory(path: string): Promise<boolean | undefined> {
+        return this.limited(async () => {
+            try { return (await fs.stat(path)).isDirectory(); }
+            catch (error) {
+                if (path === this.root) throw error;
+                this.skipped(path, error);
+                return undefined;
+            }
+        });
+    }
+
     async file(path: string, compareHash = false): Promise<SourceWatchEntry | undefined> {
         return this.limited(async () => {
             try {
@@ -39,7 +51,7 @@ export class SourceWatchReader {
                 if (!current.isFile()) return undefined;
                 const recent = Math.abs(Date.now() - Number(current.mtimeNs / 1_000_000n)) <= 2000;
                 // A coarse timestamp can conceal an equal-sized edit. Hash recent entries at the
-                // checkpoint and again on native events, even if that event arrives much later.
+                // checkpoint and retain that comparison on native events and later fallback scans.
                 const hash = recent || compareHash ? createHash('sha256').update(await fs.readFile(path)).digest('hex') : undefined;
                 return { signature: `${current.mtimeNs}:${current.ctimeNs}:${current.size}:${current.ino}`, hash };
             } catch (error) {

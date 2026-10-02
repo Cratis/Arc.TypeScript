@@ -13,6 +13,7 @@ export class SourceWatchMonitor {
     private readonly dirty = new Set<string>();
     private timer?: NodeJS.Timeout;
     private scanning?: Promise<void>;
+    private scanRequested = false;
     private stopped = false;
 
     constructor(private readonly root: string, private readonly externalFiles: ReadonlySet<string>,
@@ -28,14 +29,15 @@ export class SourceWatchMonitor {
 
     async notify(path: string): Promise<void> {
         if (this.stopped || this.excluded(path)) return;
-        const local = path.startsWith(this.root + sep) && path.endsWith('.ts') && !path.endsWith('.d.ts') &&
-            !path.includes(`${sep}node_modules${sep}`) && !path.includes(`${sep}.git${sep}`);
-        if (!local && !this.externalFiles.has(path)) return;
+        const local = path.startsWith(this.root + sep) &&
+            !path.slice(this.root.length + 1).split(sep).some(part => part === 'node_modules' || part === '.git');
+        const source = this.externalFiles.has(path) || local && path.endsWith('.ts') && !path.endsWith('.d.ts');
+        if (!local && !source) return;
         if (this.pending.has(path)) {
             this.dirty.add(path);
             return this.pending.get(path);
         }
-        const work = this.checkFile(path).catch(this.failed).finally(() => { this.pending.delete(path); });
+        const work = this.checkPath(path, source).catch(this.failed).finally(() => { this.pending.delete(path); });
         this.pending.set(path, work);
         return work;
     }
@@ -46,12 +48,19 @@ export class SourceWatchMonitor {
         await Promise.all([this.scanning, ...this.pending.values()]);
     }
 
-    private async checkFile(path: string): Promise<void> {
+    private async checkPath(path: string, source: boolean): Promise<void> {
         do {
             this.dirty.delete(path);
-            const current = await this.reader.file(path, this.entries.get(path)?.hash !== undefined);
-            this.duringScan?.add(path);
-            if (this.update(path, current) && !this.stopped) this.changed();
+            if (source) {
+                const current = await this.reader.file(path, this.entries.get(path)?.hash !== undefined);
+                this.duringScan?.add(path);
+                if (this.update(path, current) && !this.stopped) this.changed();
+            } else {
+                const directory = await this.reader.isDirectory(path);
+                // A moved-in directory is visible on disk; a removed directory survives only in the checkpoint.
+                if (directory || directory === undefined && [...this.entries.keys()].some(file => file.startsWith(path + sep)))
+                    await this.requestReconcile();
+            }
         } while (!this.stopped && this.dirty.has(path));
     }
 
@@ -67,16 +76,34 @@ export class SourceWatchMonitor {
     private arm(duration: number): void {
         if (this.stopped || this.interval === 0) return;
         const delay = Math.min(2_147_483_647, Math.max(this.interval, Math.ceil(4 * duration)));
-        this.timer = setTimeout(() => {
-            this.scanning = this.reconcile().catch(this.failed);
-        }, delay);
+        this.timer = setTimeout(() => { void this.requestReconcile(); }, delay);
     }
 
-    private async reconcile(): Promise<void> {
+    private requestReconcile(): Promise<void> {
+        if (this.stopped) return Promise.resolve();
+        if (this.timer) clearTimeout(this.timer);
+        this.scanRequested = true;
+        // Also honor requests arriving after the drain loop ends but before its promise is cleared.
+        if (this.scanning) return this.scanning.then(() => this.scanRequested ? this.requestReconcile() : this.scanning);
+        this.scanning = this.reconcileRequested().catch(this.failed).finally(() => { this.scanning = undefined; });
+        return this.scanning;
+    }
+
+    private async reconcileRequested(): Promise<void> {
+        let duration: number;
+        do {
+            this.scanRequested = false;
+            duration = await this.reconcile();
+        } while (this.scanRequested && !this.stopped);
+        this.arm(duration);
+    }
+
+    private async reconcile(): Promise<number> {
         const start = performance.now();
         this.duringScan = new Set();
         try {
-            const current = await sourceWatchSnapshot(this.root, this.externalFiles, this.excluded, this.reader);
+            const current = await sourceWatchSnapshot(this.root, this.externalFiles, this.excluded, this.reader,
+                path => this.entries.get(path)?.hash !== undefined);
             let changed = false;
             for (const path of new Set([...this.entries.keys(), ...current.keys()])) {
                 // Native checks can run during a large tree scan. Do not roll their fresher observations back.
@@ -84,7 +111,7 @@ export class SourceWatchMonitor {
                 changed = this.update(path, current.get(path)) || changed;
             }
             if (changed && !this.stopped) this.changed();
-            this.arm(performance.now() - start);
+            return performance.now() - start;
         } finally { this.duringScan = undefined; }
     }
 }

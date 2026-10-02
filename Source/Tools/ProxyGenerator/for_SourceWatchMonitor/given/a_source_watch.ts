@@ -17,6 +17,8 @@ export class a_source_watch {
         this.clock = sinon.useFakeTimers({ now: 10000, toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
         this.reader.directory.reset();
         this.reader.directory.resolves([{ name: 'Save.ts', isDirectory: () => false } as Dirent]);
+        this.reader.isDirectory.reset();
+        this.reader.isDirectory.resolves(false);
         this.reader.file.reset();
         this.reader.file.resolves(entry);
         this.changed.reset();

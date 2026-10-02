@@ -6,7 +6,8 @@ import type { SourceWatchEntry } from './SourceWatchEntry.js';
 
 /** Capture source identities in bounded batches, without statting directories or generated output. */
 export async function sourceWatchSnapshot(root: string, externalFiles: ReadonlySet<string>,
-    excluded: (path: string) => boolean, reader = new SourceWatchReader(root)): Promise<Map<string, SourceWatchEntry>> {
+    excluded: (path: string) => boolean, reader = new SourceWatchReader(root),
+    compareHash: (path: string) => boolean = () => false): Promise<Map<string, SourceWatchEntry>> {
     const snapshot = new Map<string, SourceWatchEntry>();
     const files = new Set(externalFiles);
     const directories = [root];
@@ -26,7 +27,7 @@ export async function sourceWatchSnapshot(root: string, externalFiles: ReadonlyS
     const remaining = files.values();
     await Promise.all(Array.from({ length: Math.min(32, files.size) }, async () => {
         for (let item = remaining.next(); !item.done; item = remaining.next()) {
-            const entry = await reader.file(item.value);
+            const entry = await reader.file(item.value, compareHash(item.value));
             if (entry) snapshot.set(item.value, entry);
         }
     }));

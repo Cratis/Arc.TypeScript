@@ -7,12 +7,12 @@ describe('when notified with generated or unrelated filenames', given(a_source_w
     beforeEach(async () => {
         await context.establish();
         for (const path of ['/artifacts/Save.proxy.ts', '/artifacts/metadata.ts', '/artifacts/generated/index.ts',
-            '/artifacts/icon.png', '/artifacts/View.tsx', '/artifacts/Type.d.ts', '/artifacts/Nested',
+            '/artifacts/icon.png', '/artifacts/View.tsx', '/artifacts/Type.d.ts',
             '/artifacts/node_modules/package/index.ts', '/artifacts/.git/hidden.ts', '/unrelated/Source.ts'])
             await context.monitor.notify(path);
     });
     afterEach(() => context.cleanup());
-    it('should not stat any file', () => context.reader.file.called.should.be.false);
+    it('should not read any source state', () => context.reader.file.called.should.be.false);
     it('should not walk any directory', () => context.reader.directory.called.should.be.false);
     it('should not request regeneration', () => context.changed.called.should.be.false);
 }));
