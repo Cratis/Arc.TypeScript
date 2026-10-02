@@ -115,7 +115,9 @@ What happens when the rule runs:
 - `{ optional: true }` returns `null` when nothing is stored, so the rule decides what absence means. Here, a task that does not exist yet has no title to repeat. Without `optional`, a missing model makes the rule throw, and the caller gets reason `validatorFailed` instead of your message.
 - Renaming task `t-1` from `Old` to `Old` answers 400 with `The task already has this title` for `title`, on both the execute and `/validate` routes. Renaming it to `New` succeeds.
 
-`readModelForValidation` works only inside a validator of a model-bound command, during validation. Called anywhere else, it throws. Validators do not receive read models through their constructors.
+`readModelForValidation` is the supported API for reading command state in a validator of a model-bound command. It runs only during validation; called outside that scope, it throws `Command read models can only be resolved during command validation`. Validators do not receive loaded command read models through their constructors.
+
+Validation, `provide()`, and `handle()` reuse the same resolved instance within one command when they request the same model type. In `provide()` and `handle()`, use `commandReadModel(Type)` rather than `readModelForValidation`. Separate commands have separate caches, including concurrent commands with the same key or commands in different tenants. Resolver failures are not treated as missing state: a failed lookup produces `validatorFailed`, while cancellation stops the command.
 
 ## Rule vocabulary
 
@@ -135,7 +137,11 @@ What happens when the rule runs:
 
 `when(predicate)` and `unless(predicate)` condition **every rule on the chain** by default. Pass `ApplyConditionTo.CurrentValidator` as the second argument to condition only the latest rule. `must` and `mustAsync` receive `(value, model, signal)`; pass the signal to cancelable I/O instead of starting work that outlives the request. Conditions and asynchronous rules run only on the server.
 
-A validator may declare constructor dependencies with `@injectable(Service)` or `static inject = [Service] as const`. Register the service with `builder.services`. Arc preflights the dependencies and constructs each validator once during build, which catches invalid selectors before any request. It then resolves fresh validators and services in each execution scope.
+A validator may declare ordinary service constructor dependencies with `@injectable(Service)` or `static inject = [Service] as const`. Register the service with `builder.services`. Arc preflights the dependencies and constructs each validator once during build, which catches invalid selectors before any request. It then resolves fresh validators and services in each execution scope, subject to the service's registered lifetime.
+
+During normal command execution, validators are constructed in an execution scope that carries the tenant. Their constructors also run once during build preflight without a command or tenant, so they must be safe to construct in that scope. Use them to configure rules and retain service dependencies, not to load command state or perform tenant-specific I/O. Read state inside the asynchronous rule, as in the example above; build preflight constructs validators but does not evaluate those rules.
+
+This intentionally differs from Arc for .NET, where a validator can receive a command read model through constructor injection. In TypeScript, keep ordinary service injection in the constructor and use `readModelForValidation(Type)` in the rule for command-keyed state. The [validation compatibility decision](https://github.com/Cratis/Arc.TypeScript/blob/main/decisions/0002-keep-validator-command-state-access-asynchronous.md) records this boundary.
 
 A validator that throws, or whose dependency cannot be resolved, never reports success. The caller gets 400 with reason `validatorFailed` or `dependencyUnavailable`, no exception text, and the error goes to the configured logger.
 
