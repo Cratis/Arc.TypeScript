@@ -5,9 +5,11 @@ description: Hand API consumers and tools an OpenAPI 3.1 description of every co
 
 A partner team wants to call your task API from Python. A QA engineer wants the endpoints in their API client. Your gateway wants a contract to validate against. Writing that description by hand means it is wrong the week after someone adds a field.
 
-Arc writes it for you. Every running Arc application serves an OpenAPI 3.1 document at `GET /openapi.json`, built from the same `@field` declarations and Zod schemas that bind requests. When the code changes, the document changes with it.
+Arc writes it for you. Arc can serve an OpenAPI 3.1 document at `GET /openapi.json`, built from the same `@field` declarations and Zod schemas that bind requests. When the code changes, the document changes with it.
 
 ## Fetch the document
+
+In Development, no credentials are required by default. Elsewhere `/openapi.json` follows the shared [discovery access policy](../introspection/index.md#production-access): authenticated callers only, or unmapped when no authentication is configured. The Tasks sample explicitly selects Development.
 
 ```bash
 curl http://127.0.0.1:3000/openapi.json

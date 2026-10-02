@@ -140,7 +140,10 @@ A body larger than `hosting.maxBodyBytes`, measured by `Content-Length` or while
 | `authorizationPolicies` | `{}` | Named authorization rules, also registered through `addAuthorizationPolicy`. |
 | `nativePrincipal` | `false` | Accept a host-verified principal, never a caller-supplied header; see [Native principal](../hosts/native-principal.md). |
 | `identityDetails` | None | Registers `/.cratis/me`; see [Identity](../identity/index.md). |
-| `developmentUsers`, `developmentTenants` | None | Code-only anonymous discovery providers; require `development: true`. |
+| `developmentUsers`, `developmentTenants` | None | Code-only fixture discovery providers; require `development: true`, independently of endpoint access. |
+| `environmentName` | Environment variables, otherwise non-Development | Discovery environment override; see [Discovery access](../introspection/index.md#production-access) for precedence. |
+| `introspection.requireAuthentication` | Unset | Anonymous only in Development. `false` opts out; `true` requires authentication everywhere and fails startup without authentication configured. |
+| `introspection.roles` | None | Comma-separated nonempty roles, any one of which grants access. Implies authentication; cannot be combined with `requireAuthentication: false`. |
 
 ## A note on CORS
 

@@ -79,7 +79,7 @@ The storage integrations select per-tenant storage from the resolved tenant:
 - Tenant resolution runs after authentication, so `tenancy.resolve` and the claim source see a verified principal. Never read identity from the request yourself in a resolver.
 - A header, query-string, or subdomain value is a request by the caller. The `subdomain` source reads only a host-verified authority, never the raw `Host` or `X-Forwarded-Host` header; see [Tenant resolvers](resolvers.md).
 - Enforce membership in tenancy options or authorization, never in validators.
-- `/.cratis/tenants` is an anonymous fixture list for development tools. Never return real tenant inventories from `developmentTenants`; see [Development users and tenants](../identity/development-users-and-tenants.md).
+- `/.cratis/tenants` is a fixture list for development tools, anonymous by default only in Development. Never return real tenant inventories from `developmentTenants`; see [Development users and tenants](../identity/development-users-and-tenants.md).
 - Treat tenant IDs as internal metadata. Avoid putting them in public URLs or error messages when a customer name would reveal who else uses the system.
 
 ## Recap

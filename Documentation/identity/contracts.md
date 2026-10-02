@@ -84,7 +84,7 @@ Arc on .NET works differently, and Arc for TypeScript deliberately does not copy
 | Provider input | `IdentityProviderContext`: `Id`, `Name`, and `Claims` as string pairs | `Principal` with `roles` and structured `claims`, plus the `ExecutionContext` |
 | Provider output | `IdentityDetails(IsUserAuthorized, Details)` | The details, or `undefined` to deny |
 | Details shape | Any object | Validated against `detailsType` or `schema` |
-| Discovery endpoints (`/.cratis/commands`, `/.cratis/queries`, `/.cratis/users`, `/.cratis/tenants` and `/.cratis/identity-details/schema`) | Require authentication outside Development by default in 22.45.0 | Anonymous ([#158](https://github.com/Cratis/Arc.TypeScript/issues/158)) |
+| Discovery endpoints (`/.cratis/commands`, `/.cratis/queries`, `/.cratis/users`, `/.cratis/tenants` and `/.cratis/identity-details/schema`) | Require authentication outside Development by default in 22.45.0 | Same default, opt-out, and optional roles; also covers `/openapi.json`. See [Discovery access](../introspection/index.md#production-access). |
 | Dependencies | Constructor injection | `currentServices()` inside `provide` |
 | Denied caller | 403 from `IsUserAuthorized: false` | 403 from `undefined` |
 | Cookie on the server | Read first when present | Never read |
