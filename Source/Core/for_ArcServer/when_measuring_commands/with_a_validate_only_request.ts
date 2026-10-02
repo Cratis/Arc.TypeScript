@@ -24,7 +24,8 @@ describe('when measuring a command with a validate-only request', given(a_teleme
         const legacy = metrics.find(metric => metric.descriptor.name === WellKnownTelemetryNames.operationDuration)!;
         legacy.dataPoints.filter(point => point.attributes.operation === 'cratis.arc.command.validate')
             .should.have.lengthOf(1);
-        metrics.filter(metric => metric.descriptor.name === WellKnownTelemetryNames.commandDuration)
+        metrics.filter(metric => metric.descriptor.name === WellKnownTelemetryNames.commandDuration ||
+            metric.descriptor.name === WellKnownTelemetryNames.commandOutcomes)
             .reduce((count, metric) => count + metric.dataPoints.length, 0).should.equal(0);
     });
 }));

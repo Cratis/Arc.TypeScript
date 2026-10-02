@@ -1,7 +1,7 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { TSESLint } from '@typescript-eslint/utils';
-import packageJson from './package.json' with { type: 'json' };
+import { packageVersion } from './Version.js';
 import { arc0002 } from './rules/arc0002.js';
 import { arc0003 } from './rules/arc0003.js';
 import { arc0004 } from './rules/arc0004.js';
@@ -40,7 +40,7 @@ const rules = {
 };
 
 /** ESLint 10 flat-config plugin for Arc server code. */
-const plugin = { meta: { name: '@cratis/eslint-plugin-arc-core', version: packageJson.version }, rules,
+const plugin = { meta: { name: '@cratis/eslint-plugin-arc-core', version: packageVersion }, rules,
     configs: {} as { recommended: TSESLint.FlatConfig.Config; 'recommended-type-checked': TSESLint.FlatConfig.Config }
 } satisfies TSESLint.FlatConfig.Plugin;
 const recommended: TSESLint.FlatConfig.Config = {

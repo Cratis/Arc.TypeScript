@@ -10,6 +10,7 @@ import { queryResult } from './createQueryResult.js';
 import { malformed } from '../http/malformed.js';
 import { renderQuery } from './renderQuery.js';
 import { observe } from '../execution/observability.js';
+import { WellKnownTelemetryNames } from '../execution/WellKnownTelemetryNames.js';
 import type { Operation } from '../http/Operation.js';
 import { ClientOperationKind } from '../introspection/ClientOperationKind.js';
 import { fullyQualifiedName } from '../http/fullyQualifiedName.js';
@@ -60,7 +61,7 @@ export function queryOperation<S extends z.ZodType, T>(definition: QueryDefiniti
                 try {
                     await prepareDependencies(definition.handlerDependencies, definition.validatorDependencies, false);
                     throwIfCanceled(context, 'Query canceled');
-                    issues = await observe('cratis.arc.query.filter', context.correlationId,
+                    issues = await observe(WellKnownTelemetryNames.queryFilterSpan, context.correlationId,
                         { query_name: operationName }, () =>
                             validate([definition.validate, ...(definition.filters ?? [])], value, context));
                     throwIfCanceled(context, 'Query canceled');

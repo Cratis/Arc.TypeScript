@@ -63,7 +63,7 @@ async function verify(name, start) {
             (span.attributes['http.method'] ?? span.attributes['http.request.method']) === 'POST' &&
             (span.attributes['http.target'] ?? span.attributes['url.path']) === '/api/echo');
         assert.equal(serverSpans.length, 1, `${name} must produce exactly one HTTP server span`);
-        const arcSpans = spans.filter(span => span.name === 'cratis.arc.http.handle');
+        const arcSpans = spans.filter(span => span.name === WellKnownTelemetryNames.httpHandleSpan);
         assert.equal(arcSpans.length, 1, `${name} must produce one Arc HTTP span`);
         assert.equal(arcSpans[0].kind, SpanKind.INTERNAL);
         const serverSpan = serverSpans[0];
@@ -93,8 +93,10 @@ async function verify(name, start) {
         await metricReader.forceFlush();
         const scopes = metricExporter.getMetrics().flatMap(resource => resource.scopeMetrics);
         for (const [metricName, operation, attributes] of [
-            [WellKnownTelemetryNames.commandDuration, 'cratis.arc.command.execute', { 'cratis.arc.command.type': 'Echo' }],
-            [WellKnownTelemetryNames.queryDuration, 'cratis.arc.query.perform', { 'cratis.arc.query.name': 'Ping' }]
+            [WellKnownTelemetryNames.commandDuration, WellKnownTelemetryNames.commandExecuteSpan,
+                { 'cratis.arc.command.type': 'Echo', 'cratis.arc.command.outcome': 'success' }],
+            [WellKnownTelemetryNames.queryDuration, WellKnownTelemetryNames.queryPerformSpan,
+                { 'cratis.arc.query.name': 'Ping', 'cratis.arc.query.outcome': 'success', 'cratis.arc.query.transport': 'snapshot' }]
         ]) {
             const scope = scopes.find(scope => scope.metrics.some(metric => metric.descriptor.name === metricName));
             assert.ok(scope, `${name} must export ${metricName}`);
@@ -118,7 +120,14 @@ async function verify(name, start) {
             assert.equal(span.instrumentationScope.version, packageMetadata.version);
             for (const [key, value] of Object.entries(attributes)) assert.equal(span.attributes[key], value);
         }
-        console.log(`${name}: HTTP ancestry; 2 duration histograms in seconds with canonical attributes and versioned scopes; deprecated metric retained`);
+        const counter = scopes.flatMap(scope => scope.metrics).find(metric => metric.descriptor.name === WellKnownTelemetryNames.commandOutcomes);
+        assert.ok(counter, `${name} must export command outcomes`);
+        assert.equal(counter.dataPointType, DataPointType.SUM);
+        assert.equal(counter.descriptor.unit, '{command}');
+        assert.deepEqual(counter.dataPoints[0].attributes, { 'cratis.arc.command.type': 'Echo', 'cratis.arc.command.outcome': 'success' });
+        assert.equal(counter.dataPoints.length, 1, `${name} must export one command outcomes point`);
+        assert.equal(counter.dataPoints[0].value, 1, `${name} must count its own command execution`);
+        console.log(`${name}: HTTP ancestry; duration histograms and command outcome counter with canonical attributes and versioned scopes; deprecated metric retained`);
     } finally { if (host) await host.close(); await arc.dispose(); }
 }
 

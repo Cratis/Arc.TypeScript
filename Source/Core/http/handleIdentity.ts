@@ -8,12 +8,13 @@ import type { NativeRequestContext } from './NativeRequestContext.js';
 import type { RequestBindings } from './handleRequest.js';
 import type { EndpointResponse } from './EndpointResponse.js';
 import { observe } from '../execution/observability.js';
+import { WellKnownTelemetryNames } from '../execution/WellKnownTelemetryNames.js';
 import { utf8Bytes } from './utf8Bytes.js';
 
 /** Resolve the current identity and its client cookie in the provider's scope. */
 export async function handleIdentity(server: ArcServer, bindings: RequestBindings, context: ExecutionContext,
     principal: Principal, native: NativeRequestContext | undefined, response: EndpointResponse): Promise<Response> {
-    const json = await observe('cratis.arc.identity.resolve', context.correlationId, {}, () => bindings.runProvider(context, async () => {
+    const json = await observe(WellKnownTelemetryNames.identityResolveSpan, context.correlationId, {}, () => bindings.runProvider(context, async () => {
         const details = await server.options.identityDetails!.provide(principal, context);
         if (details === undefined) return undefined;
         const parsed = server.options.identityDetails!.schema!.parse(details);

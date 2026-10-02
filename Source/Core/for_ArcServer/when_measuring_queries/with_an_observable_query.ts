@@ -25,9 +25,17 @@ describe('when measuring an observable query with multiple emissions', given(a_t
         metrics.should.have.lengthOf(1);
         const points = metrics[0]!.dataPoints;
         points.should.have.lengthOf(1);
-        points[0]!.attributes.should.deep.equal({ 'cratis.arc.query.name': 'Watch' });
+        points[0]!.attributes.should.deep.equal({
+            'cratis.arc.query.name': 'Watch', 'cratis.arc.query.transport': 'observable', 'cratis.arc.query.outcome': 'success'
+        });
         points[0]!.value.should.have.property('count', 1);
         points[0]!.value.should.have.property('sum', 0.25);
+    });
+    it('should record the subscription lifetime with the canonical and deprecated query names', () => {
+        const metric = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
+            .find(metric => metric.descriptor.name === WellKnownTelemetryNames.subscriptionDuration)!;
+        metric.dataPoints[0]!.attributes.should.deep.equal({ 'cratis.arc.query.name': 'Watch', query_name: 'Watch' });
+        metric.dataPoints[0]!.value.should.have.property('count', 1);
     });
     it('should retain both emission measurements only in the deprecated operation duration', () => {
         const legacy = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)

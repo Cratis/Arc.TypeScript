@@ -18,6 +18,7 @@ function fixture(t) {
     t.after(() => rmSync(folder, { recursive: true, force: true }));
     const files = {
         'package.json': { workspaces: ['Source/*', 'Source/Tools/*', 'Samples/*', 'ContractTests/Client', 'ContractTests/Http'] },
+        'Source/CodeAnalysis/package.json': { name: '@cratis/eslint-plugin-arc-core', version: '0.19.0' },
         'Source/Core/package.json': { name: '@cratis/arc.core', version: '0.19.0', dependencies: { '@cratis/arc.testing': 'workspace:^', '@cratis/cratis': '^0.19.0' } },
         'Source/Tools/Generator/package.json': { name: '@cratis/arc.proxygenerator', version: '0.19.0', dependencies: { '@cratis/arc.core': 'workspace:*' } },
         'Source/Testing/package.json': { name: '@cratis/arc.testing', version: '0.19.0', peerDependencies: { '@cratis/arc.core': '^0.18.0' } },
@@ -36,6 +37,9 @@ function fixture(t) {
         const line = original.split('\n').find(text => /(?:Every package manifest is at version|the manifests are at version|Every package in this repository is at version)/.test(text));
         writeFileSync(join(folder, file), `${line.replace(/version \d+\.\d+\.\d+/, 'version 0.19.0')}\n`);
     }
+    for (const file of ['Source/Core/Version.ts', 'Source/CodeAnalysis/Version.ts']) {
+        writeFileSync(join(folder, file), readFileSync(join(root, file), 'utf8').replace(/'\d+\.\d+\.\d+'/g, "'0.19.0'"));
+    }
     return folder;
 }
 
@@ -46,10 +50,11 @@ function manifest(root, path) {
 test('updates versioned workspaces, all internal non-workspace ranges, and three statements without touching external clients or workspace ranges', t => {
     const folder = fixture(t);
     const plan = prepareVersion(folder, '0.20.0');
-    assert.equal(plan.packages, 5);
+    assert.equal(plan.packages, 6);
     assert.equal(plan.unversioned, 2);
     assert.equal(plan.ranges, 4);
     assert.equal(plan.statements, 3);
+    assert.equal(plan.constants, 2);
     writeVersion(folder, plan);
     assert.equal(manifest(folder, 'Source/Core').dependencies['@cratis/cratis'], '^0.20.0');
     assert.equal(manifest(folder, 'Source/Cratis').devDependencies['@cratis/arc.testing'], '^0.20.0');
@@ -62,7 +67,34 @@ test('updates versioned workspaces, all internal non-workspace ranges, and three
     for (const file of ['README.md', 'Documentation/index.md', 'Documentation/reference/packages.md']) {
         assert.match(readFileSync(join(folder, file), 'utf8'), /version 0\.20\.0/);
     }
+    for (const file of ['Source/Core/Version.ts', 'Source/CodeAnalysis/Version.ts']) {
+        assert.match(readFileSync(join(folder, file), 'utf8'), /export const packageVersion = '0\.20\.0';/);
+    }
 });
+
+for (const file of ['Source/Core/Version.ts', 'Source/CodeAnalysis/Version.ts']) {
+    test(`checks stale, missing, and malformed ${file} without writing and regenerates it in the version plan`, t => {
+        const folder = fixture(t);
+        writeVersion(folder, prepareVersion(folder, '0.19.0'));
+        const path = join(folder, file);
+        const original = readFileSync(path, 'utf8');
+        for (const planted of [original.replace('0.19.0', '0.18.0'), 'export const packageVersion = process.env.VERSION;\n', undefined]) {
+            if (planted === undefined) rmSync(path);
+            else writeFileSync(path, planted);
+            assert.throws(() => prepareVersion(folder, undefined, { check: true }), error =>
+                error.message.includes(`${file}: generated version constant is missing or stale`));
+            const plan = prepareVersion(folder, '0.20.0');
+            if (planted === undefined) assert.throws(() => readFileSync(path), { code: 'ENOENT' });
+            else assert.equal(readFileSync(path, 'utf8'), planted);
+            assert.equal(manifest(folder, 'Source/Core').version, '0.19.0');
+            const edit = plan.edits.find(edit => edit.file === file);
+            assert.ok(edit);
+            assert.match(edit.content, /export const packageVersion = '0\.20\.0';/);
+        }
+        writeVersion(folder, prepareVersion(folder, '0.20.0'));
+        assert.equal(prepareVersion(folder, undefined, { check: true }).version, '0.20.0');
+    });
+}
 
 test('check mode detects planted manifest, internal range, and statement drift without writing', t => {
     const folder = fixture(t);

@@ -32,7 +32,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 
 ## Set up
 
-You need Node.js 22.19 or later and Corepack; Node.js 24 LTS is recommended. The root workspace declares Node.js `>=22.19.0` because it installs the Chronicle SDK, whose dependencies need it. Core needs Node.js 22.12 or later. The host adapter, MongoDB, and Drizzle manifests declare Node.js 22 or later, but applications using Core inherit its 22.12 minimum. The repository pins Yarn 4 in `package.json`, and Corepack selects that version. If `corepack` is not available with your Node.js installation, install it with `npm install --global corepack`.
+You need Node.js 22.19 or later and Corepack; Node.js 24 LTS is recommended. The root workspace declares Node.js `>=22.19.0` because it installs the Chronicle SDK, whose dependencies need it. Core, host adapters, MongoDB, and Drizzle need Node.js 22 or later. The repository pins Yarn 4 in `package.json`, and Corepack selects that version. If `corepack` is not available with your Node.js installation, install it with `npm install --global corepack`.
 
 ```bash
 corepack enable

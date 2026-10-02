@@ -3,7 +3,7 @@ title: Packages
 description: The packages this repository builds, what each exports, their peer dependencies and Node.js requirements, and how they relate to the published @cratis/arc client.
 ---
 
-Every package in this repository is at version 0.53.0, the version of the source preview. **None is published to npm.** They ship ES modules only. Clone this repository, run `yarn install` and `yarn build`, and then use the packages in one of two ways:
+Every package in this repository is at version 0.54.0, the version of the source preview. **None is published to npm.** They ship ES modules only. Clone this repository, run `yarn install` and `yarn build`, and then use the packages in one of two ways:
 
 - **Inside the clone.** Put your application in a folder under `Samples/`, which the root `workspaces` list includes, and reference the packages with the `workspace:^` protocol, as [`Samples/Tasks/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/package.json) does. `workspace:^` resolves only inside this repository's Yarn workspace.
 - **In your own project.** Pack each package you need with `yarn workspace <package> pack --out <file>` and install the tarballs with npm. Use `yarn pack`: it rewrites `workspace:^` dependencies to version ranges, and `npm pack` does not. `yarn check:consumers` installs packed packages this way to check NodeNext and Bundler consumers.
@@ -35,7 +35,7 @@ Every package in this repository is at version 0.53.0, the version of the source
 
 ## Node.js
 
-Core needs Node.js 22.12 or later, where JSON module imports are stable. The adapter, MongoDB, and Drizzle package manifests declare Node.js 22 or later, but applications using Core must meet Core's 22.12 minimum. Building the workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Core, adapter, MongoDB, and Drizzle package manifests declare Node.js 22 or later. Building the workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## The client packages
 
