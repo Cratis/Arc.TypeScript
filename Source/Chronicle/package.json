@@ -50,7 +50,7 @@
     "@cratis/arc.core": "workspace:^",
     "@cratis/arc.mongodb": "workspace:^",
     "@cratis/arc.testing": "workspace:^",
-    "@cratis/chronicle": "6.35.0",
+    "@cratis/chronicle": "6.49.0",
     "@cratis/fundamentals": "7.22.0",
     "@opentelemetry/api": "^1.9.0",
     "mongodb": "^6.21.0",

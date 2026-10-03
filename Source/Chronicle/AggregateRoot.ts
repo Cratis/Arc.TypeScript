@@ -4,6 +4,7 @@ import { EventSequenceNumber } from '@cratis/chronicle/eventSequences';
 import type { ConcurrencyScope, EventForEventSourceId } from '@cratis/chronicle/eventSequences';
 import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
 import type { EventContext } from '@cratis/chronicle/events';
+import type { EventSourceReference } from './EventSourceReference.js';
 
 type EventClass<T extends object = object> = new (...args: never[]) => T;
 export const rehydrateAggregate = Symbol('rehydrate aggregate');
@@ -14,6 +15,7 @@ export class AggregateRoot {
     #pending: EventForEventSourceId[] = [];
     #staged = 0;
     #tail = EventSequenceNumber.beforeFirst.value;
+    #reference?: EventSourceReference;
     #route: Omit<ConcurrencyScope, 'eventSourceId' | 'sequenceNumber'> = {};
     #handlers = new Map<EventClass, (event: object, context?: EventContext) => void>();
     /** True when no recorded events were found for the selected event source. */
@@ -27,9 +29,10 @@ export class AggregateRoot {
     get eventTypes(): EventClass[] { return [...this.#handlers.keys()]; }
     /** @internal */
     [rehydrateAggregate](sourceId: string, tail: bigint, route: Omit<ConcurrencyScope, 'eventSourceId' | 'sequenceNumber'>,
-        events: readonly { type: EventClass; content: object; context: EventContext }[]): void {
+        events: readonly { type: EventClass; content: object; context: EventContext }[], reference?: EventSourceReference): void {
         if (this.#sourceId) throw new Error('An aggregate can only be rehydrated once');
         this.#sourceId = sourceId;
+        this.#reference = reference;
         this.#tail = tail;
         this.#route = route;
         this.isNew = tail === EventSequenceNumber.beforeFirst.value || tail === EventSequenceNumber.unset.value;
@@ -39,7 +42,10 @@ export class AggregateRoot {
     apply(event: object): void {
         if (!this.#sourceId) throw new Error('The aggregate is not active');
         this.#dispatch(event.constructor as EventClass, event);
-        this.#pending.push({ eventSourceId: this.#sourceId, event });
+        // Appended events record the definition the aggregate was loaded through.
+        this.#pending.push({ eventSourceId: this.#sourceId, event, ...this.#reference ? {
+            eventSource: this.#reference.source as EventForEventSourceId['eventSource'],
+            ...this.#reference.stream === undefined ? {} : { eventStream: this.#reference.stream } } : {} });
     }
     /** Return pending events; events not returned are also enrolled in the command unit of work. */
     commit(): AggregateRootCommitResult {

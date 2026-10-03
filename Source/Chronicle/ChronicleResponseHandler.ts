@@ -15,6 +15,11 @@ import { EventSourceIdResponse } from './eventSourceIdResponse.js';
 import { eventForEventSourceId, isRoutedEvent } from './eventForEventSourceId.js';
 import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
 import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
+import { routeEntry } from './commandEventRouting.js';
+import type { CommandEventRouting } from './commandEventRouting.js';
+import { eventSourceReferenceFor } from './eventSourceDefinition.js';
+import { assertEventSourcesSupported, resolveEventSourceRoute, validateEventSourceReference } from './eventSourceRoute.js';
+import type { IEventStore } from '@cratis/chronicle';
 import { chronicleIdentity } from './chronicleIdentity.js';
 function eventLike(value: unknown): boolean {
     return typeof value === 'object' && value !== null && (isRoutedEvent(value) || hasEventType(value.constructor));
@@ -48,25 +53,27 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         const subjectField = getSubjectPropertyName((context.command as object).constructor);
         const subject = chronicleIdentity(command.getSubject?.(), 'subject') ??
             (subjectField ? chronicleIdentity(Reflect.get(context.command as object, subjectField), 'subject') : undefined) ?? route.subject;
+        const reference = eventSourceReferenceFor((context.command as object).constructor);
+        if (reference) validateEventSourceReference(`Command ${(context.command as object).constructor.name}`, reference, route);
+        const routing: CommandEventRouting = { legacy: route, reference, streamId };
         const entries: EventForEventSourceId[] = values.map(item => {
             const original: EventForEventSourceId = isRoutedEvent(item) ? item : { eventSourceId: selectedId, event: item as object };
             if (typeof original.eventSourceId !== 'string' || !original.eventSourceId.trim())
                 throw new Error('Every appended event must have a nonempty event source id');
-            return { eventSourceId: original.eventSourceId, event: original.event,
-                eventSourceType: original.eventSourceType ?? route.eventSourceType,
-                eventStreamType: original.eventStreamType ?? route.eventStreamType,
-                eventStreamId: original.eventStreamId ?? streamId,
+            return { eventSourceId: original.eventSourceId, event: original.event, ...routeEntry(original, routing),
                 subject: original.subject ?? subject ?? original.eventSourceId,
                 tags: original.tags, occurred: original.occurred };
         });
+        assertEventSourcesSupported(store, entries);
         const scopes: Record<string, ConcurrencyScope> = { ...exact?.scopes,
             ...(value instanceof AggregateRootCommitResult ? value.scopes : {}) };
         if (route.concurrentSource || route.concurrentStreamType || route.concurrentStreamId) {
             await Promise.all([...new Set(entries.map(entry => entry.eventSourceId))].map(async id => {
                 if (scopes[id]) return;
                 const sample = entries.find(entry => entry.eventSourceId === id)!;
-                const source = route.concurrentSource ? sample.eventSourceType : undefined;
-                const type = route.concurrentStreamType ? sample.eventStreamType : undefined;
+                const effective = effectiveRouting(store, sample, context);
+                const source = route.concurrentSource ? effective.eventSourceType : undefined;
+                const type = route.concurrentStreamType ? effective.eventStreamType : undefined;
                 const stream = route.concurrentStreamId ? sample.eventStreamId : undefined;
                 scopes[id] = { sequenceNumber: (await store.eventLog.getTailSequenceNumber(id, source, type, stream)).value,
                     eventSourceId: true, eventSourceType: source, eventStreamType: type, eventStreamId: stream };
@@ -90,4 +97,13 @@ export class ChronicleResponseHandler implements CommandResponseValueHandler {
         }
         return outcome;
     }
+}
+
+/** The source and stream type an entry is stored under, resolving a definition through the store. */
+function effectiveRouting(store: IEventStore, entry: EventForEventSourceId, context: CommandContext):
+    { eventSourceType?: string; eventStreamType?: string } {
+    if (entry.eventSource === undefined) return { eventSourceType: entry.eventSourceType, eventStreamType: entry.eventStreamType };
+    const resolved = resolveEventSourceRoute(store, `Command ${(context.command as object).constructor.name}`,
+        { source: entry.eventSource, stream: entry.eventStream ?? entry.eventStreamType });
+    return { eventSourceType: resolved.name, eventStreamType: resolved.stream };
 }

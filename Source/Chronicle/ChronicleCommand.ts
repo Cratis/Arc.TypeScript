@@ -12,6 +12,8 @@ import type { ChronicleProduced } from './ChronicleProduced.js';
 import { waitForProjectionCompletion } from './waitForProjectionCompletion.js';
 import { isRoutedEvent } from './eventForEventSourceId.js';
 import { AggregateRootCommitResult } from './AggregateRootCommitResult.js';
+import { routeEntry } from './commandEventRouting.js';
+import { assertEventSourcesSupported, validateEventSourceReference } from './eventSourceRoute.js';
 import { EventsWithConcurrencyScopes } from './EventsWithConcurrencyScopes.js';
 
 function memberName(propertyName: string): string {
@@ -82,7 +84,8 @@ function containsAppendValue(value: unknown, store: IEventStore, seen = new Set<
 }
 
 export function defineChronicleCommand<S extends z.ZodType, T>(definition: ChronicleCommandDefinition<S, T>): CommandDefinition<S, T | undefined> {
-    const { client, eventStore, namespaceForContext, produce, completionTimeoutMs, ...command } = definition;
+    const { client, eventStore, namespaceForContext, produce, completionTimeoutMs, eventSource, ...command } = definition;
+    if (eventSource) validateEventSourceReference(`Command ${definition.name}`, eventSource, {});
     if (!eventStore) throw new Error('A Chronicle event store is required');
     return defineCommand<S, T | undefined>({
         ...command,
@@ -98,7 +101,8 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
         const namespace = namespaceForContext(context);
         if (!namespace) throw new Error('The Chronicle namespace resolver returned no namespace');
         if (!Array.isArray(produced.events)) throw new Error('A Chronicle command must produce an event list');
-        const events = produced.events.map(snapshotEvent);
+        const events = produced.events.map(snapshotEvent).map(entry => eventSource
+            ? { ...entry, ...routeEntry(entry, { legacy: {}, reference: eventSource }) } : entry);
         const commandResponse = produced.response;
         if (events.length && isOutcome(commandResponse)) throw new Error('A Chronicle command cannot persist events and return an Arc outcome');
         if (!events.length) return commandResponse;
@@ -108,6 +112,7 @@ export function defineChronicleCommand<S extends z.ZodType, T>(definition: Chron
                 throw new Error('The event type is not registered in the selected Chronicle event store');
             }
         }
+        assertEventSourcesSupported(store, events);
         context.signal.throwIfAborted();
         const results = events.length === 1
             ? [await store.eventLog.append(events[0]!.eventSourceId, events[0]!.event, singleOptions(events[0]!, context))]
@@ -139,6 +144,8 @@ function snapshotEvent(entry: EventForEventSourceId): EventForEventSourceId {
         ...(eventSourceType === undefined ? {} : { eventSourceType }),
         ...(eventStreamType === undefined ? {} : { eventStreamType }),
         ...(eventStreamId === undefined ? {} : { eventStreamId }),
+        ...(entry.eventSource === undefined ? {} : { eventSource: entry.eventSource }),
+        ...(entry.eventStream === undefined ? {} : { eventStream: entry.eventStream }),
         ...(subject === undefined ? {} : { subject }),
         ...(tags === undefined ? {} : { tags: [...tags] }),
         ...(occurred === undefined ? {} : { occurred: new Date(occurred.getTime()) }) };
@@ -146,5 +153,5 @@ function snapshotEvent(entry: EventForEventSourceId): EventForEventSourceId {
 
 function singleOptions(entry: EventForEventSourceId, context: ExecutionContext): AppendOptions {
     return { correlationId: context.correlationId, sourceType: entry.eventSourceType, streamType: entry.eventStreamType,
-        streamId: entry.eventStreamId, subject: entry.subject, occurred: entry.occurred, tags: entry.tags };
+        streamId: entry.eventStreamId, eventSource: entry.eventSource, eventStream: entry.eventStream, subject: entry.subject, occurred: entry.occurred, tags: entry.tags };
 }

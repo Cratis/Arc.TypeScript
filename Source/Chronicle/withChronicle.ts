@@ -4,6 +4,9 @@ import { ArcApplicationBuilder, readModelCollectionNameResolver, serviceToken } 
 import type { ArcServer, ReadModelInterceptor } from '@cratis/arc.core';
 import { ArcApplicationBuilder as FetchArcApplicationBuilder } from '@cratis/arc.core/fetch';
 import type { Constructor } from '@cratis/fundamentals';
+import { eventRoutingFor } from './eventRouting.js';
+import { eventSourceReferenceFor, resolveEventSourceSelector } from './eventSourceDefinition.js';
+import { validateEventSourceReference } from './eventSourceRoute.js';
 import { ChronicleArtifacts } from './ChronicleArtifacts.js';
 import { ChronicleReadModels } from './ChronicleReadModels.js';
 import { ChronicleReadModelInterceptor } from './ChronicleReadModelInterceptor.js';
@@ -51,8 +54,21 @@ export function withChronicle(builder: ArcApplicationBuilder, options: Partial<C
         built.services.preflight([...artifacts.reactors, ...artifacts.reducers]);
     });
     const registeredInterceptors = new Set<Constructor>();
+    const routedTypes = new Set<Constructor>();
+    // Fail at startup, not on the first append, when a command's event source definition cannot work. Referencing a
+    // definition class makes it a registered artifact, so discovery needs no separate step and no import cycle.
+    builder.addBuiltObserver(() => {
+        for (const type of routedTypes) {
+            const reference = eventSourceReferenceFor(type)!;
+            const selector = resolveEventSourceSelector(reference.source);
+            if (!registration.client && typeof selector !== 'string') artifacts.register(selector);
+            validateEventSourceReference(`Command ${type.name}`, reference, eventRoutingFor(type),
+                registration.client ? undefined : artifacts.eventSources);
+        }
+    });
     builder.addArtifactObserver(type => {
         const matched = artifacts.register(type as Constructor);
+        if (eventSourceReferenceFor(type)) routedTypes.add(type as Constructor);
         // Deferred scoped fallbacks: explicit, options.services and decorated lifetimes win at build time.
         for (const artifact of [...artifacts.reactors, ...artifacts.reducers]) builder.services.addScopedFallback(artifact);
         for (const model of artifacts.readModels) {

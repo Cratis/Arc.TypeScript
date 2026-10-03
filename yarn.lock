@@ -113,7 +113,7 @@ __metadata:
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.mongodb": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.35.0"
+    "@cratis/chronicle": "npm:6.49.0"
     "@cratis/fundamentals": "npm:7.22.0"
     "@opentelemetry/api": "npm:^1.9.0"
     mongodb: "npm:^6.21.0"
@@ -354,7 +354,7 @@ __metadata:
     "@cratis/arc.express": "workspace:^"
     "@cratis/arc.react": "npm:22.45.0"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.35.0"
+    "@cratis/chronicle": "npm:6.49.0"
     "@cratis/components": "npm:4.23.0"
     "@cratis/fundamentals": "npm:7.22.0"
     "@testing-library/dom": "npm:^10.4.2"
@@ -392,23 +392,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/chronicle.contracts@npm:19.26.2":
-  version: 19.26.2
-  resolution: "@cratis/chronicle.contracts@npm:19.26.2"
+"@cratis/chronicle.contracts@npm:19.30.0":
+  version: 19.30.0
+  resolution: "@cratis/chronicle.contracts@npm:19.30.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.14.0"
     "@grpc/grpc-js": "npm:^1.14.4"
     nice-grpc: "npm:^2.1.17"
-  checksum: 10c0/0b06c998441ea1d13e9f4a8ffbca3ae7f1eddea74642a42b1feb6ffb8e8802047cddc9548a66cfb68287d902be4990d19c3941d0612fe13e8807fcc58da90c8e
+  checksum: 10c0/f5610eabdb40654f4cb45d9c9bd676c35e093b34d0221374db5a98bb5b8b86131278ae335082ef8bae9d5e10762b83aaf7f6f4e1bbe5f58dd42d1b3fdddb6ae7
   languageName: node
   linkType: hard
 
-"@cratis/chronicle@npm:6.35.0":
-  version: 6.35.0
-  resolution: "@cratis/chronicle@npm:6.35.0"
+"@cratis/chronicle@npm:6.49.0":
+  version: 6.49.0
+  resolution: "@cratis/chronicle@npm:6.49.0"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.16.0"
-    "@cratis/chronicle.contracts": "npm:19.26.2"
+    "@cratis/chronicle.contracts": "npm:19.30.0"
     "@grpc/grpc-js": "npm:^1.14.5"
     "@opentelemetry/api": "npm:^1.9.1"
     glob: "npm:^13.0.6"
@@ -418,7 +418,7 @@ __metadata:
     undici: "npm:^8.11.2"
   peerDependencies:
     "@cratis/fundamentals": ^7.20.0
-  checksum: 10c0/3a5d8179f020c64f62b3ae929d7d1781fc842220792b3430aad90e67df6f626bd8085f3af2b6d407846c75b7868145fa82293e5aed48ddfe0dce8448ff2e80bd
+  checksum: 10c0/928aad4ddeb0312c4121fa66fd739cbd8cb3e13baa027f0a2a7d23d6248ed64f405922cfc2137cae974965c6ab3f32f2c987bfc193e49d83c2e9bbea86711e5a
   languageName: node
   linkType: hard
 
@@ -458,7 +458,7 @@ __metadata:
     "@cratis/arc.chronicle": "workspace:^"
     "@cratis/arc.core": "workspace:^"
     "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.35.0"
+    "@cratis/chronicle": "npm:6.49.0"
     "@cratis/fundamentals": "npm:7.22.0"
     rxjs: "npm:^7.8.2"
     zod: "npm:^4.1.0"

@@ -8,6 +8,23 @@ import { AggregateRoot, rehydrateAggregate } from './AggregateRoot.js';
 import { ChronicleScopedStore } from './ChronicleStores.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { eventRoutingFor } from './eventRouting.js';
+import { eventSourceReferenceFor } from './eventSourceDefinition.js';
+import type { IEventStore } from '@cratis/chronicle';
+import type { EventSourceReference } from './EventSourceReference.js';
+import { resolveEventSourceRoute } from './eventSourceRoute.js';
+
+/** The aggregate's own definition, or the command's; both must agree when both are declared. */
+function aggregateReference(store: IEventStore, aggregate: Function, command: Function): EventSourceReference | undefined {
+    const own = eventSourceReferenceFor(aggregate);
+    const inherited = eventSourceReferenceFor(command);
+    if (!own || !inherited) return own ?? inherited;
+    const label = `Aggregate ${aggregate.name} and command ${command.name}`;
+    const left = resolveEventSourceRoute(store, label, { source: own.source });
+    const right = resolveEventSourceRoute(store, label, { source: inherited.source });
+    if (left.name !== right.name || (own.stream !== undefined && inherited.stream !== undefined && own.stream !== inherited.stream))
+        throw new Error(`${label} select different event source definitions or streams`);
+    return { source: own.source, stream: own.stream ?? inherited.stream };
+}
 
 const loaded = new WeakMap<CommandContext, Map<object, Promise<AggregateRoot>>>();
 /** Inject a rehydrated aggregate for the command key into handle() or provide(). */
@@ -28,8 +45,16 @@ export function commandAggregate<T extends AggregateRoot>(type: new () => T): Se
         const route = eventRoutingFor((context.command as object).constructor);
         const command = context.command as { getEventStreamId?: () => string };
         const streamId = command.getEventStreamId?.() ?? route.eventStreamId;
-        const source = route.eventSourceType;
-        const streamType = route.eventStreamType;
+        const commandType = (context.command as object).constructor;
+        const reference = aggregateReference(store, type, commandType);
+        let source = route.eventSourceType;
+        let streamType = route.eventStreamType;
+        if (reference) {
+            // The aggregate is guarded, and rehydrated, only from the declared source and stream.
+            const resolved = resolveEventSourceRoute(store, `Aggregate ${type.name}`, reference, route);
+            source = resolved.name;
+            streamType = resolved.stream ?? streamType;
+        }
         const tail = await store.eventLog.getTailSequenceNumber(context.key, source, streamType, streamId);
         const handlers = aggregate.eventTypes;
         const events = handlers.length ? await store.eventLog.getForEventSourceIdAndEventTypes(
@@ -45,7 +70,7 @@ export function commandAggregate<T extends AggregateRoot>(type: new () => T): Se
                 });
                 if (!eventType) throw new Error(`Unknown aggregate event type ${entry.eventType.toString()}`);
                 return { type: eventType, content: entry.content, context: entry.context };
-            }));
+            }), reference);
         ChronicleUnitOfWork.active()?.track(aggregate);
         return aggregate;
     }
