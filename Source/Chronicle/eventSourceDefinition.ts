@@ -25,5 +25,8 @@ export function eventSourceReferenceFor(type: object): EventSourceReference | un
 /** Resolve a thunk to its class; a class or a name is returned unchanged. */
 export function resolveEventSourceSelector(source: EventSourceSelector): Constructor | string {
     // Classes have a prototype; arrow-function thunks do not.
-    return typeof source === 'function' && source.prototype === undefined ? (source as () => Constructor)() : source as Constructor | string;
+    const resolved = typeof source === 'function' && source.prototype === undefined ? (source as () => unknown)() : source;
+    if (typeof resolved === 'string' || typeof resolved === 'function') return resolved as Constructor | string;
+    throw new Error(`An event source selector must be an @eventSource class, its name, or an arrow function returning one; got ${
+        resolved === null ? 'null' : typeof resolved}. A thunk must be an arrow function, so that it can be told from a class`);
 }
