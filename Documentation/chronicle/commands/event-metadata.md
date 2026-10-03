@@ -20,6 +20,8 @@ An event records more than its payload. It also records which entity it belongs 
 | Caused by | The signed-in principal, or Chronicle's system identity for an anonymous caller | None |
 | Causation | An `Arc.Command` entry with the command name and its values; see [Causation and auditing](causation.md) | None |
 
+To select a registered Chronicle event source definition instead of free-form strings, see [Event source definitions](event-source-definitions.md).
+
 Routing decorators come from `@cratis/arc.chronicle` and apply to every event the command returns. A value set on an `eventForEventSourceId` entry wins over the command's default for that entry only.
 
 ## Set command-wide defaults
@@ -90,4 +92,5 @@ export class Onboarding {
 
 - [Returning events](index.md)
 - [Resolving the event source ID](../resolving-event-source-id.md)
+- [Event source definitions](event-source-definitions.md)
 - [Concurrency](concurrency.md), where the same routing decorators opt into tail checks

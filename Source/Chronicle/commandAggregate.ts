@@ -9,12 +9,13 @@ import { ChronicleScopedStore } from './ChronicleStores.js';
 import { ChronicleUnitOfWork } from './ChronicleUnitOfWork.js';
 import { eventRoutingFor } from './eventRouting.js';
 import { eventSourceReferenceFor } from './eventSourceDefinition.js';
+import type { Constructor } from '@cratis/fundamentals';
 import type { IEventStore } from '@cratis/chronicle';
 import type { EventSourceReference } from './EventSourceReference.js';
 import { resolveEventSourceRoute } from './eventSourceRoute.js';
 
 /** The aggregate's own definition, or the command's; both must agree when both are declared. */
-function aggregateReference(store: IEventStore, aggregate: Function, command: Function): EventSourceReference | undefined {
+function aggregateReference(store: IEventStore, aggregate: Constructor, command: Constructor): EventSourceReference | undefined {
     const own = eventSourceReferenceFor(aggregate);
     const inherited = eventSourceReferenceFor(command);
     if (!own || !inherited) return own ?? inherited;
@@ -45,8 +46,8 @@ export function commandAggregate<T extends AggregateRoot>(type: new () => T): Se
         const route = eventRoutingFor((context.command as object).constructor);
         const command = context.command as { getEventStreamId?: () => string };
         const streamId = command.getEventStreamId?.() ?? route.eventStreamId;
-        const commandType = (context.command as object).constructor;
-        const reference = aggregateReference(store, type, commandType);
+        const commandType = (context.command as object).constructor as Constructor;
+        const reference = aggregateReference(store, type as Constructor, commandType);
         let source = route.eventSourceType;
         let streamType = route.eventStreamType;
         if (reference) {

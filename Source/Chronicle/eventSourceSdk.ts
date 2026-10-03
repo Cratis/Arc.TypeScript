@@ -3,8 +3,8 @@
 import type { Constructor } from '@cratis/fundamentals';
 
 interface EventSourceSdk {
-    getEventSourceMetadata?(target: Function): { readonly name: string } | undefined;
-    getEventStreamsFor?(target: Function): ReadonlyArray<{ readonly name: string }>;
+    getEventSourceMetadata?(target: Constructor): { readonly name: string } | undefined;
+    getEventStreamsFor?(target: Constructor): ReadonlyArray<{ readonly name: string }>;
 }
 
 // A dynamic import cannot stop this package from linking against an older SDK; the helpers then report the missing support.

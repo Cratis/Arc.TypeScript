@@ -2,6 +2,8 @@
   href: index.md
 - name: Event metadata
   href: event-metadata.md
+- name: Event source definitions
+  href: event-source-definitions.md
 - name: Subject
   href: subject.md
 - name: Concurrency
