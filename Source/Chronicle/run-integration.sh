@@ -20,7 +20,7 @@ if [ -z "${ARC_CHRONICLE_TEST_URL:-}" ]; then
     trap cleanup EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    container_id=$(docker run -d --name "$name" -p 127.0.0.1::35000 -p 127.0.0.1::27017 cratis/chronicle:latest-development)
+    container_id=$(docker run -d --name "$name" -p "127.0.0.1:${ARC_CHRONICLE_TEST_KERNEL_PORT:-}:35000" -p 127.0.0.1::27017 "${ARC_CHRONICLE_TEST_IMAGE:-cratis/chronicle:latest-development}")
     port=$(docker port "$container_id" 35000/tcp)
     mongo_port=$(docker port "$container_id" 27017/tcp)
     ARC_CHRONICLE_TEST_URL="chronicle://localhost:${port##*:}"
@@ -45,6 +45,8 @@ if [ "${ARC_CHRONICLE_TEST_SUITE:-}" = 'kernel-scenarios' ]; then
     yarn workspace @cratis/arc.sample.library generate-proxies
     yarn tsc -b Samples/Library
     node --test Samples/Library/kernel-scenarios.test.mjs
+elif [ "${ARC_CHRONICLE_TEST_SUITE:-}" = 'event-source-routing' ]; then
+    node --test --test-force-exit Source/Chronicle/Integration/event-source-routing.live.test.mjs
 else
     # The SDK's reactor observation can keep a gRPC socket open after disposal.
     node --test --test-force-exit Source/Chronicle/Integration/live.test.mjs

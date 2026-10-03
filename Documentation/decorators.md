@@ -87,6 +87,7 @@ From `@cratis/arc.chronicle` (experimental):
 | `@eventSourceType('Type', { concurrency? })` | command class | Default event source type for returned events | Command event metadata |
 | `@eventStreamType('Type', { concurrency? })` | command class | Default event stream type | Command event metadata |
 | `@eventStreamId('id', { concurrency? })` | command class | Default event stream ID | Command event metadata |
+| `@eventSourceDefinition(Source, 'Stream'?)` | command or aggregate class | Route events through a Chronicle event source definition and stream | [Event source definitions](chronicle/commands/event-source-definitions.md) |
 | `@eventSubject('subject')` | command class | Default compliance subject | Command event metadata |
 | `@notAudited()` | command field | Keeps the value out of the causation chain | `[NotAudited]` |
 

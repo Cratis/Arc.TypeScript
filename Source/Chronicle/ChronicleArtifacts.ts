@@ -53,6 +53,8 @@ export class ChronicleArtifacts implements IClientArtifactsProvider {
         }
         return [...types];
     }
+    /** Classes decorated with `@eventSource`; empty with an SDK that predates event source definitions. */
+    get eventSources(): Constructor[] { return this.of(DecoratorType.EventSource); }
     get reactors(): Constructor[] { return this.of(DecoratorType.Reactor); }
     get reducers(): Constructor[] { return this.of(DecoratorType.Reducer); }
     /** Whether a model is populated by a registered declarative or model-bound projection. */

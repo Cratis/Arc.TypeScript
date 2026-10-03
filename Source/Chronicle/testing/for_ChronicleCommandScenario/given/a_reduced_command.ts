@@ -3,7 +3,7 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { reducer } from '@cratis/chronicle/reducers';
-import { fromEvent, increment } from '@cratis/chronicle/projections';
+import { fromEvent } from '@cratis/chronicle/projections';
 import { readModel } from '@cratis/chronicle/readModels';
 import { command, commandReadModel, CommandValidator, inject, key, readModelForValidation, validator } from '@cratis/arc.core';
 import { ChronicleCommandScenario } from '../../ChronicleCommandScenario.js';
@@ -17,7 +17,7 @@ class ItemReducer {
     itemAdded(event: ItemAdded, current?: ItemState): ItemState { return { count: (current?.count ?? 0) + event.amount }; }
 }
 @fromEvent(ItemAdded) class ProjectedState { @field(String) id = ''; @field(Number) amount = 0; }
-@fromEvent(ItemAdded) class UnsupportedState { @field(String) id = ''; @field(Number) @increment(ItemAdded) count = 0; }
+@fromEvent(ItemAdded) class UnsupportedState { @field(String) id = ''; @field(String) amount = ''; }
 @readModel() class UnreducedState { @field(Number) amount = 0; }
 @command() class CheckItem {
     @field(String) @key() id = '';
@@ -42,7 +42,7 @@ class ItemReducer {
 @command() class CheckUnsupportedItem {
     @field(String) @key() id = '';
     @inject(commandReadModel(UnsupportedState))
-    handle(state: UnsupportedState): number { return state.count; }
+    handle(state: UnsupportedState): string { return state.amount; }
 }
 @command() class CheckUnreducedItem {
     @field(String) @key() id = '';

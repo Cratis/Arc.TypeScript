@@ -64,7 +64,7 @@ You may `return order.commit()` to make the commit visible. Do **not** also retu
 
 The aggregate belongs to the command's key: the `@key()` field, `getKey()`, or `getEventSourceId()`. A command without a key fails with the exception `A command key is required for Order` before `handle()` runs.
 
-Loading uses the same route the command's returned events use: the current tenant's namespace, the command's `@eventSourceType`, `@eventStreamType`, and its stream ID from `getEventStreamId()` or `@eventStreamId`. Arc reads the events of the types the aggregate handles, in order, and replays them. See [Event metadata](../commands/event-metadata.md).
+Loading uses the same route the command's returned events use: the current tenant's namespace, the command's `@eventSourceType`, `@eventStreamType`, and its stream ID from `getEventStreamId()` or `@eventStreamId`. Arc reads the events of the types the aggregate handles, in order, and replays them. See [Event metadata](../commands/event-metadata.md). An aggregate can instead declare an [event source definition](../commands/event-source-definitions.md), which guards and rehydrates only that source and stream.
 
 Arc loads each aggregate type once per command. A second parameter of the same type receives the same instance. For a second aggregate **type** on the same key, bind another `commandAggregate(Type)`. There is no way to load an aggregate for a different ID; the key decides.
 

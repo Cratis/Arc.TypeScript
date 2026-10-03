@@ -3,7 +3,7 @@
 import { field } from '@cratis/fundamentals';
 import { eventType } from '@cratis/chronicle/events';
 import { reducer } from '@cratis/chronicle/reducers';
-import { fromEvent, increment, setFromContext } from '@cratis/chronicle/projections';
+import { fromEvent, setFromContext } from '@cratis/chronicle/projections';
 import { readModel as chronicleReadModel } from '@cratis/chronicle/readModels';
 import { argument, query, readModel, service } from '@cratis/arc.core';
 import { ChronicleReadModels } from '../../../ChronicleReadModels.js';
@@ -22,7 +22,7 @@ export class BalanceReducer {
 }
 @fromEvent(BalanceChanged) export class UnsupportedBalance {
     @field(String) id = '';
-    @field(Number) @increment(BalanceChanged) count = 0;
+    @field(String) amount = '';
 }
 @reducer('query-projection-precedence', undefined, ProjectedBalance)
 export class ProjectionPrecedenceReducer {
