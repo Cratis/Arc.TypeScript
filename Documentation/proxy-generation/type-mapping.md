@@ -16,7 +16,7 @@ The generator shares Arc's discovery walk: only exported classes under `--artifa
 | `String`, `Number`, `Boolean` fields | `string`, `number`, `boolean` |
 | `Date` | `Date` |
 | Fundamentals `Guid`, `DateOnly`, `TimeOnly`, `TimeSpan` | The same Fundamentals types |
-| `ConceptAs<T>` | Its underlying type; `TaskId extends ConceptAs<Guid>` becomes `Guid` |
+| `ConceptAs<T>` | Its underlying type; `TaskId extends ConceptAs<Guid>` becomes `Guid`, also through indirect or generic intermediate concept classes |
 | Decorated model classes | Generated model classes, or interfaces with `--emit-interfaces` |
 | Arrays | Arrays of the element type |
 | String and number enums, string-literal unions | Enums and unions |

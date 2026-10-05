@@ -114,7 +114,7 @@ export class Author {
 }
 ```
 
-The server declares `@field(AuthorId) id` and `@field(AuthorName) name`. Concepts arrive as their underlying types, here `Guid` and `string`, because the wire carries only the value. With `--emit-interfaces` the generator writes interfaces instead, which carry no runtime metadata. The identity provider's `detailsType` is generated the same way, for [`useIdentity`](../identity/frontend.md).
+The server declares `@field(AuthorId) id` and `@field(AuthorName) name`. Concepts arrive as their underlying types, here `Guid` and `string`, because the wire carries only the value. The same holds for a concept that inherits indirectly, such as `class DerivedName extends AuthorName`, or through a generic intermediate class: it is typed as the value it carries. The empty class the generator used to emit for such a concept is still generated, marked `@deprecated`, so existing imports keep compiling; it will be removed in the next major release. With `--emit-interfaces` the generator writes interfaces instead, which carry no runtime metadata. The identity provider's `detailsType` is generated the same way, for [`useIdentity`](../identity/frontend.md).
 
 ## Related
 
