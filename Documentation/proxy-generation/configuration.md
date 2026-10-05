@@ -35,6 +35,7 @@ Match these to the server's [endpoint mapping](../core/endpoint-mapping.md), or 
 | `--js-import-specifiers` | Off | Use `.js` extensions in local imports, for native Node ESM; extensionless imports suit Vite and other bundlers |
 | `--emit-interfaces` | Off | Emit undecorated interfaces instead of model classes; model constructors in proxies become `Object`, so choose this only when you do not need decorated model hydration |
 | `--skip-react-hooks` | Off | Emit server-only proxies: no `@cratis/arc.react` import and no static `use*`/`when` hooks on commands and queries, so a project that only needs the typed HTTP client does not need React installed. The generated classes still work with `@cratis/arc` directly. Programmatic option: `skipReactHooks` |
+| `--scalar-concept-subclasses` | Off | Type indirect and generic concept subclasses as their underlying value. See [Scalar typing of indirect concepts](#scalar-typing-of-indirect-concepts). Programmatic option: `scalarConceptSubclasses` |
 | `--skip-index-generation` | Off for a dedicated output folder; automatic for co-located output | Do not write `index.ts` barrels |
 | `--skip-output-deletion` | Off | Keep stale generated files instead of removing them |
 | `--metadata <file>` | Off | Generate server artifact metadata at the given absolute path and infer undecorated bindings |
@@ -101,9 +102,29 @@ Behavior and limits:
 - Generation fails, naming the file, when a mapped export would share a name with another import or declaration in the same generated file, for example a mapped `Command` next to the `Command` imported from `@cratis/arc/commands`. Export the type from your package under a different name.
 - A mapping that matches no type reachable from the artifacts root is reported as a warning, since it is usually a misspelled name.
 
+## Scalar typing of indirect concepts
+
+A concept that extends `ConceptAs<T>` directly is always generated as its underlying value. A concept that extends another concept (`class DerivedName extends Name`) or a generic intermediate class (`class Shared<T> extends ConceptAs<T>`) is different. By default the generator emits an empty model class for it and types fields and parameters with that class. The wire carries only the value, so the empty class hydrates without it and the value is lost at runtime.
+
+`--scalar-concept-subclasses` types those concepts as their underlying value, the same as a direct concept:
+
+```ts
+// Default
+@field(DerivedName)
+derivedName!: DerivedName;
+
+// With --scalar-concept-subclasses
+@field(String)
+derivedName!: string;
+```
+
+The empty classes are still emitted, marked `@deprecated`, so existing imports keep compiling. Turning the option on changes the types of generated fields and parameters, so code that assigns a `DerivedName` to a generated field, passes one as a command or query parameter, or uses `instanceof DerivedName` needs to use the underlying value instead.
+
+The option is off by default because changing generated proxy types is a breaking change. It becomes the default in the next major release, which also removes the empty classes; see [decision 0004](https://github.com/Cratis/Arc.TypeScript/blob/main/decisions/0004-defer-generated-proxy-removals-to-the-next-major-release.md). Turn it on now if your concepts inherit indirectly and you want their values to survive deserialization.
+
 ## Programmatic use
 
-The package also exports `analyzeSource`, `renderSource`, `renderGeneratedMetadata`, and `generateFromSource` for the same pipeline, with the `SourceGeneratorOptions` and `SourceRenderOptions` types. Programmatic `generateFromSource` accepts `metadata` or `generatedMetadata: true` for inference. `renderSource` accepts a `recordedRules` override. The low-level manifest path exports `renderClientManifest` and `generateClient`; see [Low-level manifest](low-level-manifest.md).
+The package also exports `analyzeSource`, `renderSource`, `renderGeneratedMetadata`, and `generateFromSource` for the same pipeline, with the `SourceGeneratorOptions` and `SourceRenderOptions` types. Programmatic `generateFromSource` accepts `metadata` or `generatedMetadata: true` for inference, and `scalarConceptSubclasses: true` for [scalar typing of indirect concepts](#scalar-typing-of-indirect-concepts). `renderSource` accepts a `recordedRules` override. The low-level manifest path exports `renderClientManifest` and `generateClient`; see [Low-level manifest](low-level-manifest.md).
 
 ## Related
 

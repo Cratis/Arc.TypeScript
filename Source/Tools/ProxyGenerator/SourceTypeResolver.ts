@@ -17,7 +17,8 @@ export class SourceTypeResolver {
     private readonly declarations = new Map<string, ts.Declaration>();
     constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string,
         private readonly generatedMetadata = false, private readonly rootNamespace = '',
-        private readonly contribute: (declaration: ts.Declaration) => void = () => {}, typeMappings?: TypeMappings) {
+        private readonly contribute: (declaration: ts.Declaration) => void = () => {}, typeMappings?: TypeMappings,
+        private readonly scalarConceptSubclasses = false) {
         this.mappings = resolveTypeMappings(typeMappings);
     }
     private readonly mappings: ReadonlyMap<string, ResolvedTypeMapping>;
@@ -85,7 +86,7 @@ export class SourceTypeResolver {
             }
         }
         const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
-        const value = direct ? undefined : conceptValue(this.checker, type, location);
+        const value = direct || !this.scalarConceptSubclasses ? undefined : conceptValue(this.checker, type, location);
         if (value) {
             // Indirect and generic concepts travel as their value. The class they used to produce is still generated, deprecated.
             const resolved = this.resolve(value, location, optional);
@@ -107,19 +108,25 @@ export class SourceTypeResolver {
     private resolveBase(type: ts.Type, location: ts.Node): SourceType {
         const symbol = type.aliasSymbol ?? type.getSymbol();
         const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
-        const value = declaration && !declaration.getSourceFile().isDeclarationFile && !this.isDirectConcept(type) ?
+        const value = this.scalarConceptSubclasses && declaration && !declaration.getSourceFile().isDeclarationFile && !this.isDirectConcept(type) ?
             conceptValue(this.checker, type, location) : undefined;
         if (value) return this.model(type, declaration!, symbol!.getName(), this.resolve(value, location).text);
         return this.resolve(type, location);
     }
+    /** Resolve a model class; `deprecated` is the underlying type text when the class stands for a concept subclass. */
     private model(type: ts.Type, declaration: ts.ClassDeclaration, name: string, deprecated?: string): SourceType {
         this.contribute(declaration);
         const key = [this.namespace(declaration), name].filter(Boolean).join('.');
         const mapped = this.mapped(key);
         if (mapped) return mapped;
         this.checkIdentity(key, declaration);
-        if (!this.models.has(key)) {
-            this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields: [], ...(deprecated ? { deprecated } : {}) });
+        const existing = this.models.get(key);
+        // A class shared by instantiations with different values cannot name one underlying type.
+        if (existing?.deprecated && deprecated !== undefined && existing.deprecated.value !== deprecated)
+            this.models.set(key, { ...existing, deprecated: {} });
+        if (!existing) {
+            const deprecation = deprecated === undefined ? undefined : { value: declaration.typeParameters?.length ? undefined : deprecated };
+            this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields: [], ...(deprecation ? { deprecated: deprecation } : {}) });
             const fields: SourceField[] = declaration.members.filter(ts.isPropertyDeclaration).filter(member => {
                 const decorators = ts.canHaveDecorators(member) ? ts.getDecorators(member) ?? [] : [];
                 if (!decorators.some(decorator => {
@@ -160,7 +167,7 @@ export class SourceTypeResolver {
             const derivedTypeId = derived && ts.isCallExpression(derived) && derived.arguments[0] && ts.isStringLiteral(derived.arguments[0]) ? derived.arguments[0].text : undefined;
             this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields,
                 base: basePackage ? base!.text : base?.model, baseKey: base?.modelKey, basePackage, derivedTypeId,
-                ...(deprecated ? { deprecated } : {}) });
+                ...(deprecation ? { deprecated: deprecation } : {}) });
         }
         return { ...primitive(name, name), model: name, modelKey: key };
     }

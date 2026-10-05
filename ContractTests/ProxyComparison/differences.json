@@ -24,7 +24,7 @@
     "complex-sorting": {
       "category": "knownLimitation",
       "issue": "https://github.com/Cratis/Arc.TypeScript/issues/174",
-      "description": "The .NET controller-based generator still emits helpers for complex result fields, which throw on .NET IQueryable; its model-bound snapshot's query-parameter defect masks that limitation. TypeScript retains detail/notice helpers for compatibility but deprecates them for removal in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177), and rejects in-memory sorting on these complex fields with the existing malformedRequest validation result. Database providers retain their own ordering; scalar helpers are unchanged."
+      "description": "The .NET controller-based generator still emits helpers for complex result fields, which throw on .NET IQueryable; its model-bound snapshot's query-parameter defect masks that limitation. TypeScript retains detail/notice helpers for compatibility but deprecates them for removal in the next major release (https://github.com/Cratis/Arc.TypeScript/blob/main/decisions/0004-defer-generated-proxy-removals-to-the-next-major-release.md), and rejects in-memory sorting on these complex fields with the existing malformedRequest validation result. Database providers retain their own ordering; scalar helpers are unchanged."
     },
     "enum-names": {
       "category": "intentional",
@@ -38,7 +38,7 @@
   "limitations": ["complex-sorting"],
   "files": {
     "ProxyComparison/All.ts": {
-      "pairSha256": "d8e61bfa0dd8347d4b70abe98d60161de95cf1307046d02626e8bf2bd5c10592",
+      "pairSha256": "0a6d2983be4fe6ca32a4cbdaf7affd87b843f84683a7d2fe2b6360f5dc3aaf02",
       "reasons": ["layout", "imports", "query-source", "sorting", "complex-sorting"]
     },
     "ProxyComparison/Detail.ts": {
@@ -50,7 +50,7 @@
       "reasons": ["layout"]
     },
     "ProxyComparison/Observe.ts": {
-      "pairSha256": "3cf3ce2d59571f12b9164791985f40f0a7bacbddf4f503955cd7f4547ccbdd76",
+      "pairSha256": "49424b9f6d6a6f3d8a50587eeed0f57e58a570b853e1dc5d479c35d08808c43f",
       "reasons": ["layout", "imports", "query-source", "sorting", "complex-sorting"]
     },
     "ProxyComparison/Register.ts": {

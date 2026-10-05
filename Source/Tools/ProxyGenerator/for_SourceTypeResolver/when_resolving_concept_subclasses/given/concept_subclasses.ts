@@ -7,24 +7,26 @@ import { SourceTypeResolver } from '../../../SourceTypeResolver.js';
 import { renderSource, type SourceRenderOptions } from '../../../renderSource.js';
 import type { SourceOperation } from '../../../SourceOperation.js';
 
-const rendered = new Map<boolean, ReadonlyMap<string, string>>();
+const rendered = new Map<string, ReadonlyMap<string, string>>();
+export type ConceptSubclassOptions = Pick<SourceRenderOptions, 'emitInterfaces'> & { readonly scalarConceptSubclasses?: boolean };
 
 /** Render a model, a command and a query using an indirect (DerivedName) and a generic (GenericName) concept subclass. */
-export function renderConceptSubclasses(options: Pick<SourceRenderOptions, 'emitInterfaces'> = {}): ReadonlyMap<string, string> {
+export function renderConceptSubclasses(options: ConceptSubclassOptions = {}): ReadonlyMap<string, string> {
     // Building a compiler program takes seconds; the rendered output is immutable, so render each variant once.
-    const emitInterfaces = !!options.emitInterfaces;
-    if (!rendered.has(emitInterfaces)) rendered.set(emitInterfaces, render({ emitInterfaces }));
-    return rendered.get(emitInterfaces)!;
+    const emitInterfaces = !!options.emitInterfaces, scalar = options.scalarConceptSubclasses ?? true;
+    const key = `${emitInterfaces}/${scalar}`;
+    if (!rendered.has(key)) rendered.set(key, render({ emitInterfaces }, scalar));
+    return rendered.get(key)!;
 }
 
-function render(options: SourceRenderOptions): ReadonlyMap<string, string> {
+function render(options: SourceRenderOptions, scalarConceptSubclasses: boolean): ReadonlyMap<string, string> {
     const root = resolve('Source/Tools/ProxyGenerator/for_renderSourceQuery/given');
     const path = resolve(root, 'ScalarFields.ts');
     const program = ts.createProgram([path], { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
         moduleResolution: ts.ModuleResolutionKind.Bundler, strict: true, experimentalDecorators: true });
     const checker = program.getTypeChecker();
     const declaration = program.getSourceFile(path)!.statements.find(statement => ts.isClassDeclaration(statement) && statement.name?.text === 'ScalarFields')!;
-    const resolver = new SourceTypeResolver(checker, root);
+    const resolver = new SourceTypeResolver(checker, root, false, '', () => {}, undefined, scalarConceptSubclasses);
     const result = resolver.resolve(checker.getTypeAtLocation(declaration), declaration);
     const fields = resolver.models.get('ScalarFields')!.fields.filter(field => ['derivedName', 'genericName'].includes(field.name));
     const query: SourceOperation = { kind: ClientOperationKind.Query, name: 'All', owner: 'ScalarFields', namespace: '', roles: [],

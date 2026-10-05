@@ -82,7 +82,8 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
     const types = aliasTypes([...model.fields.map(field => field.type), ...(base ? [base] : [])], path, destinations, model.name);
     model = { ...model, fields: model.fields.map((field, index) => ({ ...field, type: types[index]! })), base: base && types.at(-1)!.text };
     const baseType = base && types.at(-1);
-    const deprecation = model.deprecated ? `/** @deprecated Generated proxies type this concept as its underlying ${model.deprecated}; this empty class is no longer referenced and will be removed in the next major release. */\n` : '';
+    const value = model.deprecated?.value;
+    const deprecation = model.deprecated ? `/** @deprecated Generated proxies type this concept as its underlying ${value && !value.includes('*/') ? value : 'value'}; this empty ${options.emitInterfaces ? 'interface' : 'class'} is no longer referenced and will be removed in the next major release (${removalRecord}). */\n` : '';
     if (options.emitInterfaces) {
         const imports = [...new Set(model.fields.flatMap(field => typeImports(field.type, path, destinations, options)).concat(model.base ?
             typeImports(baseType!, path, destinations, options) : []))].sort();
@@ -100,6 +101,7 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
     const fields = model.fields.map(field => `    @field(${field.type.constructor}${field.type.enumerable ? ', true' : ''})\n    ${wireName(field.name)}${field.optional ? '?' : '!'}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n\n');
     return `${imports.join('\n')}${imports.length ? '\n\n' : ''}${deprecation}${model.derivedTypeId ? `@derivedType(${quote(model.derivedTypeId)})\n` : ''}export class ${model.name}${model.base ? ` extends ${model.base}` : ''} {${fields ? `\n${fields}\n` : '\n'}}\n`;
 }
+const removalRecord = 'https://github.com/Cratis/Arc.TypeScript/blob/main/decisions/0004-defer-generated-proxy-removals-to-the-next-major-release.md';
 const importedNames = /^import\s+(?:type\s+)?\{([^}]*)\}\s+from\s/gm;
 const declaredNames = /^(?:export\s+)?(?:abstract\s+)?(?:class|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm;
 /** A mapped type is imported under its export name; refuse a file where anything else already owns that name. */

@@ -24,6 +24,11 @@ export interface SourceGeneratorOptions extends SourceRenderOptions {
     readonly emitInterfaces?: boolean;
     /** Import these types from other packages instead of generating them, keyed by namespace-qualified type name. */
     readonly typeMappings?: TypeMappings;
+    /**
+     * Type indirect and generic concept subclasses (for example `class DerivedName extends Name`) as their underlying value.
+     * Their empty classes are still emitted, deprecated. This becomes the default in the next major release.
+     */
+    readonly scalarConceptSubclasses?: boolean;
     /** Absolute path of an optional source-generated server metadata module. */
     readonly metadata?: string;
     /** Opt into source-inferred bindings even when this invocation does not publish metadata. */
@@ -47,7 +52,7 @@ export async function generateFromSource(options: SourceGeneratorOptions): Promi
     const contributingFiles = new Set<string>();
     const collector = options.metadata ? metadataCollector(program, options.metadata, contributingFiles) : undefined;
     const analysis = analyzeSource(options.project, artifacts, options.rootNamespace,
-        !!collector || options.generatedMetadata === true, program, collector?.visit, contributingFiles, options.typeMappings);
+        !!collector || options.generatedMetadata === true, program, collector?.visit, contributingFiles, options.typeMappings, options.scalarConceptSubclasses === true);
     const colocated = await isColocatedOutput(artifacts, output, analysis);
     if (colocated && !options.useProxyFileSuffix)
         throw new Error('Output is co-located with backend artifacts; --use-proxy-file-suffix is required to keep generated files distinct from backend modules');
