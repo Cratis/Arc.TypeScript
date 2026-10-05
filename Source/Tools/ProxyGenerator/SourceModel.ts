@@ -12,4 +12,6 @@ export interface SourceModel {
     /** Package a mapped base class is imported from; the base is not generated. */
     readonly basePackage?: string;
     readonly derivedTypeId?: string;
+    /** Underlying client type of the indirect or generic concept this class used to represent; nothing generated references it. */
+    readonly deprecated?: string;
 }

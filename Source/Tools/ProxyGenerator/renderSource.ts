@@ -82,10 +82,11 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
     const types = aliasTypes([...model.fields.map(field => field.type), ...(base ? [base] : [])], path, destinations, model.name);
     model = { ...model, fields: model.fields.map((field, index) => ({ ...field, type: types[index]! })), base: base && types.at(-1)!.text };
     const baseType = base && types.at(-1);
+    const deprecation = model.deprecated ? `/** @deprecated Generated proxies type this concept as its underlying ${model.deprecated}; this empty class is no longer referenced and will be removed in the next major release. */\n` : '';
     if (options.emitInterfaces) {
         const imports = [...new Set(model.fields.flatMap(field => typeImports(field.type, path, destinations, options)).concat(model.base ?
             typeImports(baseType!, path, destinations, options) : []))].sort();
-        return `${imports.join('\n')}${imports.length ? '\n\n' : ''}export interface ${model.name}${model.base ? ` extends ${model.base}` : ''} {\n${model.fields.map(field => `    ${wireName(field.name)}${field.optional ? '?' : ''}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n')}\n}\n`;
+        return `${imports.join('\n')}${imports.length ? '\n\n' : ''}${deprecation}export interface ${model.name}${model.base ? ` extends ${model.base}` : ''} {\n${model.fields.map(field => `    ${wireName(field.name)}${field.optional ? '?' : ''}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n')}\n}\n`;
     }
     const imports = [...new Set([
         ...model.fields.flatMap(field => typeImports(field.type, path, destinations, options)),
@@ -97,7 +98,7 @@ export function renderModel(model: SourceModel, path: string, destinations: Read
         ...(model.fields.length ? ['field'] : []), ...(model.derivedTypeId ? ['derivedType'] : [])]);
     if (fundamentals.size) imports.unshift(`import { ${[...fundamentals].sort().join(', ')} } from '@cratis/fundamentals';`);
     const fields = model.fields.map(field => `    @field(${field.type.constructor}${field.type.enumerable ? ', true' : ''})\n    ${wireName(field.name)}${field.optional ? '?' : '!'}: ${field.type.text}${field.nullable ? ' | null' : ''};`).join('\n\n');
-    return `${imports.join('\n')}${imports.length ? '\n\n' : ''}${model.derivedTypeId ? `@derivedType(${quote(model.derivedTypeId)})\n` : ''}export class ${model.name}${model.base ? ` extends ${model.base}` : ''} {${fields ? `\n${fields}\n` : '\n'}}\n`;
+    return `${imports.join('\n')}${imports.length ? '\n\n' : ''}${deprecation}${model.derivedTypeId ? `@derivedType(${quote(model.derivedTypeId)})\n` : ''}export class ${model.name}${model.base ? ` extends ${model.base}` : ''} {${fields ? `\n${fields}\n` : '\n'}}\n`;
 }
 const importedNames = /^import\s+(?:type\s+)?\{([^}]*)\}\s+from\s/gm;
 const declaredNames = /^(?:export\s+)?(?:abstract\s+)?(?:class|interface|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gm;
