@@ -104,13 +104,13 @@ function discoverClasses(state: Collection, visit?: (declaration: ts.ClassDeclar
 /** Analyze commands, queries, models, and client-safe validation rules beneath an artifacts root. */
 export function analyzeSource(project: string, artifacts: string, rootNamespace = '', generatedMetadata = false,
     program = sourceProgram(project), visit?: (declaration: ts.ClassDeclaration) => void,
-    contributingFiles = new Set<string>(), typeMappings?: TypeMappings): SourceAnalysis & { readonly contributingFiles: readonly string[] } {
+    contributingFiles = new Set<string>(), typeMappings?: TypeMappings, scalarConceptSubclasses = false): SourceAnalysis & { readonly contributingFiles: readonly string[] } {
     const checker = program.getTypeChecker();
     const root = resolve(artifacts);
     const state: Collection = {
         checker, program, root, rootNamespace, hasMetadata: generatedMetadata,
         resolver: new SourceTypeResolver(checker, root, generatedMetadata, rootNamespace,
-            declaration => contributingFiles.add(resolve(declaration.getSourceFile().fileName)), typeMappings),
+            declaration => contributingFiles.add(resolve(declaration.getSourceFile().fileName)), typeMappings, scalarConceptSubclasses),
         diagnostics: [], operations: [], validators: [], contributingFiles, targets: new Map(), concepts: new Map()
     };
     discoverClasses(state, visit);

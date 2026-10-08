@@ -14,6 +14,7 @@ const usage = 'Usage: arc-proxygenerator --project <tsconfig> --artifacts <folde
     ' [--metadata <file> | --use-generated-metadata] [--check-metadata | --watch] [--watch-poll-interval <ms>]' +
     ' [--root-namespace <namespace>] [--api-prefix=<prefix>] [--segments-to-skip <number>]' +
     ' [--use-proxy-file-suffix] [--skip-index-generation] [--skip-output-deletion] [--emit-interfaces] [--skip-react-hooks]' +
+    ' [--scalar-concept-subclasses]' +
     ' [--type-mapping <Type>=<package>[#<export>]]...';
 
 async function generateManifest(): Promise<void> {

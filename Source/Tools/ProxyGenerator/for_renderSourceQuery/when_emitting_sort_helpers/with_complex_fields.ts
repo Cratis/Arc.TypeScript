@@ -35,7 +35,7 @@ describe('when emitting sort helpers with complex fields', () => {
     it('should explain the provider distinction and migration', () => {
         for (const output of outputs) {
             output.should.contain('In-memory sorting on this field is rejected; database providers sort it by their own order.');
-            output.should.contain('This helper will be removed in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177). Sort on a scalar field instead.');
+            output.should.contain('This helper will be removed in the next major release (https://github.com/Cratis/Arc.TypeScript/blob/main/decisions/0004-defer-generated-proxy-removals-to-the-next-major-release.md). Sort on a scalar field instead.');
         }
     });
 });

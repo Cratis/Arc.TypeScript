@@ -8,6 +8,7 @@ import type { SourceType } from './SourceType.js';
 import { resolveTypeMappings, type ResolvedTypeMapping, type TypeMappings } from './typeMappings.js';
 import { fieldName, isPackageSymbol, isStandardType, isTypeFrom, originalSymbol } from './sourceSymbols.js';
 import { isScalarSortConcept } from './isScalarSortConcept.js';
+import { conceptValue } from './conceptValue.js';
 
 const fundamentals = new Set(['Guid', 'DateOnly', 'TimeOnly', 'TimeSpan']);
 const primitive = (text: string, constructor: string): SourceType => ({ text, constructor, enumerable: false, nullable: false, void: false });
@@ -16,7 +17,8 @@ export class SourceTypeResolver {
     private readonly declarations = new Map<string, ts.Declaration>();
     constructor(private readonly checker: ts.TypeChecker, private readonly artifacts: string,
         private readonly generatedMetadata = false, private readonly rootNamespace = '',
-        private readonly contribute: (declaration: ts.Declaration) => void = () => {}, typeMappings?: TypeMappings) {
+        private readonly contribute: (declaration: ts.Declaration) => void = () => {}, typeMappings?: TypeMappings,
+        private readonly scalarConceptSubclasses = false) {
         this.mappings = resolveTypeMappings(typeMappings);
     }
     private readonly mappings: ReadonlyMap<string, ResolvedTypeMapping>;
@@ -72,8 +74,8 @@ export class SourceTypeResolver {
             if (resolved.enumerable || resolved.void || resolved.nullable) return this.unsupported(type, location);
             return { ...resolved, text: resolved.text.includes(' | ') ? `(${resolved.text})[]` : `${resolved.text}[]`, enumerable: true, nullable };
         }
-        if (type.getBaseTypes()?.some(base => isTypeFrom(this.checker, base, 'ConceptAs', '@cratis/fundamentals')) ||
-            isTypeFrom(this.checker, type, 'ConceptAs', '@cratis/fundamentals')) {
+        const direct = this.isDirectConcept(type);
+        if (direct) {
             const base = type.getBaseTypes()?.find(candidate => isTypeFrom(this.checker, candidate, 'ConceptAs', '@cratis/fundamentals'));
             const argument = this.checker.getTypeArguments(type as ts.TypeReference)[0] ??
                 (base && this.checker.getTypeArguments(base as ts.TypeReference)[0]);
@@ -84,59 +86,90 @@ export class SourceTypeResolver {
             }
         }
         const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
-        if (symbol?.declarations?.some(ts.isEnumDeclaration)) return this.resolveEnum(symbol, type, location, nullable);
-        if (declaration && name && !declaration.getSourceFile().isDeclarationFile) {
-            this.contribute(declaration);
-            const key = [this.namespace(declaration), name].filter(Boolean).join('.');
-            const mapped = this.mapped(key);
-            if (mapped) return { ...mapped, nullable };
-            this.checkIdentity(key, declaration);
-            if (!this.models.has(key)) {
-                this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields: [] });
-                const fields: SourceField[] = declaration.members.filter(ts.isPropertyDeclaration).filter(member => {
-                    const decorators = ts.canHaveDecorators(member) ? ts.getDecorators(member) ?? [] : [];
-                    if (!decorators.some(decorator => {
-                        const expression = ts.isCallExpression(decorator.expression) ? decorator.expression.expression : decorator.expression;
-                        return isPackageSymbol(this.checker, expression, 'field', '@cratis/fundamentals');
-                    })) return false;
-                    return true;
-                }).map(member => {
-                    const name = fieldName(member.name);
-                    const decorated = (label: string): boolean => (ts.getDecorators(member) ?? []).some(decorator => {
-                        const expression = ts.isCallExpression(decorator.expression) ? decorator.expression.expression : decorator.expression;
-                        return isPackageSymbol(this.checker, expression, label, '@cratis/arc.core');
-                    });
-                    const optional = decorated('optional') || decorated('defaultValue') ||
-                        this.generatedMetadata && (!!member.questionToken || !!member.initializer);
-                    if (member.questionToken && !optional)
-                        throw new Error(`${member.getSourceFile().fileName}: ${name} TypeScript ? disagrees with Arc field optionality; add @optional() or remove ?`);
-                    const enumeration = (ts.getDecorators(member) ?? []).map(decorator => decorator.expression).find(expression =>
-                        ts.isCallExpression(expression) && isPackageSymbol(this.checker, expression.expression, 'enumeration', '@cratis/arc.core'));
-                    const argument = enumeration && ts.isCallExpression(enumeration) ? enumeration.arguments[0] : undefined;
-                    const enumSymbol = argument && originalSymbol(this.checker, argument);
-                    const type = enumSymbol?.declarations?.some(ts.isEnumDeclaration) ? this.checker.getDeclaredTypeOfSymbol(enumSymbol) : this.checker.getTypeAtLocation(member);
-                    const propertyType = this.checker.getTypeAtLocation(member);
-                    const nullable = decorated('nullable') || this.generatedMetadata && propertyType.isUnion() &&
-                        propertyType.types.some(part => !!(part.flags & ts.TypeFlags.Null));
-                    return { name, type: this.resolve(type, member, optional || nullable), optional, nullable,
-                        ...(isScalarSortConcept(this.checker, type, member) ? { scalarSortConcept: true } : {}) };
-                });
-                const baseType = type.getBaseTypes()?.find(base => base.symbol?.declarations?.some(ts.isClassDeclaration) &&
-                    !base.symbol.declarations.every(origin => origin.getSourceFile().isDeclarationFile));
-                const base = baseType ? this.resolve(baseType, declaration) : undefined;
-                const basePackage = base?.mapped ? base.package : undefined;
-                const derived = (ts.getDecorators(declaration) ?? []).map(decorator => decorator.expression).find(expression => {
-                    if (!ts.isCallExpression(expression)) return false;
-                    const symbol = ts.isPropertyAccessExpression(expression.expression) ? expression.expression.name : expression.expression;
-                    return isPackageSymbol(this.checker, symbol, 'derivedType', '@cratis/fundamentals');
-                });
-                const derivedTypeId = derived && ts.isCallExpression(derived) && derived.arguments[0] && ts.isStringLiteral(derived.arguments[0]) ? derived.arguments[0].text : undefined;
-                this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields,
-                    base: basePackage ? base!.text : base?.model, baseKey: base?.modelKey, basePackage, derivedTypeId });
+        const value = direct || !this.scalarConceptSubclasses ? undefined : conceptValue(this.checker, type, location);
+        if (value) {
+            // Indirect and generic concepts travel as their value. The class they used to produce is still generated, deprecated.
+            const resolved = this.resolve(value, location, optional);
+            if (declaration && name && !declaration.getSourceFile().isDeclarationFile) {
+                const legacy = this.model(type, declaration, name, resolved.text);
+                if (legacy.mapped) return { ...legacy, nullable };
             }
-            return { ...primitive(name, name), model: name, modelKey: key, nullable };
+            return resolved;
         }
+        if (symbol?.declarations?.some(ts.isEnumDeclaration)) return this.resolveEnum(symbol, type, location, nullable);
+        if (declaration && name && !declaration.getSourceFile().isDeclarationFile) return { ...this.model(type, declaration, name), nullable };
         return this.unsupported(type, location);
+    }
+    private isDirectConcept(type: ts.Type): boolean {
+        return isTypeFrom(this.checker, type, 'ConceptAs', '@cratis/fundamentals') ||
+            !!type.getBaseTypes()?.some(base => isTypeFrom(this.checker, base, 'ConceptAs', '@cratis/fundamentals'));
+    }
+    /** A base that is itself an indirect concept keeps referencing its deprecated class, as it did before. */
+    private resolveBase(type: ts.Type, location: ts.Node): SourceType {
+        const symbol = type.aliasSymbol ?? type.getSymbol();
+        const declaration = symbol?.declarations?.find(ts.isClassDeclaration);
+        const value = this.scalarConceptSubclasses && declaration && !declaration.getSourceFile().isDeclarationFile && !this.isDirectConcept(type) ?
+            conceptValue(this.checker, type, location) : undefined;
+        if (value) return this.model(type, declaration!, symbol!.getName(), this.resolve(value, location).text);
+        return this.resolve(type, location);
+    }
+    /** Resolve a model class; `deprecated` is the underlying type text when the class stands for a concept subclass. */
+    private model(type: ts.Type, declaration: ts.ClassDeclaration, name: string, deprecated?: string): SourceType {
+        this.contribute(declaration);
+        const key = [this.namespace(declaration), name].filter(Boolean).join('.');
+        const mapped = this.mapped(key);
+        if (mapped) return mapped;
+        this.checkIdentity(key, declaration);
+        const existing = this.models.get(key);
+        // A class shared by instantiations with different values cannot name one underlying type.
+        if (existing?.deprecated && deprecated !== undefined && existing.deprecated.value !== deprecated)
+            this.models.set(key, { ...existing, deprecated: {} });
+        if (!existing) {
+            const deprecation = deprecated === undefined ? undefined : { value: declaration.typeParameters?.length ? undefined : deprecated };
+            this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields: [], ...(deprecation ? { deprecated: deprecation } : {}) });
+            const fields: SourceField[] = declaration.members.filter(ts.isPropertyDeclaration).filter(member => {
+                const decorators = ts.canHaveDecorators(member) ? ts.getDecorators(member) ?? [] : [];
+                if (!decorators.some(decorator => {
+                    const expression = ts.isCallExpression(decorator.expression) ? decorator.expression.expression : decorator.expression;
+                    return isPackageSymbol(this.checker, expression, 'field', '@cratis/fundamentals');
+                })) return false;
+                return true;
+            }).map(member => {
+                const name = fieldName(member.name);
+                const decorated = (label: string): boolean => (ts.getDecorators(member) ?? []).some(decorator => {
+                    const expression = ts.isCallExpression(decorator.expression) ? decorator.expression.expression : decorator.expression;
+                    return isPackageSymbol(this.checker, expression, label, '@cratis/arc.core');
+                });
+                const optional = decorated('optional') || decorated('defaultValue') ||
+                    this.generatedMetadata && (!!member.questionToken || !!member.initializer);
+                if (member.questionToken && !optional)
+                    throw new Error(`${member.getSourceFile().fileName}: ${name} TypeScript ? disagrees with Arc field optionality; add @optional() or remove ?`);
+                const enumeration = (ts.getDecorators(member) ?? []).map(decorator => decorator.expression).find(expression =>
+                    ts.isCallExpression(expression) && isPackageSymbol(this.checker, expression.expression, 'enumeration', '@cratis/arc.core'));
+                const argument = enumeration && ts.isCallExpression(enumeration) ? enumeration.arguments[0] : undefined;
+                const enumSymbol = argument && originalSymbol(this.checker, argument);
+                const type = enumSymbol?.declarations?.some(ts.isEnumDeclaration) ? this.checker.getDeclaredTypeOfSymbol(enumSymbol) : this.checker.getTypeAtLocation(member);
+                const propertyType = this.checker.getTypeAtLocation(member);
+                const nullable = decorated('nullable') || this.generatedMetadata && propertyType.isUnion() &&
+                    propertyType.types.some(part => !!(part.flags & ts.TypeFlags.Null));
+                return { name, type: this.resolve(type, member, optional || nullable), optional, nullable,
+                    ...(isScalarSortConcept(this.checker, type, member) ? { scalarSortConcept: true } : {}) };
+            });
+            const baseType = type.getBaseTypes()?.find(base => base.symbol?.declarations?.some(ts.isClassDeclaration) &&
+                !base.symbol.declarations.every(origin => origin.getSourceFile().isDeclarationFile));
+            const base = baseType ? this.resolveBase(baseType, declaration) : undefined;
+            const basePackage = base?.mapped ? base.package : undefined;
+            const derived = (ts.getDecorators(declaration) ?? []).map(decorator => decorator.expression).find(expression => {
+                if (!ts.isCallExpression(expression)) return false;
+                const symbol = ts.isPropertyAccessExpression(expression.expression) ? expression.expression.name : expression.expression;
+                return isPackageSymbol(this.checker, symbol, 'derivedType', '@cratis/fundamentals');
+            });
+            const derivedTypeId = derived && ts.isCallExpression(derived) && derived.arguments[0] && ts.isStringLiteral(derived.arguments[0]) ? derived.arguments[0].text : undefined;
+            this.models.set(key, { kind: 'model', name, namespace: this.namespace(declaration), fields,
+                base: basePackage ? base!.text : base?.model, baseKey: base?.modelKey, basePackage, derivedTypeId,
+                ...(deprecation ? { deprecated: deprecation } : {}) });
+        }
+        return { ...primitive(name, name), model: name, modelKey: key };
     }
     private resolveEnum(symbol: ts.Symbol, type: ts.Type, location: ts.Node, nullable: boolean): SourceType {
         const declaration = symbol.declarations?.find(ts.isEnumDeclaration);

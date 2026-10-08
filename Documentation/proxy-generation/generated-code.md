@@ -114,7 +114,7 @@ export class Author {
 }
 ```
 
-The server declares `@field(AuthorId) id` and `@field(AuthorName) name`. Concepts arrive as their underlying types, here `Guid` and `string`, because the wire carries only the value. With `--emit-interfaces` the generator writes interfaces instead, which carry no runtime metadata. The identity provider's `detailsType` is generated the same way, for [`useIdentity`](../identity/frontend.md).
+The server declares `@field(AuthorId) id` and `@field(AuthorName) name`. Concepts arrive as their underlying types, here `Guid` and `string`, because the wire carries only the value. A concept that inherits indirectly, such as `class DerivedName extends AuthorName`, or through a generic intermediate class keeps its empty model class unless you turn on [`--scalar-concept-subclasses`](configuration.md#scalar-typing-of-indirect-concepts). With `--emit-interfaces` the generator writes interfaces instead, which carry no runtime metadata. The identity provider's `detailsType` is generated the same way, for [`useIdentity`](../identity/frontend.md).
 
 ## Related
 

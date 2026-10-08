@@ -51,7 +51,7 @@ export function renderSourceQuery(operation: SourceOperation, path: string, dest
     const sortFields = modelDefinition?.fields ?? [];
     const deprecation = (field: SourceField): string => field.scalarSortConcept || !field.type.enumerable &&
         field.type.model !== field.type.constructor && scalarConstructors.includes(field.type.constructor) ? '' :
-        '    /** @deprecated In-memory sorting on this field is rejected; database providers sort it by their own order. This helper will be removed in the next major release (https://github.com/Cratis/Arc.TypeScript/issues/177). Sort on a scalar field instead. */\n';
+        '    /** @deprecated In-memory sorting on this field is rejected; database providers sort it by their own order. This helper will be removed in the next major release (https://github.com/Cratis/Arc.TypeScript/blob/main/decisions/0004-defer-generated-proxy-removals-to-the-next-major-release.md). Sort on a scalar field instead. */\n';
     const coreImports = [base, 'QueryResultWithState', ...(validation ? ['QueryValidator'] : []), ...(array ? ['Sorting', 'Paging'] : []),
         ...(array && sortFields.length ? ['SortingActions', observable ? 'SortingActionsForObservableQuery' : 'SortingActionsForQuery'] : []),
         ...(observable && array ? ['ChangeSet'] : []), ...(operation.httpMethod ? ['QueryHttpMethod'] : [])];
