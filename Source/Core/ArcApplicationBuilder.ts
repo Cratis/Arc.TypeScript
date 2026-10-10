@@ -28,7 +28,7 @@ import type { AuthorizationCommandFilter } from './commands/AuthorizationCommand
 import type { CommandPipelineFilter } from './commands/CommandPipelineFilter.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
-import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
+import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
 import type { PolicyClass } from './PolicyClass.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
 
