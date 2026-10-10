@@ -32,26 +32,26 @@ function zodArray(schema: z.ZodArray, location: string): ClientType {
     return { kind: 'array', element };
 }
 
-function rejectUnsupportedDefinition(schema: z.ZodType, location: string): void {
-    const definition = schema._zod.def;
+function rejectUnsupportedDefinition(schema: z.ZodType, definition: object, location: string): void {
     if ('coerce' in definition && definition.coerce === true) fail(location, 'coercion is unsupported');
     if (!(schema instanceof z.ZodNumber) && hasChecks(definition)) fail(location, 'refinements or constraints are unsupported');
 }
 
-function zodPrimitive(schema: z.ZodType, location: string): ClientType | undefined {
+function zodPrimitive(schema: z.ZodType, definition: object, location: string): ClientType | undefined {
     if (schema instanceof z.ZodString) return { kind: 'string' };
     if (schema instanceof z.ZodBoolean) return { kind: 'boolean' };
-    if (schema instanceof z.ZodNumber) return zodNumber(schema._zod.def, location);
+    if (schema instanceof z.ZodNumber) return zodNumber(definition, location);
     return undefined;
 }
 
 function zodType(schema: z.ZodType, location: string): ClientType {
-    rejectUnsupportedDefinition(schema, location);
-    const primitive = zodPrimitive(schema, location);
+    const definition = schema._zod.def;
+    rejectUnsupportedDefinition(schema, definition, location);
+    const primitive = zodPrimitive(schema, definition, location);
     if (primitive) return primitive;
     if (schema instanceof z.ZodEnum) return zodEnum(schema, location);
     if (schema instanceof z.ZodArray) return zodArray(schema, location);
-    return fail(location, `unsupported Zod type ${schema._zod.def.type}; defaults, nullable, transforms and refinements require a separate proven contract`);
+    return fail(location, `unsupported Zod type ${definition.type}; defaults, nullable, transforms and refinements require a separate proven contract`);
 }
 
 function inspectField(fieldName: string, original: z.ZodType, id: string): ClientField {

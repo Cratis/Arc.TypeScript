@@ -29,9 +29,9 @@ import type { CommandPipelineFilter } from './commands/CommandPipelineFilter.js'
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
 import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
+import type { PolicyClass } from './PolicyClass.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
 
-type PolicyClass = abstract new (...arguments_: never[]) => AuthorizationPolicy;
 const isPolicyClass = (policy: AuthorizationPolicyRegistration): policy is AuthorizationPolicyRegistration & PolicyClass =>
     Boolean(policy.prototype) && typeof policy.prototype.authorize === 'function';
 const artifactMarkers = ['command', 'readModel', 'lifetime', 'validatorTarget', 'responseValueHandler', 'queryRenderer', 'readModelInterceptor',
@@ -174,16 +174,16 @@ export class ArcApplicationBuilder {
     }
     /** Register a unique named authorization policy before building the application. */
     addAuthorizationPolicy(name: string, policy: AuthorizationPolicyRegistration): this {
-        if (this.isInvalidPolicy(name, policy)) throw new Error(`Invalid or duplicate authorization policy: ${name}`);
-        if (isPolicyClass(policy)) this.ensureScopedPolicyService(name, policy);
+        if (this.#isInvalidPolicy(name, policy)) throw new Error(`Invalid or duplicate authorization policy: ${name}`);
+        if (isPolicyClass(policy)) this.#ensureScopedPolicyService(name, policy);
         this.#policies.set(name, policy);
         return this;
     }
-    private isInvalidPolicy(name: string, policy: AuthorizationPolicyRegistration): boolean {
+    #isInvalidPolicy(name: string, policy: AuthorizationPolicyRegistration): boolean {
         return !name.trim() || typeof policy !== 'function' || this.#policies.has(name) ||
             Object.hasOwn(this.options.authorizationPolicies ?? {}, name);
     }
-    private ensureScopedPolicyService(name: string, type: PolicyClass): void {
+    #ensureScopedPolicyService(name: string, type: PolicyClass): void {
         const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
         const existing = registrations.find(registration => registration.token === type);
         if (existing && existing.lifetime !== ServiceLifetime.Scoped)
@@ -202,23 +202,28 @@ export class ArcApplicationBuilder {
     }
     /** @param retainUnclaimed - Keep an unclaimed discovered class for integrations added later. */
     protected register(type: ClassType, namespace: string, retainUnclaimed = false): boolean {
-        const external = this.#artifactObservers.reduce((claimed, observer) => observer(type) || claimed, false);
+        const external = this.#notifyObservers(type);
         const metadata = ownMetadata(type);
-        if (isIdentityDetailsProvider(type)) return this.registerIdentityProvider(type);
+        if (isIdentityDetailsProvider(type)) return this.#registerIdentityProvider(type);
         if (!isArcArtifact(metadata)) {
             if (external) this.#observedTypes.add(type);
             else if (retainUnclaimed) this.#unclaimedTypes.add(type);
             return external;
         }
-        this.registerArtifact(type, metadata.namespace ?? namespace);
+        this.#registerArtifact(type, metadata.namespace ?? namespace);
         return true;
     }
-    private registerIdentityProvider(type: ClassType): boolean {
+    #registerIdentityProvider(type: ClassType): boolean {
         if (!this.#identityProviders.includes(type)) this.#identityProviders.push(type);
         this.#observedTypes.add(type);
         return true;
     }
-    private registerArtifact(type: ClassType, effective: string): void {
+    #notifyObservers(type: ClassType): boolean {
+        let claimed = false;
+        for (const observer of this.#artifactObservers) if (observer(type)) claimed = true;
+        return claimed;
+    }
+    #registerArtifact(type: ClassType, effective: string): void {
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
             throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);

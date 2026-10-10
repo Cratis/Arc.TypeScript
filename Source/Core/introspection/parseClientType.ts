@@ -8,17 +8,27 @@ import { compareOrdinal, fail, hasOnlyKeys, plain } from './manifestGuards.js';
 /** Whether the field holds a DTO directly or as an array element. */
 export const holdsDto = (field: ClientField): boolean => field.type.kind === 'dto' || field.type.kind === 'array' && field.type.element.kind === 'dto';
 
+// Type descriptors may carry accessor properties, so helpers read value.kind and value.values exactly
+// where the original single-function parser did: the number and order of reads is part of the behavior.
+const scalarKinds = ['void', 'string', 'boolean', 'number'];
+
 function parseScalar(value: Record<string, unknown>, location: string): ClientType {
     if (Object.keys(value).length !== 1) fail(location, 'unexpected type metadata');
-    return { kind: value.kind as 'void' | 'string' | 'boolean' | 'number' };
+    if (value.kind === 'void') return { kind: 'void' };
+    if (value.kind === 'string') return { kind: 'string' };
+    if (value.kind === 'boolean') return { kind: 'boolean' };
+    return { kind: 'number' };
 }
 
-const isValidEnumValues = (values: unknown): values is string[] =>
-    Array.isArray(values) && values.length > 0 && values.length <= 128 &&
-    values.every(item => typeof item === 'string' && item.length <= 1024) && new Set(values).size === values.length;
+function hasValidEnumValues(value: Record<string, unknown>): boolean {
+    if (!Array.isArray(value.values)) return false;
+    if ((value.values as unknown[]).length === 0 || (value.values as unknown[]).length > 128) return false;
+    if ((value.values as unknown[]).some(item => typeof item !== 'string' || item.length > 1024)) return false;
+    return new Set(value.values as unknown[]).size === (value.values as unknown[]).length;
+}
 
 function parseEnum(value: Record<string, unknown>, location: string): ClientType {
-    if (!hasOnlyKeys(value, ['kind', 'values']) || !isValidEnumValues(value.values)) fail(location, 'invalid string enum');
+    if (!hasOnlyKeys(value, ['kind', 'values']) || !hasValidEnumValues(value)) fail(location, 'invalid string enum');
     return { kind: 'enum', values: [...value.values as string[]].sort() };
 }
 
@@ -54,16 +64,13 @@ export function fields(value: unknown, location: string, depth: number): ClientF
     return result.sort((a, b) => compareOrdinal(a.name, b.name));
 }
 
-const typeParsers = new Map<string, (value: Record<string, unknown>, location: string, depth: number) => ClientType>([
-    ['void', parseScalar], ['string', parseScalar], ['boolean', parseScalar], ['number', parseScalar],
-    ['enum', parseEnum], ['array', parseArray], ['dto', parseDto]
-]);
-
 /** Parse and validate an explicit wire type. */
 export function parseType(value: unknown, location: string, depth = 0): ClientType {
     if (depth > 8) fail(location, 'unsupported or recursive type');
     if (!plain(value) || typeof value.kind !== 'string') fail(location, 'unsupported or recursive type');
-    const parser = typeParsers.get(value.kind);
-    if (!parser) return fail(location, `unsupported type ${value.kind}`);
-    return parser(value, location, depth);
+    if (scalarKinds.includes(value.kind)) return parseScalar(value, location);
+    if (value.kind === 'enum') return parseEnum(value, location);
+    if (value.kind === 'array') return parseArray(value, location, depth);
+    if (value.kind === 'dto') return parseDto(value, location, depth);
+    return fail(location, `unsupported type ${value.kind}`);
 }

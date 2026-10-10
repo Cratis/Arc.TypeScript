@@ -1,9 +1,9 @@
 // Copyright (c) Cratis. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import type { ClientType } from './ClientType.js';
+import type { DtoType } from './DtoType.js';
 import { plain } from './manifestGuards.js';
 
-type DtoType = Extract<ClientType, { kind: 'dto' }>;
 
 const isSafeNumber = (data: unknown): boolean => typeof data === 'number' && Number.isFinite(data) && Math.abs(data) <= Number.MAX_SAFE_INTEGER;
 

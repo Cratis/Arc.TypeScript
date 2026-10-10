@@ -6,6 +6,7 @@ import type { ArcServer } from '../ArcServer.js';
 import type { Authorization } from '../authorization/Authorization.js';
 import { authorizationRequirements } from '../authorization/authorizationRequirements.js';
 import type { ClientOperation } from './ClientOperation.js';
+import type { ExportedOperation } from './ExportedOperation.js';
 import { inspectClientInput } from './inspectClientInput.js';
 import { fail, hasOnlyKeys, plain } from './manifestGuards.js';
 import { parseClientOperation, sortOperations } from './parseClientOperation.js';
@@ -54,8 +55,6 @@ export function validateClientManifest(value: unknown): ClientManifest {
     for (const operation of operations) registry.register(operation);
     return { product: '@cratis/arc.core', version: 1, operations: sortOperations(operations) };
 }
-
-type ExportedOperation = ArcServer['commands'][number] | ArcServer['queries'][number];
 
 const requiresAuthentication = (authorization: Authorization): boolean =>
     Boolean(authorization.authenticated || authorization.requirements?.some(requirement =>
