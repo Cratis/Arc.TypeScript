@@ -61,7 +61,8 @@ const typeParsers = new Map<string, (value: Record<string, unknown>, location: s
 
 /** Parse and validate an explicit wire type. */
 export function parseType(value: unknown, location: string, depth = 0): ClientType {
-    if (depth > 8 || !plain(value) || typeof value.kind !== 'string') fail(location, 'unsupported or recursive type');
+    if (depth > 8) fail(location, 'unsupported or recursive type');
+    if (!plain(value) || typeof value.kind !== 'string') fail(location, 'unsupported or recursive type');
     const parser = typeParsers.get(value.kind);
     if (!parser) return fail(location, `unsupported type ${value.kind}`);
     return parser(value, location, depth);

@@ -38,7 +38,8 @@ function validateMethods(declared: unknown, kind: ClientOperationKind, at: strin
 const isValidRole = (role: unknown): boolean => typeof role === 'string' && role.length > 0 && role.length <= 256;
 
 function validateRoles(roles: unknown, at: string): string[] {
-    if (!Array.isArray(roles) || roles.length > 128 || !roles.every(isValidRole)) fail(at, 'invalid roles');
+    if (!Array.isArray(roles)) fail(at, 'invalid roles');
+    if (roles.length > 128 || !roles.every(isValidRole)) fail(at, 'invalid roles');
     return roles as string[];
 }
 
@@ -48,7 +49,8 @@ const forbidsRoles = (authentication: ClientAuthentication): boolean =>
     authentication === ClientAuthentication.Anonymous || authentication === ClientAuthentication.Default;
 
 function validateAuthentication(authentication: unknown, roles: readonly string[], at: string): ClientAuthentication {
-    if (!isKnownAuthentication(authentication) || forbidsRoles(authentication) && roles.length) fail(at, 'authentication contradicts effective roles');
+    if (!isKnownAuthentication(authentication)) fail(at, 'authentication contradicts effective roles');
+    if (forbidsRoles(authentication) && roles.length) fail(at, 'authentication contradicts effective roles');
     return authentication;
 }
 

@@ -27,7 +27,8 @@ function zodEnum(schema: z.ZodEnum, location: string): ClientType {
 
 function zodArray(schema: z.ZodArray, location: string): ClientType {
     const element = zodType(schema.element as z.ZodType, `${location}[]`);
-    if (element.kind === 'array' || element.kind === 'void' || element.kind === 'dto') fail(location, 'unsupported input array element');
+    if (element.kind === 'array' || element.kind === 'void') fail(location, 'unsupported input array element');
+    if (element.kind === 'dto') fail(location, 'unsupported input array element');
     return { kind: 'array', element };
 }
 
