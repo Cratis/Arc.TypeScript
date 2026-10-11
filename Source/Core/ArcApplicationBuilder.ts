@@ -28,8 +28,15 @@ import type { AuthorizationCommandFilter } from './commands/AuthorizationCommand
 import type { CommandPipelineFilter } from './commands/CommandPipelineFilter.js';
 import type { CommandResult } from './commands/CommandResult.js';
 import type { CommandExecutionScope } from './commands/CommandExecutionScope.js';
-import type { AuthorizationPolicy, AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
+import type { AuthorizationPolicyRegistration } from './authorization/AuthorizationPolicy.js';
+import type { PolicyClass } from './PolicyClass.js';
 import { isIdentityDetailsProvider } from './identity/discoverIdentityDetails.js';
+
+const isPolicyClass = (policy: AuthorizationPolicyRegistration): policy is AuthorizationPolicyRegistration & PolicyClass =>
+    Boolean(policy.prototype) && typeof policy.prototype.authorize === 'function';
+const artifactMarkers = ['command', 'readModel', 'lifetime', 'validatorTarget', 'responseValueHandler', 'queryRenderer', 'readModelInterceptor',
+    'authorizationCommandFilter', 'commandPipelineFilter', 'authorizationQueryFilter', 'queryPipelineFilter'] as const;
+const isArcArtifact = (metadata: ArtifactMetadata): boolean => artifactMarkers.some(marker => metadata[marker]);
 
 /** Collect decorated artifacts and their services into one executable application. */
 // Interface merging exposes integration-owned methods without depending on optional packages in core.
@@ -167,18 +174,21 @@ export class ArcApplicationBuilder {
     }
     /** Register a unique named authorization policy before building the application. */
     addAuthorizationPolicy(name: string, policy: AuthorizationPolicyRegistration): this {
-        if (!name.trim() || typeof policy !== 'function' || this.#policies.has(name) ||
-            Object.hasOwn(this.options.authorizationPolicies ?? {}, name)) throw new Error(`Invalid or duplicate authorization policy: ${name}`);
-        if (policy.prototype && typeof policy.prototype.authorize === 'function') {
-            const type = policy as (abstract new (...arguments_: never[]) => AuthorizationPolicy);
-            const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
-            const existing = registrations.find(registration => registration.token === type);
-            if (existing && existing.lifetime !== ServiceLifetime.Scoped)
-                throw new Error(`Authorization policy ${name} must be scoped`);
-            if (!existing) this.services.addScoped(type);
-        }
+        if (this.#isInvalidPolicy(name, policy)) throw new Error(`Invalid or duplicate authorization policy: ${name}`);
+        if (isPolicyClass(policy)) this.#ensureScopedPolicyService(name, policy);
         this.#policies.set(name, policy);
         return this;
+    }
+    #isInvalidPolicy(name: string, policy: AuthorizationPolicyRegistration): boolean {
+        return !name.trim() || typeof policy !== 'function' || this.#policies.has(name) ||
+            Object.hasOwn(this.options.authorizationPolicies ?? {}, name);
+    }
+    #ensureScopedPolicyService(name: string, type: PolicyClass): void {
+        const registrations = [...Array.isArray(this.options.services) ? this.options.services : [], ...this.services.registrations];
+        const existing = registrations.find(registration => registration.token === type);
+        if (existing && existing.lifetime !== ServiceLifetime.Scoped)
+            throw new Error(`Authorization policy ${name} must be scoped`);
+        if (!existing) this.services.addScoped(type);
     }
     /** Add explicitly named decorated artifacts; reject undecorated classes. */
     add(...types: ClassType[]): this {
@@ -192,35 +202,37 @@ export class ArcApplicationBuilder {
     }
     /** @param retainUnclaimed - Keep an unclaimed discovered class for integrations added later. */
     protected register(type: ClassType, namespace: string, retainUnclaimed = false): boolean {
-        let external = false;
-        for (const observer of this.#artifactObservers) if (observer(type)) external = true;
+        const external = this.#notifyObservers(type);
         const metadata = ownMetadata(type);
-        if (isIdentityDetailsProvider(type)) {
-            if (!this.#identityProviders.includes(type)) this.#identityProviders.push(type);
-            this.#observedTypes.add(type);
-            return true;
-        }
-        if (!metadata.command && !metadata.readModel && !metadata.lifetime && !metadata.validatorTarget &&
-            !metadata.responseValueHandler && !metadata.queryRenderer && !metadata.readModelInterceptor &&
-            !metadata.authorizationCommandFilter && !metadata.commandPipelineFilter &&
-            !metadata.authorizationQueryFilter && !metadata.queryPipelineFilter) {
+        if (isIdentityDetailsProvider(type)) return this.#registerIdentityProvider(type);
+        if (!isArcArtifact(metadata)) {
             if (external) this.#observedTypes.add(type);
             else if (retainUnclaimed) this.#unclaimedTypes.add(type);
             return external;
         }
-        const effective = metadata.namespace ?? namespace;
+        this.#registerArtifact(type, metadata.namespace ?? namespace);
+        return true;
+    }
+    #registerIdentityProvider(type: ClassType): boolean {
+        if (!this.#identityProviders.includes(type)) this.#identityProviders.push(type);
+        this.#observedTypes.add(type);
+        return true;
+    }
+    #notifyObservers(type: ClassType): boolean {
+        let claimed = false;
+        for (const observer of this.#artifactObservers) if (observer(type)) claimed = true;
+        return claimed;
+    }
+    #registerArtifact(type: ClassType, effective: string): void {
         const previous = this.#namespaces.get(type);
         if (previous !== undefined && previous !== effective) {
             throw new Error(`Conflicting namespaces for ${type.name}: ${previous} and ${effective}`);
         }
-        if (previous !== undefined) {
-            this.#observedTypes.add(type);
-            return true;
+        if (previous === undefined) {
+            this.#namespaces.set(type, effective);
+            this.#artifacts.push({ type, namespace: effective });
         }
-        this.#namespaces.set(type, effective);
-        this.#artifacts.push({ type, namespace: effective });
         this.#observedTypes.add(type);
-        return true;
     }
     /** File discovery is supported only by the Node entry. */
     async discover(_root: URL, _options?: { rootNamespace?: string }): Promise<this> {
