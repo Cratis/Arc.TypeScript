@@ -25,9 +25,12 @@ on:
 permissions:
   contents: read
 
+# Previews share one group so they never overlap. queue: max keeps every queued preview instead of letting a
+# newer one replace the one already waiting, and never cancels one in progress (Cratis/Workflows#162).
+# GitHub refuses cancel-in-progress together with queue, so it is left out.
 concurrency:
   group: release-preview-${{ github.repository }}
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   preview:
