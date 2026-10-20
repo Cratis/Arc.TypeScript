@@ -6,7 +6,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Test scenarios and assertions for Cratis Arc TypeScript",
+  "description": "Test scenarios and assertions for Cratis Arc in TypeScript",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",

@@ -3,7 +3,8 @@
   "version": "0.58.0",
   "type": "module",
   "license": "MIT",
-  "description": "ESLint diagnostics for Arc for TypeScript server artifacts",
+  "description": "ESLint diagnostics for Cratis Arc server artifacts in TypeScript",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",

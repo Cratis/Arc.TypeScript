@@ -6,7 +6,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Express hosting for Cratis Arc TypeScript",
+  "description": "Express hosting for Cratis Arc on Node.js",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",

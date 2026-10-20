@@ -6,7 +6,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Tenant-scoped Drizzle SQL queries for Arc",
+  "description": "Tenant-scoped Drizzle SQL queries for Cratis Arc",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
