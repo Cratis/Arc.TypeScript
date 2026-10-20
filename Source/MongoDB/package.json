@@ -6,7 +6,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Tenant-scoped MongoDB collections, BSON codecs, and observable Arc queries",
+  "description": "Tenant-scoped MongoDB collections, BSON codecs, and observable queries for Cratis Arc",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",

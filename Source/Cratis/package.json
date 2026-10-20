@@ -3,7 +3,8 @@
   "version": "0.58.0",
   "type": "module",
   "license": "MIT",
-  "description": "Arc and experimental Chronicle composition for Node.js",
+  "description": "Cratis Arc and experimental Cratis Chronicle composition for Node.js",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",

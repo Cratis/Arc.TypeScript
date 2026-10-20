@@ -6,7 +6,8 @@
   },
   "type": "module",
   "license": "MIT",
-  "description": "Optional Chronicle event-return command integration for Arc Server",
+  "description": "Optional Cratis Chronicle event-return command integration for Cratis Arc on Node.js",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",

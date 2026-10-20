@@ -6,7 +6,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Hono hosting for Cratis Arc TypeScript on Node.js",
+  "description": "Hono hosting for Cratis Arc on Node.js",
+  "author": "Cratis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Cratis/Arc.TypeScript.git",
