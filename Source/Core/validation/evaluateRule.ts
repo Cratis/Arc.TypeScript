@@ -4,8 +4,10 @@ import { DateOnly, Guid, TimeOnly, TimeSpan } from '@cratis/fundamentals';
 import type { Rule } from './Rule.js';
 import { compareValues } from './compareValues.js';
 
+const whiteSpaceOnly = /^\p{White_Space}*$/u;
+
 const empty = (value: unknown): boolean => value == null || value === '' || value === 0 || value === false ||
-    Array.isArray(value) && !value.length || typeof value === 'string' && !value.trim() ||
+    Array.isArray(value) && !value.length || typeof value === 'string' && whiteSpaceOnly.test(value) ||
     value instanceof Guid && (value as Guid).equals(Guid.empty);
 
 function equal(left: unknown, right: unknown): boolean {
