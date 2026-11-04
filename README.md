@@ -10,6 +10,10 @@
 
 Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js and Fetch API hosts as idiomatic TypeScript, not as a line-by-line port.
 
+- **Run it:** [Get started](Documentation/getting-started/index.md) builds the Tasks sample and calls its command and query.
+- **Understand it:** [Your first command](Documentation/getting-started/your-first-command.md) explains the sample's code.
+- **Look up support:** the [capability reference](Documentation/reference/capabilities.md) lists features, limits, and differences from Arc on .NET.
+
 ## A command and a query
 
 In the [Tasks sample](Samples/Tasks/main.ts), a command is a class with fields and a `handle` method; a query is a static method on a read model. These excerpts use `TaskId`, `TaskTitle`, and `Tasks` from that sample:
@@ -58,7 +62,9 @@ Every package manifest is at version 0.58.0. That is the version of this source 
 
 ## Try it
 
-Until the packages are published, run the sample from a clone:
+Until the packages are published, run the sample from a clone. For this workspace, you need **Node.js 22.19.0 or later** (24 LTS recommended), Git, and Corepack. Corepack selects the repository-pinned **Yarn 4.18.0**. You also need `curl` for the HTTP requests in [Get started](Documentation/getting-started/index.md#build-and-run-the-sample).
+
+**Local development only.** The sample's `start` script sets `DOTNET_ENVIRONMENT=Development`, enabling anonymous discovery and exception details. Do not use this script on an exposed host. Changing the environment alone does not configure authentication; see [Configuration](Documentation/configuration/index.md) and [Authentication](Documentation/core/authentication.md).
 
 ```bash
 git clone https://github.com/Cratis/Arc.TypeScript.git
