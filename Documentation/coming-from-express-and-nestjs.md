@@ -3,7 +3,9 @@ title: Coming from Express and NestJS
 description: Map Express route handlers and NestJS controllers, DTOs, and class-validator rules to Arc commands, read models, and validators, and see what changes and when to stay where you are.
 ---
 
-If you build Node.js backends today, you probably write one of two shapes: an Express route handler that parses, validates, and answers by hand, or a NestJS controller with DTO classes and `class-validator` decorators. Arc keeps the parts you like (classes, decorators, dependency injection) and removes the parts you repeat: the route, the parser, the status-code mapping, and the client that has to match all of it.
+If you build Node.js backends with Express, start with the route handler below; if you use NestJS, start with the controller. Both examples register a task and list tasks. They are alternative starting points, not setup steps to run in order.
+
+Express puts parsing and validation in the handler, while NestJS uses DTO classes and `class-validator` decorators. The Arc version uses decorated models for binding and a validator beside the command. Its command and query still call the application service.
 
 ## An Express 5 route handler
 
@@ -68,7 +70,7 @@ export class TasksController {
 
 ## The same thing in Arc
 
-The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Tasks/Features/Tasks) splits it by what each piece does:
+The [Tasks sample](https://github.com/Cratis/Arc.TypeScript/tree/main/Samples/Tasks/Features/Tasks) puts task registration in a command and the list in a read model. The application service still stores and returns the tasks:
 
 ```typescript title="Arc for TypeScript"
 @command()
@@ -104,6 +106,8 @@ export class TaskItem {
 The imports and the `TaskId`, `TaskTitle`, and `Tasks` types are in the linked sample. The sample's [generated metadata](proxy-generation/generated-artifact-metadata.md) binds `handle(tasks: Tasks)` to the `Tasks` service; without it, add `@inject(Tasks)`. [Your first command](getting-started/your-first-command.md) shows every file.
 
 ## What changed and why
+
+Arc supplies the HTTP binding, validation, and client integration mapped below. You still implement the command's work and the service it calls. These excerpts compare responsibilities, not complete host setup or feature-for-feature parity.
 
 | You wrote | Arc gives you |
 | --- | --- |
