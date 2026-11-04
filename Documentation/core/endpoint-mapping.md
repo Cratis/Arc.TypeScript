@@ -3,7 +3,9 @@ title: Endpoint mapping
 description: How Arc derives command and query routes from namespaces and names, how to change the convention, and how to pin a route with @path.
 ---
 
-Arc derives every route. You never register a URL by hand, and a generated client always calls the same URL the server serves. This page explains the convention and the two ways to change it: configure it for the whole application, or override it for one artifact.
+Arc derives command and query routes from namespaces and names. A generated client calls the same URLs only when the server and proxy-generator route options stay aligned; changing the server convention alone does not update the client.
+
+Start with the convention below for the Tasks artifacts. Change it for the whole application when you need a different prefix or namespace layout. If one public URL must survive a file move, pin that artifact's route with `@path` instead.
 
 ## The convention
 
@@ -26,7 +28,7 @@ Every command also gets a validation route: its route followed by `/validate`. A
 
 ## Change the convention
 
-Pass `generatedApis` to `ArcApplication.createBuilder(...)` or `new ArcServer(...)`:
+To change the convention for all derived routes, pass `generatedApis` to `ArcApplication.createBuilder(...)` or `new ArcServer(...)`. In this excerpt, `segmentsToSkipForRoute: 1` drops the first namespace segment; the prefix and name-inclusion settings are shown explicitly:
 
 ```typescript
 const builder = ArcApplication.createBuilder({
@@ -50,7 +52,7 @@ Keep the [proxy generator](../proxy-generation/configuration.md) route options i
 
 ## Pin one route with @path
 
-Moving a file changes its derived route. When a public URL must not move, override it:
+A file move can change a discovery-derived route. If clients already depend on the URL, use an explicit path rather than making them follow the file move:
 
 ```typescript
 @command()
@@ -58,7 +60,7 @@ Moving a file changes its derived route. When a public URL must not move, overri
 export class RegisterTask { /* fields and handle() */ }
 ```
 
-`@path` works on a command or read-model class, and on a `@query()` method, where it overrides the class path. The path must start with a single `/`, contain only letters, digits, `/`, `_`, and `-`, and must not contain `..`. A trailing slash is removed, and the prefix is not added. Low-level definitions take `path` as a property instead.
+The command above uses `/api/tasks/register` regardless of its discovery-derived namespace. `@path` works on a command or read-model class, and on a `@query()` method, where it overrides the class path. The path must start with a single `/`, contain only letters, digits, `/`, `_`, and `-`, and must not contain `..`. A trailing slash is removed, and the prefix is not added. Low-level definitions take `path` as a property instead.
 
 `@path` on a static method without `@query()` fails at build: it would have no effect.
 

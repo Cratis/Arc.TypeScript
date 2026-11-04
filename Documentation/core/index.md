@@ -11,9 +11,18 @@ Not every service needs a web framework. A worker that exposes a few commands, o
 `@cratis/arc.core` is not published to npm. Install a tarball packed from a clone of this repository, or use it inside the clone with the `workspace:^` protocol, as `Samples/Tasks/package.json` does. [Create an application](../getting-started/create-an-application.md) shows both paths.
 :::
 
+For a first application, work through the choices in this order:
+
+1. [Build the application](getting-started.md). Collect its commands, read models, and services before choosing a listener. The builder checks their wiring without opening a port.
+2. Choose the host. Use this page's standalone Node host when Arc should own the listener, or the [host adapters](../hosts/index.md) when a web framework already owns it. If you also serve a frontend, read the public-asset boundary in [Static files and SPA fallback](static-files.md) before configuring its directory.
+3. [Check the routes](endpoint-mapping.md). Discovery gives the Tasks artifacts namespaces; those namespaces and names determine their URLs. Keep the server and proxy-generator route options aligned. Pin a public route if it must survive a file move.
+4. Protect the operations that need it. [Authentication](authentication.md) establishes the caller; [authorization](authorization.md) decides what that caller may do. Serving a frontend beside Arc does not apply those checks to public files.
+
+The listener, low-level hosting, and shutdown sections below are reference for the host you choose.
+
 ## Run a built application
 
-`ArcApplication` wraps the `ArcServer` that the [application builder](getting-started.md) creates, and owns a standalone listener when you ask it to:
+`ArcApplication` wraps the `ArcServer` that the [application builder](getting-started.md) creates, and owns a standalone listener when you ask it to. In the Tasks entry point below, generated metadata supplies parameter bindings, the `Tasks` service is registered once, and discovery collects the artifacts under `Features`. Only after `build()` has checked them does `run()` open the listener:
 
 ```typescript title="main.ts"
 import { ArcApplication } from '@cratis/arc.core';
