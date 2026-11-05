@@ -11,6 +11,10 @@ Without it, a Node.js backend for an Arc frontend means writing every route, req
 No package is published to npm; the manifests are at version 0.58.0. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
 :::
 
+- **Run it:** [Get started](getting-started/index.md) builds the Tasks sample and calls its command and query.
+- **Understand it:** [Your first command](getting-started/your-first-command.md) explains the sample's code.
+- **Look up support:** the [capability reference](reference/capabilities.md) lists features, limits, and differences from Arc on .NET.
+
 ## What it looks like
 
 ```typescript
