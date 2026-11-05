@@ -1,0 +1,40 @@
+{
+  "name": "@cratis/arc.sample.showcase",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node dist/main.js",
+    "dev": "node dev.mjs",
+    "generate-proxies": "node generate-proxies.mjs",
+    "check-metadata": "node check-metadata.mjs",
+    "build:server": "yarn generate-proxies && ../../node_modules/.bin/tsc -b",
+    "build:web": "../../node_modules/.bin/tsc -p Web/tsconfig.json && ../../node_modules/.bin/vite build --config Web/vite.config.ts && node Web/check-decorators.mjs",
+    "build": "yarn build:server && yarn build:web",
+    "typecheck": "../../node_modules/.bin/tsc -b && ../../node_modules/.bin/tsc -p tsconfig.specs.json",
+    "test": "../../node_modules/.bin/vitest run --config vite.config.mts"
+  },
+  "dependencies": {
+    "@cratis/arc.core": "workspace:^",
+    "@cratis/arc.express": "workspace:^",
+    "@cratis/arc.mongodb": "workspace:^",
+    "@cratis/arc.testing": "workspace:^",
+    "@cratis/fundamentals": "7.22.0",
+    "@opentelemetry/api": "^1.9.0",
+    "express": "^5.1.0",
+    "mongodb": "^6.21.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@cratis/arc": "22.45.0",
+    "@cratis/arc.react": "22.45.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "reflect-metadata": "0.2.2",
+    "tsx": "^4.20.0",
+    "tsyringe": "^4.10.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.2.2"
+  }
+}

@@ -27,6 +27,7 @@
     { "path": "Source/Testing" },
     { "path": "Source/Tools/ProxyGenerator" },
     { "path": "Samples/Tasks" },
-    { "path": "Samples/Library" }
+    { "path": "Samples/Library" },
+    { "path": "Samples/Showcase" }
   ]
 }

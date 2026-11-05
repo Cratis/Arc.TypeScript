@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node", "vitest/globals", "chai", "sinon"]
+  },
+  "include": ["Features/**/for_*/**/*.ts", "Features/**/given/**/*.ts", "../../vitest.setup.ts", "../../test.d.ts"],
+  "references": []
+}
