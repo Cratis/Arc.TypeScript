@@ -9,7 +9,7 @@ In this lesson you write one fast spec that calls `handle()` directly, then two 
 
 ## Set up the lesson
 
-Arc for TypeScript is a source preview, so work inside your clone of this repository, where `@cratis/arc.core`, `@cratis/arc.testing`, Vitest, Chai's `should`, and Sinon are already configured. Create the lesson folder under the Tasks sample, which the repository's Vitest projects already cover:
+Work inside your clone of this repository, where `@cratis/arc.core`, `@cratis/arc.testing`, Vitest, Chai's `should`, and Sinon are already configured. Create the lesson folder under the Tasks sample, which the repository's Vitest projects already cover:
 
 ```bash
 mkdir -p Samples/Tasks/Lessons/Shipping/for_QuoteShipping/given

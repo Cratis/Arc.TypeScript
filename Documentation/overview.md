@@ -38,7 +38,7 @@ Arc does not require a database or an event store. A command can call your own s
 
 - [MongoDB](mongodb/index.md) for tenant-scoped collections with change-stream observation.
 - [SQL with Drizzle](sql/index.md) for tenant-scoped SQLite and PostgreSQL reads.
-- [Chronicle](chronicle/index.md), experimental, when commands should append events.
+- [Chronicle](chronicle/index.md), when commands should append events.
 
 [Proxy generation](proxy-generation/index.md) is a separate build step. It reads your TypeScript source and writes typed clients for the published `@cratis/arc` frontend runtime; it never queries a running server.
 

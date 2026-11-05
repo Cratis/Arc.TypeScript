@@ -7,8 +7,8 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, then keeping all of it in step with the frontend. With it, commands and queries run through one pipeline that owns those concerns, the wire behavior follows Arc on .NET, and the proxy generator writes the typed frontend client from your source.
 
-:::caution[Source preview, no full parity]
-No package is published to npm; the manifests are at version 0.58.0 for a source preview. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
+:::caution[Package availability and parity]
+No package is published to npm; the manifests are at version 0.58.0. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
 :::
 
 ## What it looks like
@@ -46,11 +46,11 @@ These excerpts are from the [Tasks sample](https://github.com/Cratis/Arc.TypeScr
 - **Hosting** on Node's own HTTP server, or in [Express, Fastify, or Hono](hosts/index.md).
 - **Generated proxies** for the published `@cratis/arc` client, read from your TypeScript source by [`arc-proxygenerator`](proxy-generation/index.md).
 - **Testing** through the real pipelines with [scenarios](testing/index.md), and **ESLint rules** that catch binding mistakes in the editor with [code analysis](code-analysis/index.md).
-- **Optional integrations**: [MongoDB](mongodb/index.md), [SQL with Drizzle](sql/index.md), [OpenTelemetry observability](observability.md), and the experimental [Chronicle](chronicle/index.md) event store.
+- **Optional integrations**: [MongoDB](mongodb/index.md), [SQL with Drizzle](sql/index.md), [OpenTelemetry observability](observability.md), and the [Chronicle](chronicle/index.md) event store.
 
 ## CQRS first, event sourcing optional
 
-Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The core has no dependency on event sourcing or on a database. The Chronicle integration is a separate, experimental package; see [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how that boundary works in Arc generally.
+Arc is a CQRS framework. A command can validate input, call a service, write to current-state storage, and return a response without any event log. The core has no dependency on event sourcing or on a database. The Chronicle integration is a separate package; see [CQRS without event sourcing](/arc/arc-without-event-sourcing/) for how that boundary works in Arc generally.
 
 ## A server for the clients you already have
 
@@ -73,7 +73,7 @@ The shared Arc pages, such as the [tutorial](/arc/tutorial/first-slice/) and the
 
 ## Releases
 
-Arc for TypeScript is versioned independently of Arc on .NET. GitHub source previews are available; npm publication is disabled. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Prepare and publish a TypeScript release](contributing/releases.md).
+Arc for TypeScript is versioned independently of Arc on .NET. GitHub source releases are available; npm publication is disabled. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Prepare and publish a TypeScript release](contributing/releases.md).
 
 ## Where to go next
 

@@ -1,6 +1,6 @@
 ---
 title: Storage isolation
-description: See how the MongoDB, Drizzle, and experimental Chronicle integrations turn the resolved tenant into a database, connection, or event store namespace, and how to verify the boundary.
+description: See how the MongoDB, Drizzle, and Chronicle integrations turn the resolved tenant into a database, connection, or event store namespace, and how to verify the boundary.
 ---
 
 Resolving `acme` for a request is only useful if the data really goes to Acme's storage. Each storage integration maps the resolved tenant to its own destination, and they do not all treat a missing tenant or letter case the same way. This page lists each mapping so you can line them up, then shows how to check that the boundary holds.
@@ -11,7 +11,7 @@ Resolving `acme` for a request is only useful if the data really goes to Acme's 
 | --- | --- | --- | --- |
 | [MongoDB](../mongodb/tenancy.md), `database: 'tasks'` | Database `tasks+acme` | Database `tasks` | The request fails |
 | [SQL with Drizzle](../sql/tenancy.md) | The connection `databaseFactory('acme', context)` returns | `databaseFactory('default', context)`, or the `database` option when there is no factory | The request fails |
-| [Chronicle](../chronicle/index.md), experimental | Namespace `acme` in the configured event store | Namespace `default` | Namespace `Default` |
+| [Chronicle](../chronicle/index.md) | Namespace `acme` in the configured event store | Namespace `default` | Namespace `Default` |
 
 MongoDB and Drizzle lowercase the tenant ID before they use it. The Chronicle integration passes the ID to Chronicle as it is.
 

@@ -107,7 +107,7 @@ export class RenameTaskValidator extends CommandValidator<RenameTask> {
 }
 ```
 
-`TaskView` is your read model, with at least a string `title` field. Arc does not load it itself; a registered read-model resolver does. The [MongoDB](../mongodb/index.md) and experimental [Chronicle](../chronicle/read-models/index.md) integrations register resolvers for the models you configure, and `builder.addReadModelForCommandResolver(token)` adds your own, as described in [Command context](command-context.md#load-a-read-model-by-key).
+`TaskView` is your read model, with at least a string `title` field. Arc does not load it itself; a registered read-model resolver does. The [MongoDB](../mongodb/index.md) and [Chronicle](../chronicle/read-models/index.md) integrations register resolvers for the models you configure, and `builder.addReadModelForCommandResolver(token)` adds your own, as described in [Command context](command-context.md#load-a-read-model-by-key).
 
 What happens when the rule runs:
 

@@ -54,7 +54,7 @@ curl http://127.0.0.1:3000/.cratis/commands
 
 You get one entry for `RegisterTask`, with the route `/api/tasks/registration/register-task` and a JSON Schema that requires a UUID `id` and a string `title`. [Command introspection](commands.md) shows the full answer. The queries endpoint lists `allTasks`, `taskById`, and `observeAllTasks` the same way.
 
-Behind that answer there is no extra registry. Arc builds the list from the operations it compiled at startup, and the schemas from the `@field` declarations or Zod schemas that also validate incoming requests. Rename a field, restart, and the endpoint shows the new name.
+Behind that answer there is no extra registry. Arc builds the list from the operations it compiled at startup, and the schemas from the `@field` declarations or Zod schemas that also validate incoming requests. Rename a field, rebuild the application, then restart, and the endpoint shows the new name.
 
 Use the returned route and required fields to prepare a payload. [Register a task](../getting-started/index.md#register-a-task) sends that payload to the Tasks service and explains the response; inspecting its catalog does not itself invoke the command.
 

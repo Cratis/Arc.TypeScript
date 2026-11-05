@@ -80,7 +80,7 @@ These are not decorators, but you pass them to `@query(...)` and `@inject(...)`:
 
 ## Chronicle
 
-From `@cratis/arc.chronicle` (experimental):
+From `@cratis/arc.chronicle`:
 
 | Decorator | Valid on | Effect | .NET |
 | --- | --- | --- | --- |

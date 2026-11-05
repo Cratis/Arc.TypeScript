@@ -2,5 +2,5 @@
   href: index.md
 - name: Returning commands
   href: command-side-effects.md
-- name: Scoped activation (preview)
+- name: Scoped activation
   href: scoped-activation.md

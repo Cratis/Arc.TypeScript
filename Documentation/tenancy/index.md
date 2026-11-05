@@ -61,7 +61,7 @@ The storage integrations select per-tenant storage from the resolved tenant:
 
 - [MongoDB](../mongodb/tenancy.md) chooses a database per tenant, and fails without one.
 - [SQL with Drizzle](../sql/tenancy.md) calls your `databaseFactory` per tenant, and fails without one.
-- [Chronicle](../chronicle/index.md), experimental, appends in the tenant's namespace, or in `Default` when there is none.
+- [Chronicle](../chronicle/index.md) appends in the tenant's namespace, or in `Default` when there is none.
 
 [Storage isolation](isolation.md) shows each mapping and how to verify it.
 

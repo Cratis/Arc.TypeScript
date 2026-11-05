@@ -1,11 +1,13 @@
 ---
 title: Prepare and publish a TypeScript release
-description: Prepare a minor or patch source-preview version, check it, and publish it as a GitHub pre-release. Nothing is published to npm.
+description: Prepare a minor or patch version, check it, and publish it as a GitHub pre-release. Nothing is published to npm.
 ---
 
-You prepare a source-preview version in the release pull request, and a maintainer publishes it as a GitHub pre-release after the merge. Nothing is automated: no workflow writes versions, tags, creates releases, or publishes to npm, and **npm publication is disabled**.
+You prepare a source version in the release pull request, and a maintainer publishes it as a GitHub pre-release after the merge. Nothing is automated: no workflow writes versions, tags, creates releases, or publishes to npm, and **npm publication is disabled**.
 
-## Prepare a source-preview version
+<a id="prepare-a-source-preview-version"></a>
+
+## Prepare a version
 
 From the repository root, use `yarn set-version <MAJOR.MINOR.PATCH>` instead of editing manifests or prose by hand:
 
@@ -15,7 +17,7 @@ yarn set-version --check
 git diff --check
 ```
 
-Replace the example with the intended version. The command updates `version` on the versioned workspace packages (the packages under `Source`, including `Source/Tools`, and `ContractTests/Client`); the Tasks sample and HTTP contract fixture remain unversioned. It updates non-`workspace:` internal server-package dependency, peer, and optional ranges to `^<version>`, leaving the externally published `@cratis/arc` client packages and workspace ranges alone. It also changes the preview-version statements in the README, documentation index, and package reference, then runs `yarn install` to refresh `yarn.lock`. Review the diff before committing; an install failure leaves edited files in place and fails the command so you can fix the issue and rerun it.
+Replace the example with the intended version. The command updates `version` on the versioned workspace packages (the packages under `Source`, including `Source/Tools`, and `ContractTests/Client`); the Tasks sample and HTTP contract fixture remain unversioned. It updates non-`workspace:` internal server-package dependency, peer, and optional ranges to `^<version>`, leaving the externally published `@cratis/arc` client packages and workspace ranges alone. It also changes the source-version statements in the README, documentation index, and package reference, then runs `yarn install` to refresh `yarn.lock`. Review the diff before committing; an install failure leaves edited files in place and fails the command so you can fix the issue and rerun it.
 
 Only stable `MAJOR.MINOR.PATCH` values are accepted. A change of major version is refused unless you pass `--allow-major`; that flag does not grant release approval. Major releases still require verified full parity and an explicit human merge. `yarn set-version --check` reads without writing and verifies package versions, non-workspace internal ranges, and all three version statements. Pass a version to `--check` to require that specific version. The command fails if any expected statement is missing; its Node tests plant version and statement drift to check that failure path.
 
@@ -81,6 +83,6 @@ Create the release only after `git merge-base` confirms that the merge commit is
 
 ## Before enabling publication
 
-Review the package inventory and versioning scheme, including whether any packages should stay private (none of the eleven packages under `Source` is marked `private`, including the experimental `@cratis/arc.chronicle` and `@cratis/cratis`; only the samples and contract-test fixtures are), verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
+Review the package inventory and versioning scheme, including whether any packages should stay private (none of the eleven packages under `Source` is marked `private`, including `@cratis/arc.chronicle` and `@cratis/cratis`; only the samples and contract-test fixtures are), verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
 
 **Major releases are never automatic.** They require a human merge and may proceed only after Arc parity has been verified. A minor/patch preview is not a shortcut around those requirements. Merge pull requests with a true merge commit, not squash or rebase; merging and publishing are outside this workflow.

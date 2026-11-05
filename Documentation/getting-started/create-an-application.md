@@ -7,8 +7,8 @@ You have seen the Tasks sample and want a project of your own. `npm install @cra
 
 When you finish, a small notes API listens on `127.0.0.1:3000`. `POST /api/notes/writing/write-note` stores a note, refuses one without text, and `GET /api/notes/listing/all-notes` returns what you stored. The server reloads when you edit the code.
 
-:::caution[Source preview]
-Arc for TypeScript is an unpublished source preview, and its API may still change. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application.
+:::caution[Install from source]
+Arc for TypeScript is not published to npm, and its API may still change. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application.
 :::
 
 ## Before you start

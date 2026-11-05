@@ -5,7 +5,7 @@ description: React to tenant-scoped database changes with a shared stream and bo
 
 When several parts of your application need to respond to MongoDB changes, opening a separate change stream for each one is wasteful. Resolve `mongoDBWatcher` in the same Arc scope as your collections. The watcher shares one **database-level** change stream among subscriptions in that scope, and routes collection changes to each subscriber.
 
-This is a source-preview API. It is not a durable event consumer or a replacement for Chronicle.
+The watcher is not a durable event consumer or a replacement for Chronicle.
 
 ## React to changes
 
