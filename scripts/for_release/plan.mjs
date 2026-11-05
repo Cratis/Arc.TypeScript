@@ -64,7 +64,7 @@ function checkedNotes(value) {
 /** Compute a preview only; this module has no release, tag, manifest, or registry effects. */
 export function planRelease({ intent, releaseNotes, tags, expectedCurrentVersion, ref, sha, defaultBranch, headSha, npmPublishing }) {
     if (intent !== 'minor' && intent !== 'patch') throw new Error('Only minor or patch releases can be planned; major and no-release are not valid');
-    if (npmPublishing !== 'off') throw new Error('npm publishing is not configured and must remain off');
+    if (npmPublishing !== 'off') throw new Error('the release preview never publishes to npm, so npm publishing must remain off');
     if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(defaultBranch) || defaultBranch.includes('..') || defaultBranch.includes('//') || defaultBranch.endsWith('/')) {
         throw new Error('Invalid default branch');
     }
@@ -93,6 +93,6 @@ export function planRelease({ intent, releaseNotes, tags, expectedCurrentVersion
     return {
         intent, currentVersion, nextVersion, tag, notes,
         commit: sha, npmPublishing: 'off', effects: 'none',
-        versionBookkeeping: 'unverified: package inventory and manifest versions are not configured'
+        versionBookkeeping: 'unverified: the preview does not check the package inventory or manifest versions'
     };
 }

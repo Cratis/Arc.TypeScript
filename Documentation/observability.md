@@ -11,7 +11,7 @@ Core does not install an exporter, context manager, or SDK, so it stays usable w
 
 - `@opentelemetry/api`, the required peer dependency of `@cratis/arc.core`. No exporter is required.
 - For the example below, a clone of this repository after `yarn install && yarn build`. The workspace provides the SDK development dependencies.
-- In your own application, install `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `@opentelemetry/sdk-metrics`, and `zod` there instead of depending on the SDK from core. [Create an application](getting-started/create-an-application.md) shows how to install the unpublished Arc packages.
+- In your own application, install `@opentelemetry/sdk-node`, `@opentelemetry/sdk-trace-base`, `@opentelemetry/sdk-metrics`, and `zod` there instead of depending on the SDK from core. [Create an application](getting-started/create-an-application.md) shows how to install the Arc packages.
 
 ## Start a local console exporter
 

@@ -7,8 +7,8 @@ A librarian registers an author. You want that registration kept as a fact, and 
 
 `@cratis/arc.chronicle` removes that plumbing. A command **returns** the event, and Arc appends it after authorization, validation, and `provide()` have passed, in the namespace of the tenant Arc already resolved. Arc does not require event sourcing: a command can do its work through any service. Use this integration when you want commands to record facts in [Chronicle](/chronicle/), the event-sourcing database.
 
-:::caution[Install from source]
-`@cratis/arc.chronicle`, like every package in this repository, is not published to npm. Its APIs can change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
+:::caution[Experimental integration]
+`@cratis/arc.chronicle` is published to npm like the other packages, but its guarantees are bounded and its integration is experimental. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
 :::
 
 To try it, [Add event sourcing](add-event-sourcing.md) starts a Chronicle kernel on your machine and adds a first event-sourced slice to the application from [Create an application](../getting-started/create-an-application.md).
@@ -80,7 +80,7 @@ The `@key()` field names the event source, so the registration lands in that aut
 | --- | --- |
 | [Add event sourcing](add-event-sourcing.md) | Start a local kernel, record a first event from a command, and query its projection |
 | [Registration options](registration-options.md) | Look up the `withChronicle` options, configuration keys, and client ownership |
-| [The Cratis package](cratis-package.md) | Register Arc and Chronicle with one call from `@cratis/cratis` |
+| [The Cratis package](cratis-package.md) | Register Arc and Chronicle with one call from `@cratis/platform` |
 | [Returning events](commands/index.md) | Return one event, a batch, or events next to a response |
 | [Event metadata](commands/event-metadata.md) | See what each appended event carries and where every value comes from |
 | [Resolving the event source ID](resolving-event-source-id.md) | Choose which event source an event is appended to, and route it |

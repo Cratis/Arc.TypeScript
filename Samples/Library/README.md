@@ -50,3 +50,7 @@ bash Samples/Library/run-integration.sh
 The root Vitest workspace includes `vite.config.mts` for backend `for_*/when_*/*.ts` specs in Node and `vite.frontend.config.mts` for co-located frontend `for_*/when_*/*.tsx` specs in jsdom. Both projects use the shared Chai setup; frontend specs stub the query hook and generated command execution, then exercise Components interactions with Testing Library. Backend compilation and discovery ignore `for_*` folders and `.tsx` files; `Web/tsconfig.json` type-checks the frontend specs along with the components and proxies.
 
 The integration script creates and removes **only its own** Chronicle development container, with bundled MongoDB. It exercises generated proxies over Express: author registration, uniqueness rejection, projected listings, book registration, and a live observable update. The `ChronicleCommandScenario` slice specs assert event appends without a kernel; only the live run checks the kernel's constraint and projection behavior. The browser UI is not exercised by the script.
+
+## Run scripts
+
+`Samples/Library/run.sh` does the install, builds and Docker steps above for you: `./run.sh` (or `./run.sh dev`) starts Chronicle and runs the backend and the web app, `./run.sh test` checks the slice layout and runs the backend and web specifications (no Docker needed), and `./run.sh e2e` runs the end-to-end suite against a throwaway Chronicle container. See [all samples](../README.md).

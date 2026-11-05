@@ -8,7 +8,7 @@ Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Crati
 Without it, a Node.js backend for an Arc frontend means writing every route, request parser, validation response, and status code by hand, then keeping all of it in step with the frontend. With it, commands and queries run through one pipeline that owns those concerns, the wire behavior follows Arc on .NET, and the proxy generator writes the typed frontend client from your source.
 
 :::caution[Package availability and parity]
-No package is published to npm; the manifests are at version 0.58.0. Arc for TypeScript does **not** have full parity with Arc on .NET, and package names and APIs can still change. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
+The packages are published to npm at version 1.0.0. Install them with `npm install @cratis/arc.core`. Arc for TypeScript does **not** claim identical behavior to Arc on .NET everywhere. The [capability reference](reference/capabilities.md) is the single place for status and evidence.
 :::
 
 - **Run it:** [Get started](getting-started/index.md) builds the Tasks sample and calls its command and query.
@@ -77,7 +77,7 @@ The shared Arc pages, such as the [tutorial](/arc/tutorial/first-slice/) and the
 
 ## Releases
 
-Arc for TypeScript is versioned independently of Arc on .NET. GitHub source releases are available; npm publication is disabled. A major release is never made automatically: it requires verified full parity with Arc on .NET and an explicit merge by a maintainer. See [Prepare and publish a TypeScript release](contributing/releases.md).
+Arc for TypeScript is versioned independently of Arc on .NET. Releases are published to npm and as GitHub releases when a labeled pull request merges. A major release is never made automatically: it requires an explicit merge by a maintainer. See [Prepare and publish a TypeScript release](contributing/releases.md).
 
 ## Where to go next
 

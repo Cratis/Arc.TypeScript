@@ -1,9 +1,9 @@
 {
-  "name": "@cratis/cratis",
-  "version": "0.58.0",
+  "name": "@cratis/platform",
+  "version": "1.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "Cratis Arc and experimental Cratis Chronicle composition for Node.js",
+  "description": "Cratis for Node.js: Arc and Chronicle in one install, like the Cratis package for .NET",
   "author": "Cratis",
   "repository": {
     "type": "git",
@@ -29,9 +29,8 @@
   "dependencies": {
     "@cratis/arc.chronicle": "workspace:^",
     "@cratis/arc.core": "workspace:^",
-    "@cratis/arc.testing": "workspace:^"
-  },
-  "peerDependencies": {
+    "@cratis/arc.express": "workspace:^",
+    "@cratis/arc.testing": "workspace:^",
     "@cratis/chronicle": "^6.29.0",
     "@cratis/fundamentals": "^7.19.6",
     "rxjs": "^7.8.2",

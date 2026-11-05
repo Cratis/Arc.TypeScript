@@ -14,9 +14,9 @@ function versionConstant(version) {
 }
 const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const statements = new Map([
-    ['README.md', /Every package manifest is at version (\d+\.\d+\.\d+)\. That is/g],
-    ['Documentation/index.md', /the manifests are at version (\d+\.\d+\.\d+)\./g],
-    ['Documentation/reference/packages.md', /Every package in this repository is at version (\d+\.\d+\.\d+)\./g]
+    ['README.md', /Every public package is published to npm at version (\d+\.\d+\.\d+)\./g],
+    ['Documentation/index.md', /The packages are published to npm at version (\d+\.\d+\.\d+)\./g],
+    ['Documentation/reference/packages.md', /Every non-private package in this repository is published to npm at version (\d+\.\d+\.\d+)\./g]
 ]);
 
 export function validateVersion(version) {
@@ -83,7 +83,7 @@ export function prepareVersion(root, requestedVersion, { check = false, allowMaj
         throw new Error(`Major version change to ${version} requires --allow-major and human approval`);
     }
     const internalNames = new Set(manifests.map(manifest => manifest.package.name)
-        .filter(name => typeof name === 'string' && (name.startsWith('@cratis/arc.') || name === '@cratis/cratis')));
+        .filter(name => typeof name === 'string' && (name.startsWith('@cratis/arc.') || name === '@cratis/platform')));
     let ranges = 0;
     const problems = [];
     for (const manifest of manifests) {

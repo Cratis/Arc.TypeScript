@@ -1,0 +1,11 @@
+/* Copyright (c) Cratis. All rights reserved. Licensed under the MIT license. See LICENSE file in the project root for full license information. */
+body { font-family: system-ui, sans-serif; margin: 0; color: #1b1f24; background: #fafafa; }
+header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 1rem; background: #1b1f24; color: #fff; }
+header label { font-size: .85rem; display: flex; gap: .3rem; align-items: center; }
+nav { display: flex; flex-wrap: wrap; gap: .25rem; padding: .5rem 1rem; border-bottom: 1px solid #ddd; }
+nav button[aria-current='true'] { font-weight: bold; background: #dbe8ff; }
+main { padding: 1rem; max-width: 60rem; }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.big { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.problem { color: #b00020; }
+table { border-collapse: collapse; width: 100%; } th, td { border-bottom: 1px solid #ddd; text-align: left; padding: .25rem .5rem; }

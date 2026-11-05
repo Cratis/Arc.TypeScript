@@ -124,7 +124,7 @@ Arc does not replace your web framework. You can [mount Arc in Express, Fastify,
 ## When to stay where you are
 
 - **You need what NestJS's module system gives you**: GraphQL resolvers, microservice transports, a large plugin ecosystem, or a team already fluent in it. Arc covers commands, queries, and live queries over HTTP, not those.
-- **You need production stability now.** Arc for TypeScript is not published to npm and does not have full parity with Arc on .NET. Check the [capability reference](reference/capabilities.md).
+- **You need production stability now.** Arc for TypeScript does not claim identical behavior to Arc on .NET everywhere. Check the [capability reference](reference/capabilities.md).
 - **Your endpoints are not command- or query-shaped**, such as file uploads, webhooks with fixed external contracts, or streaming downloads. Keep those as ordinary routes next to Arc.
 
 ## Related

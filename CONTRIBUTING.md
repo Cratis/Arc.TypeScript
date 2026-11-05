@@ -1,6 +1,6 @@
 # Contributing to Arc for TypeScript
 
-Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, optional MongoDB and Drizzle SQL integrations, a source-based client generator, ESLint rules, a Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
+Thank you for helping. Arc for TypeScript is published to npm at 1.0.0: the server core, three host adapters, optional MongoDB and Drizzle SQL integrations, a source-based client generator, ESLint rules, a Chronicle integration, and samples. It does not claim identical behavior to Arc on .NET everywhere, and the [capability reference](Documentation/reference/capabilities.md) records the gaps. Public APIs are now released, so a short design conversation before a large change saves rework.
 
 The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/contributing.md) and [code of conduct](https://github.com/Cratis/.github/blob/main/CODE_OF_CONDUCT.md) apply to this repository.
 
@@ -28,7 +28,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 | `ContractTests/DotNET`, `ContractTests/Http` | A .NET reference host and the paired HTTP checks that compare it with Arc for TypeScript; see their READMEs |
 | `ContractTests/Client` | Client generation tests: proxy fixtures compiled against the pinned `@cratis/arc`, `@cratis/fundamentals`, and `rxjs` versions, and generated proxies run against live Express, Fastify, and Hono hosts |
 | `Documentation` | Product documentation published on the Cratis site |
-| `scripts` | Release preview tooling and its specs |
+| `scripts` | Release tooling (versioning, npm publishing, release plan) and its specs |
 
 ## Set up
 
@@ -99,8 +99,8 @@ The core, host adapters, MongoDB, testing, proxy generator, and ESLint plugin co
 - Write the pull request description as release notes for the people who will use the change. It describes the change, not the checks you ran.
 - Maintainers merge with a merge commit. History is never squashed, rebased, or force-pushed.
 - Label each pull request with its semantic-versioning impact: `major`, `minor`, or `patch`, or `no-release` when nothing a consumer can observe changes.
-- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration, not private since v0.12.0, does not yet have verified full transaction parity with Arc on .NET. Before preparing a source version, run `yarn set-version <MAJOR.MINOR.PATCH>` to update versioned workspace manifests, internal non-workspace dependency ranges, the three version statements, and `yarn.lock`; run `yarn set-version --check` afterward. Major bumps require `--allow-major` and human approval. After the merge, a maintainer publishes the version as a source-only GitHub pre-release from the merge commit. See [Prepare and publish a TypeScript release](Documentation/contributing/releases.md) for the full procedure.
-- **A `major` release needs full parity and a human merge.** No `major` release happens until full parity with Arc on .NET is verified and a maintainer explicitly merges it. Major releases are never merged automatically.
+- **Merging to `main` releases.** A merged pull request labeled `major`, `minor`, or `patch` runs the publish workflow, which creates the GitHub release and publishes every non-private package to npm; `no-release` publishes nothing. You do not run `yarn set-version` for a release; use it only to check versions locally (`yarn set-version --check`). See [Prepare and publish a TypeScript release](Documentation/contributing/releases.md) for the procedure. The Chronicle integration does not yet have verified full transaction parity with Arc on .NET; its capability entry states the bounds.
+- **A `major` release needs a human merge.** A maintainer must explicitly merge a pull request labeled `major`. Major releases are never merged automatically or by auto-merge.
 
 ## AI-assisted contributions
 

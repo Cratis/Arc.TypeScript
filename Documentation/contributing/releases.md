@@ -1,26 +1,26 @@
 ---
 title: Prepare and publish a TypeScript release
-description: Prepare and verify Arc TypeScript minor or patch versions, then publish GitHub pre-releases manually while npm package publication remains disabled.
+description: Release Arc for TypeScript by labeling and merging a pull request; a workflow computes the version, creates the GitHub release, and publishes every package to npm with provenance.
 ---
 
-You prepare a source version in the release pull request, and a maintainer publishes it as a GitHub pre-release after the merge. Nothing is automated: no workflow writes versions, tags, creates releases, or publishes to npm, and **npm publication is disabled**.
+A release is a pull request. Label it `major`, `minor`, `patch`, or `no-release`, write its description as the release notes, and merge it to `main` with a merge commit. The publish workflow does the rest; you do not edit versions, create tags, or run `npm publish`.
 
-<!-- markdownlint-disable-next-line MD033 -->
-<a id="prepare-a-source-preview-version"></a>
+## How a release runs
 
-## Prepare a version
+Merging a labeled pull request to `main` runs `.github/workflows/publish.yml`:
 
-From the repository root, use `yarn set-version <MAJOR.MINOR.PATCH>` instead of editing manifests or prose by hand:
+1. `cratis/release-action` reads the label, computes the next version from the existing releases, and creates the GitHub release with the pull request description as its notes. A `no-release` pull request creates no release and publishes nothing.
+2. A publish job runs `node scripts/set-version.mjs <version> --allow-major`, which writes the version into every versioned workspace manifest, the internal dependency ranges, and the three documentation version statements.
+3. The job then runs `node scripts/publish-npm.mjs`. It packs every non-private workspace package and publishes them in dependency order through npm trusted publishing (OIDC) with provenance. It skips any version already on the registry, so a re-run after a partial failure publishes only what is missing.
 
-```bash
-yarn set-version 0.20.0
-yarn set-version --check
-git diff --check
-```
+The publish job sets the version in its own checkout, so do not bump versions in a feature pull request. Run `yarn set-version --check` to verify that manifests, internal ranges, and the version statements agree with each other. `yarn set-version <MAJOR.MINOR.PATCH>` accepts only stable versions, refuses a major change without `--allow-major`, and updates the three statements (README, documentation index, and package reference) and `yarn.lock`.
 
-Replace the example with the intended version. The command updates `version` on the versioned workspace packages (the packages under `Source`, including `Source/Tools`, and `ContractTests/Client`); the Tasks sample and HTTP contract fixture remain unversioned. It updates non-`workspace:` internal server-package dependency, peer, and optional ranges to `^<version>`, leaving the externally published `@cratis/arc` client packages and workspace ranges alone. It also changes the source-version statements in the README, documentation index, and package reference, then runs `yarn install` to refresh `yarn.lock`. Review the diff before committing; an install failure leaves edited files in place and fails the command so you can fix the issue and rerun it.
+## Labels and approval
 
-Only stable `MAJOR.MINOR.PATCH` values are accepted. A change of major version is refused unless you pass `--allow-major`; that flag does not grant release approval. Major releases still require verified full parity and an explicit human merge. `yarn set-version --check` reads without writing and verifies package versions, non-workspace internal ranges, and all three version statements. Pass a version to `--check` to require that specific version. The command fails if any expected statement is missing; its Node tests plant version and statement drift to check that failure path.
+- Pick exactly one of `major`, `minor`, `patch`, or `no-release` when you create the pull request. Use `no-release` for documentation, CI, and other changes with no outward-facing effect.
+- **Major releases are never automatic.** A maintainer must explicitly merge a pull request labeled `major`; never enable auto-merge on one or merge it on someone's behalf. `--allow-major` lets the script write the version; it grants no approval.
+- Merge with a merge commit, not squash or rebase.
+- Write the description for framework users: only nonempty `## Added`, `## Changed`, `## Fixed`, `## Removed`, `## Security`, and `## Deprecated` sections, each with specific bullets. It is published verbatim as the release notes.
 
 ## Check a change locally
 
@@ -31,7 +31,7 @@ Only stable `MAJOR.MINOR.PATCH` values are accepted. A change of major version i
    node --test scripts/for_release/*.test.mjs
    ```
 
-3. Run the same build and test gate as the manual workflows:
+3. Run the same build and test gate as the hosted CI workflow:
 
    ```bash
    corepack enable
@@ -43,9 +43,9 @@ Only stable `MAJOR.MINOR.PATCH` values are accepted. A change of major version i
 
    The Chronicle and Drizzle consumer files skip library checks **only** for known third-party declaration errors. [CONTRIBUTING.md](https://github.com/Cratis/Arc.TypeScript/blob/main/CONTRIBUTING.md#upstream-declaration-errors) lists them.
 
-## Preview a candidate on GitHub
+## Optional dry run: release preview
 
-Run **Manual CI** on the intended commit. Save the verified user-facing notes from the merged pull request in a UTF-8 Markdown file, for example `.ai-work/keep/release-notes.md` (ignored). The file requires supported sections such as this illustrative format (not actual release notes):
+The release preview is an optional dry run. It never publishes, tags, or creates a release. Save the verified user-facing notes from the merged pull request in a UTF-8 Markdown file, for example `.ai-work/keep/release-notes.md` (ignored). The file requires supported sections such as this illustrative format (not actual release notes):
 
 ```markdown
 ## Added
@@ -67,23 +67,6 @@ The `-F` flag reads the file contents, including newlines, as a single workflow 
 
 The workflow is **manual only**, not triggered by pushes or pull requests. The preview uses read-only permissions and prints a plan; it does not update package manifests, apply labels, tag, create a release, or publish to npm. The displayed version is derived from Git tags alone. The separate `yarn set-version --check` gate verifies local manifest and documentation consistency, but the preview does **not** establish that its proposed tag matches the manifest version or that any package is ready to publish. Do not describe a preview as a completed release.
 
-## Publish the GitHub pre-release
+## After a release
 
-A minor or patch release is a pull request that carries its `yarn set-version` commit, a `minor` or `patch` label, and user-facing release notes as its description. After hosted CI passes and the pull request is merged with a merge commit:
-
-```bash
-merge=$(gh pr view <number> --json mergeCommit -q .mergeCommit.oid)
-git fetch origin
-git merge-base --is-ancestor "$merge" origin/main
-gh pr view <number> --json body -q .body > .ai-work/keep/release-notes.md
-gh release create v<version> --prerelease --target "$merge" --title v<version> \
-  --notes-file .ai-work/keep/release-notes.md
-```
-
-Create the release only after `git merge-base` confirms that the merge commit is on `main`, and target that commit, not the moving branch. `gh release create` also creates the `v<version>` tag, which the release preview workflow reads. The pre-release publishes source only; npm packages stay unpublished. Merge release pull requests in version order, because each carries its own `yarn set-version` change.
-
-## Before enabling publication
-
-Review the package inventory and versioning scheme, including whether any packages should stay private (none of the eleven packages under `Source` is marked `private`, including `@cratis/arc.chronicle` and `@cratis/cratis`; only the samples and contract-test fixtures are), verify every published manifest against the planned version, configure npm trusted publishing and a complete post-publish verification gate, and review failure behavior before granting write permissions or adding any release effect. A release must fail rather than report success after a partial publish. Neither this page nor the preview authorizes a publication workflow.
-
-**Major releases are never automatic.** They require a human merge and may proceed only after Arc parity has been verified. A minor/patch preview is not a shortcut around those requirements. Merge pull requests with a true merge commit, not squash or rebase; merging and publishing are outside this workflow.
+Check that the GitHub release exists and that `npm view @cratis/arc.core version` shows the new version. The Chronicle integration (`@cratis/arc.chronicle`) and `@cratis/platform` are published with every release but stay documented as bounded in the [capability reference](../reference/capabilities.md). If the publish job fails after some packages are published, re-run it: the script skips versions already on the registry. A release must fail rather than report success after a partial publish.

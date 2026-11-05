@@ -9,14 +9,7 @@ The steps follow the [Library sample](https://github.com/Cratis/Arc.TypeScript/b
 
 ## Build the generator
 
-`@cratis/arc.proxygenerator` is not published to npm. Build it from a clone of this repository:
-
-```sh
-yarn install --immutable
-yarn build
-```
-
-The CLI is then `Source/Tools/ProxyGenerator/dist/cli.js`. Run it with `node`. For a backend outside the clone, install the packed generator as a development dependency instead; [Create an application](../getting-started/create-an-application.md#generate-the-metadata) shows the install and a matching script.
+Install the generator as a development dependency with `npm install --save-dev @cratis/arc.proxygenerator`; it provides the `arc-proxygenerator` command. [Create an application](../getting-started/create-an-application.md#generate-the-metadata) shows the install and a matching script. The examples below call the CLI from this repository's build (`Source/Tools/ProxyGenerator/dist/cli.js`), as the Library sample does after `yarn build` in a clone; in your own project, call the installed command instead.
 
 ## Keep the proxy beside the slice
 
