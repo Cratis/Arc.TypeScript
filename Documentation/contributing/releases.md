@@ -5,6 +5,7 @@ description: Prepare a minor or patch version, check it, and publish it as a Git
 
 You prepare a source version in the release pull request, and a maintainer publishes it as a GitHub pre-release after the merge. Nothing is automated: no workflow writes versions, tags, creates releases, or publishes to npm, and **npm publication is disabled**.
 
+<!-- markdownlint-disable-next-line MD033 -->
 <a id="prepare-a-source-preview-version"></a>
 
 ## Prepare a version
