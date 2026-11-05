@@ -1,6 +1,6 @@
 ---
 name: cratis-fundamentals-type-discovery
-description: Wire a type that must enumerate every implementation of an abstraction by injecting IInstancesOf from Cratis.Types and deleting the hand-maintained service registrations. Use when a handler set, filter chain, strategy set, or dispatcher fans out to all implementations. Do not use for ordinary single-service dependency injection.
+description: Use when a Cratis handler set, filter chain, strategy set or dispatcher must discover every implementation of an abstraction. Not for selecting one service implementation at composition time.
 license: MIT
 ---
 <!-- cratis-ai-managed: skills/cratis-fundamentals-type-discovery/SKILL.md -->
@@ -146,6 +146,19 @@ services.AddSingleton<IReportFormatters, ReportFormatters>();
 
 Search for every remaining reference before deleting, so nothing else was
 relying on a registration for a different reason.
+
+## Reuse derived-type discovery
+
+Requires Fundamentals and its generator 7.26.1 for per-universe caching plus nested-generic/experimental-type generator fixes; check `dotnet list package`, or keep the older construction path until upgrading.
+
+Use `Cratis.Serialization.DerivedTypes.For(types)` when several service
+collections share the same `ITypes` instance. It returns one shared `DerivedTypes`
+per universe, held weakly; distinct universes stay isolated. Do not construct one
+per scope or replace a host's explicit universe with `DerivedTypes.Instance`.
+
+The generator omits nested open-generic types from referenced Cratis packages
+and handles referenced `[Experimental]` diagnostic IDs. Upgrade the generator
+rather than editing its output to bypass those build failures.
 
 ## What breaks
 
