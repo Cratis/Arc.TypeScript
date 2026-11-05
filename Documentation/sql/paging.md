@@ -1,6 +1,6 @@
 ---
 title: Page and sort SQL read models
-description: Push count, sort, limit, and offset into SQL with DrizzleReadModels.queryPage, filter with a typed predicate, and know the sort-field, size, and consistency rules.
+description: Page Arc TypeScript SQL read models with DrizzleReadModels.queryPage, pushing counts, sorting and filtering into the database with documented limits.
 ---
 
 A task table grows to a million rows, and the client shows ten at a time. Loading every row to cut a page in memory stops working long before that. `DrizzleReadModels.queryPage` sends the count, the sort, and the page to the database and returns an Arc page with the real total.

@@ -1,6 +1,6 @@
 ---
 title: Injecting an aggregate into a command
-description: Bind a rehydrated aggregate to a command's key with commandAggregate, reject or commit its changes, and know how identity, routing, concurrency, and the batch apply.
+description: Inject a rehydrated Chronicle aggregate into an Arc TypeScript command by key, then handle rejection, commits, routing and concurrency checks.
 ---
 
 With the aggregate defined, a command asks Arc for it by type. Arc loads it for the command's key, replays its history, and hands it to `handle()`. Whatever the aggregate applies is appended when the command succeeds.

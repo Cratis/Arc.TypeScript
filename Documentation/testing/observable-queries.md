@@ -1,6 +1,6 @@
 ---
 title: Testing observable queries
-description: Open a decorated observable query through the real pipeline with ObservableQueryScenario, collect emissions under one deadline, and tell completion from rejection.
+description: Test live Arc TypeScript queries with ObservableQueryScenario, collecting emissions within a deadline and distinguishing completion from rejection.
 ---
 
 `ObservableQueryScenario` opens a live query through the real observable pipeline and collects what it emits, within a deadline you set.

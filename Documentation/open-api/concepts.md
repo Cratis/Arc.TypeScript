@@ -1,6 +1,6 @@
 ---
 title: Concepts in the document
-description: See how ConceptAs values, GUIDs, dates, and field models are described in /openapi.json as the JSON value they carry on the wire, and why concept validators do not become schema constraints.
+description: Understand Arc TypeScript concept schemas in OpenAPI, including wrapped scalar values, GUIDs, dates and why concept validators are not schema constraints.
 ---
 
 Your command declares `@field(TaskId) id`. A client generator in Go or Python must not see a `TaskId` object with a `value` inside it, because the JSON on the wire carries a plain UUID string. Arc describes every concept as the value it wraps, so the document matches what the client actually sends and receives.

@@ -1,6 +1,6 @@
 ---
 title: ARCCHR0003 — Reactor must not reach the default event log
-description: Return Chronicle events from a reactor instead of appending to its own default log.
+description: Fix ARCCHR0003 in Arc TypeScript by returning events from Chronicle reactors instead of appending directly to the reactor's own default event log.
 ---
 
 A reactor can return events to Chronicle. The rule finds direct `this.<field>.eventLog.append(...)`

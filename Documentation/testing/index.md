@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: Test commands, queries, and observable queries through Arc's real pipelines without starting a server, and choose the boundary that can catch the bug you care about.
+description: Test Arc TypeScript commands, queries and observable queries in-process through real pipelines, choosing scenario boundaries without starting a server.
 ---
 
 A spec that calls `handle()` directly skips everything Arc does around it: binding, authorization, validators, services, and the result envelope. A spec that starts an HTTP server is slow and fragile. `@cratis/arc.testing` runs your artifacts through the **real** pipelines in-process, so a passing spec means the behavior a client sees, without a listener or a port.

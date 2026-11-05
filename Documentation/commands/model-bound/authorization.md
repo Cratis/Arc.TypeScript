@@ -1,6 +1,6 @@
 ---
 title: Command authorization
-description: Restrict a model-bound command with @roles, @authorize, and @allowAnonymous, and know how stacked declarations combine.
+description: Restrict Arc TypeScript model-bound commands with role, policy and anonymous access decorators, including how stacked authorization rules combine.
 ---
 
 Put access rules on the command class. Arc checks them before it validates the input, so a caller who may not run the command never sees its rule messages.

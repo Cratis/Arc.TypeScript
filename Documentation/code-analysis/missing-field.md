@@ -1,6 +1,6 @@
 ---
 title: 'missing-field: Property is not bound'
-description: Mark every model-bound property with @field.
+description: Resolve the Arc TypeScript missing-field lint rule by marking public command and read-model properties with @field so they appear in wire schemas.
 ---
 
 ## What

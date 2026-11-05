@@ -1,6 +1,6 @@
 ---
 title: Keep a behavior together in a vertical slice
-description: Keep backend artifacts, generated client proxies, and React components together in a vertical-slice folder.
+description: Organize Arc TypeScript features as vertical slices, keeping backend artifacts, generated client proxies, React components and specs together.
 ---
 
 When you change how an author registers, you should not have to hunt through separate command, validator, and event folders. Keep the behavior in a slice folder, with one TypeScript file named for that behavior:

@@ -1,6 +1,6 @@
 ---
 title: ARCCHR0009 — Secret-looking command field should not be audited
-description: Mark command fields whose names read as secrets when Chronicle does not already mask them.
+description: Resolve ARCCHR0009 in Arc TypeScript by marking secret command fields with @notAudited or @pii to exclude them from Chronicle event causation records.
 ---
 
 A command field such as `passphrase`, `privateKey`, or `authorizationHeader` may be recorded on the causation chain of every event the command appends. Mark the field `@notAudited()` from `@cratis/arc.chronicle` (or `@pii()` from `@cratis/chronicle/compliance` for personal data). The rule runs only when `@cratis/arc.chronicle` resolves from the linted file, matching the .NET analyzer's Chronicle-presence gate. It reports decorated command fields and constructor parameter properties with the unmasked words Passphrase, PrivateKey, AccessKey, Pin, Otp, Cvv, Cvc, SecurityCode, and AuthorizationHeader. It follows the .NET analyzer's whole-word naming heuristic, including pairs of adjacent camel-case words.

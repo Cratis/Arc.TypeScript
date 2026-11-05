@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Fix the common Arc for TypeScript problems with installation, decorators and compilers, generated metadata, module resolution, discovery, host adapters, authentication, and generated clients.
+description: Troubleshoot Arc TypeScript installation, decorators, generated metadata, module resolution, discovery, host adapters, authentication and client proxies.
 ---
 
 Each entry names the symptom, the usual cause, and the fix, with a link to the page that has the full contract.

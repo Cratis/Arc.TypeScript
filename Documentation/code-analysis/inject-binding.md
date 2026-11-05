@@ -1,6 +1,6 @@
 ---
 title: 'inject-binding: Injection token disagrees with handler'
-description: Match typed handle parameters to injected services.
+description: Resolve Arc TypeScript inject-binding diagnostics by matching @inject tokens to command handler parameter counts and provable constructor types.
 ---
 
 ## What

@@ -1,6 +1,6 @@
 ---
 title: Identity across services
-description: Decide where /.cratis/me lives when your system has one Arc service, several services behind a gateway, or a dedicated identity service, and keep authentication at every boundary.
+description: Place Arc TypeScript identity endpoints in a single service, behind a gateway or in a dedicated service while authenticating each request boundary.
 ---
 
 A single Node service is simple: it authenticates the caller, serves `/.cratis/me`, and runs every command. As the system grows into an orders service, a billing service, and a gateway in front of them, the question changes. Which service answers "who is this?", and how does each service know the caller is real?

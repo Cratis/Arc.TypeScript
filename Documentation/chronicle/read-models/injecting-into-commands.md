@@ -1,6 +1,6 @@
 ---
 title: Read models in commands
-description: Take the Chronicle read model projected for a command's key as a handle() or provide() parameter with commandReadModel, read it in a validator with readModelForValidation, and decide what a missing instance means.
+description: Inject keyed Chronicle read models into Arc TypeScript command handlers, preparation methods and validators, with required or optional lookup behavior.
 ---
 
 A member reserves a book. The reservation event should carry the book's title, and the command should refuse a book that is not in the catalog. Both answers are already in the `Book` read model Chronicle keeps for that book. You should not need to write a query, call it from the command, and map "not found" to an error yourself.

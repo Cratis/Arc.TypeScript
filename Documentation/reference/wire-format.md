@@ -1,6 +1,6 @@
 ---
 title: Wire format
-description: Understand derived-type discriminators, acronym naming, enum values and named floating-point literals.
+description: Understand Arc TypeScript JSON wire rules for derived types, property names, enums, special numbers and nulls, with notes on .NET compatibility.
 ---
 
 A payload that looks right in one client can still fail to round-trip in another: a subclass arrives as its base type, an acronym changes case, or `NaN` breaks a JSON parser. This page lists the rules Arc for TypeScript follows when it reads and writes models, and where they match Arc on .NET.

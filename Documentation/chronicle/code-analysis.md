@@ -1,6 +1,6 @@
 ---
 title: Chronicle code analysis
-description: Arc on .NET's Chronicle diagnostics mapped to TypeScript lint rules, runtime checks, and inapplicable C# patterns.
+description: Compare Arc Chronicle diagnostics with TypeScript ESLint rules and runtime checks, including enabled presets and patterns that need manual review.
 ---
 
 As of .NET v22.23.0, Arc shipped ten Chronicle analyzers (`ARCCHR0001`–`ARCCHR0010`); this mapping covers that set.

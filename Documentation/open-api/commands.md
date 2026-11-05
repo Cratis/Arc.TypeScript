@@ -1,6 +1,6 @@
 ---
 title: Commands in the document
-description: See how each Arc command appears in /openapi.json as a POST operation with a JSON request body, a CommandResult envelope for 200, 400, 403, and 500, and a typed response when generated metadata declares one.
+description: Read Arc TypeScript command OpenAPI contracts for POST bodies, result envelopes, typed responses, validation-only operations and failure status codes.
 ---
 
 A client that calls your command needs to know three things: what to send, what comes back when it works, and what comes back when it does not. Arc answers all three from the command itself. Every command is described the same way, so a client handles one envelope shape for success and failure.

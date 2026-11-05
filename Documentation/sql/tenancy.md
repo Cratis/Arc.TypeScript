@@ -1,6 +1,6 @@
 ---
 title: Route SQL by tenant
-description: Give each tenant its own SQL database with databaseFactory, keep single-tenant applications on the default tenant, and own the pools, credentials, and isolation checks.
+description: Isolate Arc TypeScript tenants in separate SQL databases using databaseFactory, manage pools and credentials, and verify single-tenant or schema setups.
 ---
 
 Two customers share your service, and neither may ever see the other's tasks. The safest line between them is a database each. With `databaseFactory`, every request's tenant selects the database its queries and commands use, and no query can ask for another tenant's data.

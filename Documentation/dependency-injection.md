@@ -1,6 +1,6 @@
 ---
 title: Dependency injection
-description: Register services with a lifetime, inject them into commands, queries, and validators by class or token, and rely on the build to check the graph and on scopes to dispose what they create.
+description: Register Arc TypeScript services by lifetime and inject them by class or token, with startup graph validation, request scopes and automatic disposal.
 ---
 
 Handlers need repositories, clocks, and clients, and those need to be created once, per request, or every time, and cleaned up afterward. Arc has its own small service registry built for that: you register a class or a token with a lifetime, list what each method needs, and the build checks the whole graph before a listener opens.

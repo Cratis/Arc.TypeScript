@@ -1,6 +1,6 @@
 ---
 title: Express
-description: Mount an Arc application in Express 5 before body parsers, and know how the adapter matches paths and reports errors.
+description: Host Arc TypeScript in Express 5 with middleware mounted before body parsers, verified principals, path matching, error handling and observable queries.
 ---
 
 `@cratis/arc.express` adds one middleware to an Express 5 application. Arc answers its own routes; everything else goes to your routes and middleware.

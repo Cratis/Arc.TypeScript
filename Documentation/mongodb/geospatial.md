@@ -1,6 +1,6 @@
 ---
 title: Store GeoJSON with Fundamentals types
-description: Encode Point, LineString, and Polygon fields as MongoDB GeoJSON and restore typed geometry.
+description: Store Arc TypeScript geospatial read-model fields as MongoDB GeoJSON, mapping Point, LineString and Polygon values back to typed geometry on reads.
 ---
 
 Use the geospatial types from `@cratis/fundamentals/geospatial` when a MongoDB read model stores locations, routes, or areas. `MongoDocumentCodec` writes their geometry as GeoJSON without changing driver-wide BSON serialization.

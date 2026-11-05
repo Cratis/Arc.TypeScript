@@ -1,6 +1,6 @@
 ---
 title: ARCCHR0006 — Reactor returning commands needs a replay decision
-description: Declare how a Chronicle reactor that returns an Arc command behaves during replay.
+description: Resolve ARCCHR0006 in Arc TypeScript by marking command-returning Chronicle reactors as once-only or supplying an alternate handler for replay.
 ---
 
 A reactor returning an Arc `@command()` instance (or an array of commands) runs that command again

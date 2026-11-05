@@ -1,6 +1,6 @@
 ---
 title: Subject
-description: Tell Chronicle whose personal data the events of a command carry, with getSubject(), a @subject() field, @eventSubject, or a routed event, and know the resolution order.
+description: Set compliance subjects on Arc TypeScript command events using fields, methods or routed events, and follow Chronicle subject resolution precedence.
 ---
 
 An order belongs to the order's event source, but the email address on it belongs to a customer. When that customer asks to be forgotten, Chronicle must find every event carrying their data, across every order. The **subject** is how it finds them: Chronicle records a compliance subject on each event, and keys personal-data handling to it.

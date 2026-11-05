@@ -1,6 +1,6 @@
 ---
 title: 'query-argument-name: Match a wire name to a local parameter'
-description: Opt-in naming convention for Arc query arguments.
+description: Enable Arc TypeScript's optional query-argument-name lint rule to keep literal wire argument names aligned with corresponding query method parameters.
 ---
 
 Arc binds query descriptors by position. A wire name may intentionally differ from the TypeScript parameter name. If your project prefers matching names, opt into `arc-core/query-argument-name` in the ESLint rules configuration. Neither preset enables this rule.

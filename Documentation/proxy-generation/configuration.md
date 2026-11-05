@@ -1,6 +1,6 @@
 ---
 title: Proxy generator configuration
-description: Every arc-proxygenerator option for source analysis, route alignment, output layout, and import style, with defaults.
+description: Configure Arc TypeScript proxy generation with CLI options for source analysis, routes, output layout, watch mode, imports and shared type mappings.
 ---
 
 `arc-proxygenerator` takes its settings on the command line. Options that take a value accept both `--option value` and `--option=value`, and reject a missing or empty value. `--help` prints the usage line.

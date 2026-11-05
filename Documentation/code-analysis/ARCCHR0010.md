@@ -1,6 +1,6 @@
 ---
 title: ARCCHR0010 — Raw Guid response does not set the event source id
-description: Use eventSourceIdResponse when a keyless command's Guid response is meant to select the event source.
+description: Fix ARCCHR0010 in Arc TypeScript by using eventSourceIdResponse when a keyless command returns a GUID intended to identify its Chronicle event stream.
 ---
 
 For a keyless `@command()`, `tuple(Guid.parse('...'), new Created())` sends the Guid to the caller

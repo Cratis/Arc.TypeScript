@@ -1,6 +1,6 @@
 ---
 title: Tenancy end to end
-description: Follow one request from tenant selection by header, claim, subdomain, or fixed value, through membership verification, to tenant-scoped MongoDB, Drizzle, and Chronicle reads, and see how long each tenant decision lasts.
+description: Wire tenant selection and membership checks into an Arc TypeScript service, then read tenant-scoped MongoDB, Drizzle and Chronicle data per request.
 ---
 
 Acme and Globex share your task service. A request from Ada at Acme has to reach Acme's tasks, a request that names Globex without belonging to it has to stop before any code runs, and a background import has to know which tenant it writes for. This guide wires those three steps together and shows where each one happens.

@@ -1,6 +1,6 @@
 ---
 title: Transactional commands
-description: How returned events from a command and its nested commands join one event-log batch, when the batch is sent or discarded, how it interacts with command operations, and what lies outside it.
+description: Batch events from nested Arc TypeScript commands into one Chronicle append, understand failure handling and distinguish external command operations.
 ---
 
 Registering a member runs two commands: one creates the member, the other opens their first loan card. If the second is rejected, you do not want a member without a card. The integration collects the events every command in the chain returns and sends them to Chronicle as **one batch**, after the outermost command has succeeded. Either all of them are appended, or none.

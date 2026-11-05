@@ -1,6 +1,6 @@
 ---
 title: Model-bound and low-level operations
-description: See where each part of an operation in /openapi.json comes from for model-bound commands and queries and for defineCommand and defineQuery definitions, and why summaries and result types need generated metadata.
+description: Trace Arc TypeScript OpenAPI operations to model-bound classes or low-level definitions, with generated metadata supplying summaries and result types.
 ---
 
 Arc has two ways to declare an operation: model-bound classes with decorators, and low-level `defineCommand`, `defineQuery`, and `defineObservableQuery` definitions. Both appear in the same document through the same code, so there is no separate registration and no operation that falls through the cracks. What differs is where Arc gets each piece of information.

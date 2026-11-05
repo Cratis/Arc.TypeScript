@@ -1,6 +1,6 @@
 ---
 title: Glossary
-description: One line per Arc for TypeScript term, with the decorator or function behind it and the page that covers it in full.
+description: Look up Arc TypeScript terms for commands, queries, validation, hosting, clients and storage, with associated decorators, functions and detailed guides.
 ---
 
 Terms shared by every Arc implementation are defined once in the [Arc glossary](/arc/glossary/). This page adds the TypeScript names for them, and the terms only Arc for TypeScript has.

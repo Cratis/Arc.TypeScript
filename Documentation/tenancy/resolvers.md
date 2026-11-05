@@ -1,6 +1,6 @@
 ---
 title: Tenant resolvers
-description: Select a tenant from a header, query string, trusted claim, fixed value, or verified subdomain, in the order you choose, with optional required and membership checks.
+description: Configure Arc TypeScript tenant resolvers using ordered headers, query strings, claims, fixed values or verified subdomains, with membership checks.
 ---
 
 Where does the tenant come from: a header your gateway sets, a claim in the user's token, or the `acme` in `acme.example.com`? Pick the source, or an ordered list of sources, that matches how your callers arrive.

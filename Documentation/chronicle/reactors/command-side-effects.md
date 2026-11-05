@@ -1,6 +1,6 @@
 ---
 title: Returning commands from a reactor
-description: Return Arc commands from a Chronicle reactor so they run through validation and authorization, give them a system principal, and know the failure, tenancy, and retry rules.
+description: Return Arc TypeScript commands from Chronicle reactors through validation and authorization, with system principals, tenant context and retry behavior.
 ---
 
 When a book is added to the catalog, the search index should follow. The indexing command already exists, with its validation and its role check. Instead of calling a service from the reactor and repeating those checks, return the command, and Arc runs it through the same pipeline an HTTP caller would use.

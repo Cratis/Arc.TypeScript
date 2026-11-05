@@ -1,6 +1,6 @@
 ---
 title: Serializers
-description: How MongoCollection maps decorated fields, concepts, GUIDs, dates, numbers, and derived types to BSON, what fails and why, and how to write through the driver without breaking the mapping.
+description: Map Arc TypeScript read-model fields and concepts to MongoDB BSON, diagnose codec failures and write documents through the driver without breaking mapping.
 ---
 
 A task ID is a `TaskId` concept in your code, a UUID binary in MongoDB, and a string on the wire. Getting each of those conversions right by hand, in every query and every write, is how documents written by one service become unreadable to another. `MongoCollection<T>` does it from the model's `@field` declarations: reads return instances of your model, and the stored documents match what Arc on .NET writes.

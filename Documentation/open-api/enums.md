@@ -1,6 +1,6 @@
 ---
 title: Enums in the document
-description: Restrict a number or string field to an enum's values with @enumeration, and see how numeric and string enums are described in /openapi.json exactly as they travel on the wire.
+description: Declare numeric and string enum fields in Arc TypeScript with @enumeration and see how their allowed wire values appear in generated OpenAPI schemas.
 ---
 
 A client generator needs to know that `priority` accepts only a few values, and which ones. Arc lists the enum's values in the schema, the same values the wire carries, so a client that follows the document sends valid input.
