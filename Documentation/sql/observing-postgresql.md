@@ -1,9 +1,9 @@
 ---
 title: Observe PostgreSQL tables across processes
-description: Install application-owned change triggers and opt into PostgreSQL LISTEN/NOTIFY for Drizzle read models.
+description: Opt into PostgreSQL LISTEN/NOTIFY for Drizzle read models by installing application-owned change triggers and configuring observation.
 ---
 
-**Experimental.** This protocol and its versioned trigger names may change before it leaves experimental status. Use [in-process observation](observing-tables.md) for SQLite, MySQL, or PostgreSQL when only local, explicitly announced changes are needed. PostgreSQL mode observes committed changes from other connections and processes; there is no fallback to in-process observation if the listener fails.
+This protocol and its versioned trigger names may change. Use [in-process observation](observing-tables.md) for SQLite, MySQL, or PostgreSQL when only local, explicitly announced changes are needed. PostgreSQL mode observes committed changes from other connections and processes; there is no fallback to in-process observation if the listener fails.
 
 ## Install triggers in an application migration
 

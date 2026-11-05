@@ -62,7 +62,7 @@ Register `AuditLog` with `builder.services.addSingleton(AuditLog)` and add or di
 - Or register its token in `builder.services` and call `builder.addCommandResponseValueHandler(token)`.
 - For a low-level `ArcServer`, list tokens in the `commandResponseValueHandlers` option.
 
-The experimental [Chronicle integration](../chronicle/commands/index.md) uses this mechanism to append returned events.
+The [Chronicle integration](../chronicle/commands/index.md) uses this mechanism to append returned events.
 
 ## Related
 

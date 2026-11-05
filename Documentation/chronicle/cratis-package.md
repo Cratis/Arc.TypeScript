@@ -1,12 +1,12 @@
 ---
 title: The Cratis package
-description: Register Arc and the experimental Chronicle integration with one call from @cratis/cratis, the TypeScript counterpart of the .NET Cratis package.
+description: Register Arc and the Chronicle integration with one call from @cratis/cratis, the TypeScript counterpart of the .NET Cratis package.
 ---
 
 An application that uses Arc and Chronicle together imports from `@cratis/arc.core` and `@cratis/arc.chronicle`, and calls `withChronicle` on every builder. `@cratis/cratis` composes the two: one import, one builder call. It is the TypeScript counterpart of the .NET `Cratis` package.
 
-:::caution[Experimental]
-`@cratis/cratis` is experimental like the integration it composes, and it is not published to npm. Pack it from a clone like the other packages; it depends on `@cratis/arc.core`, `@cratis/arc.chronicle`, and `@cratis/arc.testing`, so pack and install those too.
+:::caution[Install from source]
+`@cratis/cratis` is not published to npm. Pack it from a clone like the other packages; it depends on `@cratis/arc.core`, `@cratis/arc.chronicle`, and `@cratis/arc.testing`, so pack and install those too.
 :::
 
 ## Create the builder

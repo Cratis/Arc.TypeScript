@@ -1,11 +1,11 @@
 ---
 title: Architecture
-description: How Arc for TypeScript separates a framework-independent CQRS core from host adapters and optional integrations, and how Arc concepts map to TypeScript and Node.js.
+description: Arc for TypeScript separates a framework-independent CQRS core from host adapters and integrations, mapping Arc concepts to Node.js.
 ---
 
 Arc for TypeScript is built so the same command and query code can run behind Express, Fastify, or Hono, with or without a database or an event store. This page explains the boundaries that make that possible and the places where TypeScript forces a different design from Arc on .NET.
 
-:::caution[Source preview]
+:::caution[API boundaries]
 Package names are working names, and APIs are not final. For what is supported today, see the [capability reference](reference/capabilities.md).
 :::
 
@@ -18,13 +18,13 @@ flowchart LR
         Adapter["Host adapter<br/>Express, Fastify, or Hono"] --> Core["Arc core<br/>@cratis/arc.core"]
         Core --> App["Your commands<br/>and queries"]
         App -.optional.-> Mongo[("MongoDB or SQL<br/>read models")]
-        App -.experimental.-> Chronicle[("Chronicle<br/>event store")]
+        App -.optional.-> Chronicle[("Chronicle<br/>event store")]
     end
 ```
 
 - **The core** owns everything that defines Arc behavior: the command and query pipelines, route conventions, result envelopes, validation, authorization, authentication handlers, correlation, and tenancy. It does not import an HTTP framework or a storage driver.
 - **A host adapter** translates between one HTTP framework and the core. It routes matching requests to the core, hands over the raw body and a cancellation signal, and writes the response. It adds no Arc behavior of its own.
-- **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.mongodb` serves tenant-scoped MongoDB collections, `@cratis/arc.drizzle` serves tenant-scoped SQL reads, and `@cratis/arc.chronicle`, experimental and not published to npm, appends events returned from a command; its live-kernel suite covers Express, Fastify, and Hono. It supports command-scoped event batches, aggregates, and reactor-returned commands; see the [Chronicle capability reference](reference/capabilities.md#persistence-and-chronicle) for remaining limits.
+- **Integrations** give commands and queries somewhere to read and write. They are separate packages that depend on the core, never the other way around. `@cratis/arc.mongodb` serves tenant-scoped MongoDB collections, `@cratis/arc.drizzle` serves tenant-scoped SQL reads, and `@cratis/arc.chronicle`, not published to npm, appends events returned from a command; its live-kernel suite covers Express, Fastify, and Hono. It supports command-scoped event batches, aggregates, and reactor-returned commands; see the [Chronicle capability reference](reference/capabilities.md#persistence-and-chronicle) for remaining limits.
 - **Build-time tooling** sits beside the runtime. `@cratis/arc.proxygenerator` reads your TypeScript source and writes proxies for the published `@cratis/arc` client, and `@cratis/eslint-plugin-arc-core` checks decorated artifacts in the editor. The core does not depend on `@cratis/arc` or on browser code.
 
 Keeping the core framework-independent means a behavior is implemented and tested once, and every adapter inherits it. A difference between adapters is either a limit of the host framework, documented per adapter, or a bug.
@@ -91,11 +91,11 @@ The full list is in the [capability reference](reference/capabilities.md#deliber
 
 ## Integrations stay outside the core
 
-Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the experimental integration is a separate package built on the Chronicle TypeScript client, tested with `@cratis/chronicle` 6.19.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
+Arc on .NET adds event sourcing through its Chronicle integration: a command returns events, and they are appended only when the command succeeds. Arc for TypeScript keeps the same boundary. The core never depends on Chronicle, and the integration is a separate package built on the Chronicle TypeScript client, tested with `@cratis/chronicle` 6.19.0, through the core's response value handler and command read-model extension points. Namespace, correlation, and event routing are passed explicitly per request.
 
 The integration covers the main Chronicle command paths. Events returned by a command and events applied to a keyed [aggregate](chronicle/aggregates/index.md) are staged, together with those of nested commands, and appended in one `appendMany` batch after the outer command succeeds. A Chronicle reactor can return Arc commands, which run through the full command pipeline. An opt-in live-kernel suite exercises returned events, batches, aggregates, reactor commands, and concurrency rejections through Express, Fastify, and Hono.
 
-The integration stays experimental, and full parity with Arc on .NET is unverified. The known gaps:
+Full parity with Arc on .NET is unverified. The known gaps:
 
 - The batch covers one event log. It is not a transaction across other stores or external calls, and an immediate SDK append inside `handle()` is outside it. See [Transactional commands](chronicle/commands/transactional-commands.md).
 - The aggregate loads only the event source named by the command key, and has no `Failed(...)` or `OnActivate`.

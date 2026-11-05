@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/1182595891576717413?label=Discord&logo=discord&logoColor=white)](https://discord.gg/kt4AMpV8WV)
 
 > [!IMPORTANT]
-> **Early source preview; npm packages are not published.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections and Drizzle SQL queries, a bounded source-based client generator, and an experimental Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
+> **Packages are not published to npm.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections and Drizzle SQL queries, a bounded source-based client generator, and a Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
 
 Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js and Fetch API hosts as idiomatic TypeScript, not as a line-by-line port.
 
@@ -55,10 +55,10 @@ export class TaskItem {
 | `@cratis/eslint-plugin-arc-core` | [`Source/CodeAnalysis`](Source/CodeAnalysis) | ESLint 10 flat-config diagnostics for model-bound server artifacts, with an untyped-safe recommended config and an optional type-checked preset. See [Code analysis](Documentation/code-analysis/index.md). |
 | `@cratis/arc.mongodb` | [`Source/MongoDB`](Source/MongoDB) | `builder.withMongoDB`, tenant-scoped model collections with BSON mapping and replica-set observation, plus the existing `MongoReadModels` helper; uses the `mongodb` 6 driver |
 | `@cratis/arc.drizzle` | [`Source/Drizzle`](Source/Drizzle) | `builder.withDrizzle`, tenant-scoped SQL handles, explicit column codecs and provider-owned paging; SQLite and PostgreSQL tested, MySQL and observation unverified |
-| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | **Experimental.** `builder.withChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.19.0 imports natively and infers read models from projections/reducers; an opt-in kernel suite covers aggregate replay and reactor commands. Full .NET transaction parity remains unverified. |
-| `@cratis/cratis` | [`Source/Cratis`](Source/Cratis) | **Experimental source preview.** `CratisApplication.createBuilder()` and `builder.addCratis()` compose Arc and a Chronicle client without installing authentication; not yet published to npm. |
+| `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | `builder.withChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.19.0 imports natively and infers read models from projections/reducers; an opt-in kernel suite covers aggregate replay and reactor commands. Full .NET transaction parity remains unverified. |
+| `@cratis/cratis` | [`Source/Cratis`](Source/Cratis) | `CratisApplication.createBuilder()` and `builder.addCratis()` compose Arc and a Chronicle client without installing authentication; not yet published to npm. |
 
-Every package manifest is at version 0.58.0. That is the version of this source preview, not an npm release, and the Chronicle package is experimental. The packages ship ES modules only, and schemas use Zod 4. Core, host adapters, MongoDB, and Drizzle need Node.js 22 or later. The Fetch entry has a neutral bundle with `node:async_hooks` as its only Node import; its command, query, and SSE paths run in a Next.js App Router route handler on the Node.js runtime, with Bun and Deno smoke checks; Cloudflare Workers and the Next.js Edge runtime are not supported. See [Fetch API runtimes](Documentation/hosts/fetch-runtimes.md). The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every package manifest is at version 0.58.0. That is the source version, not an npm release. The packages ship ES modules only, and schemas use Zod 4. Core, host adapters, MongoDB, and Drizzle need Node.js 22 or later. The Fetch entry has a neutral bundle with `node:async_hooks` as its only Node import; its command, query, and SSE paths run in a Next.js App Router route handler on the Node.js runtime, with Bun and Deno smoke checks; Cloudflare Workers and the Next.js Edge runtime are not supported. See [Fetch API runtimes](Documentation/hosts/fetch-runtimes.md). The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
@@ -99,7 +99,7 @@ Not implemented:
 - Complete .NET proxy parity. The source analyzer emits bounded client proxies and optional server metadata, but identity-only models and some .NET template options are not yet emitted. Literal client-safe `@validator(Target)` constructor rules and decorated derived classes are emitted, while server-only validation rules report diagnostics.
 - SQL observation and automatic migration execution. [Drizzle SQL](Documentation/sql/index.md) supports explicit conversions and SQL paging but not EF change tracking or cross-process notifications. Named policies and guarded identity handlers are supported; see [authorization policies](Documentation/core/authorization.md). Command operations and effects have a bounded implementation, not a distributed transaction.
 
-The Chronicle integration stays experimental despite passing a bounded live-kernel suite. SDK 6.10.0 handles literal JSON `null` for a missing model, which the suite checks across all three adapters. Command-key read-model injection and a single-event-log nested returned-event batch exist; returned events and command operations cannot be combined. Immediate appends, aggregates, and reactor command effects do not join that batch.
+The Chronicle integration has a bounded live-kernel suite. SDK 6.10.0 handles literal JSON `null` for a missing model, which the suite checks across all three adapters. Command-key read-model injection and a single-event-log nested returned-event batch exist; returned events and command operations cannot be combined. Immediate appends, aggregates, and reactor command effects do not join that batch.
 
 The [capability reference](Documentation/reference/capabilities.md) lists every Arc feature family, its status, and the deliberate differences from Arc on .NET.
 
@@ -113,7 +113,7 @@ The documentation is published on the Cratis site and lives in [`Documentation`]
 - [Commands](Documentation/commands/index.md) and [Queries](Documentation/queries/index.md), including validation, outcomes, operations, paging, and observable queries.
 - [Authorizing commands and queries](Documentation/authorizing-commands-and-queries.md), [authentication](Documentation/core/authentication.md), [identity](Documentation/identity/index.md), and [tenancy](Documentation/tenancy/index.md).
 - [Concepts](Documentation/concepts.md), [dependency injection](Documentation/dependency-injection.md), and [configuration](Documentation/configuration/index.md).
-- [MongoDB](Documentation/mongodb/index.md), [SQL with Drizzle](Documentation/sql/index.md), and the experimental [Chronicle](Documentation/chronicle/index.md) integration.
+- [MongoDB](Documentation/mongodb/index.md), [SQL with Drizzle](Documentation/sql/index.md), and the [Chronicle](Documentation/chronicle/index.md) integration.
 - [Proxy generation](Documentation/proxy-generation/index.md) and [generated artifact metadata](Documentation/proxy-generation/generated-artifact-metadata.md), [code analysis](Documentation/code-analysis/index.md), [OpenAPI](Documentation/open-api/index.md), and [introspection](Documentation/introspection/index.md).
 - [Testing](Documentation/testing/index.md), [observability](Documentation/observability.md), the [decorator reference](Documentation/decorators.md), and [troubleshooting](Documentation/troubleshooting.md).
 - [Architecture](Documentation/architecture.md) and the [capability reference](Documentation/reference/capabilities.md).
@@ -127,7 +127,7 @@ This repository builds the **server** side under its own `@cratis/arc.core` pack
 
 ## Arc does not require event sourcing
 
-Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here that integration is experimental: the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.19.0 loads in native Node.js; the live-kernel suite for read-model resolution, returned-event batches, aggregate replay, and reactor commands was last verified with 6.10.0. The integration still does not match Arc on .NET's full transaction behavior.
+Arc is a CQRS framework first. A command can validate input, call a service, write to current-state storage, and return a response without an event log, and the server core has no dependency on event sourcing or a database. Event sourcing comes from [Chronicle](https://github.com/Cratis/Chronicle) as an optional integration. Here the pinned [Chronicle TypeScript client](https://github.com/Cratis/Chronicle.TypeScript) 6.19.0 loads in native Node.js; the live-kernel suite for read-model resolution, returned-event batches, aggregate replay, and reactor commands was last verified with 6.10.0. The integration still does not match Arc on .NET's full transaction behavior.
 
 ## Contributing
 
@@ -147,7 +147,7 @@ Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 
 ## The Cratis ecosystem
 
-This project is part of [Cratis](https://www.cratis.io): free, MIT-licensed tools for building event-sourced and CQRS applications.
+This project is part of [Cratis](https://www.cratis.io): tools for building event-sourced and CQRS applications.
 
 - **[Arc](https://github.com/Cratis/Arc)**: the CQRS framework for ASP.NET Core, and home of the TypeScript client and React packages. [Docs](https://www.cratis.io/arc/)
 - **[Arc for Kotlin and Java](https://github.com/Cratis/Arc.Kotlin)**: Arc on Spring Boot.

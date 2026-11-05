@@ -1,6 +1,6 @@
 ---
 title: Coming from Express and NestJS
-description: Map Express route handlers and NestJS controllers, DTOs, and class-validator rules to Arc commands, read models, and validators, and see what changes and when to stay where you are.
+description: Map Express handlers and NestJS controllers, DTOs, and validation rules to Arc commands, read models, and validators in TypeScript.
 ---
 
 If you build Node.js backends today, you probably write one of two shapes: an Express route handler that parses, validates, and answers by hand, or a NestJS controller with DTO classes and `class-validator` decorators. Arc keeps the parts you like (classes, decorators, dependency injection) and removes the parts you repeat: the route, the parser, the status-code mapping, and the client that has to match all of it.
@@ -124,7 +124,7 @@ Arc does not replace your web framework. You can [mount Arc in Express, Fastify,
 ## When to stay where you are
 
 - **You need what NestJS's module system gives you**: GraphQL resolvers, microservice transports, a large plugin ecosystem, or a team already fluent in it. Arc covers commands, queries, and live queries over HTTP, not those.
-- **You need production stability now.** Arc for TypeScript is a source preview: nothing is published to npm, and it does not have full parity with Arc on .NET. Check the [capability reference](reference/capabilities.md).
+- **You need production stability now.** Arc for TypeScript is not published to npm and does not have full parity with Arc on .NET. Check the [capability reference](reference/capabilities.md).
 - **Your endpoints are not command- or query-shaped**, such as file uploads, webhooks with fixed external contracts, or streaming downloads. Keep those as ordinary routes next to Arc.
 
 ## Related

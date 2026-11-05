@@ -1,6 +1,6 @@
 ---
 title: Tenancy
-description: Serve several customers from one Arc application, choose how each request selects its tenant, prove the caller belongs to it, and keep tenant selection, membership, and storage isolation apart.
+description: Serve multiple customers from one Arc application by selecting tenants, checking membership, and separating these from storage isolation.
 ---
 
 Acme and Globex both use your task application, on the same deployment. A request from an Acme user must only ever read and change Acme's tasks. One missed check, and a Globex user sees a competitor's data.
@@ -61,7 +61,7 @@ The storage integrations select per-tenant storage from the resolved tenant:
 
 - [MongoDB](../mongodb/tenancy.md) chooses a database per tenant, and fails without one.
 - [SQL with Drizzle](../sql/tenancy.md) calls your `databaseFactory` per tenant, and fails without one.
-- [Chronicle](../chronicle/index.md), experimental, appends in the tenant's namespace, or in `Default` when there is none.
+- [Chronicle](../chronicle/index.md) appends in the tenant's namespace, or in `Default` when there is none.
 
 [Storage isolation](isolation.md) shows each mapping and how to verify it.
 

@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure Arc through its grouped ArcOptions tree, appsettings.json, environment variables, or code, add integrations through the builder, and see what each host reads.
+description: Configure Arc for TypeScript using ArcOptions, appsettings.json, environment variables, or code, with settings support explained per host.
 ---
 
 The same application runs on your laptop, in CI, and in production. The route prefix stays put, but the tenant source, the exception detail, and the listener address change between them. You want those differences in configuration, not in `if` statements around your startup code.
@@ -14,7 +14,7 @@ Where options come from depends on how you create the application. The host you 
 | Entry point | Reads `appsettings.json` and environment | Typical use |
 | --- | --- | --- |
 | `ArcApplication.createBuilder()` from `@cratis/arc.core` | Yes, unless you pass `configuration: false` | Node applications, with discovery and the standalone host |
-| `CratisApplication.createBuilder()` from `@cratis/cratis` | Yes, including `Cratis:Chronicle` | Arc and the experimental Chronicle integration in one call; see [The Cratis package](../chronicle/cratis-package.md) |
+| `CratisApplication.createBuilder()` from `@cratis/cratis` | Yes, including `Cratis:Chronicle` | Arc and the Chronicle integration in one call; see [The Cratis package](../chronicle/cratis-package.md) |
 | `ArcApplication.createBuilder()` from `@cratis/arc.core/fetch` | No, code options only | Fetch API runtimes without a filesystem; see [Fetch API runtimes](../hosts/fetch-runtimes.md) |
 | `new ArcServer(options)` | No, code options only | [Low-level definitions](../commands/low-level-definitions.md) and specs |
 
@@ -58,7 +58,7 @@ Storage and event sourcing are optional packages. Importing one adds its method 
 | --- | --- | --- |
 | `@cratis/arc.mongodb` | `builder.withMongoDB({ ... })`; see [MongoDB](../mongodb/getting-started.md) | `Cratis:MongoDB:{Server,Database}` |
 | `@cratis/arc.drizzle` | `builder.withDrizzle({ ... })`; see [SQL with Drizzle](../sql/getting-started.md) | None; pass the database in code |
-| `@cratis/arc.chronicle`, experimental | `builder.withChronicle({ ... })`; see [Chronicle](../chronicle/index.md) | `Cratis:Chronicle:{ConnectionString,EventStore}` |
+| `@cratis/arc.chronicle` | `builder.withChronicle({ ... })`; see [Chronicle](../chronicle/index.md) | `Cratis:Chronicle:{ConnectionString,EventStore}` |
 
 Each package also exports a function form, such as `withMongoDB(builder, options)`, which does the same. Calling a method whose package you did not import fails where you call it, so a missing integration never degrades into a silent no-op. Configuration covers only serializable values. Clients, connection pools, and model classes are passed in code.
 

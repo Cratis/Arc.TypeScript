@@ -5,7 +5,7 @@ description: Decide from one event source's full history with a keyed aggregate 
 
 An order may hold at most 100 items. To enforce that, the command needs the order's current total, and it needs it to be exact: a read model that lags one event behind could let the 101st item through. An **aggregate** replays the order's own events into memory, checks the rule, and applies the new event. Because it knows which revision it replayed, a concurrent change rejects the append instead of breaking the rule.
 
-The API is experimental and part of the optional Chronicle integration. Ordinary Arc commands do not need an event store.
+The API is part of the optional Chronicle integration. Ordinary Arc commands do not need an event store.
 
 ## Aggregate or read model
 

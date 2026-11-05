@@ -1,9 +1,9 @@
 ---
-title: Activate reactors and reducers in Arc scopes (preview)
+title: Activate reactors and reducers in Arc scopes
 description: Opt in to constructing Chronicle reactors and reducers through Arc's service container, one scope per delivery, with the observation's tenant and correlation.
 ---
 
-:::caution[Preview]
+:::caution[Opt-in activation]
 Scoped activation is off by default and its behavior can still change. Applications that do not opt in are unaffected.
 :::
 

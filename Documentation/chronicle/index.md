@@ -1,14 +1,14 @@
 ---
 title: Chronicle
-description: Return Chronicle events from Arc commands, serve projected read models from Arc queries, and let reactors return Arc commands, with the experimental @cratis/arc.chronicle integration.
+description: Use @cratis/arc.chronicle to return events from Arc commands, query projected read models, and let reactors return Arc commands.
 ---
 
 A librarian registers an author. You want that registration kept as a fact, and you want the author list on screen to update from it. Without an integration, every command opens a Chronicle client, picks the event store namespace for the caller's tenant, appends inside `handle()`, turns constraint violations into validation results, and takes care never to append when validation has already failed.
 
 `@cratis/arc.chronicle` removes that plumbing. A command **returns** the event, and Arc appends it after authorization, validation, and `provide()` have passed, in the namespace of the tenant Arc already resolved. Arc does not require event sourcing: a command can do its work through any service. Use this integration when you want commands to record facts in [Chronicle](/chronicle/), the event-sourcing database.
 
-:::caution[Experimental]
-`@cratis/arc.chronicle` is experimental, and, like every package in this repository, it is not published to npm. Its APIs can change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
+:::caution[Install from source]
+`@cratis/arc.chronicle`, like every package in this repository, is not published to npm. Its APIs can change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
 :::
 
 To try it, [Add event sourcing](add-event-sourcing.md) starts a Chronicle kernel on your machine and adds a first event-sourced slice to the application from [Create an application](../getting-started/create-an-application.md).

@@ -42,7 +42,7 @@ graph LR
 ## When it is the wrong fit
 
 - **You need a published, stable package today.** Nothing is on npm yet, the version is 0.x, and APIs can still change. You build from this repository's workspace.
-- **You need everything Arc on .NET does.** Parity is incomplete and tracked area by area. Read the [capability reference](reference/capabilities.md) before you plan around a feature; the Chronicle integration in particular is experimental.
+- **You need everything Arc on .NET does.** Parity is incomplete and tracked area by area. Read the [capability reference](reference/capabilities.md) before you plan around a feature, including the Chronicle integration.
 - **You design your HTTP API resource by resource.** Arc's contract is fixed: commands are POST requests, queries are GET or HTTP `QUERY` requests, and results come in Arc's envelopes. If clients depend on a hand-shaped REST or custom wire format, Arc's conventions will fight you.
 - **You need live queries over SQL.** The Drizzle integration serves snapshots and pages, not change notifications; see [SQL with Drizzle](sql/index.md).
 - **You deploy to a runtime Arc has not been run on.** The Node host and adapters are checked, and the Fetch entry runs in Deno; Bun, Cloudflare Workers, and Next.js deployments have not been exercised. See [Fetch API runtimes](hosts/fetch-runtimes.md).

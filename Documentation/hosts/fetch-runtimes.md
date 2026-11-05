@@ -3,7 +3,7 @@ title: Fetch API runtimes
 description: Serve Arc commands, queries, and SSE from a Next.js Node.js route handler or another Node-compatible host without an Arc-owned listener.
 ---
 
-You can handle Arc requests without an Arc-owned listener. Import the **source-preview** `@cratis/arc.core/fetch` entry, register artifacts explicitly, and hand the resulting `app.fetch` to your host. The package is not published to npm; install a tarball packed from a built clone, as [Create an application](../getting-started/create-an-application.md) shows, or use it inside the clone's workspace. **Arc targets Node-compatible servers:** Chronicle uses gRPC, MongoDB uses TCP, and live queries rely on long-lived SSE/WebSocket connections. Next.js App Router on its **Node.js** runtime is verified locally. Bun has a smoke check, not a supported deployment guarantee. Cloudflare Workers and Next.js Edge are **not supported** hosts for the full framework or these integrations.
+You can handle Arc requests without an Arc-owned listener. Import the `@cratis/arc.core/fetch` entry, register artifacts explicitly, and hand the resulting `app.fetch` to your host. The package is not published to npm; install a tarball packed from a built clone, as [Create an application](../getting-started/create-an-application.md) shows, or use it inside the clone's workspace. **Arc targets Node-compatible servers:** Chronicle uses gRPC, MongoDB uses TCP, and live queries rely on long-lived SSE/WebSocket connections. Next.js App Router on its **Node.js** runtime is verified locally. Bun has a smoke check, not a supported deployment guarantee. Cloudflare Workers and Next.js Edge are **not supported** hosts for the full framework or these integrations.
 
 ## Build the application once
 

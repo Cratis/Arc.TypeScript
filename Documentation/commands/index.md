@@ -58,4 +58,4 @@ This is the [Tasks sample command](https://github.com/Cratis/Arc.TypeScript/blob
 | [Low-level definitions](low-level-definitions.md) | Keep Zod-backed `defineCommand` and `defineQuery` |
 | [Calling commands from code](calling-commands-from-code.md) | Run a command or query from a job, a spec, or a Fetch API host |
 
-To append events from a command, see the experimental [Chronicle integration](../chronicle/index.md).
+To append events from a command, see the [Chronicle integration](../chronicle/index.md).

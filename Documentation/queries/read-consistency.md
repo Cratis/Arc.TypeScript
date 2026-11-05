@@ -1,9 +1,9 @@
 ---
 title: Choose Chronicle read consistency
-description: Select materialized or on-demand read models and optionally wait for observer completion after a command.
+description: Choose materialized or on-demand Arc read models, with optional observer-completion waits after commands and documented consistency limits.
 ---
 
-A successful Chronicle append commits the events; it does not, by default, mean a query of an active projection sees them yet. `ChronicleReadModels` and the Chronicle command options let you make the required consistency explicit without changing non-Chronicle Arc queries. This integration remains experimental. Import `ChronicleReadConsistency` from `@cratis/arc.chronicle` when requesting an immediate read.
+A successful Chronicle append commits the events; it does not, by default, mean a query of an active projection sees them yet. `ChronicleReadModels` and the Chronicle command options let you make the required consistency explicit without changing non-Chronicle Arc queries. Import `ChronicleReadConsistency` from `@cratis/arc.chronicle` when requesting an immediate read.
 
 | Choice | How to select | What a successful return establishes |
 | --- | --- | --- |

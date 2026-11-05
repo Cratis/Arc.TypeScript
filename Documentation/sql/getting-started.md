@@ -147,7 +147,7 @@ Queries take `drizzleReadModel(Model)`, commands take `drizzleDatabase()`. The r
 | `findOne(filter)` | The first match in primary-key order, or `undefined` |
 | `findById(key)` | The row matching the single primary key, or `null` |
 | `table` | The Drizzle table |
-| `observe(filter?)`, `observePage(filter, options)`, `observeById(key)` | Experimental opt-in in-process SQL observations; [limits](observing-tables.md) |
+| `observe(filter?)`, `observePage(filter, options)`, `observeById(key)` | Opt-in in-process SQL observations; [limits](observing-tables.md) |
 
 It has no write methods and does not expose the writable database. A filter is a Drizzle `SQL` expression such as `eq(tasks.title, 'a')`, built with bound parameters; never interpolate request input into SQL text.
 

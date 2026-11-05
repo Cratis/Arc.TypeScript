@@ -1,11 +1,11 @@
 ---
 title: Host adapters
-description: Mount Arc in Express, Fastify, Hono, or a Fetch API host; know which runtime features each host supports.
+description: Mount Arc in Express, Fastify, Hono, or a Fetch API host using an adapter, with package names and runtime feature support explained.
 ---
 
 Your team already runs a web framework, with its middleware, health checks, and deployment story. You do not want a second server for Arc. A host adapter mounts the Arc application into the framework you have and leaves every route Arc does not own to that framework.
 
-:::caution[Source preview]
+:::caution[Install from source]
 The adapters are not published to npm. Pack the adapter you need from a built clone of this repository and install the tarball in your project, or put your application under `Samples/` in the clone and reference the adapter with the `workspace:^` protocol. [Create an application](../getting-started/create-an-application.md) shows both paths, and [Packages](../reference/packages.md) lists the package names.
 :::
 
@@ -42,7 +42,7 @@ Each adapter accepts a built `ArcApplication` or low-level `ArcServer`. The `@cr
 - [Express](express.md): one middleware, mounted before body parsers.
 - [Fastify](fastify.md): an encapsulated plugin with its own raw-body parser.
 - [Hono](hono.md): middleware on a Fetch API framework, with raw-path checks on Node.
-- [Fetch API runtimes](fetch-runtimes.md): explicitly registered artifacts over `app.fetch` for a checked Next.js Node.js production-server route handler and bounded Bun/Deno checks. The package is an unpublished source preview; read the verification boundary before deployment.
+- [Fetch API runtimes](fetch-runtimes.md): explicitly registered artifacts over `app.fetch` for a checked Next.js Node.js production-server route handler and bounded Bun/Deno checks. The package is not published to npm; read the verification boundary before deployment.
 
 Express needs a listener attach step for WebSockets; Fastify's plugin and Hono's Node helper attach them in the setup call, described in [WebSockets](websockets.md). To use a principal your framework already verified, see [Native principal](native-principal.md).
 

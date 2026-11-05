@@ -54,7 +54,7 @@ The key identifies what the command is about, such as the task being assigned. N
 2. If none answers, a command that implements `getKey()` uses its result.
 3. Otherwise the field marked `@key()` is used; a concept is unwrapped to its primitive value.
 
-Arc resolves the key once per execution, after declared authorization and binding but before global authorization filters. Context-value providers and key resolvers are trusted preparation and must not make protected business mutations; they are different from command `provide()`, which runs after authorization and validation. The .NET equivalent of a key rule is `ICanResolveKeyForCommand`. The experimental Chronicle integration also uses the key as the default event source ID; see [Resolving the event source ID](../chronicle/resolving-event-source-id.md).
+Arc resolves the key once per execution, after declared authorization and binding but before global authorization filters. Context-value providers and key resolvers are trusted preparation and must not make protected business mutations; they are different from command `provide()`, which runs after authorization and validation. The .NET equivalent of a key rule is `ICanResolveKeyForCommand`. The Chronicle integration also uses the key as the default event source ID; see [Resolving the event source ID](../chronicle/resolving-event-source-id.md).
 
 ## Add values to every command
 
@@ -69,7 +69,7 @@ A `CommandContextValuesProvider` has `provide(command)` returning a map or recor
 handle(task: TaskView): void { /* ... */ }
 ```
 
-A registered `ReadModelForCommandResolver` must own the type. The [MongoDB](../mongodb/index.md) and experimental [Chronicle](../chronicle/read-models/index.md) integrations provide resolvers for the models you configure; you can register your own with `builder.addReadModelForCommandResolver(token)`, implementing `supports(type)` and `find(type, key, context)`.
+A registered `ReadModelForCommandResolver` must own the type. The [MongoDB](../mongodb/index.md) and [Chronicle](../chronicle/read-models/index.md) integrations provide resolvers for the models you configure; you can register your own with `builder.addReadModelForCommandResolver(token)`, implementing `supports(type)` and `find(type, key, context)`.
 
 - A missing model becomes a validation failure. `commandReadModel(Type, { optional: true })` passes `null` instead.
 - Without a usable command key, the command is rejected.

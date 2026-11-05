@@ -5,8 +5,8 @@ description: Test event-sourced Arc commands without a kernel - seed supported r
 
 An event-sourced command makes a decision and records it as events. A test for it answers three questions: what state did the command see, which events did it append, and what did it refuse. `@cratis/arc.chronicle/testing` has two scenarios for this, and this page covers the in-memory one. Both run the command through the real Arc pipeline: authorization, validation, `provide()`, `handle()`, and the Chronicle response handler.
 
-:::caution[Experimental]
-The Chronicle integration and its testing helpers are experimental. See [Chronicle](../chronicle/index.md) for their status.
+:::caution[Integration boundaries]
+See [Chronicle](../chronicle/index.md) for the integration's supported behavior and boundaries.
 :::
 
 ## Choose a scenario

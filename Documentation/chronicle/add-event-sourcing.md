@@ -1,14 +1,14 @@
 ---
 title: Add event sourcing
-description: Start a development Chronicle kernel, add the experimental Arc integration to your application, record an event from a command, and serve the projected read model from a query.
+description: Add Chronicle to Arc for TypeScript by starting a development kernel, recording an event from a command, and querying the projected read model.
 ---
 
 The notes in the application from [Create an application](../getting-started/create-an-application.md) live in memory: a restart loses them, and nothing records what happened. This guide adds [Chronicle](/chronicle/), the event-sourcing database, to that application. A command records a fact as an event, Chronicle projects the event into a read model, and a query serves the read model.
 
 When you finish, `POST /api/authors/registration/register-author` appends an `AuthorRegistered` event to a Chronicle kernel on your machine, and `GET /api/authors/listing/all-authors` returns the `Author` read model Chronicle built from it.
 
-:::caution[Experimental]
-`@cratis/arc.chronicle` is experimental and, like every package in this repository, not published to npm. Its API may change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) lists what it covers.
+:::caution[Install from source]
+`@cratis/arc.chronicle`, like every package in this repository, is not published to npm. Its API may change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) lists what it covers.
 :::
 
 ## Before you start

@@ -1,6 +1,6 @@
 # Contributing to Arc for TypeScript
 
-Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, optional MongoDB and Drizzle SQL integrations, a source-based client generator, ESLint rules, an experimental Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
+Thank you for helping. Arc for TypeScript is early source: the server core, three host adapters, optional MongoDB and Drizzle SQL integrations, a source-based client generator, ESLint rules, a Chronicle integration, and a sample exist, nothing is published to npm, and parity with Arc on .NET is incomplete. Public APIs can still change, so a short design conversation before a large change saves rework.
 
 The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/contributing.md) and [code of conduct](https://github.com/Cratis/.github/blob/main/CODE_OF_CONDUCT.md) apply to this repository.
 
@@ -21,7 +21,7 @@ The [Cratis contribution guide](https://github.com/Cratis/.github/blob/main/cont
 | `Source/Testing` | `@cratis/arc.testing`, the scenario and assertion helpers |
 | `Source/MongoDB` | The optional MongoDB integration, with unit specs and a live replica-set spec |
 | `Source/Drizzle` | The optional Drizzle SQL integration, with SQLite specs and a PostgreSQL integration spec |
-| `Source/Chronicle` | The experimental Chronicle integration, with substitute-based specs and an opt-in live-kernel suite |
+| `Source/Chronicle` | The Chronicle integration, with substitute-based specs and an opt-in live-kernel suite |
 | `Source/CodeAnalysis` | `@cratis/eslint-plugin-arc-core`, the ESLint rules for model-bound artifacts |
 | `Source/Tools/ProxyGenerator` | `@cratis/arc.proxygenerator`, which generates `@cratis/arc` proxies from decorated TypeScript source or from an exported client manifest, and its CLI |
 | `Samples/Tasks` | A runnable model-bound sample on the standalone Node host |
@@ -99,7 +99,7 @@ The core, host adapters, MongoDB, testing, proxy generator, and ESLint plugin co
 - Write the pull request description as release notes for the people who will use the change. It describes the change, not the checks you ran.
 - Maintainers merge with a merge commit. History is never squashed, rebased, or force-pushed.
 - Label each pull request with its semantic-versioning impact: `major`, `minor`, or `patch`, or `no-release` when nothing a consumer can observe changes.
-- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration, not private since v0.12.0, stays experimental. Before preparing a source preview, run `yarn set-version <MAJOR.MINOR.PATCH>` to update versioned workspace manifests, internal non-workspace dependency ranges, the three preview statements, and `yarn.lock`; run `yarn set-version --check` afterward. Major bumps require `--allow-major` and human approval. After the merge, a maintainer publishes the version as a source-only GitHub pre-release from the merge commit. See [Prepare and publish a TypeScript release](Documentation/contributing/releases.md) for the full procedure.
+- **npm publishing is off.** Publishing to npm stays disabled until it is configured, and the Chronicle integration, not private since v0.12.0, does not yet have verified full transaction parity with Arc on .NET. Before preparing a source version, run `yarn set-version <MAJOR.MINOR.PATCH>` to update versioned workspace manifests, internal non-workspace dependency ranges, the three version statements, and `yarn.lock`; run `yarn set-version --check` afterward. Major bumps require `--allow-major` and human approval. After the merge, a maintainer publishes the version as a source-only GitHub pre-release from the merge commit. See [Prepare and publish a TypeScript release](Documentation/contributing/releases.md) for the full procedure.
 - **A `major` release needs full parity and a human merge.** No `major` release happens until full parity with Arc on .NET is verified and a maintainer explicitly merges it. Major releases are never merged automatically.
 
 ## AI-assisted contributions

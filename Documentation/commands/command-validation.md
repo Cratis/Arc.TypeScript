@@ -1,6 +1,6 @@
 ---
 title: Command validation
-description: Give callers field-specific messages with CommandValidator rules, choose the phase where each rejection belongs, and read stored state in a rule with readModelForValidation.
+description: Use CommandValidator rules for field-specific errors, place rejections in the right phase, and read stored state with readModelForValidation.
 ---
 
 A task title arrives as a string, but it must not be blank, and a rename to the same title is pointless. If those checks live inside `handle()`, a form cannot ask about them before the user presses Save, and every handler grows its own error format. Arc gives rules a place of their own: a validator runs before `handle()`, answers with a message for the exact field, and also runs on the command's `/validate` route, so a frontend can check input without changing anything.
@@ -107,7 +107,7 @@ export class RenameTaskValidator extends CommandValidator<RenameTask> {
 }
 ```
 
-`TaskView` is your read model, with at least a string `title` field. Arc does not load it itself; a registered read-model resolver does. The [MongoDB](../mongodb/index.md) and experimental [Chronicle](../chronicle/read-models/index.md) integrations register resolvers for the models you configure, and `builder.addReadModelForCommandResolver(token)` adds your own, as described in [Command context](command-context.md#load-a-read-model-by-key).
+`TaskView` is your read model, with at least a string `title` field. Arc does not load it itself; a registered read-model resolver does. The [MongoDB](../mongodb/index.md) and [Chronicle](../chronicle/read-models/index.md) integrations register resolvers for the models you configure, and `builder.addReadModelForCommandResolver(token)` adds your own, as described in [Command context](command-context.md#load-a-read-model-by-key).
 
 What happens when the rule runs:
 
