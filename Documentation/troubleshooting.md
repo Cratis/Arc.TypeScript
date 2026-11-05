@@ -7,13 +7,13 @@ Each entry names the symptom, the usual cause, and the fix, with a link to the p
 
 ## Installation
 
-### Installing Arc outside the clone fails
+### Installing Arc fails
 
-`npm install @cratis/arc.core` fails with `404 Not Found`, or installing a tarball fails with `Unsupported URL Type "workspace:": workspace:^`. The Arc packages are not published to npm, and a `workspace:^` dependency resolves only inside this repository's Yarn workspace. Build a clone, pack the packages you need with `yarn workspace <package> pack`, and install the tarballs. Do not use `npm pack`: it leaves the internal `workspace:^` dependencies in the packed manifest, and the tarball fails with the second error. See [Create an application](getting-started/create-an-application.md).
+`npm install @cratis/arc.core` reports `ERESOLVE` or an unmet peer dependency. Arc packages declare their peers, for example `@cratis/fundamentals`, `@opentelemetry/api`, and `rxjs` for the core, and the framework for an adapter (`express`, `fastify`, or `hono`). Install the peers at the ranges the package's `package.json` lists; [Packages](reference/packages.md) names each package. A `workspace:^` error means a dependency was copied from a sample's manifest: those ranges resolve only inside this repository's Yarn workspace, so write the published version range instead.
 
 ### Corepack is missing
 
-`corepack enable` fails with `command not found`. Node.js 25 and later no longer include Corepack. Install it with `npm install --global corepack`, then run `corepack enable` again. The repository pins its Yarn version in `package.json`, and Corepack selects that version.
+This applies when you work in a clone of this repository, for example to run the samples. `corepack enable` fails with `command not found`. Node.js 25 and later no longer include Corepack. Install it with `npm install --global corepack`, then run `corepack enable` again. The repository pins its Yarn version in `package.json`, and Corepack selects that version.
 
 ## Decorators and compilers
 

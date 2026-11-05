@@ -1,0 +1,119 @@
+# Copyright (c) Cratis. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+name: Publish
+
+# Never cancel a release in flight: a run may already have tagged and released but not finished publishing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+        type: string
+      release-notes:
+        description: 'Release notes'
+        required: true
+        type: string
+  # Release on push to main rather than on pull_request closed: a fork pull request has no secrets even on merge.
+  # The release action finds the merged pull request and its label from the commit.
+  push:
+    branches:
+      - main
+    paths:
+      - 'Source/**'
+      - 'package.json'
+      - 'scripts/publish-npm.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      publish: ${{ steps.release.outputs.should-publish }}
+      reason: ${{ steps.release.outputs.reason }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Release
+        id: release
+        uses: cratis/release-action@v1
+        with:
+          version: ${{ github.event.inputs.version }}
+          release-notes: ${{ github.event.inputs.release-notes }}
+
+  publish-npm-packages:
+    if: needs.release.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [release]
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC) and provenance
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Configure npm for OIDC-based publishing
+        run: |
+          # setup-node writes a placeholder _authToken that npm would use as-is and fail with 404.
+          # Remove it so npm falls back to OIDC trusted publishing.
+          sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG"
+          echo "NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
+
+      - name: Upgrade npm for trusted publishing (requires >= 11.5.1)
+        run: |
+          npm install -g npm@11
+          node -e "
+            const [major, minor, patch] = process.argv[1].split('.').map(Number);
+            if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) {
+              console.error('npm >= 11.5.1 is required for trusted publishing, got ' + process.argv[1]);
+              process.exit(1);
+            }
+          " "$(npm --version)"
+
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+
+      - name: Install locked dependencies
+        run: yarn install --immutable
+
+      - name: Set the release version
+        run: node scripts/set-version.mjs "${{ needs.release.outputs.version }}" --allow-major
+
+      - name: Build
+        run: yarn build
+
+      - name: Publish npm packages
+        env:
+          NODE_AUTH_TOKEN: ''
+        run: node scripts/publish-npm.mjs
+
+  verify-published:
+    # A merged pull request that publishes nothing is the failure that silently costs a release. Fail for the
+    # reasons that mean something went wrong; publishing nothing is routine for the others.
+    if: always() && needs.release.result == 'success' && contains(fromJSON('["no-label", "error"]'), needs.release.outputs.reason)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [release]
+    steps:
+      - name: Fail when a merged pull request did not release
+        run: |
+          echo "Release reason: ${{ needs.release.outputs.reason }}" >&2
+          echo "Label the pull request major, minor, patch or no-release." >&2
+          exit 1

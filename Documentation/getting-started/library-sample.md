@@ -6,7 +6,7 @@ description: Run the event-sourced Library sample against a local Chronicle kern
 What does an event-sourced Arc feature look like when it reaches a browser? The Library sample takes the authors and books from the [shared tutorial](/arc/tutorial/first-slice/) and makes the whole path visible: a command returns an event, Chronicle appends it and projects the read model, and an observable query updates the React view.
 
 :::caution[Local demonstration only]
-Arc for TypeScript server packages and their Chronicle integration are not published to npm. Run this sample inside a clone of the repository, against your own development Chronicle kernel. Its fixed librarian identity is for local demonstration only; never expose this server publicly.
+The Chronicle integration is experimental and its guarantees are bounded. Run this sample inside a clone of the repository (`Samples/Library/run.sh` starts it; see [Samples/README.md](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/README.md)), against your own development Chronicle kernel. Its fixed librarian identity is for local demonstration only; never expose this server publicly.
 :::
 
 ## Open your library

@@ -34,7 +34,7 @@ function fixture(t) {
     for (const file of ['README.md', 'Documentation/index.md', 'Documentation/reference/packages.md']) {
         mkdirSync(dirname(join(folder, file)), { recursive: true });
         const original = readFileSync(join(root, file), 'utf8');
-        const line = original.split('\n').find(text => /(?:Every package manifest is at version|the manifests are at version|Every package in this repository is at version)/.test(text));
+        const line = original.split('\n').find(text => /(?:Every public package is published to npm at version|The packages are published to npm at version|Every non-private package in this repository is published to npm at version)/.test(text));
         writeFileSync(join(folder, file), `${line.replace(/version \d+\.\d+\.\d+/, 'version 0.19.0')}\n`);
     }
     for (const file of ['Source/Core/Version.ts', 'Source/CodeAnalysis/Version.ts']) {
@@ -117,7 +117,7 @@ test('refuses a missing or duplicated expected statement before writing', t => {
     const folder = fixture(t);
     const file = join(folder, 'Documentation/index.md');
     const original = readFileSync(file, 'utf8');
-    writeFileSync(file, 'No source preview version here\n');
+    writeFileSync(file, 'No version statement here\n');
     assert.throws(() => prepareVersion(folder, '0.20.0'), /exactly one version statement in Documentation\/index.md, found 0/);
     assert.equal(manifest(folder, 'Source/Core').version, '0.19.0');
     writeFileSync(file, original + original);

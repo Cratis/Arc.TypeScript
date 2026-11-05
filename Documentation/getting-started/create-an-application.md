@@ -1,59 +1,27 @@
 ---
 title: Create an Arc application from an empty folder
-description: Build the Arc packages from a clone, install them into a new Node.js project, and run your own command and query with generated metadata and a watch loop.
+description: Install the Arc packages from npm into a new Node.js project and run your own command and query with generated metadata and a watch loop.
 ---
 
-You have seen the Tasks sample and want a project of your own. `npm install @cratis/arc.core` fails, because nothing from this repository is published to npm yet. This guide takes an empty folder to a running Arc server using packages you build from a clone.
+You have seen the Tasks sample and want a project of your own. This guide takes an empty folder to a running Arc server using `npm install @cratis/arc.core`.
 
 When you finish, a small notes API listens on `127.0.0.1:3000`. `POST /api/notes/writing/write-note` stores a note, refuses one without text, and `GET /api/notes/listing/all-notes` returns what you stored. The server reloads when you edit the code.
 
-:::caution[Install from source]
-Arc for TypeScript is not published to npm, and its API may still change. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application.
+:::note[Check the capability reference]
+Arc for TypeScript does not claim identical behavior to Arc on .NET everywhere. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application.
 :::
 
 ## Before you start
 
-You need Node.js 22.19 or later, Git, Corepack, npm, and `curl`. Node.js 25 and later no longer include Corepack; if `corepack enable` reports that the command is not found, run `npm install --global corepack` first.
-
-There are two ways to consume packages that are not on npm:
-
-| Path | Your project lives | Use it when |
-| --- | --- | --- |
-| [Packed tarballs](#build-and-pack-the-packages) | In any folder, with its own `package.json` and lockfile | You want a separate repository. This guide follows this path |
-| [Inside the clone](#work-inside-the-clone-instead) | Under `Samples/` in your clone of this repository | You are experimenting, or you change Arc itself while you build on it |
-
-A dependency written as `workspace:^`, as in the samples, resolves only inside this repository's Yarn workspace. In a project of your own it fails at install.
-
-## Build and pack the packages
-
-Clone and build the repository:
-
-```bash
-git clone https://github.com/Cratis/Arc.TypeScript.git
-cd Arc.TypeScript
-corepack enable
-yarn install
-yarn build
-```
-
-Pack the core and the proxy generator into a folder next to the clone:
-
-```bash
-mkdir -p ../arc-packages
-yarn workspace @cratis/arc.core pack --out "$PWD/../arc-packages/arc.core.tgz"
-yarn workspace @cratis/arc.proxygenerator pack --out "$PWD/../arc-packages/arc.proxygenerator.tgz"
-```
-
-Use `yarn pack`, not `npm pack`. Yarn rewrites the internal `workspace:^` dependencies to version ranges as it packs. `npm pack` copies them unchanged, and the tarball then fails to install. Pack an adapter or integration the same way when you need it; [Packages](../reference/packages.md) lists the workspace names.
-
-After you pull a newer version of the repository, run `yarn build` and the pack commands again. Then repeat the two `npm install` commands from the next section in your project. A plain `npm install` keeps the package contents it installed before, because the tarball path and version have not changed.
+You need Node.js 22.19 or later, npm, and `curl`. To run the in-repo samples from a clone instead, follow [Samples](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/README.md): each sample has a `run.sh` that installs and builds what it needs.
 
 ## Create the project
 
-Start with an empty folder next to the packages:
+Start with an empty folder:
+
+Start with an empty folder:
 
 ```bash
-cd ..
 mkdir my-arc-app
 cd my-arc-app
 ```
@@ -77,14 +45,14 @@ Create `package.json`:
 }
 ```
 
-Arc packages are ES modules only, so the project needs `"type": "module"`. Install the tarballs and their peer dependencies, then the development tools:
+Arc packages are ES modules only, so the project needs `"type": "module"`. Install Arc and its peer dependencies, then the development tools:
 
 ```bash
-npm install ../arc-packages/arc.core.tgz @cratis/fundamentals@^7.19.6 @opentelemetry/api@^1.9.0
-npm install --save-dev ../arc-packages/arc.proxygenerator.tgz typescript@npm:@typescript/typescript6@^6.0.2 @types/node@^22 tsx
+npm install @cratis/arc.core @cratis/fundamentals@^7.19.6 @opentelemetry/api@^1.9.0 rxjs@^7.8.2
+npm install --save-dev @cratis/arc.proxygenerator typescript@npm:@typescript/typescript6@^6.0.2 @types/node@^22 tsx
 ```
 
-npm records the tarballs as `file:../arc-packages/...` dependencies. `typescript` is pinned to TypeScript 6, the compiler this repository and the proxy generator use. That package installs its compiler command as `tsc6`, which is why the `build` script calls `tsc6`. Recent npm versions may report that they blocked install scripts for `esbuild` (and `fsevents` on macOS); `tsx` runs without them.
+`typescript` is pinned to TypeScript 6, the compiler this repository and the proxy generator use. That package installs its compiler command as `tsc6`, which is why the `build` script calls `tsc6`. Recent npm versions may report that they blocked install scripts for `esbuild` (and `fsevents` on macOS); `tsx` runs without them.
 
 Create `tsconfig.json`:
 
@@ -328,9 +296,9 @@ npm start
 
 ## Choose a host
 
-`app.run()` starts Arc's standalone Node host. To serve the same artifacts from a web framework, keep the builder lines in `main.ts` and replace `app.run()` with the framework's adapter. Pack and install the adapter as you did the core, together with the framework itself, for example `npm install ../arc-packages/arc.express.tgz express@^5`:
+`app.run()` starts Arc's standalone Node host. To serve the same artifacts from a web framework, keep the builder lines in `main.ts` and replace `app.run()` with the framework's adapter. Install the adapter together with the framework itself, for example `npm install @cratis/arc.express express@^5`:
 
-| Host | Package to pack | Guide |
+| Host | Package to install | Guide |
 | --- | --- | --- |
 | Standalone Node host | none; it is part of `@cratis/arc.core` | [Arc.Core](../core/index.md) |
 | Express 5 | `@cratis/arc.express` | [Express](../hosts/express.md) |
@@ -340,57 +308,20 @@ npm start
 
 The [hosting overview](../overview.md) compares them.
 
-## Work inside the clone instead
+## Run the in-repo samples
 
-Inside a clone, the root `package.json` makes every folder under `Samples/` a Yarn workspace, and `workspace:^` links the local packages without packing. Create `Samples/MyArcApp` with the same files as above, but with this `package.json`:
-
-```json title="Samples/MyArcApp/package.json"
-{
-  "name": "my-arc-app",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "generate": "node generate.mjs",
-    "build": "yarn generate && tsc6",
-    "start": "node dist/main.js",
-    "dev": "tsx watch main.ts"
-  },
-  "dependencies": {
-    "@cratis/arc.core": "workspace:^",
-    "@cratis/fundamentals": "7.22.0",
-    "@opentelemetry/api": "^1.9.0"
-  },
-  "devDependencies": {
-    "@cratis/arc.proxygenerator": "workspace:^",
-    "@types/node": "^22.0.0",
-    "tsx": "^4.20.0",
-    "typescript": "npm:@typescript/typescript6@^6.0.2"
-  }
-}
-```
-
-Then install and run from the repository root:
-
-```bash
-yarn install
-yarn build
-yarn workspace my-arc-app generate
-yarn workspace my-arc-app dev
-```
-
-`yarn install` adds your workspace to `yarn.lock`. Keep that change, and the application, out of any pull request to this repository. `yarn build` rebuilds the packages your application links to, so run it after you change Arc itself.
+To run the samples in this repository, clone it and use each sample's `run.sh`; [Samples/README.md](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/README.md) lists `Tasks`, `Library`, and `Showcase` with their ports and requirements. Samples link the local packages through the Yarn workspace, so their dependency ranges do not apply to your own project.
 
 ## If something goes wrong
 
-- `npm install` cannot find `@cratis/arc.core`, or reports `workspace:^`: see [Installing Arc outside the clone fails](../troubleshooting.md#installing-arc-outside-the-clone-fails).
+- `npm install` reports `workspace:^` or an unmet peer dependency: see [Installing Arc fails](../troubleshooting.md#installing-arc-fails).
 - The server stops with `Unbound handle parameters`, `Missing parameter metadata`, or `Stale generated artifact metadata`: see [Unbound handle parameters](../troubleshooting.md#build-fails-with-unbound-handle-parameters-or-missing-parameter-metadata) and [Stale generated metadata](../troubleshooting.md#the-server-stops-with-stale-generated-artifact-metadata).
-- `corepack: command not found`: see [Corepack is missing](../troubleshooting.md#corepack-is-missing).
 
 ## Next steps
 
 - [Add event sourcing](../chronicle/add-event-sourcing.md) continues with this project: it starts a local Chronicle kernel and records a first event from a command.
 - [Your first command](your-first-command.md) explains concept validators, read models, and a spec, using the Tasks sample.
 - [Set up proxy generation](../proxy-generation/getting-started.md) points the generator at a React frontend and installs the client packages the proxies import.
-- [Testing](../testing/index.md) runs commands and queries through Arc's pipelines in a spec, without a listener. It needs `@cratis/arc.testing`, packed like the core.
+- [Testing](../testing/index.md) runs commands and queries through Arc's pipelines in a spec, without a listener. It needs `@cratis/arc.testing`.
 - [Configuration](../configuration/index.md) lists the settings `createBuilder()` reads from `appsettings.json` and `Cratis__...` environment variables.
 - [Vertical slices](../vertical-slices.md) explains the folder layout this guide uses.

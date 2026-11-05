@@ -3,12 +3,12 @@ title: Packages
 description: Find Arc for TypeScript packages, exports, peer dependencies, and Node.js requirements, and distinguish them from the @cratis/arc client.
 ---
 
-Every package in this repository is at version 0.58.0. **None is published to npm.** They ship ES modules only. Clone this repository, run `yarn install` and `yarn build`, and then use the packages in one of two ways:
+Every non-private package in this repository is published to npm at version 1.0.0. They ship ES modules only.
 
-- **Inside the clone.** Put your application in a folder under `Samples/`, which the root `workspaces` list includes, and reference the packages with the `workspace:^` protocol, as [`Samples/Tasks/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/package.json) does. `workspace:^` resolves only inside this repository's Yarn workspace.
-- **In your own project.** Pack each package you need with `yarn workspace <package> pack --out <file>` and install the tarballs with npm. Use `yarn pack`: it rewrites `workspace:^` dependencies to version ranges, and `npm pack` does not. `yarn check:consumers` installs packed packages this way to check NodeNext and Bundler consumers.
+- **In your own project.** Run `npm install @cratis/arc.core` plus the adapter or integration you need, and the peers each package's manifest lists.
+- **Inside the clone.** The samples under `Samples/` reference the packages with the `workspace:^` protocol, as [`Samples/Tasks/package.json`](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/Tasks/package.json) does; `workspace:^` resolves only inside this repository's Yarn workspace. [Samples/README.md](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/README.md) lists the samples and their `run.sh` scripts. `yarn check:consumers` packs the packages and installs them outside the workspace to check NodeNext and Bundler consumers.
 
-[Create an application](../getting-started/create-an-application.md) walks through both paths, from an empty folder to a running command and query.
+[Create an application](../getting-started/create-an-application.md) walks through the npm install path, from an empty folder to a running command and query.
 
 ## Server packages
 
@@ -24,7 +24,7 @@ Every package in this repository is at version 0.58.0. **None is published to np
 | `@cratis/arc.chronicle` | `Source/Chronicle` | `withChronicle`, `commandAggregate`, `reactorCommandResultHandler`, `executeCommandsAsSystem`, `eventForEventSourceId`, `eventSourceIdResponse`, `eventsWithConcurrencyScopes`, routing decorators, `notAudited`, `ChronicleReadModels`; `@cratis/arc.chronicle/testing` for `ChronicleCommandScenario` and `ChronicleKernelScenario` | `@cratis/arc.core`, `@cratis/arc.testing`, `@cratis/chronicle` `^6.29.0` (peer-floor exports checked against 6.29.0), `@cratis/fundamentals`, `zod` |
 | `@cratis/cratis` | `Source/Cratis` | Composition, the counterpart of the C# `Cratis` package: `CratisApplication.createBuilder`, `builder.addCratis`; re-exports Arc, Chronicle and testing (`./testing`); no implicit authentication handler | Arc core, Arc Chronicle, Arc testing, Chronicle SDK, Fundamentals, `zod` |
 
-`@cratis/cratis` is not published to npm yet. Unlike C# `AddCratis`, the TS composition does not install Microsoft identity automatically: for protected routes, explicitly choose an authentication handler (such as `microsoftIdentityPlatform()`) or your own trusted host principal; public routes need neither. It composes the client, not the event-store engine. See [The Cratis package](../chronicle/cratis-package.md).
+`@cratis/cratis` is published to npm. Unlike C# `AddCratis`, the TS composition does not install Microsoft identity automatically: for protected routes, explicitly choose an authentication handler (such as `microsoftIdentityPlatform()`) or your own trusted host principal; public routes need neither. It composes the client, not the event-store engine. See [The Cratis package](../chronicle/cratis-package.md).
 
 ## Tooling packages
 

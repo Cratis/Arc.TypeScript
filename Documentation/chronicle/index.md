@@ -7,8 +7,8 @@ A librarian registers an author. You want that registration kept as a fact, and 
 
 `@cratis/arc.chronicle` removes that plumbing. A command **returns** the event, and Arc appends it after authorization, validation, and `provide()` have passed, in the namespace of the tenant Arc already resolved. Arc does not require event sourcing: a command can do its work through any service. Use this integration when you want commands to record facts in [Chronicle](/chronicle/), the event-sourcing database.
 
-:::caution[Install from source]
-`@cratis/arc.chronicle`, like every package in this repository, is not published to npm. Its APIs can change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
+:::caution[Experimental integration]
+`@cratis/arc.chronicle` is published to npm like the other packages, but its guarantees are bounded and its integration is experimental. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) has its status and the checks behind it.
 :::
 
 To try it, [Add event sourcing](add-event-sourcing.md) starts a Chronicle kernel on your machine and adds a first event-sourced slice to the application from [Create an application](../getting-started/create-an-application.md).

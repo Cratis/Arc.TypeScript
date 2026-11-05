@@ -5,8 +5,8 @@ description: Register Arc and the Chronicle integration with one call from @crat
 
 An application that uses Arc and Chronicle together imports from `@cratis/arc.core` and `@cratis/arc.chronicle`, and calls `withChronicle` on every builder. `@cratis/cratis` composes the two: one import, one builder call. It is the TypeScript counterpart of the .NET `Cratis` package.
 
-:::caution[Install from source]
-`@cratis/cratis` is not published to npm. Pack it from a clone like the other packages; it depends on `@cratis/arc.core`, `@cratis/arc.chronicle`, and `@cratis/arc.testing`, so pack and install those too.
+:::note[Install]
+Run `npm install @cratis/cratis`. It depends on `@cratis/arc.core`, `@cratis/arc.chronicle`, and `@cratis/arc.testing`, which npm installs with it. The Chronicle integration is experimental and its guarantees are bounded; see the [capability reference](../reference/capabilities.md#persistence-and-chronicle).
 :::
 
 ## Create the builder

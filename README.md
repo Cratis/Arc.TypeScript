@@ -6,7 +6,7 @@
 [![Discord](https://img.shields.io/discord/1182595891576717413?label=Discord&logo=discord&logoColor=white)](https://discord.gg/kt4AMpV8WV)
 
 > [!IMPORTANT]
-> **Packages are not published to npm.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections and Drizzle SQL queries, a bounded source-based client generator, and a Chronicle integration. No package is published to npm, and Arc for TypeScript does **not** have full parity with Arc on .NET. APIs and package names can still change. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
+> **Stable 1.0.0, with bounded parity.** This repository contains the server core, adapters for Express, Fastify, and Hono, optional tenant-scoped MongoDB collections and Drizzle SQL queries, a bounded source-based client generator, and a Chronicle integration, all published to npm. Arc for TypeScript does **not** claim identical behavior to Arc on .NET everywhere. Check the [capability reference](Documentation/reference/capabilities.md) before you design around a feature.
 
 Arc is an opinionated CQRS application framework. You declare what your backend can do as commands and queries, and Arc handles routing, input binding, validation, authorization, correlation, tenancy, and the result envelope that Arc clients expect. Arc for TypeScript brings that model to Node.js and Fetch API hosts as idiomatic TypeScript, not as a line-by-line port.
 
@@ -58,11 +58,11 @@ export class TaskItem {
 | `@cratis/arc.chronicle` | [`Source/Chronicle`](Source/Chronicle) | `builder.withChronicle` appends returned events and resolves registered read models by command key; nested command returns join one event-log batch. In-memory command assertions are available under `@cratis/arc.chronicle/testing`. SDK 6.19.0 imports natively and infers read models from projections/reducers; an opt-in kernel suite covers aggregate replay and reactor commands. Full .NET transaction parity remains unverified. |
 | `@cratis/cratis` | [`Source/Cratis`](Source/Cratis) | `CratisApplication.createBuilder()` and `builder.addCratis()` compose Arc and a Chronicle client without installing authentication; not yet published to npm. |
 
-Every package manifest is at version 0.58.0. That is the source version, not an npm release. The packages ship ES modules only, and schemas use Zod 4. Core, host adapters, MongoDB, and Drizzle need Node.js 22 or later. The Fetch entry has a neutral bundle with `node:async_hooks` as its only Node import; its command, query, and SSE paths run in a Next.js App Router route handler on the Node.js runtime, with Bun and Deno smoke checks; Cloudflare Workers and the Next.js Edge runtime are not supported. See [Fetch API runtimes](Documentation/hosts/fetch-runtimes.md). The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
+Every public package is published to npm at version 1.0.0. The packages ship ES modules only, and schemas use Zod 4. Core, host adapters, MongoDB, and Drizzle need Node.js 22 or later. The Fetch entry has a neutral bundle with `node:async_hooks` as its only Node import; its command, query, and SSE paths run in a Next.js App Router route handler on the Node.js runtime, with Bun and Deno smoke checks; Cloudflare Workers and the Next.js Edge runtime are not supported. See [Fetch API runtimes](Documentation/hosts/fetch-runtimes.md). The root workspace needs Node.js 22.19 or later, because it installs the Chronicle SDK; Node.js 24 LTS is recommended.
 
 ## Try it
 
-Until the packages are published, run the sample from a clone. For this workspace, you need **Node.js 22.19.0 or later** (24 LTS recommended), Git, and Corepack. Corepack selects the repository-pinned **Yarn 4.18.0**. You also need `curl` for the HTTP requests in [Get started](Documentation/getting-started/index.md#build-and-run-the-sample).
+To use the packages in your own project, run `npm install @cratis/arc.core` and follow [Create an application](Documentation/getting-started/create-an-application.md). To run the samples from a clone, you need **Node.js 22.19.0 or later** (24 LTS recommended), Git, and Corepack. Corepack selects the repository-pinned **Yarn 4.18.0**. You also need `curl` for the HTTP requests in [Get started](Documentation/getting-started/index.md#build-and-run-the-sample).
 
 **Local development only.** The sample's `start` script sets `DOTNET_ENVIRONMENT=Development`, enabling anonymous discovery and exception details. Do not use this script on an exposed host. Changing the environment alone does not configure authentication; see [Configuration](Documentation/configuration/index.md) and [Authentication](Documentation/core/authentication.md).
 
@@ -75,9 +75,9 @@ yarn build
 yarn workspace @cratis/arc.core.sample.tasks start
 ```
 
-The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line. The [Library sample](Samples/Library/README.md) adds Chronicle event sourcing, projected read models, and a React client; it requires an owned development kernel. See [Vertical slices](Documentation/vertical-slices.md) for its file layout.
+The sample listens on port 3000 on loopback by default; Ctrl+C gracefully stops its `app.run()` lifecycle. [Get started](Documentation/getting-started/index.md) walks through calling it, and [Your first command](Documentation/getting-started/your-first-command.md) explains every line. The [Library sample](Samples/Library/README.md) adds Chronicle event sourcing, projected read models, and a React client; it requires an owned development kernel. The [Showcase sample](Samples/Showcase/README.md) ports the .NET and Elixir showcases. [Samples/README.md](Samples/README.md) lists all three; each has a `run.sh` that starts it. See [Vertical slices](Documentation/vertical-slices.md) for its file layout.
 
-If `corepack enable` reports that the command is missing, as on Node.js 25 and later, run `npm install --global corepack` first. To start your own application instead of the sample, follow [Create an application](Documentation/getting-started/create-an-application.md).
+If `corepack enable` reports that the command is missing, as on Node.js 25 and later, run `npm install --global corepack` first.
 
 ## What works and what does not
 

@@ -7,10 +7,10 @@ Say you need a small task API: register a task, list the tasks, and refuse a tas
 
 With Arc you write the parts that are yours: a command class that registers a task, a validator with the rules, and a read model with the queries. Arc serves them over HTTP, checks input before your code runs, and wraps every answer in the same result shape.
 
-In this walkthrough you run the Tasks sample from this repository and talk to it with `curl`. By the end you have a server on `127.0.0.1:3000` that accepts a command, rejects invalid input before the handler runs, and serves the tasks you stored. No event store or database is involved.
+In this walkthrough you run the Tasks sample from a clone of this repository and talk to it with `curl`. By the end you have a server on `127.0.0.1:3000` that accepts a command, rejects invalid input before the handler runs, and serves the tasks you stored. No event store or database is involved.
 
-:::caution[Install from source]
-No Arc for TypeScript server package is published to npm yet. Work inside a clone of this repository; the API may still change. Check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application. To start a project of your own, follow [Create an application](create-an-application.md).
+:::note[Running the sample, and installing from npm]
+The Arc packages are published to npm at 1.0.0, and this walkthrough runs the sample from a clone so you can read its code; [Samples/README.md](https://github.com/Cratis/Arc.TypeScript/blob/main/Samples/README.md) lists every sample and its `run.sh`. To start a project of your own, run `npm install @cratis/arc.core` and follow [Create an application](create-an-application.md). Arc for TypeScript does not claim identical behavior to Arc on .NET everywhere; check the [capability reference](../reference/capabilities.md) before you rely on a feature in a larger application.
 :::
 
 ## Build and run the sample

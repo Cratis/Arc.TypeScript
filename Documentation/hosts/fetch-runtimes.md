@@ -3,7 +3,7 @@ title: Fetch API runtimes
 description: Serve Arc commands, queries, and SSE from a Next.js Node.js route handler or another Node-compatible host without an Arc-owned listener.
 ---
 
-You can handle Arc requests without an Arc-owned listener. Import the `@cratis/arc.core/fetch` entry, register artifacts explicitly, and hand the resulting `app.fetch` to your host. The package is not published to npm; install a tarball packed from a built clone, as [Create an application](../getting-started/create-an-application.md) shows, or use it inside the clone's workspace. **Arc targets Node-compatible servers:** Chronicle uses gRPC, MongoDB uses TCP, and live queries rely on long-lived SSE/WebSocket connections. Next.js App Router on its **Node.js** runtime is verified locally. Bun has a smoke check, not a supported deployment guarantee. Cloudflare Workers and Next.js Edge are **not supported** hosts for the full framework or these integrations.
+You can handle Arc requests without an Arc-owned listener. Import the `@cratis/arc.core/fetch` entry, register artifacts explicitly, and hand the resulting `app.fetch` to your host. Install it with `npm install @cratis/arc.core`; [Create an application](../getting-started/create-an-application.md) shows the setup. **Arc targets Node-compatible servers:** Chronicle uses gRPC, MongoDB uses TCP, and live queries rely on long-lived SSE/WebSocket connections. Next.js App Router on its **Node.js** runtime is verified locally. Bun has a smoke check, not a supported deployment guarantee. Cloudflare Workers and Next.js Edge are **not supported** hosts for the full framework or these integrations.
 
 ## Build the application once
 
@@ -43,7 +43,7 @@ declare global {
 export const app = await (globalThis.__cratisArcFetchApp ??= builder.build());
 ```
 
-`POST /api/ping` with a JSON `{}` body returns `response: "pong"`; `GET /api/all` returns `data: ["ready"]`. The [Fetch scenario](https://github.com/Cratis/Arc.TypeScript/blob/main/scripts/fetch-runtime-scenario.mjs) exercises commands, validation, authorization, GET and `QUERY`, tenant and correlation headers, observable snapshots, direct and hub SSE, server-side direct SSE subscription release after client abort, and fall-through. Use your host's build tool to compile decorators and bundle dependencies. A neutral esbuild bundle externalizes **only** `node:async_hooks` (for `AsyncLocalStorage`); it imports no `node:fs`, `node:crypto`, `ws`, or other Node modules from the Fetch entry. The HTTP checks use built workspace `dist`, not a published tarball.
+`POST /api/ping` with a JSON `{}` body returns `response: "pong"`; `GET /api/all` returns `data: ["ready"]`. The [Fetch scenario](https://github.com/Cratis/Arc.TypeScript/blob/main/scripts/fetch-runtime-scenario.mjs) exercises commands, validation, authorization, GET and `QUERY`, tenant and correlation headers, observable snapshots, direct and hub SSE, server-side direct SSE subscription release after client abort, and fall-through. Use your host's build tool to compile decorators and bundle dependencies. A neutral esbuild bundle externalizes **only** `node:async_hooks` (for `AsyncLocalStorage`); it imports no `node:fs`, `node:crypto`, `ws`, or other Node modules from the Fetch entry. The HTTP checks use built workspace `dist`, not the installed npm package.
 
 ### Bun
 

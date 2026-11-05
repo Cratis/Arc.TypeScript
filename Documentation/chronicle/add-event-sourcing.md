@@ -7,8 +7,8 @@ The notes in the application from [Create an application](../getting-started/cre
 
 When you finish, `POST /api/authors/registration/register-author` appends an `AuthorRegistered` event to a Chronicle kernel on your machine, and `GET /api/authors/listing/all-authors` returns the `Author` read model Chronicle built from it.
 
-:::caution[Install from source]
-`@cratis/arc.chronicle`, like every package in this repository, is not published to npm. Its API may change. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) lists what it covers.
+:::caution[Experimental integration]
+`@cratis/arc.chronicle` is published to npm like the other packages, but its guarantees are bounded and its integration is experimental. The [capability reference](../reference/capabilities.md#persistence-and-chronicle) lists what it covers.
 :::
 
 ## Before you start
