@@ -1,6 +1,6 @@
 ---
 title: MongoDB tenancy
-description: How withMongoDB chooses a database and server for each tenant, and what a single-tenant application configures.
+description: Configure MongoDB database and server selection for Arc TypeScript tenants, including naming, single-tenant setup and the limits of storage isolation.
 ---
 
 Every Arc execution resolves a tenant, and the MongoDB collection you inject belongs to that tenant's database. You decide the mapping; the package never falls back to a default database silently.

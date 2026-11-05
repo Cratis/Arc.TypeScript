@@ -1,6 +1,6 @@
 ---
 title: 'unexported-artifact: Discovery cannot see a class'
-description: Export commands, read models, and validators.
+description: Resolve Arc TypeScript unexported-artifact diagnostics by exporting decorated commands, read models and validators for file-based artifact discovery.
 ---
 
 ## What

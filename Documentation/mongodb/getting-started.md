@@ -1,6 +1,6 @@
 ---
 title: Get started with MongoDB
-description: Register a MongoDB client and read models with withMongoDB, inject a tenant-scoped collection into model-bound queries, configure the connection from appsettings.json, and own the client's lifetime.
+description: Connect Arc TypeScript read models to MongoDB, inject tenant-scoped collections into queries and configure connections, options and client lifetime.
 ---
 
 This page connects one read model to MongoDB and serves it from three queries: a list, a page, and a live list. It follows the package's [replica-set integration fixture](https://github.com/Cratis/Arc.TypeScript/tree/main/Source/MongoDB/for_MongoCollection/given). You need a MongoDB server; the live query needs a replica set.

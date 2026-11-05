@@ -1,6 +1,6 @@
 ---
 title: Change a sample
-description: Regenerate proxies and metadata, lint, and check client generation after you change the Tasks or Library sample, and find where each Arc for .NET test-app behavior is covered in this repository.
+description: Update Arc TypeScript Tasks and Library samples with regenerated metadata and proxies, run contributor checks and locate equivalent .NET test behaviors.
 ---
 
 The Tasks and Library samples in this repository are checked by the same gate as the packages. Both samples commit generated metadata and co-located proxies, so a change to a decorated artifact has to be followed by a regeneration, or `yarn ci` fails. This page is for contributors to this repository; applications have their own scripts.

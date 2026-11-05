@@ -1,6 +1,6 @@
 ---
 title: Naming policies
-description: Choose how MongoDB property and collection names are derived, match Arc on .NET when both read one database, write a custom policy, and use the stored names in your own filters.
+description: Configure MongoDB property and collection names in Arc TypeScript, align with .NET storage conventions and use custom policies or explicit filter names.
 ---
 
 A .NET service writes `Tasks` documents with a `Title` property. Your TypeScript service reads the same database, and its model declares `title`. Unless both sides agree on names, the TypeScript side reads documents with every field missing, and nothing fails. The naming policy decides the stored name of every property and the name of every collection.

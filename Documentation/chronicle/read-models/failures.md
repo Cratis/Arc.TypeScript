@@ -1,6 +1,6 @@
 ---
 title: When read model resolution fails
-description: Every failure a command-scoped read model can produce, what the caller sees, what it means, and how to fix it.
+description: Diagnose command-scoped Chronicle read model failures in Arc TypeScript, distinguishing missing keys and models from ownership or validator misuse.
 ---
 
 A command that loads a read model can fail for two different kinds of reasons. The request can be wrong: no usable key, or an entity that does not exist. The application can be wrong: a read model no integration owns, or a lookup outside a validator. Arc keeps the two apart. Wrong input answers 400 with a validation result, and a misconfiguration fails loudly instead of posing as a missing entity.

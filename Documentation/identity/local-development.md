@@ -1,6 +1,6 @@
 ---
 title: Simulate a signed-in user locally
-description: Exercise different users, roles, and tenant memberships on a loopback development host with forwarded Microsoft identity headers, without mistaking Base64 assertions for verified tokens.
+description: Simulate users, roles and tenant memberships locally in Arc TypeScript with forwarded Microsoft identity headers, respecting their trust boundary.
 ---
 
 You want to see how the application behaves for an editor, for a reader, and for someone who belongs to another tenant, before production sign-in exists. This guide turns on Arc's Microsoft identity header handler on your development machine only, and sends it synthetic principals.

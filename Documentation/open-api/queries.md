@@ -1,6 +1,6 @@
 ---
 title: Queries in the document
-description: See how each Arc query appears in /openapi.json as a GET operation with query-string arguments, paging and sorting parameters, observable-query options, and a QueryResult envelope with typed data.
+description: Read Arc TypeScript query OpenAPI contracts for GET arguments, paging, sorting, observable options and typed data wrapped in QueryResult responses.
 ---
 
 A client calling `allTasks` wants to know which arguments it may pass, whether it can ask for page two sorted by title, and what shape the rows have. Arc describes each query as a GET operation with its arguments, the paging and sorting parameters the runtime honors, and the `QueryResult` envelope around the data.

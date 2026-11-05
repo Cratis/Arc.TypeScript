@@ -1,6 +1,6 @@
 ---
 title: Map the schema and own migrations
-description: Map Arc read-model fields to Drizzle table columns and codecs, generate and apply migrations with drizzle-kit in your host, order schema and code changes safely, and choose database credentials for reads, writes, and migrations.
+description: Map Arc TypeScript read models to Drizzle columns and codecs, manage database migrations in the host and order schema changes with scoped credentials.
 ---
 
 Your `TaskRecord` gains a due date. Three things have to change together: the Drizzle table, the Arc read model, and the database itself. Arc checks the first two against each other when the application starts, and never touches the third. This page shows how the mapping works, how to change the database with drizzle-kit, and which credentials each part needs.

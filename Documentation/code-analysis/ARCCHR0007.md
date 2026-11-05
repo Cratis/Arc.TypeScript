@@ -1,6 +1,6 @@
 ---
 title: ARCCHR0007 — Command handler must not append directly to the event log
-description: Return events from a Chronicle-backed command handler to preserve its append pipeline.
+description: Fix ARCCHR0007 in Arc TypeScript by returning Chronicle events from command handlers rather than bypassing the append pipeline with direct writes.
 ---
 
 A decorated command's `handle()` should return events for the Chronicle integration to append.

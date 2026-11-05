@@ -1,6 +1,6 @@
 ---
 title: Identity
-description: Give the frontend the signed-in user's name, roles, and application details through /.cratis/me, and keep that display data apart from authentication and authorization.
+description: Expose signed-in user details to the frontend through Arc TypeScript's /.cratis/me endpoint, separating display identity from authentication and access.
 ---
 
 Ada signs in to your task application. The header should say "Hello, Ada", the Archive button should only appear for editors, and the page should know which customer she is working for. Without help you end up writing a `/me` route, repeating the role list in the frontend, and deciding by hand what the browser may cache.

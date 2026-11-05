@@ -1,6 +1,6 @@
 ---
 title: Authorization policies and schemes
-description: Register named authorization policies, read claims, make ownership decisions from your own data, understand authorization results, test them with CommandScenario, and select a named authentication scheme per operation.
+description: Authorize Arc TypeScript operations with named policies, claims and ownership checks, test access results and select authentication schemes per operation.
 ---
 
 Roles answer "is this caller an editor?". Some rules need more: the caller's department, a subscription level, or whether they own the document they are about to archive. Scattering those checks through handlers makes them easy to forget on the next command. Arc gives each kind of rule one place: a named policy for rules about the caller, and `provide()` for rules about the data. Neither one authenticates the caller; that already happened in an [authentication handler](authentication.md).

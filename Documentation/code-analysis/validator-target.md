@@ -1,6 +1,6 @@
 ---
 title: 'validator-target: Validator has no target'
-description: Associate model-bound validators with their exact model.
+description: Fix Arc TypeScript validator-target lint errors by associating validators with exact models through decorators or configured generated metadata.
 ---
 
 ## What

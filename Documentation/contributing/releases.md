@@ -1,6 +1,6 @@
 ---
 title: Prepare and publish a TypeScript release
-description: Prepare a minor or patch version, check it, and publish it as a GitHub pre-release. Nothing is published to npm.
+description: Prepare and verify Arc TypeScript minor or patch versions, then publish GitHub pre-releases manually while npm package publication remains disabled.
 ---
 
 You prepare a source version in the release pull request, and a maintainer publishes it as a GitHub pre-release after the merge. Nothing is automated: no workflow writes versions, tags, creates releases, or publishes to npm, and **npm publication is disabled**.

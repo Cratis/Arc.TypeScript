@@ -1,6 +1,6 @@
 ---
 title: Observe joined MongoDB collections
-description: Combine current tenant-scoped collections and re-emit the result when either changes.
+description: Combine tenant-scoped MongoDB collections in Arc TypeScript observable queries and publish refreshed joined results whenever either collection changes.
 ---
 
 A catalog can depend on books **and** their authors. Observing only books leaves the catalog stale when an author changes. Resolve the scoped watcher, join the two collections, and select the result you want to publish:

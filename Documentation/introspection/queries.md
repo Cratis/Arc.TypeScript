@@ -1,6 +1,6 @@
 ---
 title: Query introspection
-description: The shape of GET /.cratis/queries, with one entry per registered query, its full name, and its arguments JSON Schema.
+description: Inspect Arc TypeScript queries through GET /.cratis/queries, with registered routes, fully qualified names and argument JSON Schemas for client tools.
 ---
 
 A developer tool that subscribes to an observable query needs its fully qualified name, and a client that calls a query needs its arguments. `GET /.cratis/queries` returns both, in a JSON array with one entry per registered query, observable queries included. For the Tasks sample's `taskById`:

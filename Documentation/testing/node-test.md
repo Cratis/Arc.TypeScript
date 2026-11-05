@@ -1,6 +1,6 @@
 ---
 title: Run a CommandScenario with node:test
-description: Test a decorated command with Node.js's built-in test runner and dispose its scenario after the test.
+description: Exercise decorated Arc TypeScript commands through CommandScenario with Node.js's built-in test runner, and dispose each scenario after the test.
 ---
 
 You do not need a runner-specific Arc adapter to exercise a command pipeline. `CommandScenario` is runner-neutral: create it once, execute it in a test, and dispose it with `after` when the test finishes. This example needs a built clone with `@cratis/arc.core`, `@cratis/arc.testing`, and `@cratis/fundamentals` available from the workspace.

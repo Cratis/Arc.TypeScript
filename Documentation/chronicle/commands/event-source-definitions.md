@@ -1,6 +1,6 @@
 ---
 title: Event source definitions
-description: Route a command's events, and an aggregate's, through a Chronicle event source definition and stream, and know what Arc validates at startup and what Chronicle enforces on append.
+description: Route Arc TypeScript command and aggregate events through Chronicle event source definitions, with startup validation and stream concurrency checks.
 ---
 
 A string such as `@eventSourceType('Account')` names where an event goes, but nothing checks that the name exists or that the stream belongs to it. A Chronicle event source definition is that check: a registered class that declares a source and its streams. A command selects one with `@eventSourceDefinition`, and each event it returns records the definition it was appended through.

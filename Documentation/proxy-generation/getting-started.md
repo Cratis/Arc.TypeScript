@@ -1,6 +1,6 @@
 ---
 title: Set up proxy generation
-description: Generate browser proxies beside backend slices, install the client packages, and keep generation repeatable.
+description: Generate Arc TypeScript browser proxies beside backend slices, install frontend runtime packages and add repeatable generation and compilation checks.
 ---
 
 Start with an Arc backend that already has [commands](../commands/index.md) or [queries](../queries/index.md), and a React frontend beside it. By the end of this guide each slice holds its backend module, typed proxies, and React component; the frontend compiler checks every call against the backend's declarations.

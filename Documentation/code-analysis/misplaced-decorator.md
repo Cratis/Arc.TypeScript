@@ -1,6 +1,6 @@
 ---
 title: 'misplaced-decorator: Decorator has no effect'
-description: Put query, injection, and authorization decorators on supported declarations.
+description: Fix Arc TypeScript misplaced-decorator lint errors by putting query, injection and authorization decorators on declarations supported by the runtime.
 ---
 
 ## What

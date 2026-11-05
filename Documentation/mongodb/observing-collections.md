@@ -1,6 +1,6 @@
 ---
 title: Observing collections
-description: Turn a tenant's MongoDB collection into an observable query with change streams, page and sort it, handle deleted documents, and know what happens when the stream fails.
+description: Observe tenant-scoped MongoDB collections in Arc TypeScript using change streams, with paging, sorting, deleted-document handling and failure behavior.
 ---
 
 A task list backed by MongoDB should update when a document changes, whichever process wrote it: this service, another service, or a script. Polling is either slow or wasteful. `observe` opens a MongoDB change stream on the tenant's collection and turns it into an Arc observable source, so the client receives a new list whenever the collection changes.

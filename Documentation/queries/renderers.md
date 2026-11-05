@@ -1,6 +1,6 @@
 ---
 title: Render provider-backed queries
-description: Register a scoped result renderer before read-model interception and ordinary paging.
+description: Register Arc TypeScript query renderers for provider-owned result values, delegating paging and total counts before read-model interception.
 ---
 
 Your data provider can count and page a result itself, and your query method returns the provider's query object, not an array. Arc's in-memory paging cannot work with that value, and loading every row just to page it defeats the point. A `QueryRenderer` takes the provider-owned value and returns the page the provider cut, with its authoritative total.

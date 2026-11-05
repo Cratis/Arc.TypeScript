@@ -1,6 +1,6 @@
 ---
 title: Identity contracts
-description: Reference for the IdentityDetailsProvider contract, its two registrations, the Principal and ExecutionContext it receives, the /.cratis/me response shape, and how the principal-first trust model differs from Arc on .NET.
+description: Reference Arc TypeScript identity provider contracts, registration options, principal context and the /.cratis/me response under a principal-first trust model.
 ---
 
 This page lists the exact shapes involved in identity details: what your provider implements, what it receives, what `/.cratis/me` returns, and where each rule lives in the source. For the walkthrough, read [Identity](index.md) and [How identity details are served](provider-flow.md).

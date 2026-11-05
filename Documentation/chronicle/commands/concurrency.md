@@ -1,6 +1,6 @@
 ---
 title: Concurrency
-description: Reject a Chronicle append when an event source moved, with routing-decorator tail checks, exact concurrency scopes, or an aggregate, and read the validation result a rejection produces.
+description: Protect Arc TypeScript commands from concurrent Chronicle appends using tail checks, exact scopes or aggregate revisions, and inspect rejected results.
 ---
 
 Two librarians open the same book and both mark it as lent. Without a check, both commands succeed and the book is lent twice. Optimistic concurrency makes the second append fail: Chronicle compares the stream's current tail with the tail the command expected, and rejects the append when they differ.

@@ -1,6 +1,6 @@
 ---
 title: Queries
-description: Read application state through read models and their static query methods, snapshot or live, and find the pages for arguments, paging, validation, and transports.
+description: Read application state with Arc TypeScript read models and static query methods, using snapshot or live results, argument binding, paging and validation.
 ---
 
 A frontend needs lists, lookups, and live views, and each one normally means a route, argument parsing, paging code, and a response shape to keep in step with the client. In Arc, a query is a static method on a read model. Arc supplies the route, binds the arguments, pages and sorts the result, and, for a live query, streams updates to every subscriber.

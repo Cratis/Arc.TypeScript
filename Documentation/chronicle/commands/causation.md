@@ -1,6 +1,6 @@
 ---
 title: Causation and auditing
-description: What the Chronicle integration records in the permanent causation chain for each command, which values it leaves out, and how @notAudited and @pii keep a secret or personal value out of it.
+description: Inspect Chronicle causation records for Arc TypeScript commands and exclude secrets or personal data from permanent event audits with field decorators.
 ---
 
 Six months from now someone asks why a purchase order exists. The event says what happened. Its **causation chain** says how it came about: which command produced it, and what that command was asked to do. The integration writes that record for you on every event a command returns.

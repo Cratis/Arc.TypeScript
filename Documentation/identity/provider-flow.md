@@ -1,6 +1,6 @@
 ---
 title: How identity details are served
-description: Register an identity details provider, reach your own services from it, and understand every /.cratis/me answer, the cookie Arc sets, and where identity is cached.
+description: Follow Arc TypeScript identity requests through provider registration, service access, /.cratis/me responses, browser cookies and frontend caching.
 ---
 
 Once a provider exists, three questions follow quickly. How does Arc find it? What does the browser get back when something goes wrong? And if the cookie caches the identity, when does a change in your data reach the screen? This page follows one request through `/.cratis/me` and answers each.

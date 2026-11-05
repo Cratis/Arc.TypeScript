@@ -1,6 +1,6 @@
 ---
 title: Model-bound queries
-description: Put static query methods on a read-model class, bind their arguments and services, and know which return types Arc accepts, how it awaits them, and what absence looks like.
+description: Define static model-bound queries in Arc TypeScript with bound arguments and services, supported return types, observable results and absence handling.
 ---
 
 A task list, a lookup by ID, and a live board all read the same kind of data. Written as separate routes, each needs its own argument parsing, its own "not found" convention, and its own response shape. In Arc you put these reads on the read model they return, as static methods. Each `@query()` method becomes a route, its parameters are bound from the request or resolved as services, and every answer uses the same `QueryResult` envelope.

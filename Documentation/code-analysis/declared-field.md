@@ -1,6 +1,6 @@
 ---
 title: 'declared-field: Decorated field is erased'
-description: Emit decorated class fields rather than declaring them away.
+description: Fix the Arc TypeScript declared-field lint rule by replacing declare on decorated model properties with definite assignment so runtime fields are emitted.
 ---
 
 ## What

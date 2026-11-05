@@ -1,6 +1,6 @@
 ---
 title: 'query-binding: Descriptor disagrees with parameter'
-description: Keep explicit query descriptors in positional sync.
+description: Fix Arc TypeScript query-binding lint errors by matching explicit argument and service descriptors to query method parameter counts and token types.
 ---
 
 ## What

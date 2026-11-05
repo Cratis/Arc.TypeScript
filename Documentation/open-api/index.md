@@ -1,6 +1,6 @@
 ---
 title: OpenAPI
-description: Hand API consumers and tools an OpenAPI 3.1 description of every command and query at /openapi.json, with request schemas, result envelopes, and bearer security, without writing it by hand.
+description: Serve generated OpenAPI 3.1 contracts from Arc TypeScript at /openapi.json, including commands, queries, request schemas, result envelopes and security.
 ---
 
 A partner team wants to call your task API from Python. A QA engineer wants the endpoints in their API client. Your gateway wants a contract to validate against. Writing that description by hand means it is wrong the week after someone adds a field.

@@ -1,6 +1,6 @@
 ---
 title: Command introspection
-description: The shape of GET /.cratis/commands, with one entry per registered command and its payload JSON Schema.
+description: Inspect registered Arc TypeScript commands through GET /.cratis/commands, including command routes, namespaces, documentation and payload JSON Schemas.
 ---
 
 A tool that fills in a command form, or a test that checks nobody removed a command, needs the command's route and the exact shape of its body. `GET /.cratis/commands` returns a JSON array with one entry per registered command. For the Tasks sample, which registers its generated metadata:

@@ -1,6 +1,6 @@
 ---
 title: Validation severity filtering
-description: Choose which validation severities block a command, per request, and why HTTP callers cannot let errors through.
+description: Configure which validation severities block Arc TypeScript commands per request, including warning thresholds and error limits for HTTP callers.
 ---
 
 Not every rule should stop a command. A warning such as "this title is unusually long" can inform the user without blocking them, while a form's final submit may want warnings to block. Arc lets the caller choose, within limits.

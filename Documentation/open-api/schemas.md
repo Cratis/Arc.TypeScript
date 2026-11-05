@@ -1,6 +1,6 @@
 ---
 title: How types appear in the document
-description: See how concepts, dates, enums, optional, nullable, and defaulted fields, and result types are described in /openapi.json and the introspection schemas, and why they match the wire format.
+description: Inspect Arc TypeScript OpenAPI and introspection schemas for concepts, enums, optional fields, derived types and results that match JSON wire values.
 ---
 
 Your command declares `@field(TaskId) id`. A client generator in Go or Python must not see a `TaskId` object with a `value` inside it, because the JSON on the wire carries a plain UUID string. Arc builds every schema in the document from the same wire rules that bind and serialize requests, so what the document says is what the wire carries.

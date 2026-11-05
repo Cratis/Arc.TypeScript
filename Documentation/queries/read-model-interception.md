@@ -1,6 +1,6 @@
 ---
 title: Intercept read models
-description: Transform a read-model instance in each scoped snapshot and observable emission before it reaches the wire.
+description: Transform Arc TypeScript read models with scoped interceptors before query responses are encoded, covering snapshots and every observable emission.
 ---
 
 Several queries return the same read model, and each one has to trim or reshape it the same way before it leaves the server. Copying that logic into every query method means the next query forgets it. A read-model interceptor transforms the model once, for every query that returns it.

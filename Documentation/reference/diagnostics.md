@@ -1,6 +1,6 @@
 ---
 title: Diagnostics
-description: Every place Arc for TypeScript reports a problem, from lint rules and proxy generation to build errors, validation reasons, HTTP status codes, and the endpoints and telemetry of a running server.
+description: Locate Arc TypeScript diagnostic surfaces across ESLint, proxy generation, startup checks, validation results, HTTP responses and running-server telemetry.
 ---
 
 Arc reports a problem at the earliest point it can see it. A binding mistake shows in the editor, a missing service stops `build()`, a bad request answers 400 with a reason, and a running server can describe what it serves. This page lists each of those surfaces and what it tells you. For step-by-step fixes of common problems, see [Troubleshooting](../troubleshooting.md).
