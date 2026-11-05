@@ -15,8 +15,8 @@ function versionConstant(version) {
 const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const statements = new Map([
     ['README.md', /Every package manifest is at version (\d+\.\d+\.\d+)\. That is/g],
-    ['Documentation/index.md', /the manifests are at version (\d+\.\d+\.\d+) for a source preview/g],
-    ['Documentation/reference/packages.md', /Every package in this repository is at version (\d+\.\d+\.\d+), the version/g]
+    ['Documentation/index.md', /the manifests are at version (\d+\.\d+\.\d+)\./g],
+    ['Documentation/reference/packages.md', /Every package in this repository is at version (\d+\.\d+\.\d+)\./g]
 ]);
 
 export function validateVersion(version) {
