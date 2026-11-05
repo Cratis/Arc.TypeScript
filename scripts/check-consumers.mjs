@@ -240,8 +240,8 @@ import { ArcApplication, type ArcApplicationBuilder } from '@cratis/arc.core';
 import { withDrizzle, type DrizzleOptions } from '@cratis/arc.drizzle';
 import { withChronicle, type ChronicleRegistration } from '@cratis/arc.chronicle';
 import { ChronicleCommandScenario } from '@cratis/arc.chronicle/testing';
-import { CratisApplication } from '@cratis/cratis';
-import { CommandScenario as CratisCommandScenario, ChronicleCommandScenario as CratisChronicleCommandScenario } from '@cratis/cratis/testing';
+import { CratisApplication } from '@cratis/platform';
+import { CommandScenario as CratisCommandScenario, ChronicleCommandScenario as CratisChronicleCommandScenario } from '@cratis/platform/testing';
 function configureIntegrations(builder: ArcApplicationBuilder, sql: DrizzleOptions, events: ChronicleRegistration) {
     withDrizzle(builder, sql);
     withChronicle(builder, events);

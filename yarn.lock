@@ -478,21 +478,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cratis/cratis@workspace:Source/Cratis":
-  version: 0.0.0-use.local
-  resolution: "@cratis/cratis@workspace:Source/Cratis"
-  dependencies:
-    "@cratis/arc.chronicle": "workspace:^"
-    "@cratis/arc.core": "workspace:^"
-    "@cratis/arc.express": "workspace:^"
-    "@cratis/arc.testing": "workspace:^"
-    "@cratis/chronicle": "npm:6.49.0"
-    "@cratis/fundamentals": "npm:7.22.0"
-    rxjs: "npm:^7.8.2"
-    zod: "npm:^4.1.0"
-  languageName: unknown
-  linkType: soft
-
 "@cratis/eslint-plugin-arc-core@workspace:Source/CodeAnalysis":
   version: 0.0.0-use.local
   resolution: "@cratis/eslint-plugin-arc-core@workspace:Source/CodeAnalysis"
@@ -515,6 +500,21 @@ __metadata:
   checksum: 10c0/b02a3f62a8242e3471b2539907c6d96ac95fd75e36d4ab0904ae69ac83ffad645beff6f7e9978dcc622322c4f8b90d3ce9d29c6cd35c5be1846ac22b2d8c5f2b
   languageName: node
   linkType: hard
+
+"@cratis/platform@workspace:Source/Cratis":
+  version: 0.0.0-use.local
+  resolution: "@cratis/platform@workspace:Source/Cratis"
+  dependencies:
+    "@cratis/arc.chronicle": "workspace:^"
+    "@cratis/arc.core": "workspace:^"
+    "@cratis/arc.express": "workspace:^"
+    "@cratis/arc.testing": "workspace:^"
+    "@cratis/chronicle": "npm:6.49.0"
+    "@cratis/fundamentals": "npm:7.22.0"
+    rxjs: "npm:^7.8.2"
+    zod: "npm:^4.1.0"
+  languageName: unknown
+  linkType: soft
 
 "@csstools/color-helpers@npm:^6.1.2":
   version: 6.1.2

@@ -80,7 +80,7 @@ The `@key()` field names the event source, so the registration lands in that aut
 | --- | --- |
 | [Add event sourcing](add-event-sourcing.md) | Start a local kernel, record a first event from a command, and query its projection |
 | [Registration options](registration-options.md) | Look up the `withChronicle` options, configuration keys, and client ownership |
-| [The Cratis package](cratis-package.md) | Register Arc and Chronicle with one call from `@cratis/cratis` |
+| [The Cratis package](cratis-package.md) | Register Arc and Chronicle with one call from `@cratis/platform` |
 | [Returning events](commands/index.md) | Return one event, a batch, or events next to a response |
 | [Event metadata](commands/event-metadata.md) | See what each appended event carries and where every value comes from |
 | [Resolving the event source ID](resolving-event-source-id.md) | Choose which event source an event is appended to, and route it |

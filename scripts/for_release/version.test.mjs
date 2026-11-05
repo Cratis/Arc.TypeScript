@@ -19,11 +19,11 @@ function fixture(t) {
     const files = {
         'package.json': { workspaces: ['Source/*', 'Source/Tools/*', 'Samples/*', 'ContractTests/Client', 'ContractTests/Http'] },
         'Source/CodeAnalysis/package.json': { name: '@cratis/eslint-plugin-arc-core', version: '0.19.0' },
-        'Source/Core/package.json': { name: '@cratis/arc.core', version: '0.19.0', dependencies: { '@cratis/arc.testing': 'workspace:^', '@cratis/cratis': '^0.19.0' } },
+        'Source/Core/package.json': { name: '@cratis/arc.core', version: '0.19.0', dependencies: { '@cratis/arc.testing': 'workspace:^', '@cratis/platform': '^0.19.0' } },
         'Source/Tools/Generator/package.json': { name: '@cratis/arc.proxygenerator', version: '0.19.0', dependencies: { '@cratis/arc.core': 'workspace:*' } },
         'Source/Testing/package.json': { name: '@cratis/arc.testing', version: '0.19.0', peerDependencies: { '@cratis/arc.core': '^0.18.0' } },
-        'Source/Cratis/package.json': { name: '@cratis/cratis', version: '0.19.0', optionalDependencies: { '@cratis/arc.core': '^0.19.0' }, devDependencies: { '@cratis/arc.testing': '^0.18.0' } },
-        'Samples/Tasks/package.json': { name: 'sample', dependencies: { '@cratis/cratis': 'workspace:^' } },
+        'Source/Cratis/package.json': { name: '@cratis/platform', version: '0.19.0', optionalDependencies: { '@cratis/arc.core': '^0.19.0' }, devDependencies: { '@cratis/arc.testing': '^0.18.0' } },
+        'Samples/Tasks/package.json': { name: 'sample', dependencies: { '@cratis/platform': 'workspace:^' } },
         'ContractTests/Client/package.json': { name: 'contract', version: '0.19.0', dependencies: { '@cratis/arc.react': '22.19.1' } },
         'ContractTests/Http/package.json': { name: 'http', devDependencies: { '@cratis/arc.core': 'workspace:*' } }
     };
@@ -56,7 +56,7 @@ test('updates versioned workspaces, all internal non-workspace ranges, and three
     assert.equal(plan.statements, 3);
     assert.equal(plan.constants, 2);
     writeVersion(folder, plan);
-    assert.equal(manifest(folder, 'Source/Core').dependencies['@cratis/cratis'], '^0.20.0');
+    assert.equal(manifest(folder, 'Source/Core').dependencies['@cratis/platform'], '^0.20.0');
     assert.equal(manifest(folder, 'Source/Cratis').devDependencies['@cratis/arc.testing'], '^0.20.0');
     assert.equal(manifest(folder, 'Source/Testing').peerDependencies['@cratis/arc.core'], '^0.20.0');
     assert.equal(manifest(folder, 'Source/Cratis').optionalDependencies['@cratis/arc.core'], '^0.20.0');

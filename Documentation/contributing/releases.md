@@ -69,4 +69,4 @@ The workflow is **manual only**, not triggered by pushes or pull requests. The p
 
 ## After a release
 
-Check that the GitHub release exists and that `npm view @cratis/arc.core version` shows the new version. The Chronicle integration (`@cratis/arc.chronicle`) and `@cratis/cratis` are published with every release but stay documented as bounded in the [capability reference](../reference/capabilities.md). If the publish job fails after some packages are published, re-run it: the script skips versions already on the registry. A release must fail rather than report success after a partial publish.
+Check that the GitHub release exists and that `npm view @cratis/arc.core version` shows the new version. The Chronicle integration (`@cratis/arc.chronicle`) and `@cratis/platform` are published with every release but stay documented as bounded in the [capability reference](../reference/capabilities.md). If the publish job fails after some packages are published, re-run it: the script skips versions already on the registry. A release must fail rather than report success after a partial publish.

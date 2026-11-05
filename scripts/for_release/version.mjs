@@ -83,7 +83,7 @@ export function prepareVersion(root, requestedVersion, { check = false, allowMaj
         throw new Error(`Major version change to ${version} requires --allow-major and human approval`);
     }
     const internalNames = new Set(manifests.map(manifest => manifest.package.name)
-        .filter(name => typeof name === 'string' && (name.startsWith('@cratis/arc.') || name === '@cratis/cratis')));
+        .filter(name => typeof name === 'string' && (name.startsWith('@cratis/arc.') || name === '@cratis/platform')));
     let ranges = 0;
     const problems = [];
     for (const manifest of manifests) {
