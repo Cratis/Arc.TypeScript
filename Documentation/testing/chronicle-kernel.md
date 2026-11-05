@@ -1,6 +1,6 @@
 ---
 title: Test Chronicle commands against a kernel
-description: Seed an event source's history, run Arc commands against a live Chronicle kernel, and assert aggregates, projections, constraints, and concurrency in an isolated event store.
+description: Test Arc commands against a live Chronicle kernel, seeding history and asserting aggregates, projections, constraints, and concurrency in isolation.
 ---
 
 Some command behavior only exists in the kernel. An aggregate needs stored history to load; a constraint or concurrency check is enforced when Chronicle appends; and projections outside the [in-process Chronicle testing capabilities](https://github.com/Cratis/Chronicle.TypeScript/blob/main/Documentation/testing.md#projection-capabilities) need a kernel. The [in-memory scenario](chronicle.md) evaluates supported flat projections on demand for keyed reads, but does not run observers or update read models after command appends. An unsupported definition throws `UnsupportedProjectionOperation`: use this kernel scenario rather than bypassing that boundary. `ChronicleKernelScenario` from `@cratis/arc.chronicle/testing` runs the command through the real Arc pipeline against a running kernel, in a fresh event store for each scenario.

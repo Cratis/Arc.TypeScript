@@ -1,6 +1,6 @@
 ---
 title: Arc for TypeScript
-description: Arc for TypeScript brings the Arc CQRS server model - model-bound commands, read models, validation, and authorization - to Node.js, speaking the same HTTP contract as Arc on .NET.
+description: Arc for TypeScript brings model-bound commands, read models, validation, and authorization to Node.js using Arc on .NET's HTTP contract.
 ---
 
 Arc for TypeScript is a Node.js server implementation of [Arc](/arc/), the Cratis CQRS framework: you declare commands and read models as decorated classes, and Arc hosts them behind one HTTP contract that the existing Arc clients already understand.

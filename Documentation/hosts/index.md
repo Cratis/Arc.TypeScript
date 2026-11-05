@@ -1,6 +1,6 @@
 ---
 title: Host adapters
-description: Mount Arc in Express, Fastify, Hono, or a Fetch API host; know which runtime features each host supports.
+description: Mount Arc in Express, Fastify, Hono, or a Fetch API host using an adapter, with package names and runtime feature support explained.
 ---
 
 Your team already runs a web framework, with its middleware, health checks, and deployment story. You do not want a second server for Arc. A host adapter mounts the Arc application into the framework you have and leaves every route Arc does not own to that framework.

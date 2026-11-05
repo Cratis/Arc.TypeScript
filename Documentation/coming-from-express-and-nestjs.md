@@ -1,6 +1,6 @@
 ---
 title: Coming from Express and NestJS
-description: Map Express route handlers and NestJS controllers, DTOs, and class-validator rules to Arc commands, read models, and validators, and see what changes and when to stay where you are.
+description: Map Express handlers and NestJS controllers, DTOs, and validation rules to Arc commands, read models, and validators in TypeScript.
 ---
 
 If you build Node.js backends today, you probably write one of two shapes: an Express route handler that parses, validates, and answers by hand, or a NestJS controller with DTO classes and `class-validator` decorators. Arc keeps the parts you like (classes, decorators, dependency injection) and removes the parts you repeat: the route, the parser, the status-code mapping, and the client that has to match all of it.

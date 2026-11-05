@@ -1,6 +1,6 @@
 ---
 title: Tenancy
-description: Serve several customers from one Arc application, choose how each request selects its tenant, prove the caller belongs to it, and keep tenant selection, membership, and storage isolation apart.
+description: Serve multiple customers from one Arc application by selecting tenants, checking membership, and separating these from storage isolation.
 ---
 
 Acme and Globex both use your task application, on the same deployment. A request from an Acme user must only ever read and change Acme's tasks. One missed check, and a Globex user sees a competitor's data.

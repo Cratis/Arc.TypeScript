@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure Arc through its grouped ArcOptions tree, appsettings.json, environment variables, or code, add integrations through the builder, and see what each host reads.
+description: Configure Arc for TypeScript using ArcOptions, appsettings.json, environment variables, or code, with settings support explained per host.
 ---
 
 The same application runs on your laptop, in CI, and in production. The route prefix stays put, but the tenant source, the exception detail, and the listener address change between them. You want those differences in configuration, not in `if` statements around your startup code.

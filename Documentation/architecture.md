@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: How Arc for TypeScript separates a framework-independent CQRS core from host adapters and optional integrations, and how Arc concepts map to TypeScript and Node.js.
+description: Arc for TypeScript separates a framework-independent CQRS core from host adapters and integrations, mapping Arc concepts to Node.js.
 ---
 
 Arc for TypeScript is built so the same command and query code can run behind Express, Fastify, or Hono, with or without a database or an event store. This page explains the boundaries that make that possible and the places where TypeScript forces a different design from Arc on .NET.

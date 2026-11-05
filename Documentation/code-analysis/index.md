@@ -1,6 +1,6 @@
 ---
 title: Analyze Arc server artifacts
-description: ESLint 10 rules for model-bound Arc commands, queries, and validators.
+description: The Arc ESLint 10 plugin checks model-bound TypeScript commands, queries, and validators, with documented mappings to .NET diagnostics.
 ---
 
 Use `@cratis/eslint-plugin-arc-core` to find model-bound binding mistakes before you build or start an Arc server. This package is available from source and is not published to npm; it does not lint the existing Arc frontend packages. The existing `@cratis/eslint-plugin-arc` name belongs to the frontend repository.

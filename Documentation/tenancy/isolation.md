@@ -1,6 +1,6 @@
 ---
 title: Storage isolation
-description: See how the MongoDB, Drizzle, and Chronicle integrations turn the resolved tenant into a database, connection, or event store namespace, and how to verify the boundary.
+description: Learn how MongoDB, Drizzle, and Chronicle map resolved Arc tenants to databases, connections, or namespaces, and verify storage isolation.
 ---
 
 Resolving `acme` for a request is only useful if the data really goes to Acme's storage. Each storage integration maps the resolved tenant to its own destination, and they do not all treat a missing tenant or letter case the same way. This page lists each mapping so you can line them up, then shows how to check that the boundary holds.

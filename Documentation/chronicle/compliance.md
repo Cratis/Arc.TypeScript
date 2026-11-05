@@ -1,6 +1,6 @@
 ---
 title: Compliance
-description: What the Chronicle integration does for personal data, subjects, and audit exclusion in TypeScript, and which parts of Arc on .NET's compliance support it does not have.
+description: Arc for TypeScript supports Chronicle personal data, subjects, and audit exclusion within documented limits compared with Arc on .NET.
 ---
 
 Events are immutable, yet a person can ask for their personal data to be erased. Chronicle resolves that tension by keying personal data to a **subject** and managing encryption keys per subject; destroying the key makes the data unreadable while the events stay. The [Chronicle compliance guide](/chronicle/compliance/) explains that side.

@@ -1,6 +1,6 @@
 ---
 title: Capability reference
-description: The status of every Arc capability in Arc for TypeScript, the TypeScript contract behind it, the spec or check that proves it, and where it deliberately differs from Arc on .NET.
+description: Compare Arc for TypeScript capabilities with Arc on .NET, including supported contracts, evidence, limitations, and deliberate differences.
 ---
 
 This page is the single status and parity reference for Arc for TypeScript. The shared [Arc capability matrix](/arc/capabilities/) covers C#, Kotlin, and Java; this page records, for TypeScript, whether each capability exists, where its boundary lies, and which spec, contract test, or sample proves it. The wire behavior every implementation follows is the [Arc HTTP contract](/arc/http-contract/). Other pages link here instead of restating status.

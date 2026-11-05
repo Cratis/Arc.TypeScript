@@ -1,6 +1,6 @@
 ---
 title: Decorator reference
-description: Every decorator and parameter descriptor you write on Arc for TypeScript artifacts, where it may go, what it changes, and the Arc on .NET attribute it corresponds to.
+description: Arc for TypeScript decorators and parameter descriptors define artifacts, with placement rules, behavior, and .NET attribute mappings.
 ---
 
 Arc for TypeScript discovers what your application exposes from decorators on your classes, the way Arc on .NET uses [attributes](/arc/backend/csharp/attributes/). This is the whole set, grouped by concern. Decorators come from `@cratis/arc.core` unless the table says otherwise. Both standard decorators and legacy `experimentalDecorators` are supported.

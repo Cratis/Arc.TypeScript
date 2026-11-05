@@ -1,6 +1,6 @@
 ---
 title: Add event sourcing
-description: Start a development Chronicle kernel, add the Arc integration to your application, record an event from a command, and serve the projected read model from a query.
+description: Add Chronicle to Arc for TypeScript by starting a development kernel, recording an event from a command, and querying the projected read model.
 ---
 
 The notes in the application from [Create an application](../getting-started/create-an-application.md) live in memory: a restart loses them, and nothing records what happened. This guide adds [Chronicle](/chronicle/), the event-sourcing database, to that application. A command records a fact as an event, Chronicle projects the event into a read model, and a query serves the read model.

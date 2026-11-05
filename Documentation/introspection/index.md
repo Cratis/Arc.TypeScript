@@ -1,6 +1,6 @@
 ---
 title: Introspection
-description: Ask a running Arc application which commands and queries it serves, with routes and input JSON Schema, from the access-controlled /.cratis introspection endpoints, and know what they expose.
+description: Query a running Arc application's access-controlled /.cratis endpoints for command and query routes and input JSON Schema catalogs.
 ---
 
 You open a service you did not write, or one you wrote six months ago, and need to know what it accepts. Reading every feature folder takes a while. A developer tool, a contract test, or an AI assistant helping you has the same problem, and often cannot read the source at all.

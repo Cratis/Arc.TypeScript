@@ -1,6 +1,6 @@
 ---
 title: Packages
-description: The packages this repository builds, what each exports, their peer dependencies and Node.js requirements, and how they relate to the published @cratis/arc client.
+description: Find Arc for TypeScript packages, exports, peer dependencies, and Node.js requirements, and distinguish them from the @cratis/arc client.
 ---
 
 Every package in this repository is at version 0.58.0. **None is published to npm.** They ship ES modules only. Clone this repository, run `yarn install` and `yarn build`, and then use the packages in one of two ways:

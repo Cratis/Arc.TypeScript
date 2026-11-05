@@ -1,6 +1,6 @@
 ---
 title: Chronicle
-description: Return Chronicle events from Arc commands, serve projected read models from Arc queries, and let reactors return Arc commands, with the @cratis/arc.chronicle integration.
+description: Use @cratis/arc.chronicle to return events from Arc commands, query projected read models, and let reactors return Arc commands.
 ---
 
 A librarian registers an author. You want that registration kept as a fact, and you want the author list on screen to update from it. Without an integration, every command opens a Chronicle client, picks the event store namespace for the caller's tenant, appends inside `handle()`, turns constraint violations into validation results, and takes care never to append when validation has already failed.
