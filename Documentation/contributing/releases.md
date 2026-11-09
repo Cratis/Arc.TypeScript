@@ -1,6 +1,6 @@
 ---
 title: Prepare and publish a TypeScript release
-description: Release Arc for TypeScript by labeling and merging a pull request; a workflow computes the version, creates the GitHub release, and publishes every package to npm with provenance.
+description: Release Arc for TypeScript by labeling and merging a pull request; a workflow sets the version, creates the GitHub release and publishes every package to npm.
 ---
 
 A release is a pull request. Label it `major`, `minor`, `patch`, or `no-release`, write its description as the release notes, and merge it to `main` with a merge commit. The publish workflow does the rest; you do not edit versions, create tags, or run `npm publish`.
