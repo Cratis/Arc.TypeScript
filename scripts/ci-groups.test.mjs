@@ -72,6 +72,9 @@ test('CI runs every group as its own job when code changes', () => {
         const steps = [...job.matchAll(/^        run: (.+)$/gm)].map(([, command]) => command);
         assert.equal(steps.at(-1), run);
         assert.ok(steps.includes('yarn install --immutable'));
+        if (group !== 'artifacts') {
+            assert.ok(steps.indexOf('yarn build') > steps.indexOf('yarn install --immutable'), `verify-${group} must build before running`);
+        }
     }
 });
 
