@@ -33,5 +33,5 @@ export class InferredFields {
 }
 
 export class RecursiveModel {
-    @field(RecursiveModel) next!: RecursiveModel;
+    @field(Object) next!: RecursiveModel;
 }
