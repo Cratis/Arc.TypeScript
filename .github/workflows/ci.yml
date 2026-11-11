@@ -125,11 +125,11 @@ jobs:
           ARC_DOCUMENTATION: ${{ github.workspace }}/.arc-tutorial-source/Documentation
         run: yarn build && bash Documentation/tutorial-e2e/run.sh
 
-  verify:
+  verify-contracts:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - name: Check out code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -143,5 +143,98 @@ jobs:
         run: corepack enable
       - name: Install locked dependencies
         run: yarn install --immutable
-      - name: Run the complete local gate
-        run: yarn ci
+      - name: Check generated contracts, builds, lint and types
+        run: yarn ci:contracts
+
+  verify-packages:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.19.0'
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Build package prerequisites
+        run: yarn build
+      - name: Check installed packages and runtimes
+        run: yarn ci:packages
+
+  verify-specs:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/2', '2/2']
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.19.0'
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Build spec prerequisites
+        run: yarn build
+      - name: Run a disjoint shard of the complete spec suite
+        run: yarn ci:specs --shard=${{ matrix.shard }}
+
+  verify-integration-docs:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.19.0'
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Build integration and documentation prerequisites
+        run: yarn build
+      - name: Check Library integration, documentation and release scripts
+        run: yarn ci:integration-docs
+
+  # Preserve the required check name and reject failures, cancellations and unexpected skips.
+  verify:
+    needs: [changes, verify-contracts, verify-packages, verify-specs, verify-integration-docs]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every gate group to succeed or every group to be intentionally skipped
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          node --input-type=module <<'NODE'
+          const { changes, ...groups } = JSON.parse(process.env.NEEDS_JSON);
+          const expected = changes.outputs.code === 'false' ? 'skipped' : 'success';
+          if (changes.result !== 'success' || !Object.values(groups).every(group => group.result === expected)) {
+              console.error('CI groups did not all complete with the expected result', expected);
+              process.exit(1);
+          }
+          NODE
