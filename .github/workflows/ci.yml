@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -66,6 +66,8 @@ jobs:
           node-version: '22.19.0'
       - name: Enable Yarn from the repository package manager
         run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
       - name: Install locked dependencies
         run: yarn install --immutable
       - name: Check documentation
@@ -87,6 +89,8 @@ jobs:
           node-version: '22.19.0'
       - name: Enable Yarn from the repository package manager
         run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
       - name: Install locked dependencies
         run: yarn install --immutable
       - name: Build integration dependencies
@@ -116,6 +120,8 @@ jobs:
           node-version: '22.19.0'
       - name: Enable Yarn from the repository package manager
         run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
       - name: Install locked dependencies
         run: yarn install --immutable
       - name: Check tutorial assembler negative cases
@@ -141,6 +147,8 @@ jobs:
           node-version: '22.19.0'
       - name: Enable Yarn from the repository package manager
         run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
       - name: Install locked dependencies
         run: yarn install --immutable
       - name: Run the complete local gate
