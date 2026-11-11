@@ -131,7 +131,7 @@ jobs:
           ARC_DOCUMENTATION: ${{ github.workspace }}/.arc-tutorial-source/Documentation
         run: yarn build && bash Documentation/tutorial-e2e/run.sh
 
-  verify:
+  verify-artifacts:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
@@ -151,5 +151,103 @@ jobs:
         uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
       - name: Install locked dependencies
         run: yarn install --immutable
-      - name: Run the complete local gate
-        run: yarn ci
+      - name: Build packages and check generated artifacts and consumers
+        run: yarn ci:artifacts
+
+  verify-quality:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.19.0'
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Build prerequisites
+        run: yarn build
+      - name: Lint and typecheck
+        run: yarn ci:quality
+
+  verify-tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.19.0'
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Build prerequisites
+        run: yarn build
+      - name: Run unit, client contract, decorator and Library end-to-end tests
+        run: yarn ci:tests
+
+  verify-docs:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.19.0'
+      - name: Enable Yarn from the repository package manager
+        run: corepack enable
+      - name: Cache Yarn packages
+        uses: Cratis/Workflows/.github/actions/yarn-cache@2fa2cb4fedb8048c4afb7f1a14e0103a35b0f1ce
+      - name: Install locked dependencies
+        run: yarn install --immutable
+      - name: Build prerequisites
+        run: yarn build
+      - name: Check documentation, release scripts and version consistency
+        run: yarn ci:docs
+
+  # Preserve the existing check name, including intentionally skipped code checks.
+  verify:
+    needs: [changes, verify-artifacts, verify-quality, verify-tests, verify-docs]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every code check to succeed when code changes
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          if [[ "$CHANGES_RESULT" != success ]]; then
+            exit 1
+          fi
+          if [[ "$CODE" == true ]]; then
+            jq -e 'all(. == "success")' <<< "$RESULTS"
+          else
+            jq -e 'all(. == "success" or . == "skipped")' <<< "$RESULTS"
+          fi
