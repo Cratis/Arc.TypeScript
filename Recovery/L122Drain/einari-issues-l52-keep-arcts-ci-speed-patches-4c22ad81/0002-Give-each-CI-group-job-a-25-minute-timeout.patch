@@ -1,0 +1,52 @@
+From fd2f7ca907062217daca4419e51c72ff728c8330 Mon Sep 17 00:00:00 2001
+From: woksin <sindrewilting@gmail.com>
+Date: Wed, 11 Nov 2026 22:37:07 +0100
+Subject: [PATCH 2/2] Give each CI group job a 25-minute timeout
+
+---
+ .github/workflows/ci.yml | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 6ca92404..d0822ebf 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -129,7 +129,7 @@ jobs:
+     needs: changes
+     if: needs.changes.outputs.code == 'true'
+     runs-on: ubuntu-latest
+-    timeout-minutes: 15
++    timeout-minutes: 25
+     steps:
+       - name: Check out code
+         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+@@ -150,7 +150,7 @@ jobs:
+     needs: changes
+     if: needs.changes.outputs.code == 'true'
+     runs-on: ubuntu-latest
+-    timeout-minutes: 15
++    timeout-minutes: 25
+     steps:
+       - name: Check out code
+         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+@@ -173,7 +173,7 @@ jobs:
+     needs: changes
+     if: needs.changes.outputs.code == 'true'
+     runs-on: ubuntu-latest
+-    timeout-minutes: 15
++    timeout-minutes: 25
+     strategy:
+       fail-fast: false
+       matrix:
+@@ -200,7 +200,7 @@ jobs:
+     needs: changes
+     if: needs.changes.outputs.code == 'true'
+     runs-on: ubuntu-latest
+-    timeout-minutes: 15
++    timeout-minutes: 25
+     steps:
+       - name: Check out code
+         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+-- 
+2.50.1 (Apple Git-155)
+
