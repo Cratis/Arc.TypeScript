@@ -8,6 +8,7 @@ export const WellKnownTelemetryNames = {
     commandFilterSpan: 'cratis.arc.command.filter',
     queryPerformSpan: 'cratis.arc.query.perform',
     queryFilterSpan: 'cratis.arc.query.filter',
+    /** @deprecated Emissions are counted by queryEmissions and no longer traced. */
     queryEmissionSpan: 'cratis.arc.query.emission',
     querySubscribeSpan: 'cratis.arc.query.subscribe',
     httpHandleSpan: 'cratis.arc.http.handle',
@@ -18,6 +19,7 @@ export const WellKnownTelemetryNames = {
     queryTransport: 'cratis.arc.query.transport',
     queryOutcome: 'cratis.arc.query.outcome',
     commandOutcomes: 'cratis.arc.command.outcomes',
+    queryEmissions: 'cratis.arc.query.emissions',
     commandDuration: 'cratis.arc.command.duration',
     queryDuration: 'cratis.arc.query.duration',
     /** @deprecated Use commandDuration and queryDuration. Emitted in parallel for one minor release. */

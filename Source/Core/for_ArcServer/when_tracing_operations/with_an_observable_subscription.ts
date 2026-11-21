@@ -32,6 +32,7 @@ describe('when tracing an observable subscription', () => {
         }
     });
     it('should end the subscription span after source and emission work', () => {
-        names.should.include.members(['cratis.arc.query.subscribe', 'cratis.arc.query.perform', 'cratis.arc.query.emission']);
+        names.should.include.members(['cratis.arc.query.subscribe', 'cratis.arc.query.perform']);
     });
+    it('should not start an emission span', () => names.should.not.include('cratis.arc.query.emission'));
 });
