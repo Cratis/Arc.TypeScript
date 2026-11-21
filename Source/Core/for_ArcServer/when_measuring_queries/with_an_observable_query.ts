@@ -37,10 +37,15 @@ describe('when measuring an observable query with multiple emissions', given(a_t
         metric.dataPoints[0]!.attributes.should.deep.equal({ 'cratis.arc.query.name': 'Watch', query_name: 'Watch' });
         metric.dataPoints[0]!.value.should.have.property('count', 1);
     });
-    it('should retain both emission measurements only in the deprecated operation duration', () => {
+    it('should not record emissions in the deprecated operation duration', () => {
         const legacy = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
             .find(metric => metric.descriptor.name === WellKnownTelemetryNames.operationDuration)!;
-        const point = legacy.dataPoints.find(point => point.attributes.operation === 'cratis.arc.query.emission')!;
-        point.value.should.have.property('count', 2);
+        legacy.dataPoints.filter(point => point.attributes.operation === 'cratis.arc.query.emission').should.have.lengthOf(0);
+    });
+    it('should count both emissions with the canonical and deprecated query names', () => {
+        const metric = exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics)
+            .find(metric => metric.descriptor.name === WellKnownTelemetryNames.queryEmissions)!;
+        metric.dataPoints.map(point => ({ attributes: point.attributes, value: point.value })).should.deep.equal([
+            { attributes: { query_name: 'Watch', 'cratis.arc.query.name': 'Watch' }, value: 2 }]);
     });
 }));

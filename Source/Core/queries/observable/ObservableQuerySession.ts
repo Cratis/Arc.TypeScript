@@ -12,7 +12,7 @@ import { ObservableEmissionDecision } from './ObservableEmissionDecision.js';
 import type { ObservableEmissionContext } from './ObservableEmissionContext.js';
 import type { ObservableSessionConfig } from './ObservableSessionConfig.js';
 import { clonePrincipal } from './clonePrincipal.js';
-import { beginSubscription, observe } from '../../execution/observability.js';
+import { beginSubscription, observeEmission } from '../../execution/observability.js';
 import { observeOperation } from '../../execution/observeOperation.js';
 import { WellKnownTelemetryNames } from '../../execution/WellKnownTelemetryNames.js';
 import type { ShutdownTransaction } from '../../dependencyInjection/ShutdownTransaction.js';
@@ -88,11 +88,14 @@ export class ObservableQuerySession {
             value = source.value;
         }
         if (!present) return undefined;
-        const result = await this.run(() => observe(WellKnownTelemetryNames.queryEmissionSpan, this.#context.correlationId,
-            { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
-                this.#context, this.config.options, value), undefined, result => result.hasExceptions));
+        const result = await this.render(value);
         await this.reportResult(result);
         return this.guarded(result);
+    }
+
+    private render(value: unknown): Promise<QueryResult> {
+        return this.run(() => observeEmission(this.config.operation.fullyQualifiedName, () => this.config.operation.render(
+            this.config.input, this.#context, this.config.options, value)));
     }
 
     /** @internal Transfer this session to the owner before releasing its producer. */
@@ -201,9 +204,7 @@ export class ObservableQuerySession {
                     if (this.#transaction && this.#context.signal.aborted) void this.releaseProducer().catch(() => {});
                 })) {
                 if (this.#transaction && this.#context.signal.aborted) return;
-                const result = await this.run(() => observe(WellKnownTelemetryNames.queryEmissionSpan, this.#context.correlationId,
-                    { query_name: this.config.operation.fullyQualifiedName }, () => this.config.operation.render(this.config.input,
-                        this.#context, this.config.options, value), undefined, result => result.hasExceptions));
+                const result = await this.render(value);
                 await this.reportResult(result);
                 const guarded = await this.guarded(result);
                 if (this.#transaction && this.#context.signal.aborted) return;

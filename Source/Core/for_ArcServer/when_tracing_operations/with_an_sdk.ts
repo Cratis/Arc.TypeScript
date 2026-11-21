@@ -83,12 +83,13 @@ describe('when tracing an HTTP query with an application SDK', () => {
         for (const span of matching) span.attributes['cratis.arc.query.name']!.should.equal(span.attributes.query_name);
         matching.map(span => span.attributes['cratis.arc.query.name']).should.include('Items');
     });
-    it('should carry the canonical query name on subscription and emission spans', () => {
-        for (const name of ['cratis.arc.query.subscribe', 'cratis.arc.query.emission']) {
-            const matching = spans.filter(span => span.name === name);
-            matching.length.should.be.greaterThan(0);
-            for (const span of matching) span.attributes['cratis.arc.query.name']!.should.equal('Watch');
-        }
+    it('should carry the canonical query name on subscription spans', () => {
+        const matching = spans.filter(span => span.name === 'cratis.arc.query.subscribe');
+        matching.length.should.be.greaterThan(0);
+        for (const span of matching) span.attributes['cratis.arc.query.name']!.should.equal('Watch');
+    });
+    it('should not start emission spans', () => {
+        spans.filter(span => span.name === 'cratis.arc.query.emission').should.have.lengthOf(0);
     });
     it('should mark returned failure results as errors without recording exception messages', () => {
         const failed = spans.find(span => span.name === 'cratis.arc.query.perform' && span.attributes.query_name === 'PrivateFailure')!;
@@ -98,11 +99,10 @@ describe('when tracing an HTTP query with an application SDK', () => {
         JSON.stringify(spans.map(span => ({ attributes: span.attributes, events: span.events, status: span.status })))
             .should.not.include('secret trace detail');
     });
-    it('should parent observable perform and emission spans under a completed subscription', () => {
+    it('should parent the observable perform span under a completed subscription', () => {
         const parent = spans.find(span => span.name === 'cratis.arc.query.subscribe')!;
-        spans.filter(span => span.name === 'cratis.arc.query.perform' && span.attributes.query_name === 'Watch' ||
-            span.name === 'cratis.arc.query.emission').map(span => span.parentSpanContext?.spanId)
-            .should.deep.equal([parent.spanContext().spanId, parent.spanContext().spanId]);
+        spans.filter(span => span.name === 'cratis.arc.query.perform' && span.attributes.query_name === 'Watch')
+            .map(span => span.parentSpanContext?.spanId).should.deep.equal([parent.spanContext().spanId]);
     });
     it('should record a pipeline duration', () => {
         exported.flatMap(resource => resource.scopeMetrics).flatMap(scope => scope.metrics).length.should.be.greaterThan(0);
