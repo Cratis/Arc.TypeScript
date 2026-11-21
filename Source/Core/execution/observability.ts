@@ -19,6 +19,8 @@ function createInstruments(meter: ReturnType<typeof metrics.getMeter>) {
             description: 'Duration of an Arc command execution' }),
         commandOutcomes: meter.createCounter(WellKnownTelemetryNames.commandOutcomes, { unit: '{command}',
             description: 'Number of Arc command executions, by outcome' }),
+        queryEmissions: meter.createCounter(WellKnownTelemetryNames.queryEmissions, { unit: '{emission}',
+            description: 'Number of rendered Arc observable query emissions' }),
         query: meter.createHistogram(WellKnownTelemetryNames.queryDuration, { unit: 's', advice,
             description: 'Duration of an Arc query execution' })
     };
@@ -49,6 +51,14 @@ export function beginSubscription(queryName: string, correlationId: string): { e
             span.end();
         }
     };
+}
+
+/** Count an observable query emission without starting a span or recording an operation duration. */
+export async function observeEmission<T>(queryName: string, callback: () => T | Promise<T>): Promise<T> {
+    const instruments = measurementInstruments();
+    const name = instruments.queryNames.limit(queryName);
+    instruments.queryEmissions.add(1, { query_name: name, [WellKnownTelemetryNames.queryName]: name });
+    return callback();
 }
 
 /** Start an Arc span and measure the completed operation without recording payloads or caller identities. */

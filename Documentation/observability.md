@@ -159,13 +159,14 @@ The HTTP response is redacted outside development (explicitly set here). `yarn c
 | `cratis.arc.query.perform` | Snapshot query or observable source open | `cratis.arc.query.name`, `cratis.arc.query.outcome`, `cratis.arc.query.transport`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.query.filter` | Query validation/filter stage | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.http.handle` | Recognized Arc HTTP endpoint (INTERNAL) | `http.request.method`, `http.route`, `cratis.correlation_id` |
-| `cratis.arc.query.emission` | Observable current value or subsequent delivery | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.query.subscribe` | Parent scope lifetime, including observable snapshots | `cratis.arc.query.name`, `query_name`, `cratis.correlation_id` |
 | `cratis.arc.identity.resolve` | Identity details provider resolution | `cratis.correlation_id` |
 
-Command spans also carry `cratis.arc.command.type`; query spans, including subscriptions and emissions, also carry `cratis.arc.query.name`. These canonical attributes and the retained `command_type` and `query_name` tags contain registered qualified names, not payloads.
+Command spans also carry `cratis.arc.command.type`; query spans, including subscriptions, also carry `cratis.arc.query.name`. These canonical attributes and the retained `command_type` and `query_name` tags contain registered qualified names, not payloads.
 
-The command execution, validation, and filter spans and the query-perform span use the .NET pipeline names. The HTTP, emission, and subscription spans are Node-specific: .NET uses ASP.NET request instrumentation and does not have a per-emission span.
+The command execution, validation, and filter spans and the query-perform span use the .NET pipeline names. The HTTP and subscription spans are Node-specific: .NET uses ASP.NET request instrumentation.
+
+Observable emissions (the current value and every subsequent delivery) do not start spans. A subscription can live for hours and emit without bound, so emission spans parented by the subscription would make each retained trace grow without limit. Arc counts emissions with `cratis.arc.query.emissions` instead. Emission rendering still runs in the subscription's request and service context. Earlier versions emitted a `cratis.arc.query.emission` span and recorded each emission in `cratis.arc.operation.duration`; neither is emitted now, so move emission dashboards to the counter.
 
 ## Metrics
 
@@ -174,10 +175,11 @@ The command execution, validation, and filter spans and the query-perform span u
 | `cratis.arc.command.duration` | `s` | Full command execution; `cratis.arc.command.type`, `cratis.arc.command.outcome` |
 | `cratis.arc.command.outcomes` | `{command}` | One count per command execution; the same attributes as command duration |
 | `cratis.arc.query.duration` | `s` | Snapshot query execution or observable source open; `cratis.arc.query.name`, `cratis.arc.query.transport`, `cratis.arc.query.outcome` |
+| `cratis.arc.query.emissions` | `{emission}` | One count per rendered observable emission; `cratis.arc.query.name` and `query_name` |
 | `cratis.arc.operation.duration` (deprecated) | `s` | Each pipeline stage and operation, tagged with `operation` and the original type, name, or route tags |
 | `cratis.arc.subscription.duration` | `s` | Observable subscription lifetime; `cratis.arc.query.name` and deprecated `query_name` |
 
-The four duration instruments are histograms in seconds; `cratis.arc.command.outcomes` is a monotonic counter. All have descriptions and use the `Cratis.Arc` meter. The histograms' explicit bucket boundary advice is `[0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10]` seconds, matching Arc for .NET's pipeline duration buckets rather than the OpenTelemetry JavaScript SDK's millisecond-scale defaults. Your SDK's views can override this advice; counters have no buckets.
+The four duration instruments are histograms in seconds; `cratis.arc.command.outcomes` and `cratis.arc.query.emissions` are monotonic counters. All have descriptions and use the `Cratis.Arc` meter. The histograms' explicit bucket boundary advice is `[0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10]` seconds, matching Arc for .NET's pipeline duration buckets rather than the OpenTelemetry JavaScript SDK's millisecond-scale defaults. Your SDK's views can override this advice; counters have no buckets.
 
 The tracer and meter scope version is the `@cratis/arc.core` package version, compiled from a generated `Version.ts` constant. `yarn set-version` updates Core's and CodeAnalysis's constants with the manifests; `yarn set-version --check` detects missing or stale constants. Runtime code does not import or bundle the package manifest, and builds no longer emit `dist/package.json`.
 
@@ -208,9 +210,9 @@ Transport describes the returned result, not the requested protocol. Both TypeSc
 
 Import `WellKnownTelemetryNames`, `OperationOutcome`, and `QueryTransport` from `@cratis/arc.core`. The enums expose the values above. `WellKnownTelemetryNames` exposes:
 
-- Scope and instruments: `scope`, `commandDuration`, `commandOutcomes`, `queryDuration`, `operationDuration` (deprecated), `subscriptionDuration`.
+- Scope and instruments: `scope`, `commandDuration`, `commandOutcomes`, `queryDuration`, `queryEmissions`, `operationDuration` (deprecated), `subscriptionDuration`.
 - Attributes: `commandType`, `commandOutcome`, `queryName`, `queryOutcome`, `queryTransport`.
-- Spans: `commandExecuteSpan`, `commandValidateSpan`, `commandFilterSpan`, `queryPerformSpan`, `queryFilterSpan`, `queryEmissionSpan`, `querySubscribeSpan`, `httpHandleSpan`, `identityResolveSpan`.
+- Spans: `commandExecuteSpan`, `commandValidateSpan`, `commandFilterSpan`, `queryPerformSpan`, `queryFilterSpan`, `queryEmissionSpan` (deprecated; no longer emitted), `querySubscribeSpan`, `httpHandleSpan`, `identityResolveSpan`.
 
 ## What Arc does not instrument
 
